@@ -33,6 +33,15 @@ export class PushService {
       where: { userId, endpoint: subscription.endpoint },
     });
 
+    // 清理同用户其他端点（避免 SW 重注册累加）
+    await this.prisma.pushSubscription.deleteMany({
+      where: {
+        userId,
+        ...(existing ? { id: { not: existing.id } } : {}),
+        endpoint: { not: subscription.endpoint },
+      },
+    });
+
     if (existing) {
       return this.prisma.pushSubscription.update({
         where: { id: existing.id },
