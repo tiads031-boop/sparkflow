@@ -258,12 +258,12 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
           </div>
         </div>
         <div>
-          <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">截止</span>
+          <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">截止时间</span>
           <input
-            type="date"
+            type="datetime-local"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50"
+            className="bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50 w-full"
           />
         </div>
       </div>
@@ -604,12 +604,12 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">截止日期</span>
+                  <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">截止时间</span>
                   <input
-                    type="date"
+                    type="datetime-local"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className="bg-white/10 text-white text-xs px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50"
+                    className="bg-white/10 text-white text-xs px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50 w-full"
                   />
                 </div>
               </>
