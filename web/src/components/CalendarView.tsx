@@ -1,13 +1,8 @@
 import { Clock } from 'lucide-react';
-
-const demoEvents = [
-  { id: '1', title: '项目方案评审', time: '09:00 - 10:30', color: '#b0a8db', type: '会议' },
-  { id: '2', title: '专注编码时间', time: '14:00 - 15:00', color: '#cae393', type: '专注' },
-  { id: '3', title: '回复邮件与消息', time: '16:00 - 16:30', color: '#242424', type: '任务' },
-  { id: '4', title: '周报整理', time: '17:00 - 17:30', color: '#b0a8db', type: '任务' },
-];
+import { useAppStore } from '../store/appStore';
 
 export default function CalendarView() {
+  const tasks = useAppStore((s) => s.tasks);
   const today = new Date();
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
   const monthDays: (number | null)[] = [];
@@ -15,6 +10,27 @@ export default function CalendarView() {
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   for (let i = 0; i < firstDay; i++) monthDays.push(null);
   for (let i = 1; i <= daysInMonth; i++) monthDays.push(i);
+
+  // 从 tasks 中提取有 dueDate 的事件
+  const eventDays = new Set<number>();
+  const todayEvents = tasks
+    .filter((t) => {
+      if (!t.dueDate) return false;
+      const d = new Date(t.dueDate);
+      const isTodayEvent =
+        d.getDate() === today.getDate() &&
+        d.getMonth() === today.getMonth() &&
+        d.getFullYear() === today.getFullYear();
+      eventDays.add(d.getDate());
+      return isTodayEvent;
+    })
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      time: t.dueDate ? new Date(t.dueDate).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '全天',
+      color: t.colorType === 'green' ? '#cae393' : t.colorType === 'purple' ? '#b0a8db' : '#242424',
+      type: '任务',
+    }));
 
   return (
     <div className="animate-page-enter">
@@ -43,7 +59,7 @@ export default function CalendarView() {
         <div className="grid grid-cols-7 gap-1">
           {monthDays.map((day, i) => {
             const isToday = day === today.getDate();
-            const hasEvent = day && [1, 3, 15, 22].includes(day);
+            const hasEvent = day && eventDays.has(day);
             return (
               <div
                 key={i}
@@ -64,32 +80,36 @@ export default function CalendarView() {
       {/* Today's events */}
       <div className="bg-white rounded-[2rem] p-5 shadow-sm stagger">
         <h3 className="text-sm font-bold text-[#242424] mb-4">
-          今日事件 · {demoEvents.length} 项
+          今日事件 · {todayEvents.length} 项
         </h3>
         <div className="space-y-3">
-          {demoEvents.map((event) => (
-            <div
-              key={event.id}
-              className="flex items-center gap-4 p-3 rounded-2xl hover:bg-gray-50 transition-colors cursor-pointer"
-              style={{ borderLeft: `3px solid ${event.color}` }}
-            >
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-[#242424]">{event.title}</p>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="flex items-center gap-1 text-[10px] text-gray-400">
-                    <Clock size={11} />
-                    {event.time}
-                  </span>
-                  <span
-                    className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                    style={{ backgroundColor: `${event.color}20`, color: event.color }}
-                  >
-                    {event.type}
-                  </span>
+          {todayEvents.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">今日无日程安排</p>
+          ) : (
+            todayEvents.map((event) => (
+              <div
+                key={event.id}
+                className="flex items-center gap-4 p-3 rounded-2xl hover:bg-gray-50 transition-colors cursor-pointer"
+                style={{ borderLeft: `3px solid ${event.color}` }}
+              >
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-[#242424]">{event.title}</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                      <Clock size={11} />
+                      {event.time}
+                    </span>
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                      style={{ backgroundColor: `${event.color}20`, color: event.color }}
+                    >
+                      {event.type}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>
