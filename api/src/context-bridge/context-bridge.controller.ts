@@ -7,7 +7,7 @@ import type {
   ContextConflictResponse,
 } from './context-entry.interface';
 
-@Controller('api/context')
+@Controller('context')
 export class ContextBridgeController {
   constructor(private readonly contextBridgeService: ContextBridgeService) {}
 

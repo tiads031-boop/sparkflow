@@ -339,7 +339,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadFromApi: async () => {
     set({ isLoading: true, syncError: null });
     try {
-      const res = await apiRequest('/api/context');
+      const res = await apiRequest('/context');
       const data = await res.json();
       const entries: ContextEntry[] = data.entries || [];
       const mtime: number = data.mtime || 0;
@@ -356,7 +356,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ isSyncing: true, syncError: null });
     try {
       const entries = tasksToEntries(tasks);
-      const res = await apiRequest('/api/context/write', {
+      const res = await apiRequest('/context/write', {
         method: 'POST',
         body: JSON.stringify({ entries, lastKnownMtime }),
       });
