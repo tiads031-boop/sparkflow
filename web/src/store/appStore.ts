@@ -146,30 +146,6 @@ function tasksToEntries(tasks: Task[]): ContextEntry[] {
 }
 
 // --- Initial Data (fallback when API unavailable) ---
-const initialTasks: Task[] = [
-  {
-    id: '1', title: 'Web 应用程序用户注册流程',
-    time: '10:00 AM - 05:30 PM', status: 'In review', priority: 'High Priority',
-    colorType: 'dark', comments: 6, column: 'project',
-    subtasks: [
-      { id: '101', title: '完成验证码模块接入', completed: true },
-      { id: '102', title: '优化密码错误提示 UI', completed: false },
-    ],
-  },
-  {
-    id: '2', title: '管理后台用户流程梳理',
-    time: '02:00 PM - 04:00 PM', status: 'In progress', priority: 'Medium',
-    colorType: 'green', comments: 8, column: 'project',
-    subtasks: [{ id: '201', title: '绘制核心流程图', completed: false }],
-  },
-  {
-    id: '3', title: '管理面板仪表盘设计',
-    time: 'Tomorrow', status: 'To do', priority: 'High Priority',
-    colorType: 'purple', comments: 1, column: 'personal',
-    subtasks: [],
-  },
-];
-
 const initialSparks: Spark[] = [
   { id: 's1', text: '尝试用 Framer Motion 给卡片添加微交互动画，提升手感。', color: 'bg-[#cae393]', size: 160, pos: { x: 20, y: 10 }, rot: -2, z: 1 },
   { id: 's2', text: '竞品分析：Notion 的 database 视图很强大，但对于轻量级可能过于复杂。需要保持克制。', color: 'bg-[#b0a8db]', size: 180, pos: { x: 170, y: 30 }, rot: 3, z: 2 },
