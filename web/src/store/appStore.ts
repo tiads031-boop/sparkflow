@@ -21,6 +21,7 @@ export interface Task {
   estimatedMinutes?: number;
   contextMdHash?: string;
   column?: 'project' | 'personal';
+  project?: string;
   /** V4 Calendar: 开始时间 "HH:MM" */
   startTime?: string;
   /** V4 Calendar: 持续时长 (分钟) */
@@ -140,6 +141,7 @@ function entriesToTasks(entries: ContextEntry[]): Task[] {
       e.priority === 'medium' ? 'green' : 'purple',
     column: e.section,
     contextMdHash: e.hash,
+    project: e.project,
     comments: e.notes.length,
     subtasks: e.notes.map((n, i) => ({
       id: `${e.hash}-note-${i}`,
@@ -169,7 +171,7 @@ function tasksToEntries(tasks: Task[]): ContextEntry[] {
       t.priority === 'High Priority' ? 'high' :
       t.priority === 'Medium' ? 'medium' : 'low',
     section: t.column || 'personal',
-    project: '',
+    project: t.project || '',
     notes: t.subtasks?.map((s) => ({ text: s.title, completed: s.completed })) || [],
     rawLine: '',
     dueDate: t.dueDate,
