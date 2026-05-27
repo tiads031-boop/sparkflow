@@ -3,6 +3,7 @@ import {
   ArrowLeft, Check, ArrowRight, Trash2,
   Play, Pause, RotateCcw, CalendarDays, Bell, Zap,
 } from 'lucide-react';
+import type { Task } from '../store/appStore';
 
 interface ModalConfig {
   isOpen: boolean;
@@ -11,10 +12,20 @@ interface ModalConfig {
   data: any;
 }
 
+export interface SaveParams {
+  title: string;
+  content: string;
+  context: string;
+  status?: Task['status'];
+  priority?: Task['priority'];
+  dueDate?: string;
+  column?: 'project' | 'personal';
+}
+
 interface Props {
   config: ModalConfig;
   onClose: () => void;
-  onSave: (params: { title: string; content: string; context: string }) => void;
+  onSave: (params: SaveParams) => void;
   onToggleSubtask: (taskId: string, subtaskId: string) => void;
   onDelete: (id: string, context: string) => void;
 }
@@ -31,6 +42,10 @@ export default function DarkFrostedModal({ config, onClose, onSave, onToggleSubt
   const isCreate = config.mode === 'create';
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [status, setStatus] = useState<Task['status']>('To do');
+  const [priority, setPriority] = useState<Task['priority']>('Medium');
+  const [dueDate, setDueDate] = useState('');
+  const [column, setColumn] = useState<'project' | 'personal'>('personal');
 
   const [order, setOrder] = useState([0, 1, 2]);
   const [dragOffset, setDragOffset] = useState(0);
@@ -47,6 +62,10 @@ export default function DarkFrostedModal({ config, onClose, onSave, onToggleSubt
     if (config.isOpen) {
       setTitle(isCreate ? '' : config.data?.title || '');
       setContent(isCreate ? '' : config.data?.text || '');
+      setStatus(isCreate ? 'To do' : config.data?.status || 'To do');
+      setPriority(isCreate ? 'Medium' : config.data?.priority || 'Medium');
+      setDueDate(isCreate ? '' : config.data?.dueDate || '');
+      setColumn(isCreate ? 'personal' : config.data?.column || 'personal');
       setOrder([0, 1, 2]);
       setDragOffset(0);
       setTimerSec(25 * 60);
@@ -70,7 +89,15 @@ export default function DarkFrostedModal({ config, onClose, onSave, onToggleSubt
   const handleAction = () => {
     if (isCreate) {
       if (!title.trim() && !content.trim()) return onClose();
-      onSave({ title, content, context: config.context });
+      onSave({
+        title,
+        content,
+        context: config.context,
+        status,
+        priority,
+        dueDate: dueDate || undefined,
+        column,
+      });
     }
     onClose();
   };
@@ -313,7 +340,100 @@ export default function DarkFrostedModal({ config, onClose, onSave, onToggleSubt
 
       {/* Center card area */}
       <div className="relative z-20 flex flex-col items-center justify-center h-[60%] w-full">
-        {isCreate ? (
+        {isCreate && config.context === 'task' ? (
+          <div className="w-[90%] max-w-[360px] h-full max-h-[520px] bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-6 flex flex-col relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+            <div className="flex-1 flex flex-col mt-2 space-y-3 overflow-y-auto hide-scrollbar">
+              <span className="text-[10px] text-[#cae393] font-bold tracking-widest uppercase">New Task</span>
+              <input
+                autoFocus
+                type="text"
+                placeholder="任务名称..."
+                className="bg-transparent border-b border-white/20 text-white text-lg font-bold outline-none placeholder:text-white/30 pb-2"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <textarea
+                placeholder="添加细节描述或子任务..."
+                className="bg-transparent border-none text-white/80 text-sm outline-none placeholder:text-white/20 resize-none h-16"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+              />
+
+              {/* 状态选择 */}
+              <div>
+                <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">状态</span>
+                <div className="flex gap-1.5 flex-wrap">
+                  {(['To do', 'In progress', 'In review', 'Done', 'Cancelled'] as Task['status'][]).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setStatus(s)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                        status === s
+                          ? 'bg-[#cae393] text-[#242424]'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 优先级选择 */}
+              <div>
+                <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">优先级</span>
+                <div className="flex gap-1.5">
+                  {(['High Priority', 'Medium', 'Low'] as Task['priority'][]).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPriority(p)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                        priority === p
+                          ? p === 'High Priority' ? 'bg-[#242424] text-white' :
+                            p === 'Medium' ? 'bg-[#cae393] text-[#242424]' : 'bg-[#b0a8db] text-[#242424]'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {p === 'High Priority' ? 'P0' : p === 'Medium' ? 'P1' : 'P2'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 列选择 */}
+              <div>
+                <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">分类</span>
+                <div className="flex gap-1.5">
+                  {(['project', 'personal'] as const).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setColumn(c)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                        column === c
+                          ? 'bg-white/20 text-white'
+                          : 'bg-white/10 text-white/60 hover:bg-white/20'
+                      }`}
+                    >
+                      {c === 'project' ? '项目待办' : '个人待办'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 截止日期 */}
+              <div>
+                <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">截止日期</span>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="bg-white/10 text-white text-xs px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50"
+                />
+              </div>
+            </div>
+          </div>
+        ) : isCreate && config.context === 'spark' ? (
           <div className="w-[85%] max-w-[340px] h-full max-h-[480px] bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-7 flex flex-col relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
             <div className="flex-1 flex flex-col mt-4 space-y-4">
@@ -321,13 +441,13 @@ export default function DarkFrostedModal({ config, onClose, onSave, onToggleSubt
               <input
                 autoFocus
                 type="text"
-                placeholder={config.context === 'task' ? '任务名称...' : '灵感关键字...'}
+                placeholder="灵感关键字..."
                 className="bg-transparent border-b border-white/20 text-white text-xl font-bold outline-none placeholder:text-white/30 pb-2"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
               <textarea
-                placeholder={config.context === 'task' ? '添加细节描述或子任务...' : '记录此刻闪过的想法...'}
+                placeholder="记录此刻闪过的想法..."
                 className="bg-transparent border-none text-white/80 text-sm outline-none placeholder:text-white/20 flex-1 resize-none mt-3"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}

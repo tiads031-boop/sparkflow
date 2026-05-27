@@ -32,10 +32,27 @@ function extractPriority(line: string): ContextEntry['priority'] {
   return 'low';
 }
 
-/** 从行中提取标题和描述 */
-function parseEntryLine(line: string): { title: string; description: string; status: 'todo' | 'done' } {
-  // 去除 "- [ ]" 或 "- [x]" 前缀
-  const status: 'todo' | 'done' = line.startsWith('- [x]') ? 'done' : 'todo';
+/** 从描述末尾提取 @key:value 元数据标记 */
+function extractMetaTags(description: string): { cleanDesc: string; status?: string; dueDate?: string } {
+  const tagPattern = /@([a-z-]+):([^\s@]+)/g;
+  const tags: Record<string, string> = {};
+  let match;
+  while ((match = tagPattern.exec(description)) !== null) {
+    tags[match[1]] = match[2];
+  }
+  // 移除描述末尾的所有元数据标记
+  const cleanDesc = description.replace(/\s*@([a-z-]+):([^\s@]+)/g, '').trim();
+  return {
+    cleanDesc,
+    status: tags['status'],
+    dueDate: tags['due'],
+  };
+}
+
+/** 从行中提取标题、描述和元数据 */
+function parseEntryLine(line: string): { title: string; description: string; status: ContextEntry['status']; dueDate?: string } {
+  // 基础状态：从 checkbox 判断
+  const baseStatus: 'todo' | 'done' = line.startsWith('- [x]') ? 'done' : 'todo';
   let content = line.replace(/^- \[[ x]\] /, '').trim();
 
   // 去除粗体标记 **xxx** 和优先级标记 P0/P1：/🔴
@@ -57,7 +74,19 @@ function parseEntryLine(line: string): { title: string; description: string; sta
     title = content.trim();
   }
 
-  return { title, description, status };
+  // 提取元数据
+  const meta = extractMetaTags(description);
+
+  // 确定最终状态：元数据优先，否则 checkbox
+  let status: ContextEntry['status'] = baseStatus;
+  if (meta.status) {
+    const validStatuses: ContextEntry['status'][] = ['todo', 'in-progress', 'in-review', 'done', 'cancelled'];
+    if (validStatuses.includes(meta.status as ContextEntry['status'])) {
+      status = meta.status as ContextEntry['status'];
+    }
+  }
+
+  return { title, description: meta.cleanDesc, status, dueDate: meta.dueDate };
 }
 
 /** 找到标题与描述的真正分隔符位置 */
@@ -95,12 +124,13 @@ export function parseMd(content: string): ContextEntry[] {
       hash: hashTitle(current.title!),
       title: current.title!,
       description: current.description || '',
-      status: current.status || 'todo',
+      status: (current.status as ContextEntry['status']) || 'todo',
       priority: current.priority || 'low',
       section: current.section || section,
       project: current.section === 'project' ? (current.project || project) : '',
       notes: current.notes || [],
       rawLine: current.rawLine || '',
+      dueDate: current.dueDate,
     };
     entries.push(entry);
     current = null;
@@ -146,7 +176,7 @@ export function parseMd(content: string): ContextEntry[] {
       // 先保存上一个条目
       if (state === 'entry') flushEntry();
 
-      const { title, description, status } = parseEntryLine(line);
+      const { title, description, status, dueDate } = parseEntryLine(line);
       const priority = extractPriority(line);
 
       current = {
@@ -158,6 +188,7 @@ export function parseMd(content: string): ContextEntry[] {
         project,
         notes: [],
         rawLine: line,
+        dueDate,
       };
       state = 'entry';
       continue;

@@ -67,12 +67,13 @@ export interface ContextEntry {
   hash: string;
   title: string;
   description: string;
-  status: 'todo' | 'done';
+  status: 'todo' | 'in-progress' | 'in-review' | 'done' | 'cancelled';
   priority: 'high' | 'medium' | 'low';
   section: 'project' | 'personal';
   project: string;
   notes: string[];
   rawLine: string;
+  dueDate?: string;
 }
 
 // --- API Utils ---
@@ -106,11 +107,19 @@ async function hashTitle(title: string): Promise<string> {
 
 // --- Mapping ---
 function entriesToTasks(entries: ContextEntry[]): Task[] {
+  const statusMap: Record<string, Task['status']> = {
+    'todo': 'To do',
+    'in-progress': 'In progress',
+    'in-review': 'In review',
+    'done': 'Done',
+    'cancelled': 'Cancelled',
+  };
+
   return entries.map((e) => ({
     id: e.hash,
     title: e.title,
     description: e.description,
-    status: e.status === 'done' ? 'Done' : 'To do',
+    status: statusMap[e.status] || 'To do',
     priority:
       e.priority === 'high' ? 'High Priority' :
       e.priority === 'medium' ? 'Medium' : 'Low',
@@ -126,15 +135,24 @@ function entriesToTasks(entries: ContextEntry[]): Task[] {
       completed: false,
     })),
     time: e.description || undefined,
+    dueDate: e.dueDate,
   }));
 }
 
 function tasksToEntries(tasks: Task[]): ContextEntry[] {
+  const statusMap: Record<Task['status'], ContextEntry['status']> = {
+    'To do': 'todo',
+    'In progress': 'in-progress',
+    'In review': 'in-review',
+    'Done': 'done',
+    'Cancelled': 'cancelled',
+  };
+
   return tasks.map((t) => ({
     hash: t.contextMdHash || t.id,
     title: t.title,
     description: t.description || '',
-    status: t.status === 'Done' ? 'done' : 'todo',
+    status: statusMap[t.status] || 'todo',
     priority:
       t.priority === 'High Priority' ? 'high' :
       t.priority === 'Medium' ? 'medium' : 'low',
@@ -142,6 +160,7 @@ function tasksToEntries(tasks: Task[]): ContextEntry[] {
     project: '',
     notes: t.subtasks?.map((s) => s.title) || [],
     rawLine: '',
+    dueDate: t.dueDate,
   }));
 }
 

@@ -3,13 +3,13 @@ import {
   Home, CheckSquare, Calendar as CalendarIcon, Zap,
   Plus, Bell, AlertCircle, LayoutGrid, RefreshCw, CheckCircle2,
 } from 'lucide-react';
-import { useAppStore } from './store/appStore';
+import { useAppStore, type Task } from './store/appStore';
 import DashboardView from './components/DashboardView';
 import TasksView from './components/TasksView';
 import BoardView from './components/BoardView';
 import CalendarView from './components/CalendarView';
 import SparksView from './components/SparksView';
-import DarkFrostedModal from './components/DarkFrostedModal';
+import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
 import SyncConflictModal from './components/SyncConflictModal';
 
 const navItems = [
@@ -159,21 +159,27 @@ export default function App() {
   const handleCloseModal = () =>
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
-  const handleSaveItem = ({ title, content, context }: { title: string; content: string; context: string }) => {
-    const taskColors = ['dark', 'green', 'purple'] as const;
+  const handleSaveItem = ({
+    title, content, context, status, priority, dueDate, column,
+  }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
 
     if (context === 'task') {
+      const colorType = (
+        priority === 'High Priority' ? 'dark' :
+        priority === 'Medium' ? 'green' : 'purple'
+      ) as Task['colorType'];
       const newTask = {
         id: String(Date.now()),
         title: title || '未命名任务',
         time: 'Just now',
-        status: 'To do' as const,
-        priority: 'Medium' as const,
-        colorType: taskColors[Math.floor(Math.random() * taskColors.length)],
+        status: status || 'To do' as const,
+        priority: priority || 'Medium' as const,
+        colorType,
         comments: 0,
         subtasks: content ? [{ id: String(Date.now() + 1), title: content, completed: false }] : [],
-        column: 'personal' as const,
+        column: column || 'personal' as const,
+        dueDate,
       };
       addTask(newTask);
       setActiveTab('tasks');

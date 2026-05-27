@@ -7,7 +7,9 @@ export interface ContextEntry {
   /** 描述文本（— 之后的内容） */
   description: string;
   /** 完成状态 */
-  status: 'todo' | 'done';
+  status: 'todo' | 'in-progress' | 'in-review' | 'done' | 'cancelled';
+  /** 截止日期 (ISO 日期字符串) */
+  dueDate?: string;
   /** 优先级 */
   priority: 'high' | 'medium' | 'low';
   /** 所属分区：项目待办 / 个人待办 */

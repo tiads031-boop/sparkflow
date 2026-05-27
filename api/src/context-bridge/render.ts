@@ -8,26 +8,37 @@ import { ContextEntry } from './context-entry.interface';
  */
 
 function entryToMdLine(e: ContextEntry): string {
+  // 基础 checkbox：done 用 [x]，其他用 [ ]
   const statusMark = e.status === 'done' ? '[x]' : '[ ]';
+
+  // 组装元数据标记
+  const metaTags: string[] = [];
+  if (e.status && e.status !== 'todo' && e.status !== 'done') {
+    metaTags.push(`@status:${e.status}`);
+  }
+  if (e.dueDate) {
+    metaTags.push(`@due:${e.dueDate}`);
+  }
+  const metaSuffix = metaTags.length > 0 ? ` ${metaTags.join(' ')}` : '';
 
   let line: string;
 
   if (e.section === 'project') {
-    // 项目待办格式：- [ ] **P0：标题** — 描述
+    // 项目待办格式：- [ ] **P0：标题** — 描述 @meta
     const titlePart = e.priority === 'high' ? `**P0：${e.title}**` :
                       e.priority === 'medium' ? `P1：${e.title}` :
                       e.title;
     line = e.description
-      ? `- ${statusMark} ${titlePart} — ${e.description}`
-      : `- ${statusMark} ${titlePart}`;
+      ? `- ${statusMark} ${titlePart} — ${e.description}${metaSuffix}`
+      : `- ${statusMark} ${titlePart}${metaSuffix}`;
   } else {
-    // 个人待办格式：- [ ] **🔴 标题** — 描述
+    // 个人待办格式：- [ ] **🔴 标题** — 描述 @meta
     const prefix = e.priority === 'high' ? '**🔴 ' : '';
     const suffix = e.priority === 'high' ? '**' : '';
     const titlePart = prefix ? `${prefix}${e.title}${suffix}` : e.title;
     line = e.description
-      ? `- ${statusMark} ${titlePart} — ${e.description}`
-      : `- ${statusMark} ${titlePart}`;
+      ? `- ${statusMark} ${titlePart} — ${e.description}${metaSuffix}`
+      : `- ${statusMark} ${titlePart}${metaSuffix}`;
   }
 
   return line;
