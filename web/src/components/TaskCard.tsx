@@ -71,7 +71,13 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
       <div className="flex justify-between items-center mt-4">
         <div className="flex items-center gap-2 text-xs opacity-80">
           <Clock size={13} />
-          <span>{task.time || '未设定'}</span>
+          <span>
+            {task.dueDate
+              ? new Date(task.dueDate).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) +
+                ' ' +
+                new Date(task.dueDate).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+              : task.time || '未设定'}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <span className={`text-[10px] px-2.5 py-1 rounded-full ${

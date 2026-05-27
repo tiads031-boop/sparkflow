@@ -427,15 +427,34 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadFromApi: async () => {
     set({ isLoading: true, syncError: null });
+
+    // 1. 先尝试从 localStorage 恢复缓存，实现 immediate render
+    try {
+      const cached = localStorage.getItem('sparkflow_tasks_cache');
+      const cachedMtime = localStorage.getItem('sparkflow_mtime_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached) as Task[];
+        const mtime = cachedMtime ? Number(cachedMtime) : null;
+        set({ tasks: parsed, hasLoaded: true, lastKnownMtime: mtime });
+      }
+    } catch { /* 缓存读取失败静默处理 */ }
+
     try {
       const res = await apiRequest('/context');
       const data = await res.json();
       const entries: ContextEntry[] = data.entries || [];
       const mtime: number = data.mtime || 0;
       const tasks = entriesToTasks(entries);
-      set({ entries, tasks, lastKnownMtime: mtime, isLoading: false, hasLoaded: true });
+      set({ entries, tasks, lastKnownMtime: mtime, isLoading: false, hasLoaded: true, syncError: null });
+
+      // 同步成功后写入本地缓存
+      try {
+        localStorage.setItem('sparkflow_tasks_cache', JSON.stringify(tasks));
+        localStorage.setItem('sparkflow_mtime_cache', String(mtime));
+      } catch { /* 缓存写入失败静默处理 */ }
     } catch (err: any) {
-      set({ syncError: err.message || '加载失败', isLoading: false, hasLoaded: true, tasks: [] });
+      // API 失败时保留现有 tasks（可能是缓存恢复的），不清空
+      set({ syncError: err.message || '加载失败', isLoading: false, hasLoaded: true });
     }
   },
 
@@ -466,13 +485,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       const data = await res.json();
       const newEntries: ContextEntry[] = data.entries || [];
       const newTasks = entriesToTasks(newEntries);
+      const newMtime = data.mtime || lastKnownMtime;
       set({
         entries: newEntries,
         tasks: newTasks,
-        lastKnownMtime: data.mtime || lastKnownMtime,
+        lastKnownMtime: newMtime,
         conflicts: [],
         isSyncing: false,
       });
+
+      // 同步成功后更新本地缓存
+      try {
+        localStorage.setItem('sparkflow_tasks_cache', JSON.stringify(newTasks));
+        localStorage.setItem('sparkflow_mtime_cache', String(newMtime));
+      } catch { /* 缓存写入失败静默处理 */ }
     } catch (err: any) {
       set({ syncError: err.message || '同步失败', isSyncing: false });
     }

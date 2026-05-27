@@ -276,35 +276,49 @@ export default function DashboardView({ tasks, pomodoro }: { tasks: Task[]; pomo
           ))}
         </div>
 
-        {/* Bar chart */}
-        <div className="h-44 flex items-end justify-between gap-1.5 px-1 pb-4 relative border-b border-gray-100">
-          {bars.map((bar, i) => (
-            <div
-              key={i}
-              className="chart-bar-group flex-1 flex flex-col justify-end gap-0.5 h-full cursor-pointer"
-              onClick={() => {
-                setDrillIndex(i);
-                setDrillLabel(bar.fullLabel);
-              }}
-              style={{ transition: 'opacity 0.2s' }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-            >
-              <div className="w-full bg-[#cae393] rounded-t-sm opacity-80" style={{ height: `${bar.h1}%` }} />
-              <div className="w-full bg-[#b0a8db] rounded-sm opacity-80" style={{ height: `${bar.h2}%` }} />
-              <div className="w-full bg-[#242424] rounded-b-sm opacity-90" style={{ height: `${bar.h3}%` }} />
+        {/* Bar chart / Empty state */}
+        {total === 0 ? (
+          <div className="h-44 flex flex-col items-center justify-center border-b border-gray-100">
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c4c4c4" strokeWidth="1.5">
+                <rect x="3" y="12" width="4" height="9" rx="1" />
+                <rect x="10" y="7" width="4" height="14" rx="1" />
+                <rect x="17" y="3" width="4" height="18" rx="1" />
+              </svg>
             </div>
-          ))}
-        </div>
-
-        {/* X-axis labels */}
-        <div className="flex justify-between mt-2 px-1">
-          {bars.map((bar, i) => (
-            <span key={i} className="text-[10px] text-gray-400 text-center" style={{ width: `${100 / bars.length}%` }}>
-              {bar.label}
-            </span>
-          ))}
-        </div>
+            <p className="text-sm text-gray-400">暂无任务数据</p>
+            <p className="text-[10px] text-gray-300 mt-0.5">添加任务后柱状图自动同步</p>
+          </div>
+        ) : (
+          <>
+            <div className="h-44 flex items-end justify-between gap-1.5 px-1 pb-4 relative border-b border-gray-100">
+              {bars.map((bar, i) => (
+                <div
+                  key={i}
+                  className="chart-bar-group flex-1 flex flex-col justify-end gap-0.5 h-full cursor-pointer"
+                  onClick={() => {
+                    setDrillIndex(i);
+                    setDrillLabel(bar.fullLabel);
+                  }}
+                  style={{ transition: 'opacity 0.2s' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.85')}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                >
+                  <div className="w-full bg-[#cae393] rounded-t-sm opacity-80" style={{ height: `${bar.h1}%` }} />
+                  <div className="w-full bg-[#b0a8db] rounded-sm opacity-80" style={{ height: `${bar.h2}%` }} />
+                  <div className="w-full bg-[#242424] rounded-b-sm opacity-90" style={{ height: `${bar.h3}%` }} />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between mt-2 px-1">
+              {bars.map((bar, i) => (
+                <span key={i} className="text-[10px] text-gray-400 text-center" style={{ width: `${100 / bars.length}%` }}>
+                  {bar.label}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Pomodoro stats */}

@@ -486,6 +486,50 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
         </div>
       </div>
 
+      {/* 仅截止日期任务（无 startTime，不在时间线上） */}
+      {(() => {
+        const dueOnlyTasks = dayTasks.filter((t) => t.dueDate && !t.startTime);
+        if (dueOnlyTasks.length === 0) return null;
+        return (
+          <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden mt-4">
+            <div className="p-4 pb-2 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#242424]">
+                截止任务 · {dueOnlyTasks.length} 项
+              </h3>
+              <span className="text-[10px] text-gray-400">截止日期已设定，未安排到时间线</span>
+            </div>
+            <div className="px-4 pb-4 space-y-2">
+              {dueOnlyTasks.map((task) => {
+                const colors = getTaskColor(task.colorType);
+                const dueDateStr = task.dueDate
+                  ? new Date(task.dueDate).toLocaleString('zh-CN', {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : '';
+                return (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 cursor-pointer hover:shadow-sm transition-shadow"
+                    style={{ background: colors.bg, color: colors.text }}
+                    onClick={() => onTaskClick?.(task)}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: task.colorType === 'dark' ? 'white' : '#242424' }}
+                    />
+                    <span className="flex-1 text-xs font-medium truncate">{task.title}</span>
+                    <span className="text-[10px] opacity-60 flex-shrink-0">{dueDateStr}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 空状态 */}
       {dayTasks.length === 0 && (
         <div className="bg-white rounded-[2rem] p-8 shadow-sm mt-4 text-center">

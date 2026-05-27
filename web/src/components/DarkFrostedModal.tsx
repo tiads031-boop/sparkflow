@@ -57,6 +57,11 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
+  // ---- deadline toggle & notification confirm ----
+  const [hasDueDate, setHasDueDate] = useState(false);
+  const [showNotifyConfirm, setShowNotifyConfirm] = useState(false);
+  const [pendingSaveParams, setPendingSaveParams] = useState<SaveParams | null>(null);
+
   // ---- 3D card state ----
   const [order, setOrder] = useState([0, 1, 2]);
   const [dragOffset, setDragOffset] = useState(0);
@@ -81,7 +86,9 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setPriority('Medium');
         setDueDate('');
         setColumn('personal');
+        setHasDueDate(false);
       } else if (config.data) {
+        const hasExistingDueDate = !!config.data.dueDate;
         setTitle(config.data.title || '');
         setContent(config.data.description || config.data.text || '');
         setStatus(config.data.status || 'To do');
@@ -89,29 +96,43 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setDueDate(config.data.dueDate || '');
         setColumn(config.data.column || 'personal');
         setSubtasks(config.data.subtasks || []);
+        setHasDueDate(hasExistingDueDate);
       }
       setOrder([0, 1, 2]);
       setDragOffset(0);
       setShowDeleteConfirm(false);
+      setShowNotifyConfirm(false);
+      setPendingSaveParams(null);
     }
   }, [config.isOpen, isCreate, config.data]);
 
   if (!config.isOpen) return null;
 
-  const handleSave = () => {
+  const doSave = (notifyBeforeDeadline = false) => {
     if (!title.trim() && !content.trim()) return onClose();
-    onSave({
+    const saveParams: SaveParams = {
       id: isCreate ? undefined : config.data?.id,
       title,
       content,
       context: config.context,
       status: isTask ? status : undefined,
       priority: isTask ? priority : undefined,
-      dueDate: isTask ? (dueDate || undefined) : undefined,
+      dueDate: isTask ? (hasDueDate && dueDate ? dueDate : undefined) : undefined,
       column: isTask ? column : undefined,
       subtasks: isTask && !isCreate ? subtasks : undefined,
-    });
+    };
+    onSave(saveParams);
+    // notifyBeforeDeadline 标记可在后续版本中扩展存入 task
     onClose();
+  };
+
+  const handleSave = () => {
+    // 如果设置了截止时间且尚未确认通知，弹出确认弹窗
+    if (isTask && hasDueDate && dueDate && !showNotifyConfirm) {
+      setShowNotifyConfirm(true);
+      return;
+    }
+    doSave();
   };
 
   const handleDelete = () => {
@@ -257,15 +278,38 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
             ))}
           </div>
         </div>
-        <div>
-          <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">截止时间</span>
+      </div>
+
+      {/* Deadline toggle */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase">
+            截止时间
+          </span>
+          <button
+            onClick={() => { setHasDueDate(!hasDueDate); if (!hasDueDate) setDueDate(''); }}
+            className={`relative w-9 h-5 rounded-full transition-colors ${
+              hasDueDate ? 'bg-[#cae393]' : 'bg-white/15'
+            }`}
+          >
+            <div
+              className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                hasDueDate ? 'left-[18px]' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+        {hasDueDate && (
           <input
             type="datetime-local"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50 w-full"
+            className="bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50 w-full animate-in fade-in"
           />
-        </div>
+        )}
+        {!hasDueDate && (
+          <p className="text-[10px] text-white/20 italic">不设置截止时间</p>
+        )}
       </div>
 
       {/* Delete */}
@@ -604,13 +648,34 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                 </div>
 
                 <div>
-                  <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">截止时间</span>
-                  <input
-                    type="datetime-local"
-                    value={dueDate}
-                    onChange={(e) => setDueDate(e.target.value)}
-                    className="bg-white/10 text-white text-xs px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50 w-full"
-                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase">
+                      截止时间
+                    </span>
+                    <button
+                      onClick={() => { setHasDueDate(!hasDueDate); if (!hasDueDate) setDueDate(''); }}
+                      className={`relative w-9 h-5 rounded-full transition-colors ${
+                        hasDueDate ? 'bg-[#cae393]' : 'bg-white/15'
+                      }`}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                          hasDueDate ? 'left-[18px]' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  {hasDueDate && (
+                    <input
+                      type="datetime-local"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="bg-white/10 text-white text-xs px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50 w-full animate-in fade-in"
+                    />
+                  )}
+                  {!hasDueDate && (
+                    <p className="text-[10px] text-white/20 italic">不设置截止时间</p>
+                  )}
                 </div>
               </>
             )}
@@ -631,6 +696,48 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
             </button>
           </div>
         </div>
+
+        {/* Notification confirmation overlay (create mode) */}
+        {showNotifyConfirm && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ animation: 'fade-in 0.2s ease' }}>
+            <div className="absolute inset-0 bg-black/40" onClick={() => { setShowNotifyConfirm(false); doSave(); }} />
+            <div className="relative bg-[#1e1e1e] border border-white/10 rounded-[2rem] p-6 mx-6 w-full max-w-[300px] shadow-2xl" style={{ animation: 'zoom-in-95 0.25s ease' }}>
+              <div className="text-center mb-5">
+                <div className="w-12 h-12 rounded-full bg-[#cae393]/20 flex items-center justify-center mx-auto mb-3">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#cae393" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-bold text-white mb-1">截止前提醒</h3>
+                <p className="text-xs text-white/50 leading-relaxed">
+                  已设置截止时间为<br />
+                  <span className="text-[#cae393] font-medium">
+                    {dueDate ? new Date(dueDate).toLocaleString('zh-CN', {
+                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                    }) : ''}
+                  </span>
+                  <br />
+                  是否需要截止前提醒？
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowNotifyConfirm(false); doSave(); }}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-medium bg-white/10 text-white/60 hover:bg-white/15 transition-colors"
+                >
+                  不需要
+                </button>
+                <button
+                  onClick={() => { setShowNotifyConfirm(false); doSave(true); }}
+                  className="flex-1 py-2.5 rounded-xl text-xs font-medium bg-[#cae393] text-[#242424] hover:bg-[#b8d481] transition-colors"
+                >
+                  需要提醒
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -714,6 +821,48 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
           </div>
         </div>
       </div>
+
+      {/* Notification confirmation overlay (edit mode) */}
+      {showNotifyConfirm && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ animation: 'fade-in 0.2s ease' }}>
+          <div className="absolute inset-0 bg-black/40" onClick={() => { setShowNotifyConfirm(false); doSave(); }} />
+          <div className="relative bg-[#1e1e1e] border border-white/10 rounded-[2rem] p-6 mx-6 w-full max-w-[300px] shadow-2xl" style={{ animation: 'zoom-in-95 0.25s ease' }}>
+            <div className="text-center mb-5">
+              <div className="w-12 h-12 rounded-full bg-[#cae393]/20 flex items-center justify-center mx-auto mb-3">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#cae393" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-bold text-white mb-1">截止前提醒</h3>
+              <p className="text-xs text-white/50 leading-relaxed">
+                已设置截止时间为<br />
+                <span className="text-[#cae393] font-medium">
+                  {dueDate ? new Date(dueDate).toLocaleString('zh-CN', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                  }) : ''}
+                </span>
+                <br />
+                是否需要截止前提醒？
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowNotifyConfirm(false); doSave(); }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-medium bg-white/10 text-white/60 hover:bg-white/15 transition-colors"
+              >
+                不需要
+              </button>
+              <button
+                onClick={() => { setShowNotifyConfirm(false); doSave(true); }}
+                className="flex-1 py-2.5 rounded-xl text-xs font-medium bg-[#cae393] text-[#242424] hover:bg-[#b8d481] transition-colors"
+              >
+                需要提醒
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

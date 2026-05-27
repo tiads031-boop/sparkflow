@@ -1,7 +1,7 @@
 # sparkflow — 项目改造/开发蓝图
 
 > 本文档记录项目的所有决策、实施进度和下一步计划。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-28 | **状态**: Phase 6 V4 正式版编码中，Dashboard 图表交互 + Calendar 时间线已完成
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-28 | **状态**: Phase 6 V4 正式版编码中，Dashboard 图表交互 + Calendar 时间线已完成，修复数据同步+截止时间功能
 
 ---
 
@@ -168,6 +168,12 @@ PWA → POST /api/context/write (mtime + 变更)
 | **V4 正式版：Calendar 日历头伸缩 Phase B** | ✅ | 展开=月历网格 / 收缩=单行周历，事件日绿点标记，prev/next 导航（月/周） |
 | **V4 正式版：Calendar 拖拽 Phase C** | ✅ | Pointer Events 拖拽移动 startTime + 底部 resize 调整 duration，磁吸到 snapMinutes 粒度，拖拽后自动 updateTask 持久化 |
 | **决策确认：@start + @duration 协议扩展** | ✅ | 时间线数据模型向后兼容扩展，不进 DB 纯协议层携带 |
+| **TaskCard 时间显示修复** | ✅ | 优先读取 dueDate 格式化显示（如"6月3日 14:00"），无 dueDate 时 fallback 到 time |
+| **创建表单截止时间 toggle** | ✅ | 截止时间改为开关控制，默认关闭；开启后才显示 datetime-local 输入框 |
+| **截止时间通知确认弹窗** | ✅ | 设置截止时间且保存时，弹出"是否需要截止前提醒"确认框 |
+| **柱状图空状态处理** | ✅ | 无任务时 Dashboard 柱状图不渲染柱子，显示空状态占位图和引导文案 |
+| **数据同步兜底：localStorage 离线缓存** | ✅ | API 失败时不清空本地 tasks；加载前先读 localStorage 渲染；同步成功后写缓存 |
+| **日历展示截止任务** | ✅ | CalendarView 新增"截止任务"区域，展示有 dueDate 但无 startTime 的任务 |
 
 ---
 
@@ -254,6 +260,24 @@ PWA → POST /api/context/write (mtime + 变更)
 ---
 
 ## 七、更新日志
+
+### 2026-05-28（数据同步修复 + 截止时间功能闭环）
+- **数据同步兜底**：`loadFromApi` 添加 localStorage 缓存机制
+  - 加载前先读 `sparkflow_tasks_cache` 立即渲染，避免白屏等待
+  - API 成功后覆盖写缓存；API 失败时保留现有 tasks，不再强制清空
+  - `syncToApi` 成功后同步更新缓存
+- **CalendarView 截止任务展示**：新增"截止任务"区域，显示当天有 `dueDate` 但未安排时间线的任务；支持点击跳转编辑
+- **Dashboard 柱状图空状态**：无任务时不渲染柱状图，显示空状态占位图（柱状图图标 + 引导文案"添加任务后柱状图自动同步"）
+- **TaskCard 时间显示修复**：优先读取 `dueDate` 并格式化为"月日 时:分"；无 `dueDate` 时 fallback 到 `task.time` 或"未设定"
+- **DarkFrostedModal 截止时间 toggle**：创建/编辑表单中截止时间改为开关控制（Toggle Switch）
+  - 默认关闭，不设置截止时间
+  - 开启后显示 `datetime-local` 选择器
+  - 编辑已有任务时自动检测并恢复开关状态
+- **DarkFrostedModal 通知确认弹窗**：设置截止时间后保存时，弹出二次确认
+  - 显示截止时间、询问"是否需要截止前提醒"
+  - 选项"需要提醒" / "不需要"
+  - 为后续 Web Push + Service Worker 截止提醒留接口
+- TypeScript 编译零错误通过
 
 ### 2026-05-28（V4 正式版：Dashboard + Calendar）
 - **Dashboard 图表交互升级**：日/周/月三维度切换（pill 按钮），柱状图按 hour/周几/日期段动态计算分布
@@ -428,6 +452,12 @@ PWA → POST /api/context/write (mtime + 变更)
 | 2026-05-27 | `In progress` 状态刷新后变回 `To do` | 修复 `parseEntryLine`：元数据提取移至 title/description 分割之前 |
 | 2026-05-27 | DarkFrostedModal view 模式无法编辑任务 | 恢复 3D 卡片堆叠，卡片 1 内嵌完整编辑表单 |
 | 2026-05-27 | 删除按钮直接删除无确认 | 编辑卡片底部删除按钮改为"点两次确认"机制 |
+| 2026-05-28 | **跨界面任务同步丢失**：`loadFromApi` 失败时清空 `tasks: []` 导致刷新后任务消失 | 添加 localStorage 缓存兜底：加载前先读缓存渲染，API 成功后再覆盖；API 失败时保留现有 tasks |
+| 2026-05-28 | **CalendarView 只显示有时间线的任务**：仅有 `dueDate` 无 `startTime` 的任务在日历中不可见 | 新增"截止任务"区域，以列表形式展示当天有 dueDate 但未安排时间线的任务 |
+| 2026-05-28 | **Dashboard 柱状图在无数据时渲染无意义柱子** | 无任务时改为显示空状态占位图 + 引导文案，不渲染柱状图 |
+| 2026-05-28 | **TaskCard 时间显示错误**：设置 `dueDate` 后仍显示 `task.time` 或"未设定" | 优先读取 `dueDate`，格式化为"月日 时:分" |
+| 2026-05-28 | **创建任务无法表达"不需要截止时间"**：datetime-local 输入框始终可见 | 添加 toggle 开关，默认关闭，开关开启后才显示日期选择器 |
+| 2026-05-28 | **无截止时间通知确认** | 设置截止时间后保存时弹出通知确认弹窗（"需要提醒"/"不需要"），为后续 Web Push 截止提醒留接口 |
 
 ---
 
@@ -435,7 +465,7 @@ PWA → POST /api/context/write (mtime + 变更)
 
 | 优先级 | 任务 | 说明 | 状态 |
 |---|---|---|---|
-| P0 | 部署上线（Render + Vercel） | 前后端已部署，域名已确认 | ✅ |
+| P0 | **数据同步兜底 + 截止时间功能闭环** | localStorage 缓存 + 截止时间 toggle + 通知确认弹窗 + 柱状图空状态 | ✅ |
 | P0 | BoardView 拖拽换列持久化 | 拖拽换列后 `updateTask({column})` → `syncToApi` → `tasksToEntries` 映射 `section` → `renderMd` 按分区写回 | ✅ |
 | P1 | 子任务状态持久化 | notes 协议扩展为 `NoteItem[]`（含 completed），解析/渲染/合并/前后端映射全链路打通 | ✅ |
 | P1 | 番茄钟专注时长持久化 | `POST /pomodoro` 创建 session；`complete`/`interrupt` 结束；Dashboard stats 实时拉取 | ✅ |
