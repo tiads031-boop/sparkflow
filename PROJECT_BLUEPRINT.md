@@ -358,8 +358,10 @@ PWA → POST /api/context/write (mtime + 变更)
 - **数据链路**：`Task` 接口已有 `startTime?: string` 和 `duration?: number` 字段，`addTask` / `updateTask` 无需修改即可透传，前端零阻力落地
 - **混合方案预留**：当前以 ⏱️ 按钮（方案 B）为主路径，后续可迭代增加截止任务长按拖入时间线（方案 A），两种交互不冲突
 - **构建验证**：TypeScript 无错误，Vite 生产构建通过（1745 modules）
+- **Bug 修复（第一轮）**：长按不响应 — React 合成事件 `e.pointerId` 在 `setTimeout` 异步回调中失效 + `setPointerCapture` 无 try-catch 静默吞错 + `useCallback` 依赖 `creatingGhost` 导致回调频繁重建产生 stale closure；修复：ref 即时存储 `pointerId`/`rect`、函数式 `setState`、`creatingGhostRef` 同步
+- **Bug 修复（第二轮）**：ghost 拖拽无法调整时长（只能 30min）— `setPointerCapture` 在移动端与 React 合成事件不兼容，pointer capture 后 React fiber 树与浏览器事件目标映射不一致导致 `pointermove` 丢失；修复：弃用 `setPointerCapture`，ghost 激活后注册 `document.addEventListener('pointermove/pointerup')` 原生监听，原生 handler 直接读 `ev.clientY` + `getBoundingClientRect()` 计算坐标，完全绕过 React 事件系统
 - **本地 dev server 验证**：`vite --host` 在端口 5174 启动；浏览器访问确认 Dashboard pill 按钮 + Calendar 收缩态周历 + 24h 时间线刻度布局正确；API 因 Render 休眠显示同步异常，不影响 UI 框架验证
-- **GitHub 推送**：Commit `ac0af46` 推送至 `tiads031-boop/sparkflow.git`；Git Credential Manager 缓存冲突（绑定了另一 GitHub 账号），已执行 `git credential-manager erase` 清除后重新推送成功；Vercel 自动构建已触发
+- **GitHub 推送**：Commit `8844dc9` 推送至 `tiads031-boop/sparkflow.git`；Vercel 自动构建已触发
 
 ### 2026-05-27（部署完成 + 功能迭代）
 - **部署上线**：Render 后端 `sparkflow-jych.onrender.com` + Vercel 前端 `sparkflow031.vercel.app`
@@ -527,6 +529,8 @@ PWA → POST /api/context/write (mtime + 变更)
 | 2026-05-28 | **截止时间时区偏移 8 小时**：前端 `datetime-local` 传本地时间 (GMT+8)，服务器 `new Date()` 按 UTC 解读 | App.tsx `handleSaveItem` 保存前转 `toISOString()`；DarkFrostedModal 编辑时还原为本地时间供输入框 |
 | 2026-05-28 | **Render WAF 拦截 sync-push**：`python -m quota_monitor serve-ui` 等命令模式出现在 md 内容中，触发 Render 反向代理 403 Blocked | sync-push-raw 端点支持 `encoding: 'base64'`，同步脚本默认 base64 编码请求体，绕过 WAF 内容扫描 |
 | 2026-05-28 | **renderMd 丢失项目标题**：Render 容器重启后 `ensureFile()` 生成空模板（无 `###` 标题），forceWrite 重建时所有项目条目误入个人待办区 | renderMd 预扫描模板，无 `###` 标题时动态生成项目分组标题，确保条目归属正确 |
+| 2026-05-28 | **时间线长按创建不响应**：React 合成事件的 `e.pointerId` 在 `setTimeout` 异步回调中失效，`setPointerCapture` 静默失败后 ghost 无法接收 pointermove | 改为 ref 即时存储 `pointerId` + `rect`，`setPointerCapture` 加 try-catch，`useCallback` 移除 `creatingGhost` 依赖并用函数式 `setState` |
+| 2026-05-28 | **ghost 拖拽无法调整时长（只能 30min）**：`setPointerCapture` + React 合成事件在移动端不可靠组合——pointer capture 后 React fiber 树与浏览器事件目标映射不一致，导致 `pointermove` 丢失 | 弃用 `setPointerCapture`，ghost 激活后注册原生 `document.addEventListener('pointermove/pointerup')`，原生 listener 直接读 `ev.clientY` + `getBoundingClientRect()` 计算坐标，完全绕过 React 事件系统 |
 
 ---
 
