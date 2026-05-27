@@ -136,4 +136,46 @@ export class PushService {
       this.logger.log(`Push cron: sent=${sent} removed=${removed} tasks=${dueTasks.length}`);
     }
   }
+
+  /**
+   * 诊断用：向指定用户（或所有订阅者）发送测试推送
+   */
+  async sendTestNotification(userId?: string) {
+    const publicKey = this.config.get<string>('VAPID_PUBLIC_KEY');
+    if (!publicKey) return { ok: false, reason: 'VAPID keys not configured' };
+
+    const subs = userId
+      ? await this.prisma.pushSubscription.findMany({ where: { userId } })
+      : await this.prisma.pushSubscription.findMany();
+
+    if (subs.length === 0) return { ok: false, reason: `No subscriptions found${userId ? ' for user ' + userId : ''}` };
+
+    const payload = JSON.stringify({
+      title: '🧪 SparkFlow 测试通知',
+      body: `推送链路正常！订阅数: ${subs.length}，时间: ${new Date().toLocaleString('zh-CN')}`,
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      data: { url: '/' },
+      tag: 'sparkflow-test',
+    });
+
+    let sent = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payload,
+        );
+        sent++;
+      } catch (err: any) {
+        failed++;
+        errors.push(`${sub.id.slice(0, 8)}: ${err.statusCode || err.message}`);
+      }
+    }
+
+    return { ok: sent > 0, subscriptions: subs.length, sent, failed, errors: errors.slice(0, 5) };
+  }
 }

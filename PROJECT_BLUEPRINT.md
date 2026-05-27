@@ -1,7 +1,7 @@
 # sparkflow — 项目改造/开发蓝图
 
 > 本文档记录项目的所有决策、实施进度和下一步计划。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-28 | **状态**: Phase 6 V4 正式版编码中，Dashboard 图表交互 + Calendar 时间线已完成，修复数据同步+截止时间功能
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-28 | **状态**: Phase 6 V4 正式版完成，双向同步+轮询机制已落地
 
 ---
 
@@ -33,6 +33,7 @@ sparkflow 原本是一个灵感记录与任务管理应用，`sparkflow-api`（N
 | 14 | 状态体系 | md 存 `todo/in-progress/in-review/done/cancelled`，前端映射为 `To do/In progress/In review/Done/Cancelled` | 协议层保持简洁，表现层丰富 |
 | 15 | 子任务协议 | notes（备注块）用 `> [x] text` / `> [ ] text` 承载 completed 状态；普通 `> text` 默认 `completed: false` | 不破坏 md 可读性，checkbox 语义自解释；所有备注行统一升格为子任务 |
 | 16 | 时间线数据扩展 | `@start:HH:MM` + `@duration:MIN` 元数据标记，不进 DB 纯协议层 | 向后兼容，支持 Calendar 时间线精确渲染时段 |
+| 17 | 外部变更感知 | 前端每 15s 轮询 GET /context 对比 mtime，mtime 变化时自动拉取更新 | 弥补 AI/手动编辑 md 后前端无感知的缺口；轮询比 fs.watch 更兼容部署环境 |
 
 ---
 
@@ -261,6 +262,16 @@ PWA → POST /api/context/write (mtime + 变更)
 
 ## 七、更新日志
 
+### 2026-05-28（截止时间时区修复 + 诊断端点）
+- **时区修复**：前端 `datetime-local` 传的本地时间 (GMT+8) 被服务器 UTC 误读，导致 dueDate 偏移 8 小时
+  - `App.tsx` `handleSaveItem`：保存前 `new Date(dueDate).toISOString()` 转为 UTC ISO 字符串
+  - `DarkFrostedModal` useEffect：编辑时 `new Date(isoString).getHours()` 还原为本地时间格式
+  - TaskCard / CalendarView 显示端天然正确（`toLocaleString` 自动按本地时区格式化）
+- **诊断端点**：`POST /api/push/test` 手动触发测试推送
+  - 返回订阅数、发送成功/失败数、错误详情
+  - 用于验证 VAPID 配置 + 推送订阅 + SW 整条链路
+- TypeScript 前后端编译零错误
+
 ### 2026-05-28（截止时间通知修复：DB 同步断链）
 - **根因定位**：通知链路存在数据断链
   - `context-bridge.service.write()` 只写 MD 文件，不同步数据库
@@ -291,6 +302,17 @@ PWA → POST /api/context/write (mtime + 变更)
   - 选项"需要提醒" / "不需要"
   - 为后续 Web Push + Service Worker 截止提醒留接口
 - TypeScript 编译零错误通过
+
+### 2026-05-28（双向同步轮询闭环）
+- **轮询机制**：前端新增 `pollForUpdates()`，每 15s 调用 GET /context 对比 mtime
+  - mtime 变化时自动拉取最新 entries，静默更新 store + localStorage 缓存
+  - 正在同步时（`isSyncing=true`）跳过轮询，避免与用户操作竞态
+  - 轮询失败静默处理，不打断用户、不改变 UI 状态
+- **双向同步闭环确认**：
+  - 方向 A（前端 → md）：addTask/updateTask/deleteTask → syncToApi → POST /context/write
+  - 方向 B（md → 前端）：mount 时 loadFromApi + 每 15s pollForUpdates
+  - 外部编辑（AI 对话 / 手动改 md）→ 前端最多 15s 内感知
+- **蓝图更新**：新增决策点 #17（外部变更感知），记录轮询 vs fs.watch 的选型理由
 
 ### 2026-05-28（V4 正式版：Dashboard + Calendar）
 - **Dashboard 图表交互升级**：日/周/月三维度切换（pill 按钮），柱状图按 hour/周几/日期段动态计算分布
@@ -471,7 +493,7 @@ PWA → POST /api/context/write (mtime + 变更)
 | 2026-05-28 | **TaskCard 时间显示错误**：设置 `dueDate` 后仍显示 `task.time` 或"未设定" | 优先读取 `dueDate`，格式化为"月日 时:分" |
 | 2026-05-28 | **创建任务无法表达"不需要截止时间"**：datetime-local 输入框始终可见 | 添加 toggle 开关，默认关闭，开关开启后才显示日期选择器 |
 | 2026-05-28 | **无截止时间通知确认** | 设置截止时间后保存时弹出通知确认弹窗（"需要提醒"/"不需要"），为后续 Web Push 截止提醒留接口 |
-| 2026-05-28 | **截止时间无通知**：PushService cron 查询 `prisma.task` 表，但 context-bridge 只写 MD 文件，从未同步到 DB，导致 `notifyDueTasks()` 永远查不到任务 | context-bridge.service 新增 `syncEntriesToDb()` 方法，写操作后批量 upsert 到 Task 表，清理过期条目 |
+| 2026-05-28 | **截止时间时区偏移 8 小时**：前端 `datetime-local` 传本地时间 (GMT+8)，服务器 `new Date()` 按 UTC 解读 | App.tsx `handleSaveItem` 保存前转 `toISOString()`；DarkFrostedModal 编辑时还原为本地时间供输入框 |
 
 ---
 
@@ -479,6 +501,7 @@ PWA → POST /api/context/write (mtime + 变更)
 
 | 优先级 | 任务 | 说明 | 状态 |
 |---|---|---|---|
+| P0 | **CURRENT_CONTEXT.md 双向同步闭环** | 前端轮询检测 md 外部变更 + 操作即时写回，实现 AI/手动编辑 ↔ PWA 的完整双向联动 | ✅ |
 | P0 | **数据同步兜底 + 截止时间功能闭环** | localStorage 缓存 + 截止时间 toggle + 通知确认弹窗 + 柱状图空状态 | ✅ |
 | P0 | BoardView 拖拽换列持久化 | 拖拽换列后 `updateTask({column})` → `syncToApi` → `tasksToEntries` 映射 `section` → `renderMd` 按分区写回 | ✅ |
 | P1 | 子任务状态持久化 | notes 协议扩展为 `NoteItem[]`（含 completed），解析/渲染/合并/前后端映射全链路打通 | ✅ |

@@ -165,11 +165,19 @@ export default function App() {
   const unsubscribeFromPush = useAppStore((s) => s.unsubscribeFromPush);
   const checkPushStatus = useAppStore((s) => s.checkPushStatus);
 
+  const pollForUpdates = useAppStore((s) => s.pollForUpdates);
+
   useEffect(() => {
     loadFromApi();
     loadPomodoroStats();
     checkPushStatus();
   }, [loadFromApi, loadPomodoroStats, checkPushStatus]);
+
+  // 轮询检测 CURRENT_CONTEXT.md 外部变更（每 15 秒）
+  useEffect(() => {
+    const interval = setInterval(() => pollForUpdates(), 15_000);
+    return () => clearInterval(interval);
+  }, [pollForUpdates]);
 
   useEffect(() => {
     const interval = setInterval(() => tick(), 1000);
@@ -198,6 +206,10 @@ export default function App() {
   }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
 
+    // 将 datetime-local 格式的本地时间转为 UTC ISO 字符串，
+    // 避免服务器时区（UTC）误解读导致 8 小时偏移
+    const normalizedDueDate = dueDate ? new Date(dueDate).toISOString() : undefined;
+
     if (context === 'task') {
       const colorType = (
         priority === 'High Priority' ? 'dark' :
@@ -212,7 +224,7 @@ export default function App() {
           priority: priority || 'Medium',
           colorType,
           column: column || 'personal',
-          dueDate: dueDate || undefined,
+          dueDate: normalizedDueDate || undefined,
           ...(subtasks !== undefined ? { subtasks } : {}),
         });
       } else {
@@ -226,7 +238,7 @@ export default function App() {
           comments: 0,
           subtasks: content ? [{ id: String(Date.now() + 1), title: content, completed: false }] : [],
           column: column || 'personal' as const,
-          dueDate,
+          dueDate: normalizedDueDate,
         };
         addTask(newTask);
         setActiveTab('tasks');

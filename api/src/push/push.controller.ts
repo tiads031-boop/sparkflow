@@ -25,4 +25,11 @@ export class PushController {
   unsubscribe(@Body() data: { userId: string; endpoint: string }) {
     return this.pushService.unsubscribe(data.userId, data.endpoint);
   }
+
+  /** 诊断：手动触发一次推送测试 */
+  @Post('test')
+  async testPush(@Body() data: { userId?: string }) {
+    const result = await this.pushService.sendTestNotification(data.userId);
+    return result;
+  }
 }

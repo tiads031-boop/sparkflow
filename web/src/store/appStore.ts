@@ -249,6 +249,9 @@ interface AppState {
   clearSyncError: () => void;
   applyMergedEntries: (entries: ContextEntry[], mtime: number) => void;
 
+  // 轮询检测外部 md 变更
+  pollForUpdates: () => Promise<void>;
+
   // 协议层原始数据
   entries: ContextEntry[];
 
@@ -423,6 +426,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   applyMergedEntries: (entries, mtime) => {
     const tasks = entriesToTasks(entries);
     set({ entries, tasks, lastKnownMtime: mtime, conflicts: [] });
+  },
+
+  pollForUpdates: async () => {
+    const { lastKnownMtime, isSyncing } = get();
+    // 正在同步时不轮询，避免竞态
+    if (isSyncing) return;
+    try {
+      const res = await apiRequest('/context');
+      const data = await res.json();
+      const serverMtime: number = data.mtime || 0;
+      // mtime 未变化，跳过
+      if (lastKnownMtime && serverMtime === lastKnownMtime) return;
+
+      const entries: ContextEntry[] = data.entries || [];
+      const tasks = entriesToTasks(entries);
+      set({ entries, tasks, lastKnownMtime: serverMtime, syncError: null });
+
+      // 更新本地缓存
+      try {
+        localStorage.setItem('sparkflow_tasks_cache', JSON.stringify(tasks));
+        localStorage.setItem('sparkflow_mtime_cache', String(serverMtime));
+      } catch { /* 缓存写入失败静默处理 */ }
+    } catch {
+      // 轮询失败静默处理，不打断用户
+    }
   },
 
   loadFromApi: async () => {

@@ -88,11 +88,21 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setHasDueDate(false);
       } else if (config.data) {
         const hasExistingDueDate = !!config.data.dueDate;
+        // 将 UTC ISO 字符串还原为本地时间格式供 datetime-local 输入框使用
+        let localDueDate = '';
+        if (config.data.dueDate) {
+          const d = new Date(config.data.dueDate);
+          localDueDate = d.getFullYear() + '-' +
+            String(d.getMonth() + 1).padStart(2, '0') + '-' +
+            String(d.getDate()).padStart(2, '0') + 'T' +
+            String(d.getHours()).padStart(2, '0') + ':' +
+            String(d.getMinutes()).padStart(2, '0');
+        }
         setTitle(config.data.title || '');
         setContent(config.data.description || config.data.text || '');
         setStatus(config.data.status || 'To do');
         setPriority(config.data.priority || 'Medium');
-        setDueDate(config.data.dueDate || '');
+        setDueDate(localDueDate);
         setColumn(config.data.column || 'personal');
         setSubtasks(config.data.subtasks || []);
         setHasDueDate(hasExistingDueDate);
