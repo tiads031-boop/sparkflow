@@ -190,14 +190,16 @@ async function push(config) {
     }
   }
 
-  // 推送（使用 base64 编码绕过 WAF 内容扫描）
+  // 推送（base64 编码 + skipDone：不推送已完成条目，保留 Render 历史）
   try {
     const encoded = Buffer.from(localContent, 'utf-8').toString('base64');
     const result = await apiRequest(config, 'POST', '/context/sync-push-raw', {
       content: encoded,
       encoding: 'base64',
+      skipDone: true,
     });
-    console.log(`  ✅ 推送成功 (远程条目: ${result.entryCount})`);
+    const skippedInfo = result.skippedDone ? ` (跳过已完成 ${result.skippedDone} 条)` : '';
+    console.log(`  ✅ 推送成功 (活跃条目: ${result.entryCount}${skippedInfo})`);
   } catch (err) {
     console.error(`❌ 推送失败: ${err.message}`);
     process.exit(1);
