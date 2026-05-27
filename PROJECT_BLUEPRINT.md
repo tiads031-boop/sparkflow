@@ -261,6 +261,19 @@ PWA → POST /api/context/write (mtime + 变更)
 
 ## 七、更新日志
 
+### 2026-05-28（截止时间通知修复：DB 同步断链）
+- **根因定位**：通知链路存在数据断链
+  - `context-bridge.service.write()` 只写 MD 文件，不同步数据库
+  - `push.service.notifyDueTasks()` @Cron 每分钟查 `prisma.task` 表
+  - 两套数据源隔离，任务永远不入 DB，cron 永远查不到截止任务
+- **修复**：`context-bridge.service.ts` 新增 `syncEntriesToDb()` 方法
+  - 注入 `PrismaService`，`ContextBridgeModule` 导入 `PrismaModule`
+  - `write()` / `forceWrite()` 成功后自动 upsert entries → `Task` 表（按 `contextMdHash` 查找）
+  - 清理 DB 中已不在 entries 里的过期 tasks
+  - DB 同步失败不影响 MD 文件主流程（try-catch 隔离）
+- **待用户确认**：Render 需设置 VAPID 环境变量（`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`），否则 cron 运行但无密钥发不出推送
+- TypeScript 编译零错误
+
 ### 2026-05-28（数据同步修复 + 截止时间功能闭环）
 - **数据同步兜底**：`loadFromApi` 添加 localStorage 缓存机制
   - 加载前先读 `sparkflow_tasks_cache` 立即渲染，避免白屏等待
@@ -458,6 +471,7 @@ PWA → POST /api/context/write (mtime + 变更)
 | 2026-05-28 | **TaskCard 时间显示错误**：设置 `dueDate` 后仍显示 `task.time` 或"未设定" | 优先读取 `dueDate`，格式化为"月日 时:分" |
 | 2026-05-28 | **创建任务无法表达"不需要截止时间"**：datetime-local 输入框始终可见 | 添加 toggle 开关，默认关闭，开关开启后才显示日期选择器 |
 | 2026-05-28 | **无截止时间通知确认** | 设置截止时间后保存时弹出通知确认弹窗（"需要提醒"/"不需要"），为后续 Web Push 截止提醒留接口 |
+| 2026-05-28 | **截止时间无通知**：PushService cron 查询 `prisma.task` 表，但 context-bridge 只写 MD 文件，从未同步到 DB，导致 `notifyDueTasks()` 永远查不到任务 | context-bridge.service 新增 `syncEntriesToDb()` 方法，写操作后批量 upsert 到 Task 表，清理过期条目 |
 
 ---
 
@@ -473,7 +487,8 @@ PWA → POST /api/context/write (mtime + 变更)
 | P1 | Calendar 时间线重构 Phase A：静态时间线渲染 | hourHeight/snapMinutes 参数化，任务块按 startTime+duration 定位，当前时间指示线；**正式版已完成** | ✅ |
 | P1 | Calendar 日历头伸缩 Phase B | 月历 ↔ 单行周历切换，选日过滤时间线，事件日绿点标记；**正式版已完成** | ✅ |
 | P1 | Calendar 拖拽 Phase C | Pointer Events 垂直拖拽移动开始时间，底部边缘 resize 时长，磁吸粒度；**正式版已完成** | ✅ |
-| P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | 🚧 编码完成，待部署 |
+| P1 | **部署截止时间通知（VAPID 密钥配置）** | Render 环境变量设置 VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT，然后推送代码触发自动部署 | 🚧 编码完成，待部署环境变量 |
+| P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | 🚧 编码完成，context-bridge→DB 同步已修复 |
 | P2 | Phase 4：灵感转化流程完善 | Inspiration → Task + 写入 CURRENT_CONTEXT.md | ⬜ |
 | P2 | Render 休眠缓解 | 免费层 15 分钟休眠，首次请求 30s+ 延迟 | ⬜ |
 | P2 | md 协议扩展：@start、@duration 元数据标记 | 后端 parse/render 支持 @start:HH:MM @duration:MIN 协议标签，前端 entriesToTasks/tasksToEntries 双向映射 | ⬜ |
