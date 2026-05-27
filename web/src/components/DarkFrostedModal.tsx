@@ -60,7 +60,6 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   // ---- deadline toggle & notification confirm ----
   const [hasDueDate, setHasDueDate] = useState(false);
   const [showNotifyConfirm, setShowNotifyConfirm] = useState(false);
-  const [pendingSaveParams, setPendingSaveParams] = useState<SaveParams | null>(null);
 
   // ---- 3D card state ----
   const [order, setOrder] = useState([0, 1, 2]);
@@ -102,13 +101,12 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       setDragOffset(0);
       setShowDeleteConfirm(false);
       setShowNotifyConfirm(false);
-      setPendingSaveParams(null);
     }
   }, [config.isOpen, isCreate, config.data]);
 
   if (!config.isOpen) return null;
 
-  const doSave = (notifyBeforeDeadline = false) => {
+  const doSave = (_notifyBeforeDeadline = false) => {
     if (!title.trim() && !content.trim()) return onClose();
     const saveParams: SaveParams = {
       id: isCreate ? undefined : config.data?.id,
