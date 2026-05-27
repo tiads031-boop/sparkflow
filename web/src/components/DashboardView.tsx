@@ -1,11 +1,12 @@
-import type { Task } from '../store/appStore';
+import type { Task, PomodoroState } from '../store/appStore';
 
-export default function DashboardView({ tasks }: { tasks: Task[] }) {
+export default function DashboardView({ tasks, pomodoro }: { tasks: Task[]; pomodoro: PomodoroState }) {
   const inProgress = tasks.filter((t) => t.status === 'In progress').length;
   const inReview = tasks.filter((t) => t.status === 'In review').length;
   const todo = tasks.filter((t) => t.status === 'To do').length;
   const total = tasks.filter((t) => t.status !== 'Cancelled').length;
   const done = tasks.filter((t) => t.status === 'Done').length;
+  const { todayCount, totalFocusMinutes } = pomodoro;
 
   // 基于任务分布生成周度柱状图
   const days = ['一', '二', '三', '四', '五', '六', '日'];
@@ -72,6 +73,22 @@ export default function DashboardView({ tasks }: { tasks: Task[] }) {
           {days.map((d) => (
             <span key={d} className="text-[10px] text-gray-400 w-6 text-center">{d}</span>
           ))}
+        </div>
+      </div>
+
+      {/* Quick list */}
+      {/* Pomodoro stats */}
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4">
+        <h3 className="text-sm font-bold text-[#242424] mb-3">专注统计</h3>
+        <div className="flex gap-3">
+          <div className="flex-1 bg-[#b0a8db]/15 rounded-2xl p-4 text-center">
+            <div className="text-2xl font-bold text-[#242424]">{todayCount}</div>
+            <div className="text-[10px] text-gray-500 mt-1">今日番茄</div>
+          </div>
+          <div className="flex-1 bg-[#cae393]/20 rounded-2xl p-4 text-center">
+            <div className="text-2xl font-bold text-[#242424]">{totalFocusMinutes}</div>
+            <div className="text-[10px] text-gray-500 mt-1">专注分钟</div>
+          </div>
         </div>
       </div>
 

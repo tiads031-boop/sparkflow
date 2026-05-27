@@ -129,6 +129,9 @@ VITE_API_KEY=你在 Render 上设的 API_KEY
 | `API_KEY` | `sk_live_xxxxxxxx` | 前后端通信密钥 |
 | `CORS_ORIGIN` | `https://...vercel.app` | 前端域名，逗号分隔多域名 |
 | `CONTEXT_MD_PATH` | `/data/CURRENT_CONTEXT.md` | 持久化磁盘挂载路径 |
+| `VAPID_PUBLIC_KEY` | `BCl...` | Web Push VAPID 公钥 |
+| `VAPID_PRIVATE_KEY` | `abc...` | Web Push VAPID 私钥 |
+| `VAPID_SUBJECT` | `mailto:you@email.com` | VAPID 联系邮箱 |
 
 ### 前端（Vercel / 本地）
 
@@ -155,10 +158,8 @@ VITE_API_KEY=你在 Render 上设的 API_KEY
 
 | 限制 | 说明 | 缓解方案 |
 |---|---|---|
-| Render 休眠 | 15 分钟无请求后休眠，首次请求延迟 30 秒 | 用 UptimeRobot 每 5 分钟 ping 一次 |
+| Render 休眠 | 15 分钟无请求后休眠，首次请求延迟 30 秒 | 用 UptimeRobot 每 5 分钟 ping 一次 `/api/health` |
 | Supabase 暂停 | 7 天无活动后项目暂停 | 定期登录 Supabase 面板 |
-| 无 Web Push | MVP 未实现 | 手机用系统日历/提醒替代 |
-| 子任务状态不持久化 | md 备注是纯文本，无法保存 completed 状态 | 后续用后端数据库增强 |
 | 单用户 | API Key 是唯一认证手段 | 不分享域名和 Key |
 
 ---

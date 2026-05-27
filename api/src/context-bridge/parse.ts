@@ -195,12 +195,25 @@ export function parseMd(content: string): ContextEntry[] {
       continue;
     }
 
-    // 备注行（> 开头）
+    // 备注行 / 子任务行（> 开头）
+    // 支持格式：
+    //   > 普通备注        → completed: false
+    //   > [x] 已完成      → completed: true
+    //   > [ ] 未完成      → completed: false
     if (line.startsWith('> ') || line === '>') {
       if (state === 'entry' && current) {
-        const noteText = line === '>' ? '' : line.slice(2).trim();
+        const rawNote = line === '>' ? '' : line.slice(2).trim();
+        let completed = false;
+        let text = rawNote;
+        if (rawNote.startsWith('[x] ')) {
+          completed = true;
+          text = rawNote.slice(4);
+        } else if (rawNote.startsWith('[ ] ')) {
+          completed = false;
+          text = rawNote.slice(4);
+        }
         current.notes = current.notes || [];
-        current.notes.push(noteText);
+        current.notes.push({ text, completed });
       }
       continue;
     }

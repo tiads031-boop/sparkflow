@@ -70,9 +70,11 @@ function findChangedFields(a: ContextEntry, b: ContextEntry): string[] {
   if (a.section !== b.section) fields.push('section');
   if (a.project !== b.project) fields.push('project');
 
-  // 备注比较
-  const aNotes = (a.notes || []).join('\n');
-  const bNotes = (b.notes || []).join('\n');
+  // 备注 / 子任务比较
+  const serializeNotes = (notes: { text: string; completed: boolean }[]) =>
+    notes.map((n) => `${n.completed ? '[x]' : '[ ]'} ${n.text}`).join('\n');
+  const aNotes = serializeNotes(a.notes || []);
+  const bNotes = serializeNotes(b.notes || []);
   if (aNotes !== bNotes) fields.push('notes');
 
   return fields;

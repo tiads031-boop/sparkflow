@@ -1,3 +1,9 @@
+/** 备注 / 子任务项 */
+export interface NoteItem {
+  text: string;
+  completed: boolean;
+}
+
 /** CURRENT_CONTEXT.md 中解析出的单条待办 */
 export interface ContextEntry {
   /** 标题标准化后 SHA256 前 8 位，用作唯一标识 */
@@ -16,8 +22,8 @@ export interface ContextEntry {
   section: 'project' | 'personal';
   /** 所属项目名（section=project 时有效，如 "news-briefing"） */
   project: string;
-  /** 备注块（> 开头的行，去除了 > 前缀） */
-  notes: string[];
+  /** 备注块 / 子任务列表（支持 completed 状态） */
+  notes: NoteItem[];
   /** 原始行文本，用于精确写回 */
   rawLine: string;
 }

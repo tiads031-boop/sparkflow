@@ -76,7 +76,24 @@ describe('parseMd', () => {
     const entries = parseMd(md);
     expect(entries).toHaveLength(1);
     expect(entries[0].notes).toHaveLength(2);
-    expect(entries[0].notes[0]).toContain('今日 UI 调整');
+    expect(entries[0].notes[0].text).toContain('今日 UI 调整');
+    expect(entries[0].notes[0].completed).toBe(false);
+  });
+
+  it('解析子任务完成状态', () => {
+    const md = `## 项目待办
+
+### news-briefing ← 主力
+- [ ] **P0：端到端跑通** — API key 已配
+> [x] 配置后端环境
+> [ ] 前端联调
+> 普通备注`;
+
+    const entries = parseMd(md);
+    expect(entries[0].notes).toHaveLength(3);
+    expect(entries[0].notes[0]).toEqual({ text: '配置后端环境', completed: true });
+    expect(entries[0].notes[1]).toEqual({ text: '前端联调', completed: false });
+    expect(entries[0].notes[2]).toEqual({ text: '普通备注', completed: false });
   });
 
   it('解析多个项目条目', () => {
@@ -156,6 +173,26 @@ describe('renderMd → parseMd 往返', () => {
       expect(entries2[i].priority).toBe(entries1[i].priority);
       expect(entries2[i].section).toBe(entries1[i].section);
     }
+  });
+
+  it('保持子任务完成状态一致性', () => {
+    const original = `## 项目待办
+
+### test-proj ← 主力
+- [ ] **P0：测试任务** — 描述
+> [x] 已完成子项
+> [ ] 未完成子项
+> 普通备注`;
+
+    const entries1 = parseMd(original);
+    const rendered = renderMd(original, entries1);
+    const entries2 = parseMd(rendered);
+
+    expect(entries2).toHaveLength(1);
+    expect(entries2[0].notes).toHaveLength(3);
+    expect(entries2[0].notes[0]).toEqual({ text: '已完成子项', completed: true });
+    expect(entries2[0].notes[1]).toEqual({ text: '未完成子项', completed: false });
+    expect(entries2[0].notes[2]).toEqual({ text: '普通备注', completed: false });
   });
 });
 

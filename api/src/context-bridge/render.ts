@@ -155,7 +155,8 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
           for (const e of projEntries) {
             output.push(entryToMdLine(e));
             for (const note of e.notes) {
-              output.push(`> ${note}`);
+              const mark = note.completed ? '[x]' : '[ ]';
+              output.push(`> ${mark} ${note.text}`);
             }
           }
           // 标记已输出，防止重复
@@ -185,7 +186,8 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
     for (const e of personalEntries) {
       output.push(entryToMdLine(e));
       for (const note of e.notes) {
-        output.push(`> ${note}`);
+        const mark = note.completed ? '[x]' : '[ ]';
+        output.push(`> ${mark} ${note.text}`);
       }
     }
     personalEntryWritten = true;
@@ -197,7 +199,8 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
       for (const e of projEntries) {
         output.push(entryToMdLine(e));
         for (const note of e.notes) {
-          output.push(`> ${note}`);
+          const mark = note.completed ? '[x]' : '[ ]';
+          output.push(`> ${mark} ${note.text}`);
         }
       }
     }

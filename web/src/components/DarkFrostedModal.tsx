@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  ArrowLeft, Check, ArrowRight,
+  ArrowLeft, Check, ArrowRight, Plus, Trash2,
   Play, Pause, RotateCcw, CheckCircle2,
 } from 'lucide-react';
-import type { Task } from '../store/appStore';
+import { useAppStore } from '../store/appStore';
+import type { Task, Subtask } from '../store/appStore';
 
 interface ModalConfig {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export interface SaveParams {
   priority?: Task['priority'];
   dueDate?: string;
   column?: 'project' | 'personal';
+  subtasks?: Subtask[];
 }
 
 interface Props {
@@ -28,6 +30,7 @@ interface Props {
   onClose: () => void;
   onSave: (params: SaveParams) => void;
   onDelete: (id: string, context: string) => void;
+  onToggleSubtask?: (taskId: string, subtaskId: string) => void;
 }
 
 const LAYERS = [
@@ -37,7 +40,7 @@ const LAYERS = [
   { rot: 0, ty: 22, sc: 0.94, z: 7, op: 0 },
 ];
 
-export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: Props) {
+export default function DarkFrostedModal({ config, onClose, onSave, onDelete, onToggleSubtask }: Props) {
   const isCreate = config.mode === 'create';
   const isTask = config.context === 'task';
 
@@ -50,6 +53,10 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: 
   const [column, setColumn] = useState<'project' | 'personal'>('personal');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // ---- subtask state (edit mode only) ----
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+
   // ---- 3D card state ----
   const [order, setOrder] = useState([0, 1, 2]);
   const [dragOffset, setDragOffset] = useState(0);
@@ -57,10 +64,13 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: 
   const dragStart = useRef(0);
   const isBusy = useRef(false);
 
-  // ---- pomodoro state ----
-  const [timerSec, setTimerSec] = useState(25 * 60);
-  const [isRunning, setIsRunning] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // ---- pomodoro from store ----
+  const pomodoro = useAppStore((s) => s.pomodoro);
+  const startPomodoroStore = useAppStore((s) => s.startPomodoro);
+  const pausePomodoroStore = useAppStore((s) => s.pausePomodoro);
+  const resumePomodoroStore = useAppStore((s) => s.resumePomodoro);
+  const stopPomodoroStore = useAppStore((s) => s.stopPomodoro);
+  const completePomodoroStore = useAppStore((s) => s.completePomodoro);
 
   useEffect(() => {
     if (config.isOpen) {
@@ -78,25 +88,13 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: 
         setPriority(config.data.priority || 'Medium');
         setDueDate(config.data.dueDate || '');
         setColumn(config.data.column || 'personal');
+        setSubtasks(config.data.subtasks || []);
       }
       setOrder([0, 1, 2]);
       setDragOffset(0);
-      setTimerSec(25 * 60);
-      setIsRunning(false);
       setShowDeleteConfirm(false);
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [config.isOpen, isCreate, config.data]);
-
-  useEffect(() => {
-    if (isRunning && timerSec > 0) {
-      timerRef.current = setInterval(() => setTimerSec((s) => s - 1), 1000);
-    } else if (timerSec <= 0) {
-      setIsRunning(false);
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isRunning, timerSec]);
 
   if (!config.isOpen) return null;
 
@@ -111,6 +109,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: 
       priority: isTask ? priority : undefined,
       dueDate: isTask ? (dueDate || undefined) : undefined,
       column: isTask ? column : undefined,
+      subtasks: isTask && !isCreate ? subtasks : undefined,
     });
     onClose();
   };
@@ -288,6 +287,9 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: 
   );
 
   const renderPomodoroCard = () => {
+    const timerSec = pomodoro.timeLeft;
+    const isRunning = pomodoro.isRunning;
+    const isPaused = pomodoro.isPaused;
     const timerProgress = timerSec / (25 * 60);
     const timerCircumference = 2 * Math.PI * 72;
     const timerOffset = timerCircumference * (1 - timerProgress);
@@ -315,69 +317,126 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: 
         </div>
         <div className="flex gap-3 items-center">
           <button
-            onClick={() => setTimerSec(25 * 60)}
+            onClick={() => stopPomodoroStore()}
             className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20"
           >
             <RotateCcw size={16} />
           </button>
           <button
-            onClick={() => setIsRunning(!isRunning)}
+            onClick={() => {
+              if (isRunning) {
+                if (isPaused) resumePomodoroStore(); else pausePomodoroStore();
+              } else {
+                if (timerSec <= 0 || timerSec === 25 * 60) {
+                  startPomodoroStore(config.data?.id);
+                } else {
+                  resumePomodoroStore();
+                }
+              }
+            }}
             className="w-12 h-12 rounded-full bg-[#b0a8db] flex items-center justify-center text-[#242424] shadow-[0_0_20px_rgba(176,168,219,0.3)] hover:scale-105 transition-transform"
           >
-            {isRunning ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+            {isRunning && !isPaused ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
           </button>
           <button
-            onClick={() => { setIsRunning(false); setTimerSec(25 * 60); }}
+            onClick={() => {
+              if (timerSec <= 0 || !isRunning) {
+                completePomodoroStore();
+              } else {
+                stopPomodoroStore();
+              }
+            }}
             className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20"
           >
-            <RotateCcw size={16} />
+            <Check size={16} />
           </button>
         </div>
       </div>
     );
   };
 
+  const handleToggleSubtaskLocal = (subtaskId: string) => {
+    setSubtasks((prev) =>
+      prev.map((s) => (s.id === subtaskId ? { ...s, completed: !s.completed } : s))
+    );
+    if (onToggleSubtask && config.data?.id) {
+      onToggleSubtask(config.data.id, subtaskId);
+    }
+  };
+
+  const handleAddSubtask = () => {
+    const t = newSubtaskTitle.trim();
+    if (!t) return;
+    const id = `${config.data?.id || 'new'}-sub-${Date.now()}`;
+    setSubtasks((prev) => [...prev, { id, title: t, completed: false }]);
+    setNewSubtaskTitle('');
+  };
+
+  const handleDeleteSubtask = (subtaskId: string) => {
+    setSubtasks((prev) => prev.filter((s) => s.id !== subtaskId));
+  };
+
   const renderSubtaskCard = () => (
     <div className="flex flex-col h-full" data-no-drag>
       <span className="text-[10px] text-[#cae393] font-bold tracking-widest uppercase mb-3">
-        Task Details
+        子任务
       </span>
       <h3 className="text-lg font-bold text-white leading-tight mb-4 truncate">
         {title || '任务详情'}
       </h3>
       <div className="space-y-3 overflow-y-auto hide-scrollbar flex-1">
-        {isTask && config.data?.subtasks?.length > 0 ? (
-          config.data.subtasks.map((sub: any) => (
-            <div
-              key={sub.id}
-              className="flex items-start gap-3 cursor-pointer group"
-              onClick={() => {
-                // toggle locally for visual feedback only
-                // real toggle requires passing handler from parent
-              }}
-            >
-              <div
-                className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 transition-colors ${
+        {isTask && subtasks.length > 0 ? (
+          subtasks.map((sub) => (
+            <div key={sub.id} className="flex items-start gap-3 group">
+              <button
+                onClick={() => handleToggleSubtaskLocal(sub.id)}
+                className={`w-5 h-5 rounded-full flex items-center justify-center mt-0.5 transition-colors shrink-0 ${
                   sub.completed
                     ? 'bg-[#cae393] text-[#242424]'
                     : 'border-2 border-white/30 text-transparent group-hover:border-white/60'
                 }`}
               >
                 <CheckCircle2 size={12} strokeWidth={3} />
-              </div>
+              </button>
               <span
-                className={`flex-1 text-sm ${
+                className={`flex-1 text-sm leading-snug pt-0.5 ${
                   sub.completed ? 'text-white/40 line-through' : 'text-white/90'
                 }`}
               >
                 {sub.title}
               </span>
+              <button
+                onClick={() => handleDeleteSubtask(sub.id)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-white/30 hover:text-red-400 shrink-0"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           ))
         ) : (
-          <div className="text-white/40 text-sm">暂无子任务详情</div>
+          <div className="text-white/40 text-sm">暂无子任务，点击下方添加</div>
         )}
       </div>
+
+      {/* Add subtask input */}
+      {isTask && (
+        <div className="mt-4 flex gap-2">
+          <input
+            type="text"
+            value={newSubtaskTitle}
+            onChange={(e) => setNewSubtaskTitle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAddSubtask(); }}
+            placeholder="新子任务..."
+            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none placeholder:text-white/20 focus:border-[#cae393]/40"
+          />
+          <button
+            onClick={handleAddSubtask}
+            className="w-9 h-9 rounded-xl bg-[#cae393]/20 text-[#cae393] flex items-center justify-center hover:bg-[#cae393]/30 transition-colors"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -619,7 +678,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: 
               ? '左右滑动切换卡片，在此编辑任务信息。'
               : order[0] === 1
                 ? '开始一个 25 分钟的专注时段。'
-                : '查看和管理子任务进度。'}
+                : '在此添加、勾选或删除子任务，点击保存提交。'}
           </p>
           <div className="flex justify-between items-center">
             {/* Dot indicators */}
@@ -634,7 +693,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: 
               ))}
             </div>
             {/* Save button (only on edit card) */}
-            {order[0] === 0 && (
+            {(order[0] === 0 || order[0] === 2) && (
               <button
                 onClick={handleSave}
                 className="w-12 h-12 rounded-full bg-[#cae393] text-[#242424] flex items-center justify-center shadow-[0_10px_20px_rgba(202,227,147,0.2)] hover:scale-105 active:scale-95 transition-transform"
@@ -642,7 +701,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete }: 
                 <Check size={22} />
               </button>
             )}
-            {order[0] !== 0 && (
+            {order[0] === 1 && (
               <button
                 onClick={() => {
                   setOrder((prev) => [prev[1], prev[2], prev[0]]);

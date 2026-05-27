@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
@@ -8,6 +9,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { PomodoroModule } from './pomodoro/pomodoro.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { ContextBridgeModule } from './context-bridge/context-bridge.module';
+import { PushModule } from './push/push.module';
 import { CommonModule } from './common/common.module';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 
@@ -22,6 +24,8 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
     PomodoroModule,
     CalendarModule,
     ContextBridgeModule,
+    ScheduleModule.forRoot(),
+    PushModule,
   ],
   providers: [
     {

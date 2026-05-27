@@ -65,4 +65,11 @@ export class PomodoroService {
       data: { endedAt: new Date(), status: 'completed' },
     });
   }
+
+  interrupt(id: string) {
+    return this.prisma.pomodoroSession.update({
+      where: { id },
+      data: { endedAt: new Date(), status: 'interrupted' },
+    });
+  }
 }

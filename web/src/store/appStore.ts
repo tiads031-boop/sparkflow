@@ -42,6 +42,7 @@ export interface PomodoroState {
   timeLeft: number;
   duration: number;
   activeTaskId: string | null;
+  activeSessionId: string | null;
   todayCount: number;
   totalFocusMinutes: number;
 }
@@ -62,6 +63,12 @@ export interface SyncConflict {
   latest: string;
 }
 
+/** 协议层备注 / 子任务项 */
+export interface NoteItem {
+  text: string;
+  completed: boolean;
+}
+
 /** ContextBridge 协议层原始条目 */
 export interface ContextEntry {
   hash: string;
@@ -71,7 +78,7 @@ export interface ContextEntry {
   priority: 'high' | 'medium' | 'low';
   section: 'project' | 'personal';
   project: string;
-  notes: string[];
+  notes: NoteItem[];
   rawLine: string;
   dueDate?: string;
 }
@@ -79,6 +86,7 @@ export interface ContextEntry {
 // --- API Utils ---
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '') as string;
 const API_KEY = (import.meta.env.VITE_API_KEY || '') as string;
+const DEFAULT_USER_ID = (import.meta.env.VITE_DEFAULT_USER_ID || 'default') as string;
 
 async function apiRequest(path: string, options?: RequestInit) {
   const url = API_BASE ? `${API_BASE}${path}` : path;
@@ -131,8 +139,8 @@ function entriesToTasks(entries: ContextEntry[]): Task[] {
     comments: e.notes.length,
     subtasks: e.notes.map((n, i) => ({
       id: `${e.hash}-note-${i}`,
-      title: n,
-      completed: false,
+      title: n.text,
+      completed: n.completed,
     })),
     time: e.description || undefined,
     dueDate: e.dueDate,
@@ -158,7 +166,7 @@ function tasksToEntries(tasks: Task[]): ContextEntry[] {
       t.priority === 'Medium' ? 'medium' : 'low',
     section: t.column || 'personal',
     project: '',
-    notes: t.subtasks?.map((s) => s.title) || [],
+    notes: t.subtasks?.map((s) => ({ text: s.title, completed: s.completed })) || [],
     rawLine: '',
     dueDate: t.dueDate,
   }));
@@ -195,12 +203,13 @@ interface AppState {
   updateSpark: (id: string, updates: Partial<Spark>) => void;
 
   pomodoro: PomodoroState;
-  startPomodoro: (taskId?: string) => void;
+  startPomodoro: (taskId?: string) => Promise<void>;
   pausePomodoro: () => void;
   resumePomodoro: () => void;
-  stopPomodoro: () => void;
+  stopPomodoro: () => Promise<void>;
   tick: () => void;
-  completePomodoro: () => void;
+  completePomodoro: () => Promise<void>;
+  loadPomodoroStats: () => Promise<void>;
 
   events: CalendarEvent[];
   setEvents: (events: CalendarEvent[]) => void;
@@ -224,6 +233,13 @@ interface AppState {
 
   // 协议层原始数据
   entries: ContextEntry[];
+
+  // Push 通知
+  pushEnabled: boolean;
+  pushSupported: boolean;
+  subscribeToPush: () => Promise<void>;
+  unsubscribeFromPush: () => Promise<void>;
+  checkPushStatus: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -280,33 +296,84 @@ export const useAppStore = create<AppState>((set, get) => ({
   pomodoro: {
     isRunning: false, isPaused: false,
     timeLeft: DEFAULT_DURATION, duration: DEFAULT_DURATION,
-    activeTaskId: null, todayCount: 0, totalFocusMinutes: 0,
+    activeTaskId: null, activeSessionId: null,
+    todayCount: 0, totalFocusMinutes: 0,
   },
-  startPomodoro: (taskId) =>
-    set((state) => ({
-      pomodoro: { ...state.pomodoro, isRunning: true, isPaused: false, timeLeft: state.pomodoro.duration, activeTaskId: taskId ?? null },
-    })),
+  startPomodoro: async (taskId) => {
+    try {
+      const res = await apiRequest('/pomodoro', {
+        method: 'POST',
+        body: JSON.stringify({ userId: DEFAULT_USER_ID, taskId, duration: 25 }),
+      });
+      const session = await res.json();
+      set((state) => ({
+        pomodoro: {
+          ...state.pomodoro,
+          isRunning: true, isPaused: false,
+          timeLeft: state.pomodoro.duration,
+          activeTaskId: taskId ?? null,
+          activeSessionId: session.id,
+        },
+      }));
+    } catch {
+      set((state) => ({
+        pomodoro: { ...state.pomodoro, isRunning: true, isPaused: false, timeLeft: state.pomodoro.duration, activeTaskId: taskId ?? null },
+      }));
+    }
+  },
   pausePomodoro: () => set((state) => ({ pomodoro: { ...state.pomodoro, isPaused: true } })),
   resumePomodoro: () => set((state) => ({ pomodoro: { ...state.pomodoro, isPaused: false } })),
-  stopPomodoro: () =>
+  stopPomodoro: async () => {
+    const { activeSessionId } = get().pomodoro;
+    if (activeSessionId) {
+      try {
+        await apiRequest(`/pomodoro/${activeSessionId}/interrupt`, { method: 'POST' });
+      } catch { /* ignore */ }
+    }
     set((state) => ({
-      pomodoro: { ...state.pomodoro, isRunning: false, isPaused: false, timeLeft: state.pomodoro.duration, activeTaskId: null },
-    })),
+      pomodoro: { ...state.pomodoro, isRunning: false, isPaused: false, timeLeft: state.pomodoro.duration, activeTaskId: null, activeSessionId: null },
+    }));
+  },
   tick: () =>
     set((state) => {
       if (!state.pomodoro.isRunning || state.pomodoro.isPaused) return state;
       const newTime = state.pomodoro.timeLeft - 1;
-      if (newTime <= 0) return { pomodoro: { ...state.pomodoro, timeLeft: 0, isRunning: false } };
+      if (newTime <= 0) {
+        get().completePomodoro();
+        return state;
+      }
       return { pomodoro: { ...state.pomodoro, timeLeft: newTime } };
     }),
-  completePomodoro: () =>
+  completePomodoro: async () => {
+    const { activeSessionId } = get().pomodoro;
+    if (activeSessionId) {
+      try {
+        await apiRequest(`/pomodoro/${activeSessionId}/complete`, { method: 'POST' });
+      } catch { /* ignore */ }
+    }
     set((state) => ({
       pomodoro: {
-        ...state.pomodoro, todayCount: state.pomodoro.todayCount + 1,
-        totalFocusMinutes: state.pomodoro.totalFocusMinutes + 25,
-        isRunning: false, isPaused: false, timeLeft: state.pomodoro.duration, activeTaskId: null,
+        ...state.pomodoro,
+        isRunning: false, isPaused: false,
+        timeLeft: state.pomodoro.duration,
+        activeTaskId: null, activeSessionId: null,
       },
-    })),
+    }));
+    await get().loadPomodoroStats();
+  },
+  loadPomodoroStats: async () => {
+    try {
+      const res = await apiRequest(`/pomodoro/stats?userId=${DEFAULT_USER_ID}`);
+      const stats = await res.json();
+      set((state) => ({
+        pomodoro: {
+          ...state.pomodoro,
+          todayCount: stats.todayCount ?? 0,
+          totalFocusMinutes: stats.totalMinutes ?? 0,
+        },
+      }));
+    } catch { /* ignore */ }
+  },
 
   events: [],
   setEvents: (events) => set({ events }),
@@ -383,6 +450,99 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ syncError: err.message || '同步失败', isSyncing: false });
     }
   },
+
+  // === Push 通知 ===
+  pushEnabled: false,
+  pushSupported: 'serviceWorker' in navigator && 'PushManager' in window,
+
+  checkPushStatus: async () => {
+    if (!('serviceWorker' in navigator)) {
+      set({ pushSupported: false, pushEnabled: false });
+      return;
+    }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      set({ pushEnabled: !!sub, pushSupported: true });
+    } catch {
+      set({ pushSupported: false, pushEnabled: false });
+    }
+  },
+
+  subscribeToPush: async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        console.warn('[Push] permission denied');
+        return;
+      }
+
+      // 获取 VAPID 公钥
+      const keyRes = await apiRequest('/push/vapid-public-key');
+      const { publicKey } = await keyRes.json();
+      if (!publicKey) {
+        console.error('[Push] VAPID public key not available');
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+      const applicationServerKey = urlBase64ToUint8Array(publicKey);
+
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey,
+      });
+
+      const subJson = subscription.toJSON();
+      await apiRequest('/push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: DEFAULT_USER_ID,
+          subscription: {
+            endpoint: subJson.endpoint,
+            keys: {
+              p256dh: subJson.keys!.p256dh,
+              auth: subJson.keys!.auth,
+            },
+          },
+        }),
+      });
+
+      set({ pushEnabled: true });
+    } catch (err: any) {
+      console.error('[Push] subscribe failed:', err.message);
+      set({ pushEnabled: false });
+    }
+  },
+
+  unsubscribeFromPush: async () => {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await sub.unsubscribe();
+        await apiRequest('/push/unsubscribe', {
+          method: 'DELETE',
+          body: JSON.stringify({ userId: DEFAULT_USER_ID, endpoint: sub.endpoint }),
+        });
+      }
+      set({ pushEnabled: false });
+    } catch (err: any) {
+      console.error('[Push] unsubscribe failed:', err.message);
+    }
+  },
 }));
+
+/** 将 Base64 URL-safe VAPID 公钥转为 Uint8Array */
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray as Uint8Array<ArrayBuffer>;
+}
 
 export { taskColors, sparkColors };

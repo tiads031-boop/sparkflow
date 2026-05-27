@@ -1,7 +1,7 @@
 # sparkflow — 项目改造/开发蓝图
 
 > 本文档记录项目的所有决策、实施进度和下一步计划。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-27 | **状态**: Phase 5 部署完成，功能迭代中
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-27 | **状态**: Phase 3 Web Push 编码完成，待部署验证
 
 ---
 
@@ -31,6 +31,7 @@ sparkflow 原本是一个灵感记录与任务管理应用，`sparkflow-api`（N
 | 10 | 部署 | API: Render (Docker + PostgreSQL)，前端: Vercel 静态托管 | 低成本、零运维；Render 免费层支持 Dockerfile 和持久化磁盘 |
 | 13 | md 协议扩展 | `@key:value` 元数据标记嵌入 description，支持扩展状态和 dueDate | 不破坏 md 可读性，AI 和人类都能理解 |
 | 14 | 状态体系 | md 存 `todo/in-progress/in-review/done/cancelled`，前端映射为 `To do/In progress/In review/Done/Cancelled` | 协议层保持简洁，表现层丰富 |
+| 15 | 子任务协议 | notes（备注块）用 `> [x] text` / `> [ ] text` 承载 completed 状态；普通 `> text` 默认 `completed: false` | 不破坏 md 可读性，checkbox 语义自解释；所有备注行统一升格为子任务 |
 
 ---
 
@@ -126,10 +127,12 @@ PWA → POST /api/context/write (mtime + 变更)
 
 | 任务 | 状态 | 说明 |
 |---|---|---|
-| PushSubscription 数据表 | ⬜ | 存储浏览器 subscription 对象 |
-| Web Push API 集成（web-push） | ⬜ | VAPID key 生成 + 推送端点 |
-| @nestjs/schedule 定时任务 | ⬜ | 每分钟扫描截止日期，触发推送 |
-| PWA 端订阅/取消订阅 UI | ⬜ | 允许用户控制推送开关 |
+| PushSubscription 数据表 | ✅ | Prisma 模型已存在，client 已重新生成 |
+| Web Push API 集成（web-push） | ✅ | PushService：subscribe / unsubscribe / sendNotification |
+| @nestjs/schedule 定时任务 | ✅ | 每分钟 cron 扫描 dueDate 未来 30 分钟内的任务 |
+| PWA 端订阅/取消订阅 UI | ✅ | Header 铃铛按钮，绿色=已订阅，灰色=未订阅 |
+| Service Worker (push 事件 + notificationclick) | ✅ | `public/sw.js`，通知点击打开 PWA |
+| 前端 store push 方法 | ✅ | subscribeToPush / unsubscribeFromPush / checkPushStatus |
 
 ### Phase 4: 灵感转化
 
@@ -155,7 +158,8 @@ PWA → POST /api/context/write (mtime + 变更)
 | 任务创建编辑器：状态/优先级/截止日期/列选择 | ✅ | DarkFrostedModal 创建模式扩展 |
 | Dashboard 柱状图动态化 | ✅ | 基于任务分布计算高度，非硬编码 |
 | CalendarView 绑定真实任务 | ✅ | 从 store 读取，显示有 dueDate 的任务 |
-| 子任务状态持久化 | ⬜ | completed 状态目前只保存在前端，需写入 md 或 DB |
+| 子任务状态持久化 | ✅ | notes 协议扩展为 `NoteItem[]`（含 completed），前后端映射双向传递 |
+| 番茄钟专注时长持久化 | ✅ | `POST /pomodoro` 创建 session；`complete`/`interrupt` 结束；Dashboard stats 实时拉取 |
 
 ---
 
@@ -254,6 +258,47 @@ PWA → POST /api/context/write (mtime + 变更)
 - **演示数据清理**：移除 `initialTasks`，API 失败时显示空状态而非假数据
 - **后端 parse.ts**：新增 `extractMetaTags` 辅助函数，从 description 末尾提取 `@key:value` 元数据
 - **后端 render.ts**：`entryToMdLine` 写回时自动附加 `@status:xxx @due:yyyy-mm-dd`
+
+### 2026-05-27（Phase 3 Web Push 通知编码完成）
+- **后端 PushModule 创建**：`push.service.ts`（subscribe / unsubscribe / notifyDueTasks / getVapidPublicKey）+ `push.controller.ts`（3 端点）+ `push.module.ts`
+- **依赖安装**：`web-push` + `@types/web-push` + `@nestjs/schedule`
+- **VAPID 密钥生成**：写入 `.env`，`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`
+- **定时扫描**：`@Cron('*/1 * * * *')` 每分钟检测 dueDate 在未来 30 分钟内的未完成任务，推送给所有订阅用户
+- **订阅失效自动清理**：推送返回 410/404 时自动删除 PushSubscription 记录
+- **前端 Service Worker**：`public/sw.js` 处理 push 事件（显示通知）+ notificationclick（打开 PWA）+ 基础离线缓存
+- **前端 store**：`subscribeToPush`（请求权限 → 获取公钥 → pushManager.subscribe → POST 后端）、`unsubscribeFromPush`、`checkPushStatus`
+- **前端 UI**：Header 铃铛按钮，`pushSupported` 检测浏览器支持，绿色/灰色切换订阅状态
+- **SW 注册**：`main.tsx` 中自动注册 `/sw.js`
+- **待部署**：本地编译通过（api + web），需更新 Render 环境变量（VAPID 三变量）+ 重新部署验证
+
+### 2026-05-27（番茄钟持久化 + Dashboard 专注统计）
+- **后端 PomodoroModule 补全**：
+  - `pomodoro.controller.ts` 新增 `POST /pomodoro/:id/interrupt` 端点
+  - `pomodoro.service.ts` 新增 `interrupt(id)` 方法，标记 session 为 `interrupted`
+  - `main.ts` 启动时自动 `upsert` 默认用户（`DEFAULT_USER_ID` 或 `'default'`），解决单用户 MVP 无外键记录导致的创建失败
+- **前端 store 接入后端 API**：
+  - `startPomodoro`：调用 `POST /pomodoro` 创建 session，保存返回的 `id` 为 `activeSessionId`
+  - `completePomodoro`：调用 `POST /:id/complete`，随后 `loadPomodoroStats()` 刷新统计
+  - `stopPomodoro`：调用 `POST /:id/interrupt`，清理前端状态
+  - `loadPomodoroStats`：从 `GET /pomodoro/stats?userId=default` 拉取 `todayCount` + `totalMinutes`
+- **DashboardView 专注统计卡片**：新增"今日番茄"和"专注分钟"双指标卡片，数据从后端实时拉取
+- **DarkFrostedModal 专注卡片改造**：
+  - 移除本地 `timerRef` 和独立 `useEffect`，倒计时由 App.tsx 全局 `tick()` 驱动
+  - Play/Pause/Stop/Complete 按钮全部接入 store 方法
+  - 未运行时可点击 Play 创建 session；运行中可 Pause/Resume；点击 Check 完成并刷新 stats
+
+### 2026-05-27（子任务协议扩展 + DarkFrostedModal 子任务编辑）
+- **子任务 md 协议扩展**：`ContextEntry.notes` 从 `string[]` 升级为 `NoteItem[]`（`{ text: string; completed: boolean }`）
+  - `parse.ts` 解析 `> [x] text` / `> [ ] text` / `> text` 三种格式，19 项单元测试全部通过
+  - `render.ts` 写回时自动附加 `[x]` / `[ ]` 标记，保持往返一致性
+  - `merge.ts` 适配对象数组比较，冲突检测正常
+- **前端子任务状态双向传递**：`entriesToTasks` / `tasksToEntries` 完整传递 completed，刷新后子任务勾选状态不丢失
+- **DarkFrostedModal 子任务卡片增强**：
+  - 勾选切换：本地乐观更新 + 即时同步（调用 `toggleSubtask`）
+  - 添加子任务：输入框 + Enter/Plus 按钮，即时插入本地列表
+  - 删除子任务：hover 显示 Trash 图标，即时移除
+  - 保存机制：编辑卡片和子任务卡片底部均显示保存按钮，`handleSave` 传回完整 `subtasks` 列表
+  - 卡片文案："在此添加、勾选或删除子任务，点击保存提交"
 
 ### 2026-05-27（3D 卡片编辑模式 + 元数据解析修复）
 - **DarkFrostedModal 恢复 3D 卡片堆叠**：点击已有任务进入 3D 卡片模式，左右滑动切换
@@ -355,11 +400,10 @@ PWA → POST /api/context/write (mtime + 变更)
 | 优先级 | 任务 | 说明 | 状态 |
 |---|---|---|---|
 | P0 | 部署上线（Render + Vercel） | 前后端已部署，域名已确认 | ✅ |
-| P1 | 子任务状态持久化 | 子任务 completed 状态目前只保存在前端，刷新丢失 | ⬜ |
-| P1 | BoardView 拖拽换列持久化 | 拖拽换列后应更新 column 并同步到 API | ⬜ |
-| P1 | 子任务 completed 状态持久化 | 当前仅前端展示，需写入 md 协议层 | ⬜ |
-| P1 | 番茄钟专注时长持久化 | 专注数据应记录到后端 | ⬜ |
-| P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | ⬜ |
+| P0 | BoardView 拖拽换列持久化 | 拖拽换列后 `updateTask({column})` → `syncToApi` → `tasksToEntries` 映射 `section` → `renderMd` 按分区写回 | ✅ |
+| P1 | 子任务状态持久化 | notes 协议扩展为 `NoteItem[]`（含 completed），解析/渲染/合并/前后端映射全链路打通 | ✅ |
+| P1 | 番茄钟专注时长持久化 | `POST /pomodoro` 创建 session；`complete`/`interrupt` 结束；Dashboard stats 实时拉取 | ✅ |
+| P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | 🚧 编码完成，待部署 |
 | P2 | Phase 4：灵感转化流程完善 | Inspiration → Task + 写入 CURRENT_CONTEXT.md | ⬜ |
 | P2 | Render 休眠缓解 | 免费层 15 分钟休眠，首次请求 30s+ 延迟 | ⬜ |
 | P3 | 多用户 / 正式 OAuth | 当前 API Key 方案仅适合单用户 | ⬜ |

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Home, CheckSquare, Calendar as CalendarIcon, Zap,
-  Plus, Bell, AlertCircle, LayoutGrid, RefreshCw, CheckCircle2,
+  Plus, Bell, BellOff, AlertCircle, LayoutGrid, RefreshCw, CheckCircle2,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
 import DashboardView from './components/DashboardView';
@@ -26,12 +26,18 @@ function Header({
   syncError,
   isSyncing,
   hasLoaded,
+  pushEnabled,
+  pushSupported,
+  onTogglePush,
 }: {
   onAddClick: (context: string) => void;
   onSyncClick: () => void;
   syncError: string | null;
   isSyncing: boolean;
   hasLoaded: boolean;
+  pushEnabled: boolean;
+  pushSupported: boolean;
+  onTogglePush: () => void;
 }) {
   const showBadge = syncError || isSyncing || hasLoaded;
 
@@ -81,10 +87,22 @@ function Header({
         >
           <Plus size={18} />
         </button>
-        <button className="w-9 h-9 rounded-full bg-[#e5e2f3] text-[#242424] flex items-center justify-center relative hover:bg-[#d8d4ec] transition-colors">
-          <Bell size={18} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#242424] rounded-full border border-white" />
-        </button>
+        {pushSupported && (
+          <button
+            onClick={onTogglePush}
+            className={`w-9 h-9 rounded-full flex items-center justify-center relative transition-colors ${
+              pushEnabled
+                ? 'bg-[#cae393] text-[#242424] hover:bg-[#b8d481]'
+                : 'bg-[#e5e2f3] text-gray-400 hover:bg-[#d8d4ec]'
+            }`}
+            title={pushEnabled ? '关闭推送通知' : '开启推送通知'}
+          >
+            {pushEnabled ? <Bell size={18} /> : <BellOff size={18} />}
+            {pushEnabled && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#242424] rounded-full border border-white" />
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -133,14 +151,30 @@ export default function App() {
   const deleteSpark = useAppStore((s) => s.deleteSpark);
   const addTask = useAppStore((s) => s.addTask);
   const addSpark = useAppStore((s) => s.addSpark);
+  const toggleSubtask = useAppStore((s) => s.toggleSubtask);
   const loadFromApi = useAppStore((s) => s.loadFromApi);
+  const loadPomodoroStats = useAppStore((s) => s.loadPomodoroStats);
+  const tick = useAppStore((s) => s.tick);
   const syncError = useAppStore((s) => s.syncError);
   const isSyncing = useAppStore((s) => s.isSyncing);
   const hasLoaded = useAppStore((s) => s.hasLoaded);
+  const pomodoro = useAppStore((s) => s.pomodoro);
+  const pushEnabled = useAppStore((s) => s.pushEnabled);
+  const pushSupported = useAppStore((s) => s.pushSupported);
+  const subscribeToPush = useAppStore((s) => s.subscribeToPush);
+  const unsubscribeFromPush = useAppStore((s) => s.unsubscribeFromPush);
+  const checkPushStatus = useAppStore((s) => s.checkPushStatus);
 
   useEffect(() => {
     loadFromApi();
-  }, [loadFromApi]);
+    loadPomodoroStats();
+    checkPushStatus();
+  }, [loadFromApi, loadPomodoroStats, checkPushStatus]);
+
+  useEffect(() => {
+    const interval = setInterval(() => tick(), 1000);
+    return () => clearInterval(interval);
+  }, [tick]);
 
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
@@ -160,7 +194,7 @@ export default function App() {
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
   const handleSaveItem = ({
-    id, title, content, context, status, priority, dueDate, column,
+    id, title, content, context, status, priority, dueDate, column, subtasks,
   }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
 
@@ -179,6 +213,7 @@ export default function App() {
           colorType,
           column: column || 'personal',
           dueDate: dueDate || undefined,
+          ...(subtasks !== undefined ? { subtasks } : {}),
         });
       } else {
         const newTask = {
@@ -249,12 +284,15 @@ export default function App() {
             syncError={syncError}
             isSyncing={isSyncing}
             hasLoaded={hasLoaded}
+            pushEnabled={pushEnabled}
+            pushSupported={pushSupported}
+            onTogglePush={() => pushEnabled ? unsubscribeFromPush() : subscribeToPush()}
           />
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto hide-scrollbar px-5 relative z-10 pb-20">
-          {activeTab === 'dashboard' && <DashboardView tasks={tasks} />}
+          {activeTab === 'dashboard' && <DashboardView tasks={tasks} pomodoro={pomodoro} />}
           {activeTab === 'tasks' && <TasksView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'board' && <BoardView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'calendar' && <CalendarView />}
@@ -276,6 +314,7 @@ export default function App() {
           onClose={handleCloseModal}
           onSave={handleSaveItem}
           onDelete={handleDeleteItem}
+          onToggleSubtask={toggleSubtask}
         />
         <SyncConflictModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
       </div>

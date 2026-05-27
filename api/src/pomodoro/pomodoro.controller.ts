@@ -29,4 +29,9 @@ export class PomodoroController {
   complete(@Param('id') id: string) {
     return this.pomodoroService.complete(id);
   }
+
+  @Post(':id/interrupt')
+  interrupt(@Param('id') id: string) {
+    return this.pomodoroService.interrupt(id);
+  }
 }
