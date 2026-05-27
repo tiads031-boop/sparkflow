@@ -1,7 +1,7 @@
 # sparkflow — 项目改造/开发蓝图
 
 > 本文档记录项目的所有决策、实施进度和下一步计划。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-27 | **状态**: Phase 2 完成，K70 适配完成，待部署
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-27 | **状态**: Phase 5 部署完成，功能迭代中
 
 ---
 
@@ -29,6 +29,8 @@ sparkflow 原本是一个灵感记录与任务管理应用，`sparkflow-api`（N
 | 8 | 推送方案 | Web Push API + @nestjs/schedule 定时检查 | 无需第三方推送服务，PWA 原生支持 |
 | 9 | 灵感转化 | Inspiration → Task + 可选写入 CURRENT_CONTEXT.md | 保留 sparkflow 原有灵感功能，桥接到看板 |
 | 10 | 部署 | API: Render (Docker + PostgreSQL)，前端: Vercel 静态托管 | 低成本、零运维；Render 免费层支持 Dockerfile 和持久化磁盘 |
+| 13 | md 协议扩展 | `@key:value` 元数据标记嵌入 description，支持扩展状态和 dueDate | 不破坏 md 可读性，AI 和人类都能理解 |
+| 14 | 状态体系 | md 存 `todo/in-progress/in-review/done/cancelled`，前端映射为 `To do/In progress/In review/Done/Cancelled` | 协议层保持简洁，表现层丰富 |
 
 ---
 
@@ -141,9 +143,19 @@ PWA → POST /api/context/write (mtime + 变更)
 
 | 任务 | 状态 | 说明 |
 |---|---|---|
-| sparkflow-api 部署 Railway/Render | ⬜ | Node + PostgreSQL |
-| sparkflow-web 部署 Vercel | ⬜ | 静态 PWA，指向远程 API |
-| 端到端测试（手机真机） | ⬜ | PWA 安装 → 看板 → 编辑 → 推送 |
+| sparkflow-api 部署 Render | ✅ | `sparkflow-jych.onrender.com`，Docker + Supabase pooler |
+| sparkflow-web 部署 Vercel | ✅ | `sparkflow031.vercel.app`，静态 PWA |
+| 端到端测试（手机真机） | ✅ | 红米 K70 PWA 安装 → 看板加载 → 任务创建 → 同步持久化 |
+
+### Phase 6: 功能迭代（当前）
+
+| 任务 | 状态 | 说明 |
+|---|---|---|
+| md 协议扩展：支持多状态和 dueDate | ✅ | `@status:in-progress @due:2026-05-30` 元数据标记 |
+| 任务创建编辑器：状态/优先级/截止日期/列选择 | ✅ | DarkFrostedModal 创建模式扩展 |
+| Dashboard 柱状图动态化 | ✅ | 基于任务分布计算高度，非硬编码 |
+| CalendarView 绑定真实任务 | ✅ | 从 store 读取，显示有 dueDate 的任务 |
+| 子任务状态持久化 | ⬜ | completed 状态目前只保存在前端，需写入 md 或 DB |
 
 ---
 
@@ -231,6 +243,18 @@ PWA → POST /api/context/write (mtime + 变更)
 
 ## 七、更新日志
 
+### 2026-05-27（部署完成 + 功能迭代）
+- **部署上线**：Render 后端 `sparkflow-jych.onrender.com` + Vercel 前端 `sparkflow031.vercel.app`
+- **部署踩坑全修复**：Prisma 7 配置、dotenv 缺失、Dockerfile COPY、NestJS dist 路径、class-validator、Supabase IPv6 pooler、Vercel Hobby commit 作者限制、ApiKeyGuard OPTIONS 拦截，共 9 项
+- **md 协议扩展**：`@status:in-progress @due:2026-05-30` 元数据标记嵌入 description，支持 5 种状态 + 截止日期
+- **任务创建编辑器**：DarkFrostedModal 创建模式新增状态选择（5 种）、优先级选择（P0/P1/P2）、列选择（项目/个人）、截止日期 date picker
+- **Dashboard 柱状图动态化**：基于任务分布计算 7 天柱状图高度，替代硬编码
+- **CalendarView 真实数据**：从 store 读取有 dueDate 的任务，替代硬编码 demoEvents
+- **状态映射完整**：`entriesToTasks` / `tasksToEntries` 支持 `todo/in-progress/in-review/done/cancelled` 双向映射
+- **演示数据清理**：移除 `initialTasks`，API 失败时显示空状态而非假数据
+- **后端 parse.ts**：新增 `extractMetaTags` 辅助函数，从 description 末尾提取 `@key:value` 元数据
+- **后端 render.ts**：`entryToMdLine` 写回时自动附加 `@status:xxx @due:yyyy-mm-dd`
+
 ### 2026-05-27（Redmi K70 设备适配）
 - **调参 JSON 更新**：`sparkflow-v3-params.json` 从原 419px 基准等比缩放至红米K70标准 viewport（393×852，3200×1440 物理分辨率）
   - `phoneWidth`: 419px → 393px, `phoneHeight`: 850px → 852px
@@ -292,10 +316,23 @@ PWA → POST /api/context/write (mtime + 变更)
 
 | 时间 | 问题 | 修复 |
 |---|---|---|
-| 2026-05-27 | `context-bridge.controller.ts` 类型导入导致 `TS1272`（`isolatedModules` + `emitDecoratorMetadata`） | 接口类型改用 `import type` 导入 |
-| 2026-05-27 | `CalendarView.tsx` 存在未使用导入导致构建失败 | 移除 `CalendarIcon` 和 `MapPin` |
+| 2026-05-27 | **部署踩坑 1**：Prisma 7 `datasource.url` 不再支持 schema 文件 | URL 移至 `prisma.config.ts`，`process.env["DATABASE_URL"]` 读取 |
+| 2026-05-27 | **部署踩坑 2**：`dotenv` 包未安装，`prisma.config.ts` 导入失败 | 移除 `dotenv/config` 导入，依赖 Node.js 原生 `process.env` |
+| 2026-05-27 | **部署踩坑 3**：Dockerfile 生产阶段缺少 `prisma.config.ts` | `COPY prisma.config.ts ./` 加入 Dockerfile |
+| 2026-05-27 | **部署踩坑 4**：`prisma` 包在 devDependencies，生产镜像被过滤 | 移至 `dependencies` |
+| 2026-05-27 | **部署踩坑 5**：NestJS 构建产物在 `dist/src/` 下，非 `dist/` | Dockerfile CMD 改为 `node dist/src/main` |
+| 2026-05-27 | **部署踩坑 6**：`class-validator`/`class-transformer` 缺失 | 安装到 `dependencies` |
+| 2026-05-27 | **部署踩坑 7**：Supabase IPv6-only，Render IPv4-only | 改用 Supabase shared pooler (5432 端口) |
+| 2026-05-27 | **部署踩坑 8**：Vercel Hobby commit 作者限制 | Git 配置 `user.email` 改为 Vercel 账号邮箱 |
+| 2026-05-27 | **部署踩坑 9**：`ApiKeyGuard` 拦截 CORS OPTIONS 预检 | Guard 中 `request.method === 'OPTIONS'` 直接放行 |
+| 2026-05-27 | `context-bridge.controller.ts` 类型导入导致 `TS1272` | 接口类型改用 `import type` 导入 |
+| 2026-05-27 | `CalendarView.tsx` 存在未使用导入导致构建失败 | 移除未使用导入 |
 | 2026-05-27 | `Task` 接口缺少 `description` 字段，映射时 TS 报错 | 接口添加 `description?: string` |
 | 2026-05-27 | 首次部署时 `CURRENT_CONTEXT.md` 不存在导致 API 500 | `ensureFile()` 改为自动创建默认模板 |
+| 2026-05-27 | 状态映射不完整，只支持 `Done` ↔ `done` | 扩展为 5 种状态双向映射 |
+| 2026-05-27 | `dueDate` 未在 md 协议中定义，无法保存 | description 末尾嵌入 `@due:YYYY-MM-DD` 元数据标记 |
+| 2026-05-27 | 演示任务（initialTasks）在 API 失败时仍显示 | 移除 `initialTasks`，API 失败时显示空状态 |
+| 2026-05-27 | Dashboard 周度柱状图为硬编码数据 | 基于任务分布动态计算各柱高度 |
 
 ---
 
@@ -303,13 +340,11 @@ PWA → POST /api/context/write (mtime + 变更)
 
 | 优先级 | 任务 | 说明 | 状态 |
 |---|---|---|---|
-| P0 | 启动 Phase 1：ContextBridge 模块开发 | md 解析器 + 写回器 + 冲突检测 + 单元测试 | ✅ |
-| P0 | Prisma 扩展：Task 加 contextMdHash + PushSubscription 表 | schema 变更 + migration | ✅ |
-| P1 | Phase 2 原型：PWA 看板可交互 HTML | 先出原型调参，再生成正式版 | ✅ |
-| P1 | Phase 2 正式版：BoardView + TaskCard + TaskEditor | React 组件 + Zustand store，读取调参 JSON | ✅ |
-| P1 | 前后端联通 + 最小认证 + 部署配置 | 前端接入真实 API、ApiKeyGuard、Dockerfile、vercel.json | ✅ |
-| P1 | 部署上线（Render + Vercel） | 按 docs/DEPLOY.md 执行，手机验证 PWA 安装 | 🔄 待执行（K70 适配已完成） |
+| P0 | 部署上线（Render + Vercel） | 前后端已部署，域名已确认 | ✅ |
+| P1 | 子任务状态持久化 | 子任务 completed 状态目前只保存在前端，刷新丢失 | ⬜ |
+| P1 | 任务查看模式状态编辑 | DarkFrostedModal 查看模式也应支持修改状态/优先级/dueDate | ⬜ |
+| P1 | BoardView 拖拽换列持久化 | 拖拽换列后应更新 column 并同步到 API | ⬜ |
 | P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | ⬜ |
 | P2 | Phase 4：灵感转化流程完善 | Inspiration → Task + 写入 CURRENT_CONTEXT.md | ⬜ |
-| P2 | 子任务状态持久化 | 子任务 completed 状态目前只保存在前端，刷新丢失 | ⬜ |
+| P2 | Render 休眠缓解 | 免费层 15 分钟休眠，首次请求 30s+ 延迟 | ⬜ |
 | P3 | 多用户 / 正式 OAuth | 当前 API Key 方案仅适合单用户 | ⬜ |
