@@ -29,4 +29,4 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 3001
 
 # 启动时先等数据库就绪，再运行迁移，最后启动服务
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
