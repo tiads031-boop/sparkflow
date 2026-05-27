@@ -175,6 +175,8 @@ PWA → POST /api/context/write (mtime + 变更)
 | **柱状图空状态处理** | ✅ | 无任务时 Dashboard 柱状图不渲染柱子，显示空状态占位图和引导文案 |
 | **数据同步兜底：localStorage 离线缓存** | ✅ | API 失败时不清空本地 tasks；加载前先读 localStorage 渲染；同步成功后写缓存 |
 | **日历展示截止任务** | ✅ | CalendarView 新增"截止任务"区域，展示有 dueDate 但无 startTime 的任务 |
+| **时间线长按创建任务** | ✅ | 长按时间线空区 → ghost block 预览 → 松手弹出内联标题输入 → 创建任务（startTime/duration 自动磁吸到 snapMinutes 粒度） |
+| **截止任务快速安排到时间线** | ✅ | 截止任务卡片右侧 ⏱️ 按钮 → 展开内联时间选择器（HH:MM + 30/60/90/120min 预设） → 确认后任务升格到时间线 |
 
 ---
 
@@ -326,6 +328,15 @@ PWA → POST /api/context/write (mtime + 变更)
 - **V4 config 模块**：`web/src/v4config.ts` 从 `sparkflow-v4-dashboard-calendar-params.json` 读取所有参数，组件直接引用 `V4.hourHeight` 等常量
 - **CSS 增强**：`.animate-slide-up`（底部弹层）、`.task-block.dragging`（拖拽阴影）、`.task-block:hover`（悬浮效果）
 - **App.tsx 适配**：`CalendarView` 传入 `onTaskClick` 回调，双击任务块打开 `DarkFrostedModal`
+- **构建验证**：TypeScript 无错误，Vite 生产构建通过（1745 modules）
+
+### 2026-05-28（时间线创建 + 截止任务安排）
+- **时间线长按创建任务**：CalendarView 新增 Pointer Events 长按检测（500ms 阈值，移动 >10px 取消），长按时间线空区弹出 ghost block（虚线半透明预览块，磁吸到 snapMinutes 粒度），拖拽调整时长后松手弹出内联标题输入框，确认后调用 `addTask` 创建（startTime + duration 自动填充，default colorType=green）
+- **截止任务快速安排到时间线**：每个截止任务卡片右侧增加 ⏱️ 按钮，点击展开内联时间选择器（native `time` 输入 + 30/60/90/120min 预设 pills），确认后调用 `updateTask({ startTime, duration })` 将任务升格到时间线
+- **交互引导**：时间线 header 提示文字更新为"长按空区创建 · 拖拽调整时间"；截止任务区域 header 增加"点击 ⏱ 快速安排"引导
+- **交互逻辑说明**：截止任务 = 已确定日期未确定时段（Inbox）；时间线任务 = 已确定日期已确定时段（Scheduled）；转化 = 给截止任务补上 startTime → 自动从列表升格到时间线
+- **数据链路**：`Task` 接口已有 `startTime?: string` 和 `duration?: number` 字段，`addTask` / `updateTask` 无需修改即可透传，前端零阻力落地
+- **混合方案预留**：当前以 ⏱️ 按钮（方案 B）为主路径，后续可迭代增加截止任务长按拖入时间线（方案 A），两种交互不冲突
 - **构建验证**：TypeScript 无错误，Vite 生产构建通过（1745 modules）
 - **本地 dev server 验证**：`vite --host` 在端口 5174 启动；浏览器访问确认 Dashboard pill 按钮 + Calendar 收缩态周历 + 24h 时间线刻度布局正确；API 因 Render 休眠显示同步异常，不影响 UI 框架验证
 - **GitHub 推送**：Commit `ac0af46` 推送至 `tiads031-boop/sparkflow.git`；Git Credential Manager 缓存冲突（绑定了另一 GitHub 账号），已执行 `git credential-manager erase` 清除后重新推送成功；Vercel 自动构建已触发
@@ -510,9 +521,12 @@ PWA → POST /api/context/write (mtime + 变更)
 | P1 | Calendar 时间线重构 Phase A：静态时间线渲染 | hourHeight/snapMinutes 参数化，任务块按 startTime+duration 定位，当前时间指示线；**正式版已完成** | ✅ |
 | P1 | Calendar 日历头伸缩 Phase B | 月历 ↔ 单行周历切换，选日过滤时间线，事件日绿点标记；**正式版已完成** | ✅ |
 | P1 | Calendar 拖拽 Phase C | Pointer Events 垂直拖拽移动开始时间，底部边缘 resize 时长，磁吸粒度；**正式版已完成** | ✅ |
+| P1 | **Calendar 长按创建 Phase D** | Pointer Events 长按空区创建 ghost block，拖拽调整时长，松手内联输入创建任务；**正式版已完成** | ✅ |
+| P1 | **截止任务快速安排** | ⏱️ 按钮 + 内联时间选择器，将截止任务升格到时间线；**正式版已完成** | ✅ |
+| P1 | **截止任务拖入时间线（增强交互）** | 长按截止任务卡片 → 拖到时间线目标位置 → 松手设置 startTime + duration（混合方案 A） | ⬜ |
 | P1 | **部署截止时间通知（VAPID 密钥配置）** | Render 环境变量设置 VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT，然后推送代码触发自动部署 | 🚧 编码完成，待部署环境变量 |
 | P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | 🚧 编码完成，context-bridge→DB 同步已修复 |
 | P2 | Phase 4：灵感转化流程完善 | Inspiration → Task + 写入 CURRENT_CONTEXT.md | ⬜ |
 | P2 | Render 休眠缓解 | 免费层 15 分钟休眠，首次请求 30s+ 延迟 | ⬜ |
-| P2 | md 协议扩展：@start、@duration 元数据标记 | 后端 parse/render 支持 @start:HH:MM @duration:MIN 协议标签，前端 entriesToTasks/tasksToEntries 双向映射 | ⬜ |
+| P2 | md 协议扩展：@start、@duration 元数据标记 | 后端 parse/render 支持 @start:HH:MM @duration:MIN 协议标签，使时间线数据可写入 CURRENT_CONTEXT.md 供 AI 读取 | ⬜ |
 | P3 | 多用户 / 正式 OAuth | 当前 API Key 方案仅适合单用户 | ⬜ |

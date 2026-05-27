@@ -197,10 +197,25 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   const headerExpanded = useAppStore((s) => s.calendarHeaderExpanded);
   const setHeaderExpanded = useAppStore((s) => s.setCalendarHeaderExpanded);
   const updateTask = useAppStore((s) => s.updateTask);
+  const addTask = useAppStore((s) => s.addTask);
 
   const timelineRef = useRef<HTMLDivElement>(null);
+  const inlineInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const [currentTimeTop, setCurrentTimeTop] = useState<number | null>(null);
+
+  // 长按创建状态
+  const [creatingGhost, setCreatingGhost] = useState<{ startTime: string; duration: number; top: number; height: number } | null>(null);
+  const [inlineCreating, setInlineCreating] = useState<{ startTime: string; duration: number; top: number; height: number } | null>(null);
+  const [inlineTitle, setInlineTitle] = useState('');
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressPos = useRef<{ x: number; y: number } | null>(null);
+  const isLongPressing = useRef(false);
+
+  // 截止任务快速安排状态
+  const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
+  const [scheduleStartTime, setScheduleStartTime] = useState('09:00');
+  const [scheduleDuration, setScheduleDuration] = useState(60);
 
   const hourH = parseInt(V4.hourHeight, 10);
   const startH = V4.timelineStartHour;
@@ -223,6 +238,13 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     const id = setInterval(tick, 60000);
     return () => clearInterval(id);
   }, [selectedDate, startH, endH, hourH]);
+
+  // 内联输入自动聚焦
+  useEffect(() => {
+    if (inlineCreating && inlineInputRef.current) {
+      inlineInputRef.current.focus();
+    }
+  }, [inlineCreating]);
 
   // 获取选中日期的任务（含时间线任务）
   const dayTasks = tasks.filter((t) => {
@@ -367,6 +389,175 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     el.onpointerup = onUp as any;
   }, [hourH, updateTask]);
 
+  // ==================== 长按创建 ====================
+
+  const handleTimelinePointerDown = useCallback((e: React.PointerEvent) => {
+    // 不干扰已有任务块的拖拽
+    if ((e.target as HTMLElement).closest('.task-block')) return;
+    if ((e.target as HTMLElement).closest('.inline-create-card')) return;
+
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    longPressPos.current = { x: e.clientX, y: e.clientY };
+
+    longPressTimer.current = setTimeout(() => {
+      if (!longPressPos.current) return;
+
+      // 计算磁吸后的开始时间
+      const relativeY = longPressPos.current.y - rect.top;
+      const rawHour = relativeY / hourH + startH;
+      const snappedH = snap(rawHour, V4.snapMinutes / 60);
+      const snappedTop = (snappedH - startH) * hourH;
+      const defaultDurMin = V4.snapMinutes;
+      const defaultHeight = (defaultDurMin / 60) * hourH;
+
+      const hh = Math.floor(snappedH);
+      const mm = Math.round((snappedH - hh) * 60);
+      const startTime = `${pad(hh)}:${pad(mm)}`;
+
+      isLongPressing.current = true;
+      setCreatingGhost({
+        startTime,
+        duration: defaultDurMin,
+        top: snappedTop,
+        height: defaultHeight,
+      });
+
+      // 触觉反馈
+      navigator.vibrate?.(10);
+
+      // 捕获指针以接收后续事件
+      timelineRef.current?.setPointerCapture(e.pointerId);
+    }, 500);
+  }, [hourH, startH]);
+
+  const handleTimelinePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!longPressPos.current) return;
+
+    const dx = Math.abs(e.clientX - longPressPos.current.x);
+    const dy = Math.abs(e.clientY - longPressPos.current.y);
+
+    // 长按未激活时移动超过阈值 → 取消（判定为滚动）
+    if (!isLongPressing.current && (dx > 10 || dy > 10)) {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      longPressPos.current = null;
+      return;
+    }
+
+    // ghost 模式：调整高度
+    if (isLongPressing.current && creatingGhost) {
+      const rect = timelineRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const relativeY = e.clientY - rect.top;
+      const startTop = creatingGhost.top;
+      const rawHeight = relativeY - startTop;
+      const minH = (V4.snapMinutes / 60) * hourH;
+      const maxH = (endH - startH) * hourH - startTop;
+      const clampedHeight = Math.max(minH, Math.min(rawHeight, maxH));
+      const rawDuration = (clampedHeight / hourH) * 60;
+      const snappedDur = Math.max(snap(rawDuration, V4.snapMinutes), V4.snapMinutes);
+      const snappedHeight = (snappedDur / 60) * hourH;
+
+      setCreatingGhost((prev) =>
+        prev ? { ...prev, duration: snappedDur, height: snappedHeight } : null
+      );
+    }
+  }, [creatingGhost, hourH, startH, endH]);
+
+  const handleTimelinePointerUp = useCallback((e: React.PointerEvent) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+
+    if (isLongPressing.current && creatingGhost) {
+      // 进入内联标题编辑
+      setInlineCreating(creatingGhost);
+      setInlineTitle('');
+      setCreatingGhost(null);
+    }
+
+    isLongPressing.current = false;
+    longPressPos.current = null;
+
+    try {
+      timelineRef.current?.releasePointerCapture(e.pointerId);
+    } catch { /* pointer may already be released */ }
+  }, [creatingGhost]);
+
+  const confirmInlineCreate = useCallback(() => {
+    if (!inlineCreating || !inlineTitle.trim()) {
+      setInlineCreating(null);
+      setInlineTitle('');
+      return;
+    }
+
+    const newTask: Task = {
+      id: `tl-${Date.now()}`,
+      title: inlineTitle.trim(),
+      status: 'To do',
+      priority: 'Medium',
+      colorType: 'green',
+      comments: 0,
+      subtasks: [],
+      startTime: inlineCreating.startTime,
+      duration: inlineCreating.duration,
+      dueDate: selectedDate.toISOString(),
+      column: 'personal',
+    };
+
+    addTask(newTask);
+    setInlineCreating(null);
+    setInlineTitle('');
+  }, [inlineCreating, inlineTitle, selectedDate, addTask]);
+
+  const cancelInlineCreate = useCallback(() => {
+    if (inlineTitle.trim()) {
+      confirmInlineCreate();
+    } else {
+      setInlineCreating(null);
+      setInlineTitle('');
+    }
+  }, [inlineTitle, confirmInlineCreate]);
+
+  // ==================== 截止任务快速安排 ====================
+
+  const openSchedulePicker = useCallback((taskId: string) => {
+    const task = tasks.find((t) => t.id === taskId);
+    // 默认开始时间：截止时间前 1 小时，或 09:00
+    let defaultStart = '09:00';
+    if (task?.dueDate) {
+      const d = new Date(task.dueDate);
+      const h = d.getHours();
+      const m = d.getMinutes();
+      // 截止时间 - 60min
+      let adjustedH = h - 1;
+      if (adjustedH < 0) adjustedH = 0;
+      defaultStart = `${pad(adjustedH)}:${pad(m)}`;
+    }
+    setScheduleStartTime(defaultStart);
+    setScheduleDuration(60);
+    setSchedulingTaskId(taskId);
+  }, [tasks]);
+
+  const confirmSchedule = useCallback(() => {
+    if (!schedulingTaskId) return;
+    updateTask(schedulingTaskId, {
+      startTime: scheduleStartTime,
+      duration: scheduleDuration,
+    });
+    setSchedulingTaskId(null);
+  }, [schedulingTaskId, scheduleStartTime, scheduleDuration, updateTask]);
+
+  const cancelSchedule = useCallback(() => {
+    setSchedulingTaskId(null);
+  }, []);
+
   const formatDate = (d: Date) => `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 
   return (
@@ -389,14 +580,81 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
           <h3 className="text-sm font-bold text-[#242424]">
             {formatDate(selectedDate)} · {dayTasks.length} 项
           </h3>
-          <span className="text-[10px] text-gray-400">拖拽调整时间</span>
+          <span className="text-[10px] text-gray-400">长按空区创建 · 拖拽调整时间</span>
         </div>
 
         <div
           ref={timelineRef}
           className="relative"
-          style={{ height: `${timelineHeight}px` }}
+          style={{
+            height: `${timelineHeight}px`,
+            touchAction: creatingGhost ? 'none' : undefined,
+          }}
+          onPointerDown={handleTimelinePointerDown}
+          onPointerMove={handleTimelinePointerMove}
+          onPointerUp={handleTimelinePointerUp}
         >
+          {/* Ghost block：长按创建的预览块 */}
+          {creatingGhost && (
+            <div
+              className="ghost-block absolute left-14 right-2 z-10 rounded-[11px] pointer-events-none"
+              style={{
+                top: `${creatingGhost.top}px`,
+                height: `${creatingGhost.height}px`,
+                background: 'rgba(176,168,219,0.25)',
+                border: '2px dashed rgba(176,168,219,0.6)',
+              }}
+            >
+              <div className="px-3 py-2">
+                <span className="text-[10px] text-[#b0a8db] font-medium">
+                  {creatingGhost.startTime} · {creatingGhost.duration}min
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* 内联创建输入框 */}
+          {inlineCreating && (
+            <div
+              className="inline-create-card absolute left-14 right-2 z-30"
+              style={{
+                top: `${inlineCreating.top}px`,
+                height: `${Math.max(inlineCreating.height, 80)}px`,
+              }}
+            >
+              <div className="bg-white border-2 border-[#b0a8db] rounded-[11px] p-2.5 h-full flex flex-col shadow-lg">
+                <input
+                  ref={inlineInputRef}
+                  type="text"
+                  placeholder="新任务标题..."
+                  value={inlineTitle}
+                  onChange={(e) => setInlineTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') confirmInlineCreate();
+                    if (e.key === 'Escape') {
+                      setInlineCreating(null);
+                      setInlineTitle('');
+                    }
+                  }}
+                  onBlur={cancelInlineCreate}
+                  className="flex-1 bg-transparent text-sm text-[#242424] outline-none placeholder:text-gray-300"
+                />
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="text-[10px] text-gray-400">
+                    {inlineCreating.startTime} · {inlineCreating.duration}min
+                  </span>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={confirmInlineCreate}
+                    className="text-xs bg-[#b0a8db] text-white px-3 py-1 rounded-full font-medium active:opacity-70"
+                  >
+                    创建
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 时间刻度 */}
           {Array.from({ length: endH - startH + 1 }, (_, i) => {
             const h = startH + i;
@@ -493,10 +751,14 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
         return (
           <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden mt-4">
             <div className="p-4 pb-2 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-[#242424]">
-                截止任务 · {dueOnlyTasks.length} 项
-              </h3>
-              <span className="text-[10px] text-gray-400">截止日期已设定，未安排到时间线</span>
+              <div>
+                <h3 className="text-sm font-bold text-[#242424]">
+                  截止任务 · {dueOnlyTasks.length} 项
+                </h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  截止日期已设定，未安排到时间线 · 点击 ⏱ 快速安排
+                </p>
+              </div>
             </div>
             <div className="px-4 pb-4 space-y-2">
               {dueOnlyTasks.map((task) => {
@@ -509,19 +771,86 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
                       minute: '2-digit',
                     })
                   : '';
+                const isScheduling = schedulingTaskId === task.id;
                 return (
-                  <div
-                    key={task.id}
-                    className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 cursor-pointer hover:shadow-sm transition-shadow"
-                    style={{ background: colors.bg, color: colors.text }}
-                    onClick={() => onTaskClick?.(task)}
-                  >
+                  <div key={task.id}>
+                    {/* 任务行 */}
                     <div
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ background: task.colorType === 'dark' ? 'white' : '#242424' }}
-                    />
-                    <span className="flex-1 text-xs font-medium truncate">{task.title}</span>
-                    <span className="text-[10px] opacity-60 flex-shrink-0">{dueDateStr}</span>
+                      className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 cursor-pointer hover:shadow-sm transition-shadow"
+                      style={{ background: colors.bg, color: colors.text }}
+                      onClick={() => onTaskClick?.(task)}
+                    >
+                      <div
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ background: task.colorType === 'dark' ? 'white' : '#242424' }}
+                      />
+                      <span className="flex-1 text-xs font-medium truncate">{task.title}</span>
+                      <span className="text-[10px] opacity-60 flex-shrink-0">{dueDateStr}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isScheduling) {
+                            cancelSchedule();
+                          } else {
+                            openSchedulePicker(task.id);
+                          }
+                        }}
+                        className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm transition-colors ${
+                          isScheduling
+                            ? 'bg-white/30'
+                            : 'bg-black/5 hover:bg-black/10'
+                        }`}
+                        title="安排到时间线"
+                      >
+                        ⏱
+                      </button>
+                    </div>
+                    {/* 时间选择器：展开在卡片下方 */}
+                    {isScheduling && (
+                      <div className="mt-2 p-3 rounded-2xl border border-[#b0a8db]/40 bg-[#b0a8db]/5">
+                        <div className="flex items-center gap-2 mb-2">
+                          <label className="text-[11px] text-gray-500 flex-shrink-0">开始</label>
+                          <input
+                            type="time"
+                            value={scheduleStartTime}
+                            onChange={(e) => setScheduleStartTime(e.target.value)}
+                            className="flex-1 text-xs bg-white rounded-lg border border-gray-200 px-2 py-1.5 outline-none focus:border-[#b0a8db]"
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="text-[11px] text-gray-500 mb-1 block">时长</label>
+                          <div className="flex gap-1.5">
+                            {[30, 60, 90, 120].map((dur) => (
+                              <button
+                                key={dur}
+                                onClick={() => setScheduleDuration(dur)}
+                                className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                                  scheduleDuration === dur
+                                    ? 'bg-[#b0a8db] text-white'
+                                    : 'bg-white text-gray-500 border border-gray-200 hover:border-[#b0a8db]'
+                                }`}
+                              >
+                                {dur}min
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={cancelSchedule}
+                            className="flex-1 text-xs py-1.5 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                          >
+                            取消
+                          </button>
+                          <button
+                            onClick={confirmSchedule}
+                            className="flex-1 text-xs py-1.5 rounded-full bg-[#b0a8db] text-white font-medium hover:opacity-90 transition-opacity"
+                          >
+                            安排到时间线
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
