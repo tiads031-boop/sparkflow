@@ -103,10 +103,10 @@ export class PushService {
     if (subs.length === 0) return;
 
     const taskTitles = dueTasks.map((t) => {
-      const time = t.dueDate
-        ? new Date(t.dueDate).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+      const date = t.dueDate
+        ? new Date(t.dueDate).toISOString().slice(0, 10)
         : '';
-      return time ? `· ${t.title}（${time}）` : `· ${t.title}`;
+      return `· ${t.title}（${date}截止）`;
     });
 
     const payload = JSON.stringify({
@@ -161,7 +161,7 @@ export class PushService {
 
     const payload = JSON.stringify({
       title: '🧪 SparkFlow 测试通知',
-      body: `推送链路正常！订阅数: ${subs.length}，时间: ${new Date().toLocaleString('zh-CN')}`,
+      body: `推送链路正常！订阅数: ${subs.length}`,
       icon: '/favicon.svg',
       badge: '/favicon.svg',
       data: { url: '/' },
