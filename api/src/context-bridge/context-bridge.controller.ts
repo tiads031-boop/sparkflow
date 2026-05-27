@@ -34,7 +34,7 @@ export class ContextBridgeController {
 
   /** 同步：从本地推送原始 md 文本到 Render（支持 base64 + skipDone）
    * - encoding: 'base64' 绕过 WAF 内容扫描
-   * - skipDone: true 时不推送已完成的条目，但保留 Render 已有已完成历史 */
+   * - skipDone: true 时只推送未完成的条目，Render 上已有的已完成条目也会被删除 */
   @Post('sync-push-raw')
   @HttpCode(HttpStatus.OK)
   async syncPushRaw(
@@ -46,23 +46,14 @@ export class ContextBridgeController {
     }
 
     if (body.skipDone) {
-      // 过滤模式：保留 Render 已完成 + 本地未完成
+      // 过滤模式：只保留未完成的条目（Render 上已完成的历史也一并清除）
       const incomingEntries = this.contextBridgeService.parseRaw(rawContent);
-      const incomingNotDone = incomingEntries.filter(
+      const activeEntries = incomingEntries.filter(
         (e) => e.status !== 'done' && e.status !== 'cancelled',
       );
-      const skippedCount = incomingEntries.length - incomingNotDone.length;
-
-      // 获取 Render 当前已完成的条目（保留历史）
-      const currentDoc = this.contextBridgeService.read();
-      const renderDone = currentDoc.entries.filter(
-        (e) => e.status === 'done' || e.status === 'cancelled',
-      );
-
-      // 合并：已完成的保留 Render 数据，未完成的用本地新数据
-      const merged = [...renderDone, ...incomingNotDone];
-      await this.contextBridgeService.forceWrite(merged);
-      return { ok: true, entryCount: merged.length, skippedDone: skippedCount };
+      const skippedCount = incomingEntries.length - activeEntries.length;
+      await this.contextBridgeService.forceWrite(activeEntries);
+      return { ok: true, entryCount: activeEntries.length, skippedDone: skippedCount };
     }
 
     // 全量覆盖模式

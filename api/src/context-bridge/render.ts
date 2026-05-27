@@ -97,13 +97,14 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
   }
   personalEntries.sort(sortEntries);
 
-  // 重建：遍历骨架行，在对应位置插入条目
+  // 预扫描模板，判断是否存在 ### 项目标题
   const templateLines = template.split('\n');
+  const hasProjectHeaders = templateLines.some((l) => l.trim().startsWith('### '));
+
+  // 重建：遍历骨架行，在对应位置插入条目
   let currentSection: 'project' | 'personal' | null = null;
   let projectEntryWritten = false;
   let personalEntryWritten = false;
-  let projectIdx = 0;
-  let personalIdx = 0;
   let inEntryZone = false;
 
   for (const rawLine of templateLines) {
@@ -115,12 +116,22 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
       inEntryZone = true;
       output.push(rawLine);
 
-      // 输出项目条目（如果需要在此处渲染）
-      if (!projectEntryWritten) {
+      // 若模板中无 ### 项目标题，在此处动态输出所有项目分组
+      if (!hasProjectHeaders && !projectEntryWritten) {
         for (const [projName, projEntries] of byProject) {
-          // 找到对应的 ### 项目标题（在下一行处理）
-          // 这里简化为直接输出，项目标题由骨架中的 ### 行处理
+          if (projName !== '__default__') {
+            output.push(`### ${projName}`);
+          }
+          for (const e of projEntries) {
+            output.push(entryToMdLine(e));
+            for (const note of e.notes) {
+              const mark = note.completed ? '[x]' : '[ ]';
+              output.push(`> ${mark} ${note.text}`);
+            }
+          }
         }
+        byProject.clear();
+        projectEntryWritten = true;
       }
       continue;
     }
