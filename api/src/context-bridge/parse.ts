@@ -60,6 +60,10 @@ function parseEntryLine(line: string): { title: string; description: string; sta
   content = content.replace(/[🔴🟡🟢]\s*/g, '');
   content = content.replace(/P[012]：?\s*/, '');
 
+  // 先提取元数据（在分割标题/描述之前，元数据可能出现在 title 或 description 区域）
+  const meta = extractMetaTags(content);
+  content = meta.cleanDesc;
+
   // 分割标题和描述（以 — 或 — 为界，取第一个）
   const dashIdx = findDescSeparator(content);
   let title: string;
@@ -74,9 +78,6 @@ function parseEntryLine(line: string): { title: string; description: string; sta
     title = content.trim();
   }
 
-  // 提取元数据
-  const meta = extractMetaTags(description);
-
   // 确定最终状态：元数据优先，否则 checkbox
   let status: ContextEntry['status'] = baseStatus;
   if (meta.status) {
@@ -86,7 +87,7 @@ function parseEntryLine(line: string): { title: string; description: string; sta
     }
   }
 
-  return { title, description: meta.cleanDesc, status, dueDate: meta.dueDate };
+  return { title, description, status, dueDate: meta.dueDate };
 }
 
 /** 找到标题与描述的真正分隔符位置 */
