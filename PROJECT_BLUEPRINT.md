@@ -255,6 +255,16 @@ PWA → POST /api/context/write (mtime + 变更)
 - **后端 parse.ts**：新增 `extractMetaTags` 辅助函数，从 description 末尾提取 `@key:value` 元数据
 - **后端 render.ts**：`entryToMdLine` 写回时自动附加 `@status:xxx @due:yyyy-mm-dd`
 
+### 2026-05-27（3D 卡片编辑模式 + 元数据解析修复）
+- **DarkFrostedModal 恢复 3D 卡片堆叠**：点击已有任务进入 3D 卡片模式，左右滑动切换
+  - **卡片 1（编辑）**：可修改状态、优先级、分类、截止日期，底部有删除按钮（点两次确认）
+  - **卡片 2（专注）**：25 分钟番茄钟，Play/Pause/Reset
+  - **卡片 3（子任务）**：查看子任务列表（completed 状态前端展示）
+  - **滑动交互**：卡片空白区域左右滑动切换，卡片内按钮/输入框不触发滑动（`isInteractive` 检测）
+- **新建任务保持独立表单**：点 `+` 按钮仍为简单表单，不进入 3D 卡片
+- **元数据解析修复**：`extractMetaTags` 从完整 content 提取（而非仅 description），修复了无 `—` 分隔符时元数据丢失的问题
+- **App.tsx 适配**：`handleSaveItem` 支持 `id` 参数，有 id 时调用 `updateTask` 而非 `addTask`
+
 ### 2026-05-27（Redmi K70 设备适配）
 - **调参 JSON 更新**：`sparkflow-v3-params.json` 从原 419px 基准等比缩放至红米K70标准 viewport（393×852，3200×1440 物理分辨率）
   - `phoneWidth`: 419px → 393px, `phoneHeight`: 850px → 852px
@@ -333,6 +343,10 @@ PWA → POST /api/context/write (mtime + 变更)
 | 2026-05-27 | `dueDate` 未在 md 协议中定义，无法保存 | description 末尾嵌入 `@due:YYYY-MM-DD` 元数据标记 |
 | 2026-05-27 | 演示任务（initialTasks）在 API 失败时仍显示 | 移除 `initialTasks`，API 失败时显示空状态 |
 | 2026-05-27 | Dashboard 周度柱状图为硬编码数据 | 基于任务分布动态计算各柱高度 |
+| 2026-05-27 | 元数据标记 `@status:xxx` 显示在任务标题中 | `extractMetaTags` 改为从完整 content 提取，而非仅 description |
+| 2026-05-27 | `In progress` 状态刷新后变回 `To do` | 修复 `parseEntryLine`：元数据提取移至 title/description 分割之前 |
+| 2026-05-27 | DarkFrostedModal view 模式无法编辑任务 | 恢复 3D 卡片堆叠，卡片 1 内嵌完整编辑表单 |
+| 2026-05-27 | 删除按钮直接删除无确认 | 编辑卡片底部删除按钮改为"点两次确认"机制 |
 
 ---
 
@@ -342,8 +356,9 @@ PWA → POST /api/context/write (mtime + 变更)
 |---|---|---|---|
 | P0 | 部署上线（Render + Vercel） | 前后端已部署，域名已确认 | ✅ |
 | P1 | 子任务状态持久化 | 子任务 completed 状态目前只保存在前端，刷新丢失 | ⬜ |
-| P1 | 任务查看模式状态编辑 | DarkFrostedModal 查看模式也应支持修改状态/优先级/dueDate | ⬜ |
 | P1 | BoardView 拖拽换列持久化 | 拖拽换列后应更新 column 并同步到 API | ⬜ |
+| P1 | 子任务 completed 状态持久化 | 当前仅前端展示，需写入 md 协议层 | ⬜ |
+| P1 | 番茄钟专注时长持久化 | 专注数据应记录到后端 | ⬜ |
 | P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | ⬜ |
 | P2 | Phase 4：灵感转化流程完善 | Inspiration → Task + 写入 CURRENT_CONTEXT.md | ⬜ |
 | P2 | Render 休眠缓解 | 免费层 15 分钟休眠，首次请求 30s+ 延迟 | ⬜ |
