@@ -1,0 +1,733 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  Home, CheckSquare, Calendar as CalendarIcon, Zap, 
+  Plus, Bell, ArrowUpRight, Clock, MoreHorizontal,
+  ArrowLeft, Check, ArrowRight, Code2, Trash2, 
+  AlertCircle, RefreshCw, Play, Pause, RotateCcw, CalendarDays, Flag,
+  LayoutGrid
+} from 'lucide-react';
+
+// --- 初始数据 ---
+const initialTasks = [
+  {
+    id: 1,
+    title: 'Web 应用程序用户注册流程',
+    time: '10:00 AM - 05:30 PM',
+    status: 'In review',
+    priority: 'High Priority',
+    colorType: 'dark', 
+    comments: 6,
+    subtasks: [
+      { id: 101, title: '完成验证码模块接入', completed: true },
+      { id: 102, title: '优化密码错误提示 UI', completed: false }
+    ],
+    members: ['https://i.pravatar.cc/100?img=11', 'https://i.pravatar.cc/100?img=12']
+  },
+  {
+    id: 2,
+    title: '管理后台用户流程梳理',
+    time: '02:00 PM - 04:00 PM',
+    status: 'In progress',
+    priority: 'Medium',
+    colorType: 'green',
+    comments: 8,
+    subtasks: [
+      { id: 201, title: '绘制核心流程图', completed: false }
+    ],
+    members: []
+  },
+  {
+    id: 3,
+    title: '管理面板仪表盘设计',
+    time: 'Tomorrow',
+    status: 'To do',
+    priority: 'High Priority',
+    colorType: 'purple',
+    comments: 1,
+    subtasks: [],
+    members: []
+  }
+];
+
+// 【修改点1】补全初始灵感的物理属性，支持散落布局
+const initialSparks = [
+  { id: 1, text: '尝试用 Framer Motion 给卡片添加微交互动画，提升手感。', color: 'bg-[#cae393]', size: 160, pos: {x: 20, y: 10}, rot: -2, z: 1 },
+  { id: 2, text: '竞品分析：Notion 的 database 视图很强大，但对于轻量级可能过于复杂。需要保持克制。', color: 'bg-[#b0a8db]', size: 180, pos: {x: 170, y: 30}, rot: 3, z: 2 },
+  { id: 3, text: '色彩心理学：紫色代表创造力，绿色代表成长，深灰色代表专注。这个调色板选得很棒。', color: 'bg-white', size: 165, pos: {x: 40, y: 160}, rot: -1.5, z: 3 },
+  { id: 4, text: '磨砂玻璃 + 散落卡片，让信息呼吸。留白即设计本身。', color: 'bg-[#f4f4f4]', size: 170, pos: {x: 180, y: 200}, rot: 2.5, z: 4 },
+];
+
+const taskColors = ['dark', 'green', 'purple'];
+const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
+
+// --- 公共组件 ---
+const Header = ({ onAddClick, onSyncClick }) => (
+  <div className="flex justify-between items-center mb-6">
+    <div className="flex items-center gap-4 relative">
+      <div className="text-2xl font-black tracking-tighter text-[#242424] italic pr-2 select-none">
+        SparkFlow<span className="text-[#cae393]">.</span>
+      </div>
+      <div 
+        onClick={onSyncClick}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-500 border border-red-100 cursor-pointer hover:bg-red-100 transition-colors shadow-sm animate-pulse"
+      >
+        <AlertCircle size={14} />
+        <span className="text-xs font-bold tracking-wide">同步异常</span>
+      </div>
+    </div>
+    <div className="flex gap-2">
+      <button 
+        onClick={onAddClick}
+        className="w-10 h-10 rounded-full bg-[#242424] text-white flex items-center justify-center shadow-sm hover:scale-105 active:scale-95 transition-all"
+      >
+        <Plus size={20} />
+      </button>
+      <button className="w-10 h-10 rounded-full bg-[#e5e2f3] text-[#242424] flex items-center justify-center relative hover:bg-[#d8d4ec] transition-colors">
+        <Bell size={20} />
+        <span className="absolute top-2 right-2 w-2 h-2 bg-[#242424] rounded-full border border-white"></span>
+      </button>
+    </div>
+  </div>
+);
+
+const TaskCard = ({ task, onClick }) => {
+  const isDark = task.colorType === 'dark';
+  const bgClass = isDark ? 'bg-[#242424] text-white' : 
+                  task.colorType === 'green' ? 'bg-[#cae393] text-[#242424]' : 
+                  'bg-[#b0a8db] text-[#242424]';
+
+  return (
+    <div 
+      onClick={() => onClick(task)}
+      className={`relative rounded-[2rem] p-5 mb-4 shadow-sm cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md ${bgClass}`}
+    >
+      <div className="absolute -bottom-3 left-10 w-6 h-6 bg-[#f4f4f6] rounded-full z-10" style={{ boxShadow: `inset 0 4px 4px rgba(0,0,0,0.05)` }}></div>
+
+      <div className="flex justify-between items-start mb-6">
+        <h3 className="font-semibold text-lg leading-tight w-3/4">{task.title}</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium opacity-80">{task.comments} 讨论</span>
+          <button className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isDark ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/50 text-black hover:bg-white'}`}>
+            <ArrowUpRight size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center mt-4">
+        <div className="flex items-center gap-2 text-xs opacity-80">
+          <Clock size={14} />
+          <span>{task.time}</span>
+        </div>
+        <div className={`px-3 py-1.5 rounded-full border ${isDark ? 'border-white/30' : 'border-black/10'} text-xs font-medium`}>
+          {task.priority}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 【修改点2】交互式深色沉浸页 (Focus Mode 3D 飞出卡片组)
+// ==========================================
+const DarkFrostedModal = ({ config, onClose, onSave, onToggleSubtask, onDelete }) => {
+  const isCreate = config.mode === 'create';
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+
+  // 3D 轮播状态
+  const [order, setOrder] = useState([0, 1, 2]);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef(0);
+  const isBusy = useRef(false);
+
+  // 卡片层级配置
+  const LAYERS = [
+    { rot: 0, ty: 0, sc: 1, z: 10, op: 1, sh: '0 22px 65px rgba(0,0,0,0.72)' },
+    { rot: -6.5, ty: 12, sc: 0.97, z: 9, op: 1, sh: '0 12px 38px rgba(0,0,0,0.54)' },
+    { rot: 6.5, ty: 12, sc: 0.97, z: 8, op: 0.9, sh: '0 7px 24px rgba(0,0,0,0.4)' },
+    { rot: 0, ty: 22, sc: 0.94, z: 7, op: 0 }
+  ];
+
+  useEffect(() => {
+    if (config.isOpen) {
+      setTitle(isCreate ? '' : config.data?.title || '');
+      setContent(isCreate ? '' : config.data?.text || '');
+      setOrder([0, 1, 2]);
+      setDragOffset(0);
+    }
+  }, [config.isOpen, isCreate, config.data]);
+
+  if (!config.isOpen) return null;
+
+  const handleAction = () => {
+    if (isCreate) {
+      if (!title.trim() && !content.trim()) return onClose();
+      onSave({ title, content, context: config.context });
+    }
+    onClose();
+  };
+
+  // 滑动处理
+  const handlePointerDown = (e) => {
+    if (isCreate || isBusy.current) return;
+    setIsDragging(true);
+    dragStart.current = e.clientX;
+    e.target.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging || isCreate || isBusy.current) return;
+    setDragOffset(e.clientX - dragStart.current);
+  };
+
+  const handlePointerUp = () => {
+    if (!isDragging || isCreate || isBusy.current) return;
+    setIsDragging(false);
+    
+    if (Math.abs(dragOffset) > 88) {
+      // 触发飞出
+      isBusy.current = true;
+      const flyOutOffset = dragOffset > 0 ? 500 : -500;
+      setDragOffset(flyOutOffset);
+      
+      setTimeout(() => {
+        setOrder(prev => [prev[1], prev[2], prev[0]]);
+        setDragOffset(0);
+        isBusy.current = false;
+      }, 350);
+    } else {
+      setDragOffset(0); // 弹回
+    }
+  };
+
+  // 渲染单张 3D 卡片
+  const renderCard = (cardIndex, logicIndex) => {
+    const isTop = logicIndex === 0;
+    const L_current = LAYERS[logicIndex] || LAYERS[3];
+    const L_next = LAYERS[logicIndex + 1] || LAYERS[3];
+    
+    let currentTransform = `rotate(${L_current.rot}deg) translateY(${L_current.ty}px) scale(${L_current.sc})`;
+    let currentOpacity = L_current.op;
+    let transitionStyle = isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.34,1.18,0.64,1), opacity 0.38s ease, box-shadow 0.38s ease';
+
+    if (isDragging && !isCreate) {
+      const prog = Math.min(Math.abs(dragOffset) / 100, 1);
+      if (isTop) {
+        currentTransform = `translateX(${dragOffset}px) translateY(${Math.abs(dragOffset) * 0.07}px) rotate(${dragOffset * 0.075}deg)`;
+      } else {
+        const r = L_current.rot + (LAYERS[logicIndex - 1].rot - L_current.rot) * prog;
+        const ty = L_current.ty + (LAYERS[logicIndex - 1].ty - L_current.ty) * prog;
+        const sc = L_current.sc + (LAYERS[logicIndex - 1].sc - L_current.sc) * prog;
+        const op = L_current.op + (LAYERS[logicIndex - 1].op - L_current.op) * prog;
+        currentTransform = `rotate(${r}deg) translateY(${ty}px) scale(${sc})`;
+        currentOpacity = op;
+      }
+    }
+
+    if (Math.abs(dragOffset) === 500 && isTop) {
+      transitionStyle = 'transform 0.4s cubic-bezier(0.4,0,1,1), opacity 0.3s ease';
+      currentTransform = `translateX(${dragOffset}px) rotate(${dragOffset > 0 ? 28 : -28}deg)`;
+      currentOpacity = 0;
+    }
+
+    const cardStyles = {
+      transform: currentTransform,
+      opacity: currentOpacity,
+      zIndex: L_current.z,
+      boxShadow: L_current.sh,
+      transition: transitionStyle,
+      transformOrigin: 'center 105%'
+    };
+
+    // 内部卡片内容映射
+    let contentNode = null;
+    if (cardIndex === 0) {
+      // 日程设定 (Schedule)
+      contentNode = (
+        <div className="flex flex-col h-full">
+          <span className="text-[10px] text-[#cae393] font-bold tracking-widest uppercase mb-8">Schedule</span>
+          <h3 className="text-xl font-bold text-white leading-tight mb-6">日程设定</h3>
+          <div className="bg-white/5 rounded-3xl p-5 border border-white/10 mb-4 cursor-pointer hover:bg-white/10 transition-colors">
+            <div className="flex items-center gap-4 mb-2 text-white">
+              <CalendarDays size={20} className="text-[#cae393]" />
+              <span className="font-semibold tracking-wide">Jul 27, 2024</span>
+            </div>
+            <p className="text-xs text-white/50 ml-9">点击设置截止日期</p>
+          </div>
+          <div className="bg-white/5 rounded-3xl p-5 border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+            <div className="flex items-center gap-4 mb-2 text-white">
+              <Bell size={20} className="text-[#b0a8db]" />
+              <span className="font-semibold tracking-wide">09:00 AM</span>
+            </div>
+            <p className="text-xs text-white/50 ml-9">提前 30 分钟提醒</p>
+          </div>
+        </div>
+      );
+    } else if (cardIndex === 1) {
+      // 专注计时 (Focus Timer)
+      contentNode = (
+        <div className="flex flex-col items-center justify-center h-full">
+          <span className="text-[10px] text-[#b0a8db] font-bold tracking-widest uppercase mb-6 self-start">Focus Timer</span>
+          <div className="relative w-40 h-40 rounded-full border-[6px] border-white/10 flex items-center justify-center mb-6">
+            <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+               <circle cx="76" cy="76" r="72" stroke="#b0a8db" strokeWidth="6" fill="transparent" strokeDasharray="452" strokeDashoffset="113" strokeLinecap="round" />
+            </svg>
+            <span className="text-4xl font-light text-white tracking-tighter">25<span className="text-xl text-white/50">:00</span></span>
+          </div>
+          <div className="flex gap-4 items-center">
+            <button className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20"><RotateCcw size={18} /></button>
+            <button className="w-14 h-14 rounded-full bg-[#b0a8db] flex items-center justify-center text-[#242424] shadow-[0_0_20px_rgba(176,168,219,0.3)] hover:scale-105 transition-transform"><Play size={24} className="ml-1" /></button>
+            <button className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20"><Pause size={18} /></button>
+          </div>
+        </div>
+      );
+    } else {
+      // 任务清单 (Task List)
+      contentNode = (
+        <div className="flex flex-col h-full">
+          <span className="text-[10px] text-[#cae393] font-bold tracking-widest uppercase mb-4">Task Details</span>
+          <h3 className="text-xl font-bold text-white leading-tight mb-6 truncate">{config.data?.title || config.data?.text || '任务详情'}</h3>
+          <div className="space-y-4 overflow-y-auto hide-scrollbar flex-1">
+            {config.context === 'task' && config.data?.subtasks?.length > 0 ? (
+              config.data.subtasks.map(sub => (
+                <div key={sub.id} className="flex items-start gap-4 cursor-pointer group" onClick={() => onToggleSubtask(config.data.id, sub.id)}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center mt-0.5 transition-colors ${sub.completed ? 'bg-[#cae393] text-[#242424]' : 'border-2 border-white/30 text-transparent group-hover:border-white/60'}`}>
+                    <Check size={14} strokeWidth={3} />
+                  </div>
+                  <span className={`flex-1 text-sm ${sub.completed ? 'text-white/40 line-through' : 'text-white/90'}`}>{sub.title}</span>
+                </div>
+              ))
+            ) : <div className="text-white/40 text-sm">暂无子任务详情...</div>}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        key={cardIndex}
+        className="absolute w-full h-full bg-[#272727] backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 flex flex-col overflow-hidden will-change-transform"
+        style={cardStyles}
+      >
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
+        {contentNode}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-[#0F0F0F] overflow-hidden animate-in fade-in slide-in-from-bottom-8 duration-300">
+      <div className="absolute inset-0 noise-bg opacity-[0.25] mix-blend-overlay pointer-events-none z-0"></div>
+      
+      <div className="relative z-20 flex justify-between items-center p-6 text-white">
+        <button onClick={onClose} className="p-2 bg-white/10 rounded-full backdrop-blur-md border border-white/10 hover:bg-white/20 transition-colors z-50">
+          <ArrowLeft size={20} />
+        </button>
+        <span className="font-medium tracking-wider text-sm opacity-60">
+          {isCreate ? `NEW ${config.context.toUpperCase()}` : 'FOCUS MODE'}
+        </span>
+        {!isCreate ? (
+          <button onClick={() => { onDelete(config.data.id, config.context); onClose(); }} className="p-2 bg-red-500/20 text-red-400 rounded-full backdrop-blur-md border border-red-500/20 hover:bg-red-500/40 transition-colors z-50">
+            <Trash2 size={20} />
+          </button>
+        ) : <div className="w-10"></div>}
+      </div>
+
+      <div className="relative z-20 flex flex-col items-center justify-center h-[65%] w-full">
+        {isCreate ? (
+          // 创建模式保持单卡片
+          <div className="w-[85%] max-w-[340px] h-full max-h-[500px] bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 flex flex-col relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/10 to-transparent pointer-events-none"></div>
+             <div className="flex-1 flex flex-col mt-4 space-y-4">
+                <span className="text-[10px] text-[#cae393] font-bold tracking-widest uppercase">Content</span>
+                <input autoFocus type="text" placeholder={config.context === 'task' ? "任务名称..." : "灵感关键字..."} className="bg-transparent border-b border-white/20 text-white text-2xl font-bold outline-none placeholder:text-white/30 pb-2" value={title} onChange={e => setTitle(e.target.value)} />
+                <textarea placeholder={config.context === 'task' ? "添加细节描述或子任务..." : "记录此刻闪过的想法..."} className="bg-transparent border-none text-white/80 text-sm outline-none placeholder:text-white/20 flex-1 resize-none mt-4" value={content} onChange={e => setContent(e.target.value)} />
+             </div>
+          </div>
+        ) : (
+          // 详情模式：3D 交互卡片堆叠
+          <div 
+            className="relative w-[85%] max-w-[340px] h-full max-h-[500px] touch-none"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            {order.map((cardIndex, logicIndex) => renderCard(cardIndex, logicIndex))}
+          </div>
+        )}
+      </div>
+
+      <div className="absolute bottom-0 left-0 w-full p-8 bg-gradient-to-t from-[#080808] via-[#0F0F0F]/90 to-transparent z-10 pb-12 pointer-events-none">
+        <div className="pointer-events-auto">
+          <h2 className="text-3xl font-bold text-white mb-3 leading-tight">{isCreate ? 'Capture It.' : 'Stay Focused.'}</h2>
+          <p className="text-gray-400 text-sm mb-8 leading-relaxed max-w-[85%]">
+            {isCreate ? '记录下稍纵即逝的灵感或亟待解决的任务。' : '左右滑动飞出卡片，沉浸式管理你的专注配置。'}
+          </p>
+          <div className="flex justify-between items-center cursor-pointer group" onClick={handleAction}>
+            <span className="text-white/50 text-sm font-medium ml-2 uppercase tracking-wider group-hover:text-white transition-colors">
+              {isCreate ? '保存并继续' : '退出专注'}
+            </span>
+            <button className="w-14 h-14 rounded-full bg-[#cae393] text-[#242424] flex items-center justify-center shadow-[0_10px_20px_rgba(202,227,147,0.2)] hover:scale-105 active:scale-95 transition-transform">
+               {isCreate ? <Check size={24} /> : <ArrowRight size={24} />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 冲突解决视图 (Conflict Diff Modal)
+// ==========================================
+const SyncConflictModal = ({ isOpen, onClose }) => {
+  const [resolutions, setResolutions] = useState({});
+  const mockConflicts = [
+    { id: 'f1', field: '任务标题', mine: 'Web 应用程序用户注册流程', latest: 'Web 应用程序注册及SSO接入流程' },
+    { id: 'f2', field: '优先级与状态', mine: 'High Priority · In review', latest: 'Medium · To do' }
+  ];
+
+  if (!isOpen) return null;
+
+  const handleResolve = (fieldId, choice) => setResolutions(prev => ({ ...prev, [fieldId]: choice }));
+  const handleResolveAll = (choice) => {
+    const newRes = {}; mockConflicts.forEach(c => newRes[c.id] = choice); setResolutions(newRes);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#1a1a1c]/60 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="bg-white w-full max-w-[90%] sm:max-w-sm rounded-[2.5rem] p-6 shadow-2xl flex flex-col relative overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500"><RefreshCw size={24} /></div>
+          <div><h2 className="text-xl font-bold text-[#242424]">版本冲突</h2><p className="text-xs text-gray-500 font-medium">发现外部协同修改，请确认</p></div>
+        </div>
+        <div className="flex-1 overflow-y-auto hide-scrollbar space-y-6 pb-2">
+          {mockConflicts.map((conflict) => {
+            const currentChoice = resolutions[conflict.id];
+            return (
+              <div key={conflict.id}>
+                <div className="flex justify-between items-center mb-2">
+                   <h4 className="text-sm font-bold text-[#242424]">{conflict.field}</h4>
+                   {currentChoice && <span className="text-[10px] uppercase tracking-wider font-bold text-green-500 flex items-center gap-1"><Check size={12}/> 已选择</span>}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div onClick={() => handleResolve(conflict.id, 'mine')} className={`relative p-3 rounded-[1.25rem] cursor-pointer transition-all border-2 ${currentChoice === 'mine' ? 'border-[#82c8eb] bg-[#e6f4fc]' : currentChoice === 'latest' ? 'border-transparent bg-gray-50 opacity-40 grayscale' : 'border-transparent bg-[#e6f4fc]/50 hover:bg-[#e6f4fc]'}`}>
+                    <span className="text-[10px] font-bold text-[#5aa8d1] block mb-1 uppercase">你的版本</span>
+                    <p className={`text-xs font-medium leading-relaxed ${currentChoice === 'latest' ? 'line-through text-gray-400' : 'text-[#242424]'}`}>{conflict.mine}</p>
+                  </div>
+                  <div onClick={() => handleResolve(conflict.id, 'latest')} className={`relative p-3 rounded-[1.25rem] cursor-pointer transition-all border-2 ${currentChoice === 'latest' ? 'border-[#b0a8db] bg-[#f0eef7]' : currentChoice === 'mine' ? 'border-transparent bg-gray-50 opacity-40 grayscale' : 'border-transparent bg-[#f0eef7]/50 hover:bg-[#f0eef7]'}`}>
+                    <span className="text-[10px] font-bold text-[#9086c8] block mb-1 uppercase">最新/AI</span>
+                    <p className={`text-xs font-medium leading-relaxed ${currentChoice === 'mine' ? 'line-through text-gray-400' : 'text-[#242424]'}`}>{conflict.latest}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-6 pt-5 border-t border-gray-100 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+             <button onClick={() => handleResolveAll('mine')} className="py-3 rounded-full bg-[#e6f4fc] text-[#5aa8d1] text-xs font-bold transition-transform active:scale-95">全部保留我的</button>
+             <button onClick={() => handleResolveAll('latest')} className="py-3 rounded-full bg-[#f0eef7] text-[#9086c8] text-xs font-bold transition-transform active:scale-95">全部采用最新</button>
+          </div>
+          <button onClick={onClose} className="w-full py-3 rounded-full bg-[#242424] text-white text-sm font-bold shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2">
+            {Object.keys(resolutions).length === mockConflicts.length ? <><Check size={16}/> 确认同步</> : '稍后处理'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- 主视图组件 ---
+const DashboardView = ({ tasks }) => {
+  const inProgress = tasks.filter(t => t.status === 'In progress').length;
+  const inReview = tasks.filter(t => t.status === 'In review').length;
+  const todo = tasks.filter(t => t.status === 'To do').length;
+  const total = tasks.length;
+
+  return (
+    <div className="pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <h1 className="text-2xl font-bold mb-6 text-[#242424]">仪表盘概览</h1>
+      <div className="space-y-3 mb-8">
+        <div className="flex gap-3">
+          <div className="flex items-center justify-between px-4 py-3 rounded-full bg-[#b0a8db] text-[#242424] flex-1 shadow-sm"><span className="text-sm font-medium">进行中</span><span className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-xs font-bold">{inProgress}</span></div>
+          <div className="flex items-center justify-between px-4 py-3 rounded-full bg-white text-[#242424] border border-gray-100 flex-1 shadow-sm"><span className="text-sm font-medium">审核中</span><span className="w-6 h-6 rounded-full bg-[#f4f4f6] flex items-center justify-center text-xs font-bold">{inReview}</span></div>
+        </div>
+        <div className="flex gap-3">
+          <div className="flex items-center justify-between px-4 py-3 rounded-full bg-[#242424] text-white flex-1 shadow-sm"><span className="text-sm font-medium">全部任务</span><span className="w-6 h-6 rounded-full bg-white text-[#242424] flex items-center justify-center text-xs font-bold">{total}</span></div>
+          <div className="flex items-center justify-between px-4 py-3 rounded-full bg-[#cae393] text-[#242424] flex-1 shadow-sm"><span className="text-sm font-medium">待处理</span><span className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-xs font-bold">{todo}</span></div>
+        </div>
+      </div>
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-6">
+        <div className="flex bg-gray-100 rounded-full p-1 mb-6">
+          <button className="flex-1 py-1.5 text-sm font-medium rounded-full bg-white shadow-sm">日</button>
+          <button className="flex-1 py-1.5 text-sm font-medium rounded-full bg-[#cae393]">周</button>
+          <button className="flex-1 py-1.5 text-sm font-medium rounded-full text-gray-500">月</button>
+        </div>
+        <div className="h-48 flex items-end justify-between gap-2 px-2 pb-6 relative border-b border-gray-100">
+           {[{ h1: '40%', h2: '30%', h3: '20%' }, { h1: '60%', h2: '20%', h3: '30%' }, { h1: '30%', h2: '40%', h3: '10%' }, { h1: '80%', h2: '10%', h3: '20%' }, { h1: '50%', h2: '30%', h3: '20%' }, { h1: '70%', h2: '20%', h3: '10%' }, { h1: '40%', h2: '50%', h3: '10%' }].map((bar, i) => (
+              <div key={i} className="w-8 flex flex-col justify-end gap-1 h-full relative group">
+                 <div className="w-full bg-[#cae393] rounded-t-md opacity-80"></div>
+                 <div className="w-full bg-[#b0a8db] rounded-sm opacity-80" style={{ height: bar.h2 }}></div>
+                 <div className="w-full rounded-b-md opacity-90 bg-[#242424]" style={{ height: bar.h3 }}></div>
+              </div>
+           ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TasksView = ({ tasks, onTaskClick }) => {
+  const [filter, setFilter] = useState('All');
+  const displayTasks = filter === 'All' ? tasks : tasks.filter(t => t.status === filter);
+
+  return (
+    <div className="pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex justify-between items-center mb-4"><h1 className="text-2xl font-bold text-[#242424]">任务列表</h1></div>
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-2 hide-scrollbar">
+        {['All', 'In progress', 'In review', 'To do'].map(f => (
+          <div key={f} onClick={() => setFilter(f)} className={`flex-shrink-0 cursor-pointer px-4 py-2 rounded-full shadow-sm text-sm font-medium transition-colors ${filter === f ? 'bg-[#cae393] text-[#242424]' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
+            {f === 'All' ? '全部' : f === 'In progress' ? '进行中' : f === 'In review' ? '审核中' : '待处理'}
+          </div>
+        ))}
+      </div>
+      <div className="space-y-4">
+        {displayTasks.length > 0 ? displayTasks.map(task => <TaskCard key={task.id} task={task} onClick={() => onTaskClick(task)} />) : <div className="text-center py-10 text-gray-400 text-sm bg-white rounded-3xl border border-dashed border-gray-200">无任务</div>}
+      </div>
+    </div>
+  );
+};
+
+const CalendarView = () => (
+  <div className="pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <h1 className="text-2xl font-bold text-[#242424] mb-6">日程安排</h1>
+    <div className="bg-white rounded-[2rem] p-6 shadow-sm mb-6 flex flex-col items-center justify-center min-h-[300px] border border-gray-100">
+       <CalendarIcon size={48} className="text-[#b0a8db] mb-4 opacity-80" />
+       <p className="text-gray-500 font-medium">日历组件构建中...</p>
+    </div>
+  </div>
+);
+
+// ==========================================
+// 【修改点3】SparksView 灵感墙升级版 (拖拽与绝对定位排版)
+// ==========================================
+const SparksView = ({ sparks, setSparks, onTaskClick }) => {
+  const containerRef = useRef(null);
+  
+  // 拖拽状态
+  const [dragId, setDragId] = useState(null);
+  const dragInfo = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0, zIndex: 0 });
+
+  const handlePointerDown = (e, spark) => {
+    e.target.setPointerCapture(e.pointerId);
+    const maxZ = Math.max(...sparks.map(s => s.z || 0), 0) + 1;
+    setDragId(spark.id);
+    dragInfo.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: spark.pos.x,
+      initialY: spark.pos.y,
+      zIndex: maxZ
+    };
+    // 立即更新该卡片的层级，使其置顶
+    setSparks(prev => prev.map(s => s.id === spark.id ? { ...s, z: maxZ } : s));
+  };
+
+  const handlePointerMove = (e) => {
+    if (!dragId) return;
+    const dx = e.clientX - dragInfo.current.startX;
+    const dy = e.clientY - dragInfo.current.startY;
+    
+    setSparks(prev => prev.map(s => {
+      if (s.id === dragId) {
+        return {
+          ...s,
+          pos: {
+            x: Math.max(0, dragInfo.current.initialX + dx),
+            y: Math.max(0, dragInfo.current.initialY + dy)
+          }
+        };
+      }
+      return s;
+    }));
+  };
+
+  const handlePointerUp = () => {
+    setDragId(null);
+  };
+
+  // 自动整理 (瀑布流化)
+  const handleAutoArrange = () => {
+    const sorted = [...sparks];
+    let yLeft = 10, yRight = 10;
+    
+    const updatedSparks = sorted.map((s, idx) => {
+      const isLeft = idx % 2 === 0;
+      const x = isLeft ? 10 : 180;
+      const y = isLeft ? yLeft : yRight;
+      
+      if (isLeft) yLeft += 150 + 15; // 假设固定高度和间距
+      else yRight += 150 + 15;
+      
+      return { ...s, pos: { x, y }, rot: 0 };
+    });
+    setSparks(updatedSparks);
+  };
+
+  // 计算容器高度
+  const maxBoardHeight = Math.max(...sparks.map(s => (s.pos?.y || 0) + 200), 500);
+
+  return (
+    <div className="pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500 h-full flex flex-col">
+      <div className="flex justify-between items-center mb-6 shrink-0">
+        <div><h1 className="text-2xl font-bold text-[#242424]">灵感墙</h1><p className="text-sm text-gray-500 mt-1">随意拖动卡片或自动整理</p></div>
+        <button onClick={handleAutoArrange} className="flex items-center gap-1 bg-white px-3 py-1.5 rounded-full shadow-sm text-xs font-bold text-[#242424] hover:bg-gray-50">
+          <LayoutGrid size={14} /> 整理
+        </button>
+      </div>
+      
+      <div 
+        ref={containerRef}
+        className="relative flex-1 w-full min-h-[600px] bg-transparent"
+        style={{ height: maxBoardHeight + 'px' }}
+      >
+        {sparks.map((spark) => (
+          <div 
+            key={spark.id} 
+            onPointerDown={(e) => handlePointerDown(e, spark)}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            className={`absolute p-4 rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] cursor-grab active:cursor-grabbing ${spark.color} ${spark.color === 'bg-[#242424]' ? 'text-white' : 'text-[#242424]'} ${dragId === spark.id ? 'scale-105' : ''}`}
+            style={{ 
+              width: spark.size || 160,
+              left: spark.pos?.x || 0, 
+              top: spark.pos?.y || 0,
+              transform: `rotate(${dragId === spark.id ? 0 : spark.rot || 0}deg)`,
+              zIndex: spark.z || 1,
+              touchAction: 'none',
+              backdropFilter: 'blur(20px)',
+              transition: dragId === spark.id ? 'none' : 'transform 0.4s cubic-bezier(0.34,1.18,0.64,1), left 0.4s, top 0.4s'
+            }}
+          >
+            <div className="flex justify-between items-start mb-2 opacity-50">
+              <Zap size={14} />
+              <button 
+                onClick={(e) => { e.stopPropagation(); onTaskClick(spark, 'spark'); }}
+                className="w-6 h-6 rounded-full hover:bg-black/10 flex items-center justify-center transition-colors"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            </div>
+            <p className="text-sm font-medium leading-relaxed pointer-events-none">{spark.text || spark.title}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- 底部导航栏 ---
+const BottomNav = ({ activeTab, setActiveTab }) => (
+  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-[#242424] rounded-full px-2 py-2 flex items-center gap-2 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-40">
+    {[
+      { id: 'dashboard', icon: Home },
+      { id: 'tasks', icon: CheckSquare },
+      { id: 'calendar', icon: CalendarIcon },
+      { id: 'sparks', icon: Zap },
+    ].map((tab) => {
+      const Icon = tab.icon;
+      const isActive = activeTab === tab.id;
+      return (
+        <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`relative p-3 rounded-full transition-all duration-300 ${isActive ? 'bg-white text-[#242424]' : 'text-gray-400 hover:text-white'}`}>
+          <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+          {isActive && <span className="absolute -top-1 right-0 w-2.5 h-2.5 bg-[#cae393] rounded-full border-2 border-[#242424]"></span>}
+        </button>
+      );
+    })}
+  </div>
+);
+
+// --- 主应用组件 ---
+export default function App() {
+  const [activeTab, setActiveTab] = useState('tasks');
+  const [tasks, setTasks] = useState(initialTasks);
+  const [sparks, setSparks] = useState(initialSparks);
+  
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ isOpen: false, mode: 'view', context: 'task', data: null });
+
+  const handleOpenCreate = (context = 'task') => setModalConfig({ isOpen: true, mode: 'create', context, data: null });
+  const handleOpenDetail = (item, context = 'task') => setModalConfig({ isOpen: true, mode: 'view', context, data: item });
+
+  const handleSaveItem = ({ title, content, context }) => {
+    if (context === 'task') {
+      const newTask = { id: Date.now(), title: title || '未命名', time: 'Just now', status: 'To do', priority: 'Normal', colorType: taskColors[Math.floor(Math.random() * taskColors.length)], comments: 0, subtasks: content ? [{ id: Date.now()+1, title: content, completed: false }] : [], members: [] };
+      setTasks([newTask, ...tasks]); setActiveTab('tasks');
+    } else {
+      const maxZ = Math.max(...sparks.map(s => s.z || 0), 0) + 1;
+      const newSpark = { 
+        id: Date.now(), type: 'idea', color: sparkColors[Math.floor(Math.random() * sparkColors.length)], tag: '想法', 
+        text: title + (content ? ` - ${content}` : ''), 
+        size: 160 + Math.floor(Math.random() * 40), 
+        pos: { x: 20 + Math.floor(Math.random() * 100), y: 50 + Math.floor(Math.random() * 150) }, 
+        rot: (Math.random() - 0.5) * 6, z: maxZ, time: '刚刚', pinned: false 
+      };
+      setSparks([newSpark, ...sparks]); setActiveTab('sparks');
+    }
+  };
+
+  const handleToggleSubtask = (taskId, subtaskId) => {
+    setTasks(tasks.map(t => {
+      if (t.id === taskId) {
+        const updatedSubtasks = t.subtasks.map(sub => sub.id === subtaskId ? { ...sub, completed: !sub.completed } : sub);
+        if (modalConfig.isOpen && modalConfig.data?.id === taskId) setModalConfig(prev => ({ ...prev, data: { ...t, subtasks: updatedSubtasks }}));
+        return { ...t, subtasks: updatedSubtasks };
+      }
+      return t;
+    }));
+  };
+
+  const handleDeleteItem = (id, context) => {
+    if (context === 'task') setTasks(tasks.filter(t => t.id !== id));
+    else setSparks(sparks.filter(s => s.id !== id));
+  };
+
+  return (
+    <div className="min-h-screen font-sans bg-black/90 flex justify-center items-center p-4">
+      <style dangerouslySetInnerHTML={{__html: `
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .noise-bg { background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
+      `}} />
+
+      <div className="w-full max-w-md h-[850px] relative shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#f4f4f6] overflow-hidden rounded-[2.5rem] border-[6px] border-[#333] flex flex-col">
+        
+        <div className="p-6 pb-0 relative z-20">
+           <Header onAddClick={handleOpenCreate} onSyncClick={() => setIsSyncModalOpen(true)} />
+        </div>
+
+        <div className="flex-1 overflow-y-auto hide-scrollbar px-6 relative z-10">
+          {activeTab === 'dashboard' && <DashboardView tasks={tasks} />}
+          {activeTab === 'tasks' && <TasksView tasks={tasks} onTaskClick={t => handleOpenDetail(t, 'task')} />}
+          {activeTab === 'calendar' && <CalendarView />}
+          {activeTab === 'sparks' && <SparksView sparks={sparks} setSparks={setSparks} onAddClick={handleOpenCreate} onTaskClick={s => handleOpenDetail(s, 'spark')} />}
+        </div>
+
+        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+        
+        <DarkFrostedModal 
+          config={modalConfig} onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+          onSave={handleSaveItem} onToggleSubtask={handleToggleSubtask} onDelete={handleDeleteItem}
+        />
+        
+        <SyncConflictModal 
+          isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} 
+        />
+      </div>
+    </div>
+  );
+}

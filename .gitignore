@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Environment (each subproject has its own .gitignore, this is the root catch-all)
+.env
+.env.*
+!.env.example
+!.env.production  # web/.env.production is a template (no real secrets)
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AI agent cruft
+.claude/
+.codepilot-uploads/
+
+# Generated Prisma client
+api/src/generated/
+api/prisma/generated/

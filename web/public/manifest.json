@@ -1,0 +1,18 @@
+{
+  "name": "SparkFlow - 灵感与效率",
+  "short_name": "SparkFlow",
+  "description": "CURRENT_CONTEXT 可视化管理面板 — 任务看板、灵感墙、专注计时、同步协作",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f4f6",
+  "theme_color": "#242424",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

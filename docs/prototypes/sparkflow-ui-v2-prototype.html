@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SparkFlow · UI V2 完整原型</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  :root {
+    --bg: #f4f4f6;
+    --dark: #242424;
+    --green: #cae393;
+    --purple: #b0a8db;
+    --muted: #888780;
+    --text: #2c2c2a;
+    --card-radius: 2rem;
+    --nav-h: 64px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Inter', 'PingFang SC', system-ui, sans-serif;
+    background: #1a1a1a;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Phone Shell ─── */
+  .phone {
+    width: 100%; max-width: 420px; height: 100%; max-height: 880px;
+    background: var(--bg);
+    border-radius: 2.5rem;
+    border: 6px solid #333;
+    box-shadow: 0 0 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+    display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  @media (max-width: 480px) {
+    .phone { border: none; border-radius: 0; max-height: 100vh; }
+  }
+
+  /* ─── Scrollbar hide ─── */
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ─── Header ─── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 24px 0; flex-shrink: 0; z-index: 20; background: var(--bg);
+  }
+  .logo {
+    font-size: 1.5rem; font-weight: 900; letter-spacing: -0.04em;
+    color: var(--dark); font-style: italic; user-select: none;
+  }
+  .logo-dot { color: var(--green); }
+  .sync-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 99px; font-size: 11px; font-weight: 700;
+    cursor: pointer; transition: all .2s; letter-spacing: 0.02em;
+  }
+  .sync-pill.ok {
+    background: #eaf3de; color: #3b6d11; border: 1px solid #d4e7c4;
+  }
+  .sync-pill.err {
+    background: #fcebeb; color: #a32d2d; border: 1px solid #f5d0d0;
+    animation: pulse-red 2s infinite;
+  }
+  @keyframes pulse-red {
+    0%,100% { box-shadow: 0 0 0 0 rgba(163,45,45,0.15); }
+    50% { box-shadow: 0 0 0 6px rgba(163,45,45,0); }
+  }
+  .header-actions { display: flex; gap: 10px; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center; border: none; cursor: pointer;
+    transition: all .2s; position: relative;
+  }
+  .icon-btn:active { transform: scale(0.92); }
+  .icon-btn.dark { background: var(--dark); color: white; }
+  .icon-btn.purple { background: #e5e2f3; color: var(--dark); }
+  .icon-btn .badge {
+    position: absolute; top: 2px; right: 2px;
+    width: 10px; height: 10px; background: var(--dark);
+    border-radius: 50%; border: 2px solid var(--bg);
+  }
+
+  /* ─── Main Content ─── */
+  .main {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    padding: 0 24px 100px; position: relative; z-index: 10;
+  }
+
+  /* ─── Page transitions ─── */
+  .page { display: none; animation: pageIn .35s cubic-bezier(0.4,0,0.2,1); }
+  .page.on { display: block; }
+  @keyframes pageIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Section Headers ─── */
+  .section-title {
+    font-size: 1.25rem; font-weight: 800; color: var(--dark);
+    margin-bottom: 4px; letter-spacing: -0.02em;
+  }
+  .section-sub { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+
+  /* ─── Context Board (Two columns) ─── */
+  .board-columns { display: flex; gap: 12px; margin-bottom: 16px; }
+  .board-col { flex: 1; }
+  .board-col-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px; border-radius: 14px; margin-bottom: 10px;
+    font-size: 11px; font-weight: 700; cursor: pointer; user-select: none;
+  }
+  .board-col-header.proj { background: rgba(24,95,165,0.08); color: #185fa5; }
+  .board-col-header.pers { background: rgba(176,168,219,0.25); color: #5e4fa2; }
+  .board-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .board-dot.proj { background: #185fa5; }
+  .board-dot.pers { background: #8b7fd4; }
+  .board-count {
+    margin-left: auto; font-size: 10px; padding: 2px 6px;
+    border-radius: 99px; background: rgba(255,255,255,0.6);
+  }
+
+  /* ─── Mini Cards (Context board) ─── */
+  .mini-card {
+    background: white; border-radius: 1.25rem; padding: 12px 14px;
+    margin-bottom: 8px; border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    cursor: pointer; transition: all .2s; position: relative;
+  }
+  .mini-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+  .mini-card.done { opacity: 0.55; }
+  .mini-card.done .mini-title { text-decoration: line-through; }
+  .mini-bar {
+    position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
+    border-radius: 99px;
+  }
+  .mini-bar.p0 { background: #a32d2d; }
+  .mini-bar.p1 { background: #854f0b; }
+  .mini-bar.p2 { background: #3b6d11; }
+  .mini-bar.done { background: #bbb; }
+  .mini-title { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.4; padding-left: 8px; }
+  .mini-meta { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding-left: 8px; }
+  .mini-tag { font-size: 10px; padding: 2px 7px; border-radius: 99px; font-weight: 600; }
+  .mini-tag.p0 { background: #fcebeb; color: #a32d2d; }
+  .mini-tag.p1 { background: #faeeda; color: #854f0b; }
+  .mini-tag.p2 { background: #eaf3de; color: #3b6d11; }
+  .mini-check {
+    width: 18px; height: 18px; border: 2px solid #ddd; border-radius: 5px;
+    margin-left: auto; cursor: pointer; display: grid; place-items: center;
+    transition: all .18s; flex-shrink: 0;
+  }
+  .mini-check:hover { border-color: var(--green); }
+  .mini-check.done { background: var(--green); border-color: var(--green); }
+  .mini-check.done::after { content: '✓'; font-size: 10px; font-weight: 800; color: var(--dark); }
+
+  /* ─── Task Cards (Full size) ─── */
+  .task-card {
+    border-radius: var(--card-radius); padding: 20px; margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06); cursor: pointer;
+    transition: all .3s cubic-bezier(0.34,1.18,0.64,1); position: relative;
+  }
+  .task-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+  .task-card.dark { background: var(--dark); color: white; }
+  .task-card.green { background: var(--green); color: var(--dark); }
+  .task-card.purple { background: var(--purple); color: var(--dark); }
+  .task-card .tc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .task-card .tc-title { font-size: 17px; font-weight: 700; line-height: 1.3; width: 75%; }
+  .task-card .tc-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 12px; opacity: 0.8; }
+  .task-card .tc-pill {
+    padding: 6px 14px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.15);
+    font-size: 11px; font-weight: 600;
+  }
+  .task-card.green .tc-pill, .task-card.purple .tc-pill { border-color: rgba(0,0,0,0.1); }
+  .tc-arrow {
+    width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(255,255,255,0.12); transition: all .2s;
+  }
+  .task-card.green .tc-arrow, .task-card.purple .tc-arrow { background: rgba(0,0,0,0.06); }
+  .tc-arrow:hover { background: rgba(255,255,255,0.25); }
+  .task-card.green .tc-arrow:hover, .task-card.purple .tc-arrow:hover { background: rgba(0,0,0,0.1); }
+
+  /* ─── Filter Pills ─── */
+  .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 8px; }
+  .filter-pill {
+    flex-shrink: 0; padding: 8px 18px; border-radius: 99px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s;
+    border: none; background: white; color: var(--muted); box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .filter-pill.on { background: var(--green); color: var(--dark); }
+
+  /* ─── Calendar ─── */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; margin-bottom: 16px; }
+  .cal-day-label { font-size: 11px; color: var(--muted); font-weight: 600; padding: 8px 0; }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 14px; display: grid; place-items: center;
+    font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer;
+    transition: all .15s; position: relative;
+  }
+  .cal-day:hover { background: rgba(0,0,0,0.03); }
+  .cal-day.today { background: var(--dark); color: white; }
+  .cal-day.has::after {
+    content: ''; position: absolute; bottom: 4px; width: 4px; height: 4px;
+    border-radius: 50%; background: var(--purple);
+  }
+  .cal-day.today.has::after { background: var(--green); }
+
+  .event-item {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    background: white; border-radius: 1.25rem; margin-bottom: 8px;
+    border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+  .event-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .event-title { font-size: 13px; font-weight: 600; }
+  .event-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ─── Sparks Wall ─── */
+  .sparks-board { position: relative; width: 100%; min-height: 600px; }
+  .spark-card {
+    position: absolute; padding: 16px; border-radius: 1.5rem;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08); cursor: grab;
+    font-size: 13px; font-weight: 500; line-height: 1.5;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    touch-action: none; user-select: none; transition: transform .4s cubic-bezier(0.34,1.18,0.64,1);
+  }
+  .spark-card:active { cursor: grabbing; transform: scale(1.05) rotate(0deg) !important; z-index: 999 !important; }
+  .spark-card.dragging { transition: none; }
+  .spark-card .spark-icon { opacity: 0.4; margin-bottom: 6px; }
+  .spark-card .spark-more {
+    position: absolute; top: 10px; right: 10px; width: 24px; height: 24px;
+    border-radius: 50%; display: grid; place-items: center; opacity: 0;
+    transition: all .2s; cursor: pointer;
+  }
+  .spark-card:hover .spark-more { opacity: 1; background: rgba(0,0,0,0.06); }
+  .spark-card.dark { background: var(--dark); color: white; }
+  .spark-card.green { background: var(--green); color: var(--dark); }
+  .spark-card.purple { background: var(--purple); color: var(--dark); }
+  .spark-card.white { background: white; color: var(--dark); }
+  .spark-card.gray { background: #f4f4f4; color: var(--dark); }
+
+  .arrange-btn {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: white; border-radius: 99px; font-size: 12px; font-weight: 700;
+    border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all .2s;
+  }
+  .arrange-btn:hover { background: #f8f8f8; }
+
+  /* ─── Focus Page ─── */
+  .focus-hero {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 40px 20px; gap: 24px;
+  }
+  .focus-ring {
+    width: 200px; height: 200px; border-radius: 50%;
+    border: 6px solid rgba(0,0,0,0.06); position: relative;
+    display: grid; place-items: center;
+  }
+  .focus-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .focus-time { font-size: 3rem; font-weight: 300; letter-spacing: -0.04em; color: var(--dark); }
+  .focus-time span { font-size: 1.25rem; color: var(--muted); }
+  .focus-controls { display: flex; gap: 12px; align-items: center; }
+  .focus-btn {
+    width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer;
+    display: grid; place-items: center; transition: all .2s;
+  }
+  .focus-btn.main {
+    width: 64px; height: 64px; background: var(--purple);
+    box-shadow: 0 0 20px rgba(176,168,219,0.3);
+  }
+  .focus-btn.main:active { transform: scale(0.95); }
+  .focus-btn.secondary { background: rgba(0,0,0,0.06); }
+  .focus-btn.secondary:hover { background: rgba(0,0,0,0.1); }
+
+  /* ─── Bottom Nav ─── */
+  .bottom-nav {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--dark); border-radius: 99px; padding: 6px;
+    display: flex; align-items: center; gap: 4px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3); z-index: 40;
+  }
+  .nav-tab {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; padding: 10px 18px; border-radius: 99px;
+    color: #888; font-size: 10px; font-weight: 600; cursor: pointer;
+    transition: all .3s; border: none; background: transparent; position: relative;
+  }
+  .nav-tab.on { background: white; color: var(--dark); }
+  .nav-tab .nav-dot {
+    position: absolute; top: 6px; right: 10px; width: 8px; height: 8px;
+    background: var(--green); border-radius: 50%; border: 2px solid var(--dark);
+  }
+
+  /* ─── Modals ─── */
+  .modal-overlay {
+    position: absolute; inset: 0; z-index: 100;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px); opacity: 0; pointer-events: none;
+    transition: opacity .3s; display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.on { opacity: 1; pointer-events: auto; }
+
+  /* Dark Frosted Modal */
+  .dark-modal {
+    width: 100%; height: 85%; background: #18181b;
+    border-radius: 2.5rem 2.5rem 0 0; padding: 24px;
+    transform: translateY(100%); transition: transform .4s cubic-bezier(0.32,0.72,0,1);
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  .modal-overlay.on .dark-modal { transform: translateY(0); }
+  .dark-modal .dm-handle {
+    width: 36px; height: 4px; background: rgba(255,255,255,0.15);
+    border-radius: 99px; margin: 0 auto 20px;
+  }
+  .dm-close {
+    position: absolute; top: 20px; right: 20px; width: 32px; height: 32px;
+    border-radius: 50%; background: rgba(255,255,255,0.08); color: white;
+    border: none; cursor: pointer; display: grid; place-items: center; z-index: 10;
+  }
+  .dm-close:hover { background: rgba(255,255,255,0.15); }
+
+  /* 3D Card Stack */
+  .card-stack {
+    position: relative; flex: 1; margin: 20px 0; perspective: 1200px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stack-card {
+    position: absolute; width: 280px; height: 380px; background: #27272a;
+    border-radius: 2rem; border: 1px solid rgba(255,255,255,0.06);
+    padding: 28px; color: white; box-shadow: 0 22px 65px rgba(0,0,0,0.72);
+    transform-origin: center 105%; transition: all .4s cubic-bezier(0.34,1.18,0.64,1);
+    cursor: grab; overflow: hidden;
+  }
+  .stack-card.dragging { transition: none; cursor: grabbing; }
+  .stack-card.fly-out { transition: transform .4s cubic-bezier(0.4,0,1,1), opacity .3s ease; }
+
+  .sc-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 24px;
+  }
+  .sc-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 20px; }
+  .sc-box {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 1.5rem; padding: 16px; margin-bottom: 10px; cursor: pointer;
+    transition: all .2s;
+  }
+  .sc-box:hover { background: rgba(255,255,255,0.08); }
+  .sc-box-row { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .sc-box-label { font-size: 13px; font-weight: 600; }
+  .sc-box-hint { font-size: 11px; color: rgba(255,255,255,0.4); margin-left: 32px; }
+
+  /* Timer in stack card */
+  .timer-ring {
+    width: 140px; height: 140px; border-radius: 50%; border: 5px solid rgba(255,255,255,0.08);
+    margin: 0 auto 20px; position: relative; display: grid; place-items: center;
+  }
+  .timer-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .timer-display { font-size: 2rem; font-weight: 300; }
+  .timer-display span { font-size: 1rem; color: rgba(255,255,255,0.4); }
+  .timer-controls { display: flex; gap: 12px; justify-content: center; align-items: center; }
+  .timer-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
+    display: grid; place-items: center; background: rgba(255,255,255,0.08); color: white;
+    transition: all .2s;
+  }
+  .timer-btn.main { width: 56px; height: 56px; background: var(--purple); color: var(--dark); }
+  .timer-btn:hover { background: rgba(255,255,255,0.15); }
+  .timer-btn.main:hover { filter: brightness(1.1); }
+
+  /* Subtask */
+  .subtask-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .subtask-check {
+    width: 20px; height: 20px; border-radius: 6px; border: 2px solid rgba(255,255,255,0.2);
+    cursor: pointer; display: grid; place-items: center; flex-shrink: 0;
+  }
+  .subtask-check.done { background: var(--green); border-color: var(--green); }
+  .subtask-check.done::after { content: '✓'; font-size: 11px; font-weight: 800; color: var(--dark); }
+  .subtask-text { font-size: 13px; }
+  .subtask-text.done { text-decoration: line-through; opacity: 0.4; }
+  .dm-actions {
+    display: flex; gap: 10px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .dm-btn {
+    flex: 1; padding: 14px; border-radius: 1.25rem; border: none; cursor: pointer;
+    font-size: 14px; font-weight: 600; transition: all .2s;
+  }
+  .dm-btn.primary { background: var(--green); color: var(--dark); }
+  .dm-btn.ghost { background: rgba(255,255,255,0.08); color: white; }
+  .dm-btn.danger { background: rgba(251,113,133,0.15); color: #fb7185; }
+  .dm-btn:active { transform: scale(0.97); }
+
+  /* Conflict Modal */
+  .conflict-body { color: white; }
+  .conflict-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+  .conflict-sub { font-size: 12px; color: rgba(255,255,255,0.45); margin-bottom: 20px; }
+  .diff-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  .diff-table th { text-align: left; font-size: 11px; color: rgba(255,255,255,0.4); padding: 6px 8px; font-weight: 600; }
+  .diff-table td { padding: 10px 8px; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.06); }
+  .diff-table .field { font-weight: 600; color: var(--green); }
+  .diff-table .mine { color: #fb7185; }
+  .diff-table .server { color: var(--purple); }
+  .conflict-hint {
+    background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.15);
+    border-radius: 1rem; padding: 12px 14px; font-size: 12px; color: #fbbf24; margin-bottom: 16px;
+  }
+
+  /* Create form in modal */
+  .dm-input {
+    width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 1rem; padding: 14px 16px; color: white; font-size: 15px; margin-bottom: 12px;
+    outline: none; transition: all .2s; font-family: inherit;
+  }
+  .dm-input:focus { border-color: var(--purple); background: rgba(255,255,255,0.08); }
+  .dm-input::placeholder { color: rgba(255,255,255,0.3); }
+  .dm-textarea { min-height: 100px; resize: none; }
+  .dm-select-row { display: flex; gap: 10px; margin-bottom: 12px; }
+  .dm-select-row select {
+    flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 1rem; padding: 12px; color: white; font-size: 13px; outline: none;
+  }
+
+  /* Toast */
+  .toast {
+    position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(20px);
+    padding: 12px 24px; border-radius: 99px; background: var(--dark); color: white;
+    font-size: 13px; font-weight: 600; z-index: 200; opacity: 0; pointer-events: none;
+    transition: all .3s; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.3; }
+  .empty-state p { font-size: 14px; font-weight: 500; }
+
+  /* Animations */
+  @keyframes float-gentle {
+    0%,100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-3px) rotate(0.3deg); }
+    75% { transform: translateY(2px) rotate(-0.3deg); }
+  }
+  .animate-float { animation: float-gentle 5s ease-in-out infinite; }
+
+  /* Stacked bar chart for dashboard */
+  .bar-chart { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; height: 140px; padding: 0 4px 16px; }
+  .bar-group { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; height: 100%; }
+  .bar-seg { border-radius: 4px; transition: all .3s; }
+
+  /* Stats row */
+  .stats-row { display: flex; gap: 10px; margin-bottom: 20px; }
+  .stat-box {
+    flex: 1; background: white; border-radius: 1.25rem; padding: 16px 12px;
+    text-align: center; border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+  .stat-num { font-size: 1.5rem; font-weight: 800; color: var(--dark); }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; font-weight: 600; }
+
+  /* Scroll hint */
+  .scroll-hint { text-align: center; font-size: 11px; color: var(--muted); padding: 8px; opacity: 0.6; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <!-- Header -->
+  <div class="header">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="logo">SparkFlow<span class="logo-dot">.</span></div>
+      <div id="sync-pill" class="sync-pill ok" onclick="showConflictModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>已同步</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn dark" onclick="openCreateModal()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="icon-btn purple">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span class="badge"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main hide-scrollbar">
+
+    <!-- ========== PAGE: CONTEXT BOARD ========== -->
+    <div class="page on" id="page-context">
+      <div style="margin-top:20px;">
+        <div class="section-title">今日看板</div>
+        <div class="section-sub">CURRENT_CONTEXT.md 可视化</div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-num" id="stat-pending">7</div><div class="stat-label">待办</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-done">2</div><div class="stat-label">已完成</div></div>
+        <div class="stat-box"><div class="stat-num">2</div><div class="stat-label">番茄</div></div>
+      </div>
+
+      <div style="background:white;border-radius:1.5rem;padding:16px;margin-bottom:20px;border:1px solid rgba(0,0,0,0.04);box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:13px;font-weight:700;">本周进度</span>
+          <span style="font-size:11px;color:var(--muted);font-weight:600;">进行中</span>
+        </div>
+        <div class="bar-chart">
+          <div class="bar-group"><div class="bar-seg" style="height:35%;background:var(--green);opacity:.8;"></div><div class="bar-seg" style="height:20%;background:var(--purple);opacity:.8;"></div><div class="bar-seg" style="height:15%;background:var(--dark);"></div></div>
+          <div class="bar-group"><div class="bar-seg" style="height:55%;background:var(--green);opacity:.8;"></div><div class="bar-seg" style="height:15%;background:var(--purple);opacity:.8;"></div><div class="bar-seg" style="height:25%;background:var(--dark);"></div></div>
+          <div class="bar-group"><div class="bar-seg" style="height:25%;background:var(--green);opacity:.8;"></div><div class="bar-seg" style="height:30%;background:var(--purple);opacity:.8;"></div><div class="bar-seg" style="height:10%;background:var(--dark);"></div></div>
+          <div class="bar-group"><div class="bar-seg" style="height:70%;background:var(--green);opacity:.8;"></div><div class="bar-seg" style="height:10%;background:var(--purple);opacity:.8;"></div><div class="bar-seg" style="height:20%;background:var(--dark);"></div></div>
+          <div class="bar-group"><div class="bar-seg" style="height:45%;background:var(--green);opacity:.8;"></div><div class="bar-seg" style="height:25%;background:var(--purple);opacity:.8;"></div><div class="bar-seg" style="height:20%;background:var(--dark);"></div></div>
+          <div class="bar-group"><div class="bar-seg" style="height:60%;background:var(--green);opacity:.8;"></div><div class="bar-seg" style="height:20%;background:var(--purple);opacity:.8;"></div><div class="bar-seg" style="height:10%;background:var(--dark);"></div></div>
+          <div class="bar-group"><div class="bar-seg" style="height:30%;background:var(--green);opacity:.8;"></div><div class="bar-seg" style="height:40%;background:var(--purple);opacity:.8;"></div><div class="bar-seg" style="height:10%;background:var(--dark);"></div></div>
+        </div>
+      </div>
+
+      <div class="board-columns">
+        <div class="board-col">
+          <div class="board-col-header proj" onclick="toggleSection('project-body')">
+            <span class="board-dot proj"></span>
+            <span>项目待办</span>
+            <span class="board-count" id="project-count">5</span>
+            <svg id="project-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-left:auto;transition:transform .2s;"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div id="project-body" style="transition:all .3s;"></div>
+        </div>
+        <div class="board-col">
+          <div class="board-col-header pers" onclick="toggleSection('personal-body')">
+            <span class="board-dot pers"></span>
+            <span>个人待办</span>
+            <span class="board-count" id="personal-count">4</span>
+            <svg id="personal-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="margin-left:auto;transition:transform .2s;"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div id="personal-body" style="transition:all .3s;"></div>
+        </div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(24,95,165,0.08),rgba(55,138,221,0.04));border:1px solid rgba(24,95,165,0.12);border-radius:1.5rem;padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .3s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(24,95,165,0.08)'" onmouseout="this.style.boxShadow='none'">
+        <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#185fa5,#378add);display:grid;place-items:center;box-shadow:0 4px 12px rgba(24,95,165,0.3);flex-shrink:0;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;color:#0c447c;">AI 助手建议</div>
+          <div style="font-size:12px;color:#5f5e5a;margin-top:2px;">检测到 3 个高优先级任务今日截止，是否开启专注模式？</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#185fa5" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+
+    <!-- ========== PAGE: TASKS ========== -->
+    <div class="page" id="page-tasks">
+      <div style="margin-top:20px;margin-bottom:16px;">
+        <div class="section-title">任务列表</div>
+      </div>
+      <div class="filter-bar hide-scrollbar">
+        <button class="filter-pill on" data-filter="all" onclick="setTaskFilter('all')">全部</button>
+        <button class="filter-pill" data-filter="todo" onclick="setTaskFilter('todo')">待处理</button>
+        <button class="filter-pill" data-filter="in_progress" onclick="setTaskFilter('in_progress')">进行中</button>
+        <button class="filter-pill" data-filter="in_review" onclick="setTaskFilter('in_review')">审核中</button>
+      </div>
+      <div id="tasks-list"></div>
+    </div>
+
+    <!-- ========== PAGE: CALENDAR ========== -->
+    <div class="page" id="page-calendar">
+      <div style="margin-top:20px;margin-bottom:16px;">
+        <div class="section-title">日程安排</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:0 4px;">
+        <span style="font-size:15px;font-weight:700;">2024年 7月</span>
+        <div style="display:flex;gap:6px;">
+          <button style="width:28px;height:28px;border-radius:8px;border:none;background:rgba(0,0,0,0.04);cursor:pointer;display:grid;place-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+          <button style="width:28px;height:28px;border-radius:8px;border:none;background:rgba(0,0,0,0.04);cursor:pointer;display:grid;place-items:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+        </div>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-day-label">日</div><div class="cal-day-label">一</div><div class="cal-day-label">二</div><div class="cal-day-label">三</div><div class="cal-day-label">四</div><div class="cal-day-label">五</div><div class="cal-day-label">六</div>
+        <div class="cal-day" style="color:#ccc;">28</div><div class="cal-day" style="color:#ccc;">29</div><div class="cal-day" style="color:#ccc;">30</div>
+        <div class="cal-day">1</div><div class="cal-day">2</div><div class="cal-day">3</div><div class="cal-day">4</div><div class="cal-day">5</div><div class="cal-day">6</div><div class="cal-day today has">7</div>
+        <div class="cal-day has">8</div><div class="cal-day">9</div><div class="cal-day has">10</div><div class="cal-day">11</div><div class="cal-day">12</div><div class="cal-day has">13</div><div class="cal-day">14</div>
+        <div class="cal-day">15</div><div class="cal-day">16</div><div class="cal-day">17</div><div class="cal-day has">18</div><div class="cal-day">19</div><div class="cal-day">20</div><div class="cal-day">21</div>
+        <div class="cal-day">22</div><div class="cal-day">23</div><div class="cal-day">24</div><div class="cal-day">25</div><div class="cal-day has">26</div><div class="cal-day">27</div><div class="cal-day">28</div>
+        <div class="cal-day">29</div><div class="cal-day">30</div><div class="cal-day">31</div>
+      </div>
+      <div style="margin-top:8px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;">今日事件</div>
+        <div class="event-item"><div class="event-dot" style="background:#185fa5;"></div><div><div class="event-title">项目方案评审</div><div class="event-time">09:00 - 10:30</div></div></div>
+        <div class="event-item"><div class="event-dot" style="background:#3b6d11;"></div><div><div class="event-title">学习 React Hooks</div><div class="event-time">14:00 - 15:00</div></div></div>
+        <div class="event-item"><div class="event-dot" style="background:#854f0b;"></div><div><div class="event-title">回复邮件</div><div class="event-time">16:00 - 16:30</div></div></div>
+      </div>
+    </div>
+
+    <!-- ========== PAGE: SPARKS ========== -->
+    <div class="page" id="page-sparks">
+      <div style="margin-top:20px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="section-title">灵感墙</div>
+          <div class="section-sub">随意拖动卡片整理思路</div>
+        </div>
+        <button class="arrange-btn" onclick="arrangeSparks()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          整理
+        </button>
+      </div>
+      <div class="sparks-board" id="sparks-board"></div>
+    </div>
+
+    <!-- ========== PAGE: FOCUS ========== -->
+    <div class="page" id="page-focus">
+      <div style="margin-top:20px;margin-bottom:16px;">
+        <div class="section-title">专注</div>
+        <div class="section-sub">点击卡片开始专注计时</div>
+      </div>
+      <div class="focus-hero">
+        <div class="focus-ring">
+          <svg width="200" height="200" viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="94" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="8"/>
+            <circle id="focus-progress" cx="100" cy="100" r="94" fill="none" stroke="var(--purple)" stroke-width="8" stroke-linecap="round" stroke-dasharray="590" stroke-dashoffset="147" style="transition:stroke-dashoffset 1s linear;"/>
+          </svg>
+          <div class="focus-time"><span id="focus-min">25</span><span>:00</span></div>
+        </div>
+        <div class="focus-controls">
+          <button class="focus-btn secondary" onclick="resetFocus()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
+          <button class="focus-btn main" id="focus-toggle" onclick="toggleFocus()">
+            <svg id="focus-play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <svg id="focus-pause-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </button>
+          <button class="focus-btn secondary" onclick="stopFocus()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          </button>
+        </div>
+        <div style="display:flex;gap:32px;margin-top:8px;">
+          <div style="text-align:center;"><div style="font-size:1.25rem;font-weight:800;color:var(--dark);">2</div><div style="font-size:10px;color:var(--muted);margin-top:2px;">今日番茄</div></div>
+          <div style="width:1px;height:32px;background:rgba(0,0,0,0.08);"></div>
+          <div style="text-align:center;"><div style="font-size:1.25rem;font-weight:800;color:var(--dark);">50</div><div style="font-size:10px;color:var(--muted);margin-top:2px;">专注分钟</div></div>
+          <div style="width:1px;height:32px;background:rgba(0,0,0,0.08);"></div>
+          <div style="text-align:center;"><div style="font-size:1.25rem;font-weight:800;color:#3b6d11;">10%</div><div style="font-size:10px;color:var(--muted);margin-top:2px;">日目标</div></div>
+        </div>
+      </div>
+      <div style="background:white;border-radius:1.5rem;padding:16px;border:1px solid rgba(0,0,0,0.04);box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;">当前关联任务</div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(0,0,0,0.02);border-radius:1rem;">
+          <div style="width:8px;height:8px;border-radius:50%;background:#a32d2d;"></div>
+          <span style="font-size:13px;font-weight:600;flex:1;">端到端跑通 npm run update-news</span>
+          <span style="font-size:11px;color:var(--muted);">P0</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <button class="nav-tab on" data-page="context" onclick="switchPage('context')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>看板</span>
+      <span class="nav-dot"></span>
+    </button>
+    <button class="nav-tab" data-page="tasks" onclick="switchPage('tasks')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>任务</span>
+    </button>
+    <button class="nav-tab" data-page="calendar" onclick="switchPage('calendar')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>日历</span>
+    </button>
+    <button class="nav-tab" data-page="sparks" onclick="switchPage('sparks')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span>灵感</span>
+    </button>
+    <button class="nav-tab" data-page="focus" onclick="switchPage('focus')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>专注</span>
+    </button>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ========== DARK FROSTED MODAL ========== -->
+  <div class="modal-overlay" id="dark-modal-overlay" onclick="closeDarkModal(event)">
+    <div class="dark-modal" onclick="event.stopPropagation()">
+      <div class="dm-handle"></div>
+      <button class="dm-close" onclick="closeDarkModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div id="dark-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- ========== CONFLICT MODAL ========== -->
+  <div class="modal-overlay" id="conflict-modal-overlay" onclick="closeConflictModal(event)">
+    <div class="dark-modal" onclick="event.stopPropagation()" style="height:75%;">
+      <div class="dm-handle"></div>
+      <button class="dm-close" onclick="closeConflictModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="conflict-body">
+        <div class="conflict-title">同步冲突</div>
+        <div class="conflict-sub">CURRENT_CONTEXT.md 在别处被修改（mtime 不一致）</div>
+        <div class="conflict-hint">⚠️ 有 2 个条目同时被修改，需要逐条裁决</div>
+        <table class="diff-table">
+          <thead><tr><th>条目</th><th>字段</th><th>你的版本</th><th>服务器版本</th></tr></thead>
+          <tbody>
+            <tr><td class="field">端到端跑通 npm run update-news</td><td>status</td><td class="mine">todo</td><td class="server">in_progress</td></tr>
+            <tr><td class="field">启动 UI 实测</td><td>priority</td><td class="mine">medium</td><td class="server">high</td></tr>
+          </tbody>
+        </table>
+        <div class="dm-actions">
+          <button class="dm-btn ghost" onclick="resolveConflict('mine')">保留我的</button>
+          <button class="dm-btn ghost" onclick="resolveConflict('server')">采用服务器</button>
+          <button class="dm-btn danger" onclick="resolveConflict('merge')">手动合并</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===================== DATA =====================
+const contextData = {
+  project: [
+    {
+      group: 'news-briefing',
+      status: 'active',
+      items: [
+        { title: '端到端跑通 npm run update-news', desc: 'API key 已配、40 信源就位', priority: 'p0', status: 'todo', notes: [] },
+        { title: '编辑评估脚本（旧数据后验）', desc: '用 archive 数据校准编辑人格', priority: 'p0', status: 'todo', notes: [] },
+        { title: 'DeepSeek 缓存分层改造', desc: '三层结构+定价数据', priority: 'p0', status: 'in_progress', notes: ['Phase 21.5 已完善'] },
+        { title: 'Story 数量放开', desc: '移除硬上限+自适应阈值', priority: 'p1', status: 'todo', notes: [] },
+        { title: 'AI 对话功能 MVP', desc: '「聊这条」入口+记忆管理', priority: 'p1', status: 'todo', notes: [] },
+      ]
+    },
+    {
+      group: 'api-quota-monitor',
+      status: 'secondary',
+      items: [
+        { title: '启动 UI 实测', desc: 'python -m quota_monitor serve-ui', priority: 'p0', status: 'todo', notes: [] },
+        { title: 'Dashboard 原型视觉调参完成', desc: '15 项参数已合入正式版', priority: 'p1', status: 'done', notes: ['sidebarW 253, maxW 1382'] },
+        { title: '设置页完整国际化', desc: '表单标签、alert、详情页', priority: 'p2', status: 'todo', notes: [] },
+      ]
+    },
+    {
+      group: 'sparkflow',
+      status: 'active',
+      items: [
+        { title: 'ContextBridge 单测', desc: '17/17 全部通过', priority: 'p0', status: 'done', notes: [] },
+        { title: 'PWA 看板 UI 原型', desc: '移动端优先+调参面板', priority: 'p0', status: 'in_progress', notes: [] },
+        { title: 'Web Push 集成', desc: 'VAPID+订阅管理', priority: 'p1', status: 'todo', notes: [] },
+      ]
+    }
+  ],
+  personal: [
+    { title: '论文与文献整理', desc: '优先级最高', priority: 'p0', status: 'todo', notes: [] },
+    { title: '大学生数字素养300问提纲审阅', desc: '截止周六，逐章查看', priority: 'p0', status: 'todo', notes: ['第一章已读取，44个问题条目'] },
+    { title: '六级备考计划', desc: '规划阶段', priority: 'p0', status: 'todo', notes: [] },
+    { title: '裁判文书本地搜索部署', desc: '硬盘购置+cncases搭建', priority: 'p1', status: 'todo', notes: ['预算 ¥350-500'] },
+  ]
+};
+
+const tasksData = [
+  { id: 1, title: 'Web 应用程序用户注册流程', time: '10:00 - 17:30', status: 'in_review', priority: 'high', color: 'dark', comments: 6, subtasks: [
+    { title: '完成验证码模块接入', done: true },
+    { title: '优化密码错误提示 UI', done: false }
+  ]},
+  { id: 2, title: '管理后台用户流程梳理', time: '14:00 - 16:00', status: 'in_progress', priority: 'medium', color: 'green', comments: 8, subtasks: [
+    { title: '绘制核心流程图', done: false }
+  ]},
+  { id: 3, title: '管理面板仪表盘设计', time: '明天', status: 'todo', priority: 'high', color: 'purple', comments: 1, subtasks: [] },
+  { id: 4, title: 'API 性能压测与报告', time: '周五前', status: 'todo', priority: 'medium', color: 'dark', comments: 0, subtasks: [] },
+  { id: 5, title: '周报汇总与发送', time: '今天 18:00', status: 'todo', priority: 'low', color: 'green', comments: 2, subtasks: [] },
+];
+
+const sparksData = [
+  { id: 1, text: '尝试用 Framer Motion 给卡片添加微交互动画，提升手感。', color: 'green', size: 155, x: 10, y: 10, rot: -2 },
+  { id: 2, text: '竞品分析：Notion 的 database 视图很强大，但对于轻量级可能过于复杂。需要保持克制。', color: 'purple', size: 175, x: 165, y: 30, rot: 3 },
+  { id: 3, text: '色彩心理学：紫色代表创造力，绿色代表成长，深灰色代表专注。', color: 'white', size: 150, x: 20, y: 170, rot: -1.5 },
+  { id: 4, text: '磨砂玻璃 + 散落卡片，让信息呼吸。留白即设计本身。', color: 'gray', size: 160, x: 175, y: 210, rot: 2.5 },
+  { id: 5, text: '灵感转化：从 spark 直接生成 Task + 写入 CURRENT_CONTEXT.md', color: 'dark', size: 140, x: 30, y: 340, rot: -1 },
+  { id: 6, text: '冲突处理：mtime 检测 + mkdir 原子锁 + 自动合并', color: 'green', size: 145, x: 185, y: 380, rot: 2 },
+];
+
+let taskFilter = 'all';
+let currentPage = 'context';
+
+// ===================== RENDER CONTEXT BOARD =====================
+function renderBoard() {
+  const projEl = document.getElementById('project-body');
+  const persEl = document.getElementById('personal-body');
+  let projHTML = '', persHTML = '';
+  let projTodo = 0, persTodo = 0;
+
+  contextData.project.forEach(g => {
+    const statusLabel = g.status === 'active' ? '主力' : '次活跃';
+    const statusBg = g.status === 'active' ? 'rgba(56,189,248,.14)' : 'rgba(129,140,248,.1)';
+    const statusColor = g.status === 'active' ? '#185fa5' : '#8b7fd4';
+    projHTML += `<div style="margin-bottom:14px;"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;display:flex;align-items:center;gap:6px;"><span>${g.group}</span><span style="padding:2px 6px;border-radius:99px;font-size:9px;font-weight:600;background:${statusBg};color:${statusColor};">${statusLabel}</span></div>`;
+    g.items.forEach(item => {
+      if (item.status !== 'done') projTodo++;
+      const done = item.status === 'done';
+      projHTML += `
+        <div class="mini-card${done ? ' done' : ''}" onclick="openTaskDetail('${item.title}', '${item.priority}', '${item.status}', '${item.desc}', ${JSON.stringify(item.notes).replace(/"/g, '&quot;')})">
+          <div class="mini-bar ${item.priority}${done ? ' done' : ''}"></div>
+          <div class="mini-title">${item.title}</div>
+          <div class="mini-meta">
+            <span class="mini-tag ${item.priority}">${item.priority === 'p0' ? 'P0' : item.priority === 'p1' ? 'P1' : ''}</span>
+            <span style="font-size:10px;color:var(--muted);">${item.desc}</span>
+          </div>
+          <div class="mini-check${done ? ' done' : ''}" onclick="event.stopPropagation();toggleMiniCheck(this)"></div>
+        </div>`;
+    });
+    projHTML += `</div>`;
+  });
+
+  contextData.personal.forEach(item => {
+    if (item.status !== 'done') persTodo++;
+    const done = item.status === 'done';
+    persHTML += `
+      <div class="mini-card${done ? ' done' : ''}" onclick="openTaskDetail('${item.title}', '${item.priority}', '${item.status}', '${item.desc}', ${JSON.stringify(item.notes).replace(/"/g, '&quot;')})">
+        <div class="mini-bar ${item.priority}${done ? ' done' : ''}"></div>
+        <div class="mini-title">${item.title}</div>
+        <div class="mini-meta">
+          <span class="mini-tag ${item.priority}">${item.priority === 'p0' ? '🔴' : item.priority === 'p1' ? 'P1' : ''}</span>
+        </div>
+        <div class="mini-check${done ? ' done' : ''}" onclick="event.stopPropagation();toggleMiniCheck(this)"></div>
+      </div>`;
+  });
+
+  projEl.innerHTML = projHTML;
+  persEl.innerHTML = persHTML;
+  document.getElementById('project-count').textContent = projTodo;
+  document.getElementById('personal-count').textContent = persTodo;
+  document.getElementById('stat-pending').textContent = projTodo + persTodo;
+}
+
+function toggleMiniCheck(el) {
+  el.classList.toggle('done');
+  el.closest('.mini-card').classList.toggle('done');
+  // Recount
+  const doneCount = document.querySelectorAll('.mini-check.done').length;
+  document.getElementById('stat-done').textContent = doneCount;
+}
+
+function toggleSection(id) {
+  const el = document.getElementById(id);
+  const chevron = document.getElementById(id.replace('body', 'chevron'));
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    chevron.style.transform = 'rotate(0deg)';
+  } else {
+    el.style.display = 'none';
+    chevron.style.transform = 'rotate(-90deg)';
+  }
+}
+
+// ===================== RENDER TASKS =====================
+function renderTasks() {
+  const el = document.getElementById('tasks-list');
+  const filtered = taskFilter === 'all' ? tasksData : tasksData.filter(t => t.status === taskFilter);
+  if (filtered.length === 0) {
+    el.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><p>无任务</p></div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(task => `
+    <div class="task-card ${task.color}" onclick="openTaskDetail('${task.title}', '${task.priority}', '${task.status}', '${task.time}', '${JSON.stringify(task.subtasks).replace(/"/g, '&quot;')}')">
+      <div class="tc-top">
+        <h3 class="tc-title">${task.title}</h3>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;opacity:.7;font-weight:500;">${task.comments} 讨论</span>
+          <div class="tc-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="tc-meta">
+        <div style="display:flex;align-items:center;gap:4px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>${task.time}</span>
+        </div>
+        <span class="tc-pill">${task.priority === 'high' ? 'High Priority' : task.priority === 'medium' ? 'Medium' : 'Low'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setTaskFilter(f) {
+  taskFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.filter === f);
+  });
+  renderTasks();
+}
+
+// ===================== RENDER SPARKS =====================
+function renderSparks() {
+  const board = document.getElementById('sparks-board');
+  board.innerHTML = sparksData.map(s => `
+    <div class="spark-card ${s.color}" id="spark-${s.id}"
+      style="width:${s.size}px;left:${s.x}px;top:${s.y}px;transform:rotate(${s.rot}deg);"
+      onpointerdown="sparkDragStart(event, ${s.id})"
+    >
+      <div class="spark-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <p>${s.text}</p>
+      <div class="spark-more" onclick="event.stopPropagation();convertSpark(${s.id})">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      </div>
+    </div>
+  `).join('');
+}
+
+let dragSpark = null, dragStart = { x: 0, y: 0, sx: 0, sy: 0 };
+function sparkDragStart(e, id) {
+  e.preventDefault();
+  const card = document.getElementById(`spark-${id}`);
+  dragSpark = card;
+  dragSpark.classList.add('dragging');
+  dragStart = { x: e.clientX, y: e.clientY, sx: parseFloat(card.style.left), sy: parseFloat(card.style.top) };
+  document.addEventListener('pointermove', sparkDragMove);
+  document.addEventListener('pointerup', sparkDragEnd);
+}
+function sparkDragMove(e) {
+  if (!dragSpark) return;
+  const dx = e.clientX - dragStart.x;
+  const dy = e.clientY - dragStart.y;
+  dragSpark.style.left = Math.max(0, dragStart.sx + dx) + 'px';
+  dragSpark.style.top = Math.max(0, dragStart.sy + dy) + 'px';
+}
+function sparkDragEnd() {
+  if (dragSpark) dragSpark.classList.remove('dragging');
+  dragSpark = null;
+  document.removeEventListener('pointermove', sparkDragMove);
+  document.removeEventListener('pointerup', sparkDragEnd);
+}
+function arrangeSparks() {
+  sparksData.forEach((s, i) => {
+    const card = document.getElementById(`spark-${s.id}`);
+    s.x = (i % 2 === 0) ? 10 : 180;
+    s.y = 10 + Math.floor(i / 2) * 160;
+    s.rot = 0;
+    card.style.left = s.x + 'px';
+    card.style.top = s.y + 'px';
+    card.style.transform = 'rotate(0deg)';
+  });
+}
+function convertSpark(id) {
+  const spark = sparksData.find(s => s.id === id);
+  showToast(`已转化：${spark.text.substring(0, 20)}... → 任务`);
+}
+
+// ===================== PAGE SWITCH =====================
+function switchPage(name) {
+  currentPage = name;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('on'));
+  document.getElementById('page-' + name).classList.add('on');
+  document.querySelector(`.nav-tab[data-page="${name}"]`).classList.add('on');
+}
+
+// ===================== DARK MODAL (3D Stack / Create / Conflict) =====================
+let modalMode = 'view';
+let currentTask = null;
+
+function openTaskDetail(title, priority, status, descOrTime, notesOrSubtasks) {
+  modalMode = 'view';
+  currentTask = { title, priority, status, desc: descOrTime, notes: notesOrSubtasks };
+  const content = document.getElementById('dark-modal-content');
+
+  // Try parse subtasks if it's JSON
+  let subtasks = [];
+  try { subtasks = JSON.parse(notesOrSubtasks); } catch(e) {}
+
+  content.innerHTML = `
+    <div style="text-align:center;margin-bottom:16px;">
+      <span style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:0.15em;text-transform:uppercase;">Task Details</span>
+      <h2 style="font-size:1.25rem;font-weight:700;margin-top:8px;">${title}</h2>
+    </div>
+    <div style="flex:1;overflow-y:auto;">
+      ${subtasks.length > 0 ? `
+        <div style="margin-bottom:20px;">
+          <div style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;">Subtasks</div>
+          ${subtasks.map((st, i) => `
+            <div class="subtask-row">
+              <div class="subtask-check ${st.done ? 'done' : ''}" onclick="this.classList.toggle('done');this.nextElementSibling.classList.toggle('done')"></div>
+              <span class="subtask-text ${st.done ? 'done' : ''}">${st.title || st}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:1.25rem;padding:16px;margin-bottom:16px;">
+          <div style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Description</div>
+          <p style="font-size:13px;line-height:1.6;opacity:.8;">${descOrTime}</p>
+        </div>
+      `}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+        <span style="padding:6px 12px;border-radius:99px;background:rgba(255,255,255,0.06);font-size:11px;font-weight:600;">状态: ${status}</span>
+        <span style="padding:6px 12px;border-radius:99px;background:rgba(255,255,255,0.06);font-size:11px;font-weight:600;">优先级: ${priority}</span>
+      </div>
+    </div>
+    <div class="dm-actions">
+      <button class="dm-btn ghost" onclick="closeDarkModal()">关闭</button>
+      <button class="dm-btn primary" onclick="showToast('已开始专注计时')">开始专注</button>
+      <button class="dm-btn danger" onclick="closeDarkModal();showToast('任务已删除')">删除</button>
+    </div>
+  `;
+  document.getElementById('dark-modal-overlay').classList.add('on');
+}
+
+function openCreateModal() {
+  modalMode = 'create';
+  const content = document.getElementById('dark-modal-content');
+  content.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px;">
+      <span style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:0.15em;text-transform:uppercase;">New</span>
+      <h2 style="font-size:1.25rem;font-weight:700;margin-top:8px;">新建条目</h2>
+    </div>
+    <input class="dm-input" placeholder="标题..." id="create-title" />
+    <textarea class="dm-input dm-textarea" placeholder="描述..."></textarea>
+    <div class="dm-select-row">
+      <select id="create-priority"><option value="high">高优先级</option><option value="medium">中优先级</option><option value="low">低优先级</option></select>
+      <select id="create-context"><option value="project">项目待办</option><option value="personal">个人待办</option></select>
+    </div>
+    <div class="dm-actions" style="margin-top:auto;">
+      <button class="dm-btn ghost" onclick="closeDarkModal()">取消</button>
+      <button class="dm-btn primary" onclick="saveNewTask()">保存</button>
+    </div>
+  `;
+  document.getElementById('dark-modal-overlay').classList.add('on');
+}
+
+function saveNewTask() {
+  const title = document.getElementById('create-title').value;
+  if (!title.trim()) return;
+  showToast('已保存: ' + title);
+  closeDarkModal();
+}
+
+function closeDarkModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('dark-modal-overlay').classList.remove('on');
+}
+
+// ===================== CONFLICT MODAL =====================
+function showConflictModal() {
+  document.getElementById('conflict-modal-overlay').classList.add('on');
+}
+function closeConflictModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('conflict-modal-overlay').classList.remove('on');
+}
+function resolveConflict(mode) {
+  closeConflictModal();
+  const pill = document.getElementById('sync-pill');
+  pill.className = 'sync-pill ok';
+  pill.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>已同步</span>`;
+  showToast(mode === 'merge' ? '进入手动合并模式' : '冲突已解决');
+}
+
+// ===================== SYNC SIMULATION =====================
+setTimeout(() => {
+  const pill = document.getElementById('sync-pill');
+  pill.className = 'sync-pill err';
+  pill.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>同步异常</span>`;
+}, 3500);
+
+// ===================== FOCUS TIMER =====================
+let focusTime = 25 * 60, focusRunning = false, focusInterval = null;
+function updateFocusDisplay() {
+  const m = String(Math.floor(focusTime / 60)).padStart(2, '0');
+  const s = String(focusTime % 60).padStart(2, '0');
+  document.getElementById('focus-min').textContent = m;
+  document.querySelector('.focus-time span').textContent = ':' + s;
+  const circ = 2 * Math.PI * 94;
+  const off = circ * (1 - focusTime / (25 * 60));
+  document.getElementById('focus-progress').setAttribute('stroke-dashoffset', off);
+}
+function toggleFocus() {
+  focusRunning = !focusRunning;
+  document.getElementById('focus-play-icon').style.display = focusRunning ? 'none' : 'block';
+  document.getElementById('focus-pause-icon').style.display = focusRunning ? 'block' : 'none';
+  if (focusRunning) {
+    focusInterval = setInterval(() => {
+      if (focusTime > 0) { focusTime--; updateFocusDisplay(); }
+      else { stopFocus(); showToast('专注完成！'); }
+    }, 1000);
+  } else {
+    clearInterval(focusInterval);
+  }
+}
+function stopFocus() {
+  focusRunning = false;
+  clearInterval(focusInterval);
+  focusTime = 25 * 60;
+  updateFocusDisplay();
+  document.getElementById('focus-play-icon').style.display = 'block';
+  document.getElementById('focus-pause-icon').style.display = 'none';
+}
+function resetFocus() {
+  focusTime = 25 * 60;
+  updateFocusDisplay();
+}
+
+// ===================== TOAST =====================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+// ===================== INIT =====================
+renderBoard();
+renderTasks();
+renderSparks();
+updateFocusDisplay();
+</script>
+</body>
+</html>

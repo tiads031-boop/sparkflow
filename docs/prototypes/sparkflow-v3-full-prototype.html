@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SparkFlow · V3 完整交互原型</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --bg: #f4f4f6;
+    --dark: #242424;
+    --green: #cae393;
+    --purple: #b0a8db;
+    --muted: #888780;
+    --text: #2c2c2a;
+    --card-radius: 2rem;
+    --card-gap: 14px;
+    --card-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    --nav-h: 64px;
+    --header-h: 72px;
+    --phone-w: 393px;
+    --phone-h: 852px;
+    --spark-min-size: 140;
+    --spark-max-size: 175;
+    --focus-ring-scale: 1;
+    --modal-card-scale: 1;
+    --board-col-gap: 11px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Inter', 'PingFang SC', system-ui, sans-serif;
+    background: #1a1a1a;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─── Phone Shell ─── */
+  .phone {
+    width: 100%; max-width: var(--phone-w); height: 100%; max-height: var(--phone-h);
+    background: var(--bg);
+    border-radius: 2.5rem;
+    border: 6px solid #333;
+    box-shadow: 0 0 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
+    display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  @media (max-width: 480px) {
+    .phone { border: none; border-radius: 0; max-height: 100vh; }
+  }
+
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ─── Header ─── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 24px 0; flex-shrink: 0; z-index: 20; background: var(--bg);
+  }
+  .logo { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.04em; color: var(--dark); font-style: italic; user-select: none; }
+  .logo-dot { color: var(--green); }
+  .sync-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 99px; font-size: 11px; font-weight: 700;
+    cursor: pointer; transition: all .2s; letter-spacing: 0.02em; margin-left: 12px;
+  }
+  .sync-pill.ok { background: #eaf3de; color: #3b6d11; border: 1px solid #d4e7c4; }
+  .sync-pill.err { background: #fcebeb; color: #a32d2d; border: 1px solid #f5d0d0; animation: pulse-red 2s infinite; }
+  .sync-pill.warn { background: #faeeda; color: #854f0b; border: 1px solid #f0dfc4; }
+  @keyframes pulse-red { 0%,100% { box-shadow: 0 0 0 0 rgba(163,45,45,0.15); } 50% { box-shadow: 0 0 0 6px rgba(163,45,45,0); } }
+  .header-actions { display: flex; gap: 10px; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center; border: none; cursor: pointer;
+    transition: all .2s; position: relative;
+  }
+  .icon-btn:active { transform: scale(0.92); }
+  .icon-btn.dark { background: var(--dark); color: white; }
+  .icon-btn.purple { background: #e5e2f3; color: var(--dark); }
+  .icon-btn .badge { position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; background: var(--dark); border-radius: 50%; border: 2px solid var(--bg); }
+
+  /* ─── Main Content ─── */
+  .main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 24px 100px; position: relative; z-index: 10; }
+  .page { display: none; animation: pageIn .35s cubic-bezier(0.4,0,0.2,1); }
+  .page.on { display: block; }
+  @keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .section-title { font-size: 1.25rem; font-weight: 800; color: var(--dark); margin-bottom: 4px; letter-spacing: -0.02em; }
+  .section-sub { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+
+  /* ─── Dashboard ─── */
+  .dash-stats { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px; }
+  .stat-pill {
+    flex-shrink: 0; padding: 10px 18px; border-radius: 99px; background: white;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04); font-size: 12px; font-weight: 600; color: var(--text);
+  }
+  .stat-pill b { font-size: 16px; display: block; margin-bottom: 2px; }
+  .chart-box { background: white; border-radius: var(--card-radius); padding: 20px; margin-bottom: 20px; box-shadow: var(--card-shadow); }
+  .chart-bar-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; height: 140px; padding-bottom: 8px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+  .chart-bar-group { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; height: 100%; }
+  .chart-bar { border-radius: 6px; min-height: 4px; transition: all .3s; }
+  .chart-legend { display: flex; gap: 12px; margin-top: 12px; font-size: 11px; color: var(--muted); }
+  .chart-legend span { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ─── Task Cards ─── */
+  .task-card {
+    border-radius: var(--card-radius); padding: 20px; margin-bottom: var(--card-gap);
+    box-shadow: var(--card-shadow); cursor: pointer;
+    transition: all .3s cubic-bezier(0.34,1.18,0.64,1); position: relative;
+  }
+  .task-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+  .task-card.dark { background: var(--dark); color: white; }
+  .task-card.green { background: var(--green); color: var(--dark); }
+  .task-card.purple { background: var(--purple); color: var(--dark); }
+  .tc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+  .tc-title { font-size: 17px; font-weight: 700; line-height: 1.3; width: 75%; }
+  .tc-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 12px; opacity: 0.8; }
+  .tc-pill { padding: 6px 14px; border-radius: 99px; border: 1px solid rgba(255,255,255,0.15); font-size: 11px; font-weight: 600; }
+  .task-card.green .tc-pill, .task-card.purple .tc-pill { border-color: rgba(0,0,0,0.1); }
+  .tc-arrow { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,0.12); transition: all .2s; }
+  .task-card.green .tc-arrow, .task-card.purple .tc-arrow { background: rgba(0,0,0,0.06); }
+  .tc-arrow:hover { background: rgba(255,255,255,0.25); }
+
+  .filter-bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 8px; }
+  .filter-pill { flex-shrink: 0; padding: 8px 18px; border-radius: 99px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; border: none; background: white; color: var(--muted); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .filter-pill.on { background: var(--green); color: var(--dark); }
+
+  /* ─── Board View (Two Columns) ─── */
+  .board-columns { display: flex; gap: var(--board-col-gap); margin-bottom: 16px; }
+  .board-col { flex: 1; min-width: 0; }
+  .board-col-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 10px; border-radius: 14px; margin-bottom: 10px;
+    font-size: 11px; font-weight: 700; cursor: pointer; user-select: none;
+  }
+  .board-col-header.proj { background: rgba(176,168,219,0.22); color: #5e4fa2; }
+  .board-col-header.pers { background: rgba(202,227,147,0.28); color: #4a6b1a; }
+  .board-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .board-dot.proj { background: #8b7fd4; }
+  .board-dot.pers { background: #8cb83f; }
+  .board-count { margin-left: auto; font-size: 10px; padding: 2px 6px; border-radius: 99px; background: rgba(255,255,255,0.6); }
+
+  .mini-card {
+    background: white; border-radius: 1.25rem; padding: 12px 14px;
+    margin-bottom: 8px; border: 1px solid rgba(0,0,0,0.04);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    cursor: pointer; transition: all .2s; position: relative;
+  }
+  .mini-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); }
+  .mini-card.dragging { opacity: 0.5; transform: scale(0.95); }
+  .mini-bar { position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 99px; }
+  .mini-bar.p0 { background: #a32d2d; }
+  .mini-bar.p1 { background: #854f0b; }
+  .mini-bar.p2 { background: #3b6d11; }
+  .mini-title { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.4; padding-left: 8px; word-break: break-word; }
+  .mini-meta { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding-left: 8px; }
+  .mini-tag { font-size: 10px; padding: 2px 7px; border-radius: 99px; font-weight: 600; }
+  .mini-tag.p0 { background: #fcebeb; color: #a32d2d; }
+  .mini-tag.p1 { background: #faeeda; color: #854f0b; }
+  .mini-tag.p2 { background: #eaf3de; color: #3b6d11; }
+  .mini-progress { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding-left: 8px; }
+  .mini-progress-track { flex: 1; height: 4px; border-radius: 99px; background: rgba(0,0,0,0.06); overflow: hidden; }
+  .mini-progress-fill { height: 100%; border-radius: 99px; background: var(--dark); opacity: 0.35; transition: width .3s; }
+  .mini-progress-label { font-size: 10px; color: var(--muted); }
+
+  .quick-add { display: flex; gap: 8px; margin-bottom: 16px; }
+  .quick-add input {
+    flex: 1; padding: 10px 16px; border-radius: 99px; border: 1px solid rgba(0,0,0,0.08);
+    font-size: 13px; outline: none; background: white;
+  }
+  .quick-add input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(176,168,219,0.15); }
+  .quick-add select {
+    padding: 10px 12px; border-radius: 99px; border: 1px solid rgba(0,0,0,0.08);
+    font-size: 12px; background: white; outline: none;
+  }
+  .quick-add button {
+    width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--dark); color: white;
+    display: grid; place-items: center; cursor: pointer; transition: all .2s;
+  }
+  .quick-add button:active { transform: scale(0.92); }
+
+  .board-drop-zone { border-radius: 16px; border: 2px dashed transparent; transition: all .2s; min-height: 60px; }
+  .board-drop-zone.drag-over { border-color: var(--purple); background: rgba(176,168,219,0.06); }
+
+  /* ─── Calendar ─── */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; margin-bottom: 16px; }
+  .cal-day-label { font-size: 11px; color: var(--muted); font-weight: 600; padding: 8px 0; }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 14px; display: grid; place-items: center;
+    font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer;
+    transition: all .15s; position: relative;
+  }
+  .cal-day:hover { background: rgba(0,0,0,0.03); }
+  .cal-day.today { background: var(--dark); color: white; }
+  .cal-day.has::after { content: ''; position: absolute; bottom: 4px; width: 4px; height: 4px; border-radius: 50%; background: var(--purple); }
+  .cal-day.today.has::after { background: var(--green); }
+  .event-item {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    background: white; border-radius: 1.25rem; margin-bottom: 8px;
+    border: 1px solid rgba(0,0,0,0.04); box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+  .event-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .event-title { font-size: 13px; font-weight: 600; }
+  .event-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ─── Sparks Wall ─── */
+  .sparks-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .sparks-board { position: relative; width: 100%; }
+  .spark-card {
+    position: absolute; padding: 16px; border-radius: 1.5rem;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.08); cursor: grab;
+    font-size: 13px; font-weight: 500; line-height: 1.5;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    touch-action: none; user-select: none;
+    transition: transform .4s cubic-bezier(0.34,1.18,0.64,1), box-shadow .3s ease;
+  }
+  .spark-card:active { cursor: grabbing; transform: scale(1.05) rotate(0deg) !important; z-index: 999 !important; }
+  .spark-card.dragging { transition: none !important; }
+  .spark-card .spark-icon { opacity: 0.4; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .spark-card .spark-more {
+    width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+    opacity: 0; transition: all .2s; cursor: pointer;
+  }
+  .spark-card:hover .spark-more { opacity: 1; background: rgba(0,0,0,0.06); }
+  .spark-card.dark { background: var(--dark); color: white; }
+  .spark-card.green { background: var(--green); color: var(--dark); }
+  .spark-card.purple { background: var(--purple); color: var(--dark); }
+  .spark-card.white { background: white; color: var(--dark); }
+  .spark-card.gray { background: #f4f4f4; color: var(--dark); }
+  .arrange-btn {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    background: white; border-radius: 99px; font-size: 12px; font-weight: 700;
+    border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: all .2s;
+  }
+  .arrange-btn:hover { background: #f8f8f8; }
+
+  /* ─── Bottom Nav ─── */
+  .bottom-nav {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--dark); border-radius: 99px; padding: 6px;
+    display: flex; align-items: center; gap: 4px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3); z-index: 40;
+  }
+  .nav-tab {
+    display: grid; place-items: center;
+    width: 44px; height: 44px; border-radius: 50%;
+    color: #888; cursor: pointer;
+    transition: all .3s; border: none; background: transparent; position: relative;
+  }
+  .nav-tab svg { width: 20px; height: 20px; }
+  .nav-tab.on { background: white; color: var(--dark); }
+  .nav-tab .nav-dot {
+    position: absolute; top: 6px; right: 10px; width: 8px; height: 8px;
+    background: var(--green); border-radius: 50%; border: 2px solid var(--dark);
+    opacity: 0; transition: opacity .2s;
+  }
+  .nav-tab.on .nav-dot { opacity: 1; }
+
+  /* ─── Modal Overlays ─── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.35);
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.on { opacity: 1; pointer-events: auto; }
+
+  /* ─── Dark Frosted Modal (Focus Mode) ─── */
+  .dark-modal {
+    position: relative; width: 100%; max-width: var(--phone-w); height: 88%;
+    background: #0f0f0f; border-radius: 2.5rem 2.5rem 0 0;
+    display: flex; flex-direction: column; overflow: hidden;
+    transform: translateY(100%); transition: transform .35s cubic-bezier(0.4,0,0.2,1);
+  }
+  .modal-overlay.on .dark-modal { transform: translateY(0); }
+  .dm-handle {
+    width: 40px; height: 4px; border-radius: 99px; background: rgba(255,255,255,0.15);
+    margin: 12px auto 8px; flex-shrink: 0;
+  }
+  .dm-close {
+    position: absolute; top: 16px; right: 16px; width: 32px; height: 32px;
+    border-radius: 50%; border: none; background: rgba(255,255,255,0.1); color: white;
+    display: grid; place-items: center; cursor: pointer; z-index: 10;
+  }
+  .dm-close:hover { background: rgba(255,255,255,0.18); }
+  .dm-content { flex: 1; overflow-y: auto; padding: 0 24px 24px; color: white; }
+
+  /* 3D Card Stack */
+  .card-stack { position: relative; width: 100%; height: 420px; margin: 20px 0; touch-action: none; }
+  .stack-card {
+    position: absolute; left: 50%; top: 0;
+    width: 300px; height: 400px; margin-left: -150px;
+    background: #272727; border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 2rem; padding: 28px; display: flex; flex-direction: column;
+    overflow: hidden; will-change: transform, opacity;
+    transform-origin: center 105%;
+  }
+  .stack-card::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent); pointer-events: none;
+  }
+  .stack-card .card-label { font-size: 10px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 24px; }
+  .stack-card .card-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; line-height: 1.3; }
+  .stack-glass-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 1.25rem; padding: 14px 16px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all .2s;
+  }
+  .stack-glass-btn:hover { background: rgba(255,255,255,0.09); }
+  .stack-glass-btn .sgb-icon { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,0.08); }
+
+  .dm-actions { display: flex; gap: 10px; margin-top: auto; padding-top: 16px; }
+  .dm-btn {
+    flex: 1; padding: 12px; border-radius: 99px; border: none; font-size: 13px;
+    font-weight: 700; cursor: pointer; transition: all .2s; text-align: center;
+  }
+  .dm-btn.primary { background: var(--green); color: var(--dark); }
+  .dm-btn.ghost { background: rgba(255,255,255,0.08); color: white; }
+  .dm-btn.danger { background: rgba(239,68,68,0.15); color: #ff8a8a; }
+  .dm-btn:active { transform: scale(0.97); }
+  .dm-input {
+    width: 100%; background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.15);
+    color: white; font-size: 20px; font-weight: 700; padding: 8px 0 12px; outline: none; margin-bottom: 16px;
+  }
+  .dm-input::placeholder { color: rgba(255,255,255,0.25); font-weight: 400; }
+  .dm-textarea {
+    font-size: 14px; font-weight: 400; border: none; resize: none; flex: 1; min-height: 80px;
+  }
+  .dm-select-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .dm-select-row select {
+    flex: 1; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05); color: white; font-size: 13px; outline: none;
+  }
+  .dm-select-row select option { background: #1a1a1a; color: white; }
+
+  .subtask-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; }
+  .subtask-check {
+    width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25);
+    display: grid; place-items: center; flex-shrink: 0; transition: all .2s;
+  }
+  .subtask-check.done { background: var(--green); border-color: var(--green); }
+  .subtask-check.done::after { content: '✓'; font-size: 10px; font-weight: 800; color: var(--dark); }
+  .subtask-text { font-size: 14px; color: rgba(255,255,255,0.85); transition: all .2s; }
+  .subtask-text.done { color: rgba(255,255,255,0.35); text-decoration: line-through; }
+
+  /* Focus Timer SVG */
+  .focus-ring-wrap { position: relative; width: 160px; height: 160px; margin: 0 auto 20px; }
+  .focus-time-big { position: absolute; inset: 0; display: grid; place-items: center; font-size: 2.5rem; font-weight: 300; letter-spacing: -0.04em; }
+  .focus-time-big span { font-size: 1rem; color: rgba(255,255,255,0.4); }
+  .focus-controls { display: flex; gap: 12px; align-items: center; justify-content: center; }
+  .fbtn { width: 44px; height: 44px; border-radius: 50%; border: none; display: grid; place-items: center; cursor: pointer; transition: all .2s; }
+  .fbtn.sec { background: rgba(255,255,255,0.08); color: white; }
+  .fbtn.sec:hover { background: rgba(255,255,255,0.14); }
+  .fbtn.main { width: 56px; height: 56px; background: var(--purple); color: var(--dark); box-shadow: 0 0 20px rgba(176,168,219,0.3); }
+  .fbtn.main:hover { transform: scale(1.05); }
+
+  /* ─── Conflict Modal ─── */
+  .conflict-body { padding: 8px 0 20px; }
+  .conflict-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
+  .conflict-sub { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 16px; }
+  .conflict-hint { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); color: #fbbf24; padding: 10px 14px; border-radius: 12px; font-size: 12px; margin-bottom: 16px; }
+  .diff-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+  .diff-table th { text-align: left; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); font-weight: 600; }
+  .diff-table td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.8); }
+  .diff-table .field { font-weight: 600; color: white; }
+  .diff-table .mine { color: #86efac; }
+  .diff-table .server { color: #93c5fd; }
+
+  /* ─── Param Panel ─── */
+  .param-trigger {
+    position: fixed; right: 16px; bottom: 100px; z-index: 90;
+    width: 44px; height: 44px; border-radius: 50%; background: var(--dark); color: white;
+    display: grid; place-items: center; border: none; cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25); transition: all .2s;
+  }
+  .param-trigger:hover { transform: scale(1.05); }
+  .param-panel {
+    position: fixed; right: 16px; top: 50%; transform: translateY(-50%) translateX(120%);
+    width: 280px; max-height: 80vh; background: white; border-radius: 1.5rem;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2); z-index: 90; padding: 20px;
+    overflow-y: auto; transition: transform .35s cubic-bezier(0.4,0,0.2,1);
+  }
+  .param-panel.on { transform: translateY(-50%) translateX(0); }
+  .param-panel h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--dark); }
+  .param-row { margin-bottom: 14px; }
+  .param-row label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .param-row label b { color: var(--dark); font-weight: 600; }
+  .param-row input[type="range"] { width: 100%; accent-color: var(--dark); }
+  .param-row input[type="color"] { width: 100%; height: 32px; border: none; border-radius: 8px; cursor: pointer; }
+  .param-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .param-actions button { flex: 1; padding: 10px; border-radius: 99px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .param-actions .primary { background: var(--dark); color: white; }
+  .param-actions .ghost { background: #f4f4f4; color: var(--dark); }
+
+  /* ─── Toast ─── */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px);
+    background: var(--dark); color: white; padding: 10px 20px; border-radius: 99px;
+    font-size: 13px; font-weight: 600; z-index: 200; opacity: 0; pointer-events: none;
+    transition: all .3s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="phone" id="phone">
+  <!-- Header -->
+  <div class="header">
+    <div style="display:flex;align-items:center;">
+      <div class="logo">SparkFlow<span class="logo-dot">.</span></div>
+      <div class="sync-pill err" id="sync-pill" onclick="showConflictModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>同步异常</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn dark" onclick="openCreateModal()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="icon-btn purple">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="badge"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main hide-scrollbar" id="main">
+
+    <!-- ====== DASHBOARD ====== -->
+    <div class="page on" id="page-dashboard">
+      <h1 class="section-title" style="margin-top:8px;">仪表盘</h1>
+      <p class="section-sub">今日概览与进度追踪</p>
+      <div class="dash-stats">
+        <div class="stat-pill"><b id="stat-pending">8</b>待处理</div>
+        <div class="stat-pill"><b id="stat-progress">2</b>进行中</div>
+        <div class="stat-pill"><b id="stat-done">0</b>已完成</div>
+        <div class="stat-pill"><b>25</b>专注分钟</div>
+      </div>
+      <div class="chart-box">
+        <div style="font-size:13px;font-weight:700;margin-bottom:12px;">本周活跃度</div>
+        <div class="chart-bar-row">
+          <div class="chart-bar-group"><div class="chart-bar" style="height:40%;background:var(--green);opacity:.85;"></div><div class="chart-bar" style="height:30%;background:var(--purple);opacity:.8;"></div><div class="chart-bar" style="height:20%;background:var(--dark);opacity:.9;"></div></div>
+          <div class="chart-bar-group"><div class="chart-bar" style="height:60%;background:var(--green);opacity:.85;"></div><div class="chart-bar" style="height:20%;background:var(--purple);opacity:.8;"></div><div class="chart-bar" style="height:30%;background:var(--dark);opacity:.9;"></div></div>
+          <div class="chart-bar-group"><div class="chart-bar" style="height:30%;background:var(--green);opacity:.85;"></div><div class="chart-bar" style="height:40%;background:var(--purple);opacity:.8;"></div><div class="chart-bar" style="height:10%;background:var(--dark);opacity:.9;"></div></div>
+          <div class="chart-bar-group"><div class="chart-bar" style="height:80%;background:var(--green);opacity:.85;"></div><div class="chart-bar" style="height:10%;background:var(--purple);opacity:.8;"></div><div class="chart-bar" style="height:20%;background:var(--dark);opacity:.9;"></div></div>
+          <div class="chart-bar-group"><div class="chart-bar" style="height:50%;background:var(--green);opacity:.85;"></div><div class="chart-bar" style="height:30%;background:var(--purple);opacity:.8;"></div><div class="chart-bar" style="height:20%;background:var(--dark);opacity:.9;"></div></div>
+          <div class="chart-bar-group"><div class="chart-bar" style="height:70%;background:var(--green);opacity:.85;"></div><div class="chart-bar" style="height:20%;background:var(--purple);opacity:.8;"></div><div class="chart-bar" style="height:10%;background:var(--dark);opacity:.9;"></div></div>
+          <div class="chart-bar-group"><div class="chart-bar" style="height:40%;background:var(--green);opacity:.85;"></div><div class="chart-bar" style="height:50%;background:var(--purple);opacity:.8;"></div><div class="chart-bar" style="height:10%;background:var(--dark);opacity:.9;"></div></div>
+        </div>
+        <div class="chart-legend">
+          <span><span class="dot" style="background:var(--green);"></span>新建</span>
+          <span><span class="dot" style="background:var(--purple);"></span>完成</span>
+          <span><span class="dot" style="background:var(--dark);"></span>专注</span>
+        </div>
+      </div>
+      <h2 style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--dark);">今日待办</h2>
+      <div id="dash-today-list"></div>
+    </div>
+
+    <!-- ====== TASKS ====== -->
+    <div class="page" id="page-tasks">
+      <h1 class="section-title" style="margin-top:8px;">任务列表</h1>
+      <div class="filter-bar">
+        <button class="filter-pill on" data-filter="all" onclick="setTaskFilter('all')">全部</button>
+        <button class="filter-pill" data-filter="in_progress" onclick="setTaskFilter('in_progress')">进行中</button>
+        <button class="filter-pill" data-filter="in_review" onclick="setTaskFilter('in_review')">审核中</button>
+        <button class="filter-pill" data-filter="todo" onclick="setTaskFilter('todo')">待处理</button>
+      </div>
+      <div id="tasks-list"></div>
+    </div>
+
+    <!-- ====== BOARD (Context) ====== -->
+    <div class="page" id="page-board">
+      <h1 class="section-title" style="margin-top:8px;">看板</h1>
+      <p class="section-sub">拖拽卡片切换栏目 · 源自 CURRENT_CONTEXT.md</p>
+      <div class="quick-add">
+        <input type="text" id="quick-title" placeholder="快速添加任务..." onkeydown="if(event.key==='Enter')handleQuickAdd()" />
+        <select id="quick-col">
+          <option value="project">项目</option>
+          <option value="personal">个人</option>
+        </select>
+        <button onclick="handleQuickAdd()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="board-columns">
+        <div class="board-col">
+          <div class="board-col-header proj">
+            <div class="board-dot proj"></div>
+            <span>项目待办</span>
+            <span class="board-count" id="project-count">0</span>
+          </div>
+          <div class="board-drop-zone" id="project-zone" data-col="project"
+               ondragover="boardDragOver(event)" ondragleave="boardDragLeave(event)" ondrop="boardDrop(event)">
+            <div id="project-body"></div>
+          </div>
+        </div>
+        <div class="board-col">
+          <div class="board-col-header pers">
+            <div class="board-dot pers"></div>
+            <span>个人待办</span>
+            <span class="board-count" id="personal-count">0</span>
+          </div>
+          <div class="board-drop-zone" id="personal-zone" data-col="personal"
+               ondragover="boardDragOver(event)" ondragleave="boardDragLeave(event)" ondrop="boardDrop(event)">
+            <div id="personal-body"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== CALENDAR ====== -->
+    <div class="page" id="page-calendar">
+      <h1 class="section-title" style="margin-top:8px;">日程安排</h1>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="filter-pill on" style="flex:1;text-align:center;">日</button>
+        <button class="filter-pill" style="flex:1;text-align:center;">周</button>
+        <button class="filter-pill" style="flex:1;text-align:center;">月</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <h2 style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--dark);">今日事件</h2>
+      <div id="cal-events"></div>
+    </div>
+
+    <!-- ====== SPARKS ====== -->
+    <div class="page" id="page-sparks">
+      <div class="sparks-header">
+        <div>
+          <h1 class="section-title" style="margin-top:8px;">灵感墙</h1>
+          <p class="section-sub">拖动卡片 · 自由排版 · 自动整理</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="arrange-btn" onclick="arrangeSparks()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            整理
+          </button>
+          <button class="arrange-btn" onclick="openCreateModal('spark')" style="background:var(--dark);color:white;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            灵感
+          </button>
+        </div>
+      </div>
+      <div class="sparks-board" id="sparks-board"></div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <button class="nav-tab on" data-page="dashboard" onclick="switchPage('dashboard')" title="仪表盘">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="nav-dot"></span>
+    </button>
+    <button class="nav-tab" data-page="tasks" onclick="switchPage('tasks')" title="任务">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span class="nav-dot"></span>
+    </button>
+    <button class="nav-tab" data-page="board" onclick="switchPage('board')" title="看板">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      <span class="nav-dot"></span>
+    </button>
+    <button class="nav-tab" data-page="calendar" onclick="switchPage('calendar')" title="日历">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span class="nav-dot"></span>
+    </button>
+    <button class="nav-tab" data-page="sparks" onclick="switchPage('sparks')" title="灵感">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span class="nav-dot"></span>
+    </button>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+</div>
+
+<!-- ========== DARK FROSTED MODAL (3D Stack / Create) ========== -->
+<div class="modal-overlay" id="dark-modal-overlay" onclick="closeDarkModal(event)">
+  <div class="dark-modal" onclick="event.stopPropagation()">
+    <div class="dm-handle"></div>
+    <button class="dm-close" onclick="closeDarkModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="dm-content" id="dark-modal-content"></div>
+  </div>
+</div>
+
+<!-- ========== CONFLICT MODAL ========== -->
+<div class="modal-overlay" id="conflict-modal-overlay" onclick="closeConflictModal(event)">
+  <div class="dark-modal" onclick="event.stopPropagation()" style="height:78%;">
+    <div class="dm-handle"></div>
+    <button class="dm-close" onclick="closeConflictModal()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="dm-content">
+      <div class="conflict-body">
+        <div class="conflict-title">同步冲突</div>
+        <div class="conflict-sub">CURRENT_CONTEXT.md 在别处被修改（mtime 不一致）</div>
+        <div class="conflict-hint">⚠️ 有 2 个条目同时被修改，需要逐条裁决</div>
+        <table class="diff-table">
+          <thead><tr><th>条目</th><th>字段</th><th>你的版本</th><th>服务器版本</th></tr></thead>
+          <tbody>
+            <tr><td class="field">端到端跑通 npm run update-news</td><td>status</td><td class="mine">todo</td><td class="server">in_progress</td></tr>
+            <tr><td class="field">启动 UI 实测</td><td>priority</td><td class="mine">medium</td><td class="server">high</td></tr>
+          </tbody>
+        </table>
+        <div class="dm-actions">
+          <button class="dm-btn ghost" onclick="resolveConflict('mine')">保留我的</button>
+          <button class="dm-btn ghost" onclick="resolveConflict('server')">采用服务器</button>
+          <button class="dm-btn primary" onclick="resolveConflict('merge')">自动合并</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== PARAM PANEL ========== -->
+<button class="param-trigger" id="param-trigger" onclick="toggleParamPanel()">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+</button>
+
+<div class="param-panel hide-scrollbar" id="param-panel">
+  <h3>🎛️ 视觉参数调参</h3>
+  <div class="param-row">
+    <label>卡片圆角 <b id="v-radius">32px</b></label>
+    <input type="range" min="8" max="48" value="32" oninput="updateParam('card-radius', this.value+'px', 'v-radius')">
+  </div>
+  <div class="param-row">
+    <label>卡片间距 <b id="v-gap">16px</b></label>
+    <input type="range" min="4" max="32" value="16" oninput="updateParam('card-gap', this.value+'px', 'v-gap')">
+  </div>
+  <div class="param-row">
+    <label>手机宽度 <b id="v-phone-w">420px</b></label>
+    <input type="range" min="320" max="520" value="420" oninput="updateParam('phone-w', this.value+'px', 'v-phone-w')">
+  </div>
+  <div class="param-row">
+    <label>手机高度 <b id="v-phone-h">880px</b></label>
+    <input type="range" min="600" max="1000" value="880" oninput="updateParam('phone-h', this.value+'px', 'v-phone-h')">
+  </div>
+  <div class="param-row">
+    <label>灵感最小尺寸 <b id="v-spark-min">150</b></label>
+    <input type="range" min="100" max="200" value="150" oninput="updateParam('spark-min-size', this.value, 'v-spark-min')">
+  </div>
+  <div class="param-row">
+    <label>灵感最大尺寸 <b id="v-spark-max">190</b></label>
+    <input type="range" min="120" max="260" value="190" oninput="updateParam('spark-max-size', this.value, 'v-spark-max')">
+  </div>
+  <div class="param-row">
+    <label>看板列间距 <b id="v-board-gap">12px</b></label>
+    <input type="range" min="4" max="24" value="12" oninput="updateParam('board-col-gap', this.value+'px', 'v-board-gap')">
+  </div>
+  <div class="param-row">
+    <label>主色调</label>
+    <input type="color" value="#242424" oninput="updateColor('dark', this.value)">
+  </div>
+  <div class="param-row">
+    <label>强调色（绿）</label>
+    <input type="color" value="#cae393" oninput="updateColor('green', this.value)">
+  </div>
+  <div class="param-row">
+    <label>强调色（紫）</label>
+    <input type="color" value="#b0a8db" oninput="updateColor('purple', this.value)">
+  </div>
+  <div class="param-row">
+    <label>背景色</label>
+    <input type="color" value="#f4f4f6" oninput="updateColor('bg', this.value)">
+  </div>
+  <div class="param-actions">
+    <button class="ghost" onclick="resetParams()">重置</button>
+    <button class="primary" onclick="exportParams()">导出 JSON</button>
+  </div>
+</div>
+
+<script>
+// ===================== DATA =====================
+const boardData = {
+  project: [
+    { id: 'p1', title: '端到端跑通 npm run update-news', desc: 'API key 已配、40 信源就位', priority: 'p0', status: 'todo', subtasks: [{title:'配置 API key',done:true},{title:'信源接入',done:false}], col: 'project' },
+    { id: 'p2', title: '编辑评估脚本（旧数据后验）', desc: '用 archive 数据校准编辑人格', priority: 'p0', status: 'todo', subtasks: [], col: 'project' },
+    { id: 'p3', title: 'DeepSeek 缓存分层改造', desc: '三层结构+定价数据', priority: 'p0', status: 'in_progress', subtasks: [{title:'Phase 21.5 完善',done:true}], col: 'project' },
+    { id: 'p4', title: 'ContextBridge 单测', desc: '17/17 全部通过', priority: 'p0', status: 'done', subtasks: [{title:'解析器测试',done:true},{title:'合并逻辑测试',done:true}], col: 'project' },
+  ],
+  personal: [
+    { id: 'u1', title: '论文与文献整理', desc: '优先级最高', priority: 'p0', status: 'todo', subtasks: [], col: 'personal' },
+    { id: 'u2', title: '大学生数字素养300问提纲审阅', desc: '截止周六，逐章查看', priority: 'p0', status: 'in_progress', subtasks: [{title:'第一章已读取',done:true}], col: 'personal' },
+    { id: 'u3', title: '六级备考计划', desc: '规划阶段', priority: 'p0', status: 'todo', subtasks: [], col: 'personal' },
+    { id: 'u4', title: '裁判文书本地搜索部署', desc: '硬盘购置+cncases搭建', priority: 'p1', status: 'todo', subtasks: [], col: 'personal' },
+  ]
+};
+
+const tasksData = [
+  { id: 1, title: 'Web 应用程序用户注册流程', time: '10:00 - 17:30', status: 'in_review', priority: 'high', color: 'dark', comments: 6, subtasks: [{title:'完成验证码模块接入',done:true},{title:'优化密码错误提示 UI',done:false}] },
+  { id: 2, title: '管理后台用户流程梳理', time: '14:00 - 16:00', status: 'in_progress', priority: 'medium', color: 'green', comments: 8, subtasks: [{title:'绘制核心流程图',done:false}] },
+  { id: 3, title: '管理面板仪表盘设计', time: '明天', status: 'todo', priority: 'high', color: 'purple', comments: 1, subtasks: [] },
+  { id: 4, title: 'API 性能压测与报告', time: '周五前', status: 'todo', priority: 'medium', color: 'dark', comments: 0, subtasks: [] },
+  { id: 5, title: '周报汇总与发送', time: '今天 18:00', status: 'todo', priority: 'low', color: 'green', comments: 2, subtasks: [] },
+];
+
+const sparksData = [
+  { id: 1, text: '尝试用 Framer Motion 给卡片添加微交互动画，提升手感。', color: 'green', size: 160, x: 10, y: 10, rot: -2, z: 1 },
+  { id: 2, text: '竞品分析：Notion 的 database 视图很强大，但对于轻量级可能过于复杂。需要保持克制。', color: 'purple', size: 180, x: 165, y: 30, rot: 3, z: 2 },
+  { id: 3, text: '色彩心理学：紫色代表创造力，绿色代表成长，深灰色代表专注。', color: 'white', size: 155, x: 20, y: 180, rot: -1.5, z: 3 },
+  { id: 4, text: '磨砂玻璃 + 散落卡片，让信息呼吸。留白即设计本身。', color: 'gray', size: 165, x: 175, y: 220, rot: 2.5, z: 4 },
+  { id: 5, text: '灵感转化：从 spark 直接生成 Task + 写入 CURRENT_CONTEXT.md', color: 'dark', size: 150, x: 30, y: 370, rot: -1, z: 5 },
+  { id: 6, text: '冲突处理：mtime 检测 + mkdir 原子锁 + 自动合并', color: 'green', size: 145, x: 180, y: 400, rot: 2, z: 6 },
+];
+
+const calEvents = [
+  { title: 'Web 注册流程评审', time: '10:00 - 17:30', color: '#242424' },
+  { title: '后台流程梳理会议', time: '14:00 - 16:00', color: '#cae393' },
+];
+
+let taskFilter = 'all';
+let currentPage = 'dashboard';
+let boardDragId = null;
+
+// ===================== RENDER BOARD =====================
+function renderBoard() {
+  const projEl = document.getElementById('project-body');
+  const persEl = document.getElementById('personal-body');
+  let projHTML = '', persHTML = '';
+  let projCount = 0, persCount = 0;
+
+  [...boardData.project, ...boardData.personal].forEach(item => {
+    if (item.status === 'done') return;
+    if (item.col === 'project') projCount++; else persCount++;
+    const html = renderMiniCard(item);
+    if (item.col === 'project') projHTML += html; else persHTML += html;
+  });
+
+  projEl.innerHTML = projHTML || '<p style="text-align:center;color:var(--muted);font-size:12px;padding:20px;">无任务</p>';
+  persEl.innerHTML = persHTML || '<p style="text-align:center;color:var(--muted);font-size:12px;padding:20px;">无任务</p>';
+  document.getElementById('project-count').textContent = projCount;
+  document.getElementById('personal-count').textContent = persCount;
+
+  // Dashboard today list
+  const today = [...boardData.project, ...boardData.personal].filter(t => t.status !== 'done').slice(0, 4);
+  document.getElementById('dash-today-list').innerHTML = today.map(item => `
+    <div class="event-item" onclick="openTaskDetail('${item.title}', '${item.priority}', '${item.status}', '${item.desc}', '${JSON.stringify(item.subtasks).replace(/'/g,'&#39;')}')">
+      <div class="event-dot" style="background:${item.priority==='p0'?'#a32d2d':item.priority==='p1'?'#854f0b':'#3b6d11'};"></div>
+      <div><div class="event-title">${item.title}</div><div class="event-time">${item.desc}</div></div>
+    </div>
+  `).join('');
+}
+
+function renderMiniCard(item) {
+  const done = item.status === 'done';
+  const progress = item.subtasks.length ? Math.round(item.subtasks.filter(s=>s.done).length/item.subtasks.length*100) : 0;
+  return `
+    <div class="mini-card ${done?'done':''}" draggable="true" data-id="${item.id}" data-col="${item.col}"
+         ondragstart="boardDragStart(event)" onclick="openTaskDetail('${item.title}', '${item.priority}', '${item.status}', '${item.desc}', '${JSON.stringify(item.subtasks).replace(/'/g,'&#39;')}')">
+      <div class="mini-bar ${item.priority}${done?' done':''}"></div>
+      <div class="mini-title">${item.title}</div>
+      <div class="mini-meta">
+        <span class="mini-tag ${item.priority}">${item.priority==='p0'?'P0':item.priority==='p1'?'P1':'P2'}</span>
+        <span style="font-size:10px;color:var(--muted);">${item.desc}</span>
+      </div>
+      ${item.subtasks.length?`<div class="mini-progress"><div class="mini-progress-track"><div class="mini-progress-fill" style="width:${progress}%"></div></div><span class="mini-progress-label">${progress}%</span></div>`:''}
+    </div>`;
+}
+
+function handleQuickAdd() {
+  const title = document.getElementById('quick-title').value.trim();
+  const col = document.getElementById('quick-col').value;
+  if (!title) return;
+  const newItem = { id: 'q'+Date.now(), title, desc: '快速添加', priority: 'p1', status: 'todo', subtasks: [], col };
+  boardData[col].push(newItem);
+  document.getElementById('quick-title').value = '';
+  renderBoard();
+  showToast('已添加: ' + title);
+}
+
+// Board DnD
+function boardDragStart(e) { boardDragId = e.target.dataset.id; e.dataTransfer.effectAllowed = 'move'; }
+function boardDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function boardDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function boardDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const targetCol = e.currentTarget.dataset.col;
+  if (!boardDragId || !targetCol) return;
+  const all = [...boardData.project, ...boardData.personal];
+  const item = all.find(i => i.id === boardDragId);
+  if (item && item.col !== targetCol) {
+    boardData[item.col] = boardData[item.col].filter(i => i.id !== item.id);
+    item.col = targetCol;
+    boardData[targetCol].push(item);
+    renderBoard();
+    showToast(`已移至「${targetCol==='project'?'项目待办':'个人待办'}」`);
+  }
+  boardDragId = null;
+}
+
+// ===================== RENDER TASKS =====================
+function renderTasks() {
+  const el = document.getElementById('tasks-list');
+  const filtered = taskFilter === 'all' ? tasksData : tasksData.filter(t => t.status === taskFilter);
+  if (filtered.length === 0) { el.innerHTML = `<div class="empty-state">无任务</div>`; return; }
+  el.innerHTML = filtered.map(task => `
+    <div class="task-card ${task.color}" onclick="openTaskDetail('${task.title}', '${task.priority}', '${task.status}', '${task.time}', '${JSON.stringify(task.subtasks).replace(/'/g,'&#39;')}')">
+      <div class="tc-top">
+        <h3 class="tc-title">${task.title}</h3>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;opacity:.7;font-weight:500;">${task.comments} 讨论</span>
+          <div class="tc-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+        </div>
+      </div>
+      <div class="tc-meta">
+        <div style="display:flex;align-items:center;gap:4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>${task.time}</span></div>
+        <span class="tc-pill">${task.priority==='high'?'High Priority':task.priority==='medium'?'Medium':'Low'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setTaskFilter(f) {
+  taskFilter = f;
+  document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.toggle('on', btn.dataset.filter === f));
+  renderTasks();
+}
+
+// ===================== RENDER CALENDAR =====================
+function renderCalendar() {
+  const grid = document.getElementById('cal-grid');
+  const days = ['日','一','二','三','四','五','六'];
+  let html = days.map(d=>`<div class="cal-day-label">${d}</div>`).join('');
+  const today = new Date().getDate();
+  const hasEvents = [3, 7, 12, 15, 21, 27];
+  for (let i = 1; i <= 31; i++) {
+    const isToday = i === today;
+    const has = hasEvents.includes(i);
+    html += `<div class="cal-day ${isToday?'today':''} ${has?'has':''}">${i}</div>`;
+  }
+  grid.innerHTML = html;
+  document.getElementById('cal-events').innerHTML = calEvents.map(ev=>`
+    <div class="event-item"><div class="event-dot" style="background:${ev.color};"></div><div><div class="event-title">${ev.title}</div><div class="event-time">${ev.time}</div></div></div>
+  `).join('');
+}
+
+// ===================== RENDER SPARKS =====================
+function renderSparks() {
+  const board = document.getElementById('sparks-board');
+  const minS = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--spark-min-size'));
+  const maxS = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--spark-max-size'));
+  board.innerHTML = sparksData.map(s => `
+    <div class="spark-card ${s.color}" id="spark-${s.id}"
+      style="width:${s.size}px;left:${s.x}px;top:${s.y}px;transform:rotate(${s.rot}deg);z-index:${s.z};"
+      onpointerdown="sparkDragStart(event, ${s.id})"
+    >
+      <div class="spark-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <div class="spark-more" onclick="event.stopPropagation();convertSpark(${s.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></div>
+      </div>
+      <p>${s.text}</p>
+    </div>
+  `).join('');
+}
+
+let dragSpark = null, dragInfo = { x:0, y:0, sx:0, sy:0 };
+function sparkDragStart(e, id) {
+  e.preventDefault();
+  const card = document.getElementById(`spark-${id}`);
+  dragSpark = card;
+  dragSpark.classList.add('dragging');
+  dragInfo = { x: e.clientX, y: e.clientY, sx: parseFloat(card.style.left), sy: parseFloat(card.style.top) };
+  document.addEventListener('pointermove', sparkDragMove);
+  document.addEventListener('pointerup', sparkDragEnd);
+}
+function sparkDragMove(e) {
+  if (!dragSpark) return;
+  const dx = e.clientX - dragInfo.x;
+  const dy = e.clientY - dragInfo.y;
+  dragSpark.style.left = Math.max(0, dragInfo.sx + dx) + 'px';
+  dragSpark.style.top = Math.max(0, dragInfo.sy + dy) + 'px';
+}
+function sparkDragEnd() {
+  if (dragSpark) dragSpark.classList.remove('dragging');
+  dragSpark = null;
+  document.removeEventListener('pointermove', sparkDragMove);
+  document.removeEventListener('pointerup', sparkDragEnd);
+}
+function arrangeSparks() {
+  sparksData.forEach((s, i) => {
+    const card = document.getElementById(`spark-${s.id}`);
+    s.x = (i % 2 === 0) ? 10 : 180;
+    s.y = 10 + Math.floor(i / 2) * 160;
+    s.rot = 0;
+    card.style.left = s.x + 'px';
+    card.style.top = s.y + 'px';
+    card.style.transform = 'rotate(0deg)';
+  });
+}
+function convertSpark(id) {
+  const spark = sparksData.find(s => s.id === id);
+  showToast(`已转化：${spark.text.substring(0, 18)}... → 任务`);
+}
+
+// ===================== PAGE SWITCH =====================
+function switchPage(name) {
+  currentPage = name;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('on'));
+  document.getElementById('page-' + name).classList.add('on');
+  document.querySelector(`.nav-tab[data-page="${name}"]`).classList.add('on');
+}
+
+// ===================== 3D DARK MODAL =====================
+let modalMode = 'view';
+let currentTask = null;
+let stackOrder = [0,1,2];
+let stackDrag = { active:false, startX:0, offset:0 };
+let stackBusy = false;
+
+const STACK_LAYERS = [
+  { rot: 0, ty: 0, sc: 1, z: 10, op: 1, sh: '0 22px 65px rgba(0,0,0,0.72)' },
+  { rot: -6.5, ty: 12, sc: 0.97, z: 9, op: 1, sh: '0 12px 38px rgba(0,0,0,0.54)' },
+  { rot: 6.5, ty: 12, sc: 0.97, z: 8, op: 0.9, sh: '0 7px 24px rgba(0,0,0,0.4)' },
+  { rot: 0, ty: 22, sc: 0.94, z: 7, op: 0 },
+];
+
+function openTaskDetail(title, priority, status, descOrTime, notesOrSubtasks) {
+  modalMode = 'view';
+  currentTask = { title, priority, status, desc: descOrTime };
+  stackOrder = [0,1,2];
+  stackDrag = { active:false, startX:0, offset:0 };
+  stackBusy = false;
+
+  let subtasks = [];
+  try { subtasks = JSON.parse(notesOrSubtasks); } catch(e){}
+
+  const content = document.getElementById('dark-modal-content');
+  content.innerHTML = `
+    <div style="text-align:center;margin-bottom:8px;">
+      <span style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:0.15em;text-transform:uppercase;">Focus Mode</span>
+      <h2 style="font-size:1.1rem;font-weight:700;margin-top:6px;opacity:.9;">Stay Focused.</h2>
+    </div>
+    <div class="card-stack" id="card-stack" onpointerdown="stackPointerDown(event)" onpointermove="stackPointerMove(event)" onpointerup="stackPointerUp(event)" onpointercancel="stackPointerUp(event)">
+      ${renderStackCard(0, subtasks, descOrTime)}
+      ${renderStackCard(1, subtasks, descOrTime)}
+      ${renderStackCard(2, subtasks, descOrTime)}
+    </div>
+    <p style="text-align:center;font-size:12px;color:rgba(255,255,255,0.4);margin-top:4px;">左右滑动飞出卡片</p>
+    <div class="dm-actions" style="margin-top:12px;">
+      <button class="dm-btn ghost" onclick="closeDarkModal()">关闭</button>
+      <button class="dm-btn primary" onclick="startFocusFromModal()">开始专注</button>
+      <button class="dm-btn danger" onclick="closeDarkModal();showToast('任务已删除')">删除</button>
+    </div>
+  `;
+  requestAnimationFrame(updateStackCards);
+  document.getElementById('dark-modal-overlay').classList.add('on');
+}
+
+function renderStackCard(idx, subtasks, desc) {
+  // idx 0=Schedule, 1=FocusTimer, 2=TaskDetails
+  let inner = '';
+  if (idx === 0) {
+    inner = `
+      <span class="card-label" style="color:var(--green);">Schedule</span>
+      <div class="card-title">日程设定</div>
+      <div class="stack-glass-btn"><div class="sgb-icon" style="color:var(--green);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div style="font-size:13px;font-weight:600;">Jul 27, 2024</div><div style="font-size:11px;opacity:.5;">点击设置截止日期</div></div></div>
+      <div class="stack-glass-btn"><div class="sgb-icon" style="color:var(--purple);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div><div style="font-size:13px;font-weight:600;">09:00 AM</div><div style="font-size:11px;opacity:.5;">提前 30 分钟提醒</div></div></div>`;
+  } else if (idx === 1) {
+    inner = `
+      <span class="card-label" style="color:var(--purple);">Focus Timer</span>
+      <div class="focus-ring-wrap">
+        <svg width="160" height="160" viewBox="0 0 160 160" style="transform:rotate(-90deg);">
+          <circle cx="80" cy="80" r="72" stroke="rgba(255,255,255,0.08)" stroke-width="6" fill="none"/>
+          <circle cx="80" cy="80" r="72" stroke="var(--purple)" stroke-width="6" fill="none" stroke-linecap="round"
+            stroke-dasharray="452" stroke-dashoffset="113" style="transition:stroke-dashoffset 1s linear;"/>
+        </svg>
+        <div class="focus-time-big">25<span>:00</span></div>
+      </div>
+      <div class="focus-controls">
+        <button class="fbtn sec"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>
+        <button class="fbtn main"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>
+        <button class="fbtn sec"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
+      </div>`;
+  } else {
+    const subHtml = subtasks.length ? subtasks.map(st => `
+      <div class="subtask-row" onclick="this.querySelector('.subtask-check').classList.toggle('done');this.querySelector('.subtask-text').classList.toggle('done')">
+        <div class="subtask-check ${st.done?'done':''}"></div>
+        <span class="subtask-text ${st.done?'done':''}">${st.title||st}</span>
+      </div>`).join('') : `<div style="color:rgba(255,255,255,0.4);font-size:13px;">暂无子任务详情</div>`;
+    inner = `<span class="card-label" style="color:var(--green);">Task Details</span><div class="card-title" style="margin-bottom:12px;">${currentTask?.title || '任务详情'}</div><div style="flex:1;overflow-y:auto;">${subHtml}</div>`;
+  }
+  return `<div class="stack-card" data-idx="${idx}">${inner}</div>`;
+}
+
+function stackPointerDown(e) {
+  if (stackBusy || modalMode === 'create') return;
+  stackDrag.active = true;
+  stackDrag.startX = e.clientX;
+  (e.target).setPointerCapture(e.pointerId);
+}
+function stackPointerMove(e) {
+  if (!stackDrag.active || stackBusy) return;
+  stackDrag.offset = e.clientX - stackDrag.startX;
+  updateStackCards();
+}
+function stackPointerUp(e) {
+  if (!stackDrag.active || stackBusy) return;
+  stackDrag.active = false;
+  if (Math.abs(stackDrag.offset) > 88) {
+    stackBusy = true;
+    const dir = stackDrag.offset > 0 ? 1 : -1;
+    const fly = dir * 500;
+    animateFlyOut(fly, () => {
+      stackOrder = [stackOrder[1], stackOrder[2], stackOrder[0]];
+      stackDrag.offset = 0;
+      stackBusy = false;
+      updateStackCards();
+    });
+  } else {
+    stackDrag.offset = 0;
+    updateStackCards();
+  }
+}
+
+function animateFlyOut(targetX, onDone) {
+  const cards = document.querySelectorAll('.stack-card');
+  const topCard = cards[stackOrder[0]];
+  if (!topCard) { onDone(); return; }
+  topCard.style.transition = 'transform 0.4s cubic-bezier(0.4,0,1,1), opacity 0.3s ease';
+  topCard.style.transform = `translateX(${targetX}px) rotate(${targetX>0?28:-28}deg)`;
+  topCard.style.opacity = '0';
+  setTimeout(onDone, 380);
+}
+
+function updateStackCards() {
+  const cards = document.querySelectorAll('.stack-card');
+  cards.forEach((card, logicIdx) => {
+    const cardIdx = stackOrder[logicIdx];
+    const L = STACK_LAYERS[logicIdx] || STACK_LAYERS[3];
+    let transform = `rotate(${L.rot}deg) translateY(${L.ty}px) scale(${L.sc})`;
+    let opacity = L.op;
+    let transition = stackDrag.active ? 'none' : 'transform 0.4s cubic-bezier(0.34,1.18,0.64,1), opacity 0.38s ease, box-shadow 0.38s ease';
+
+    if (stackDrag.active && logicIdx === 0) {
+      transform = `translateX(${stackDrag.offset}px) translateY(${Math.abs(stackDrag.offset)*0.07}px) rotate(${stackDrag.offset*0.075}deg)`;
+    } else if (stackDrag.active && logicIdx > 0) {
+      const prog = Math.min(Math.abs(stackDrag.offset)/100, 1);
+      const prev = STACK_LAYERS[logicIdx-1];
+      const r = L.rot + (prev.rot - L.rot)*prog;
+      const ty = L.ty + (prev.ty - L.ty)*prog;
+      const sc = L.sc + (prev.sc - L.sc)*prog;
+      const op = L.op + (prev.op - L.op)*prog;
+      transform = `rotate(${r}deg) translateY(${ty}px) scale(${sc})`;
+      opacity = op;
+    }
+
+    card.style.transform = transform;
+    card.style.opacity = opacity;
+    card.style.zIndex = L.z;
+    card.style.boxShadow = L.sh;
+    card.style.transition = transition;
+  });
+}
+
+function openCreateModal(context='task') {
+  modalMode = 'create';
+  const content = document.getElementById('dark-modal-content');
+  content.innerHTML = `
+    <div style="text-align:center;margin-bottom:20px;">
+      <span style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:0.15em;text-transform:uppercase;">New</span>
+      <h2 style="font-size:1.25rem;font-weight:700;margin-top:8px;">新建${context==='task'?'任务':'灵感'}</h2>
+    </div>
+    <input class="dm-input" placeholder="标题..." id="create-title" />
+    <textarea class="dm-input dm-textarea" placeholder="${context==='task'?'添加细节描述或子任务...':'记录此刻闪过的想法...'}"></textarea>
+    <div class="dm-select-row">
+      <select id="create-priority"><option value="high">高优先级</option><option value="medium">中优先级</option><option value="low">低优先级</option></select>
+      <select id="create-context"><option value="project">项目待办</option><option value="personal">个人待办</option></select>
+    </div>
+    <div class="dm-actions" style="margin-top:auto;">
+      <button class="dm-btn ghost" onclick="closeDarkModal()">取消</button>
+      <button class="dm-btn primary" onclick="saveNewTask()">保存</button>
+    </div>
+  `;
+  document.getElementById('dark-modal-overlay').classList.add('on');
+}
+
+function saveNewTask() {
+  const title = document.getElementById('create-title').value;
+  if (!title.trim()) return;
+  showToast('已保存: ' + title);
+  closeDarkModal();
+}
+
+function closeDarkModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('dark-modal-overlay').classList.remove('on');
+}
+
+function startFocusFromModal() { closeDarkModal(); showToast('专注计时开始'); switchPage('sparks'); }
+
+// ===================== CONFLICT MODAL =====================
+function showConflictModal() { document.getElementById('conflict-modal-overlay').classList.add('on'); }
+function closeConflictModal(e) { if (e && e.target !== e.currentTarget) return; document.getElementById('conflict-modal-overlay').classList.remove('on'); }
+function resolveConflict(mode) {
+  closeConflictModal();
+  const pill = document.getElementById('sync-pill');
+  pill.className = 'sync-pill ok';
+  pill.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>已同步</span>`;
+  showToast(mode==='merge'?'已自动合并':'冲突已解决');
+}
+
+// ===================== PARAM PANEL =====================
+function toggleParamPanel() { document.getElementById('param-panel').classList.toggle('on'); }
+function updateParam(key, value, labelId) {
+  document.documentElement.style.setProperty('--'+key, value);
+  if (labelId) document.getElementById(labelId).textContent = value;
+}
+function updateColor(key, value) {
+  document.documentElement.style.setProperty('--'+key, value);
+}
+function resetParams() {
+  document.documentElement.style.cssText = '';
+  document.getElementById('v-radius').textContent = '32px';
+  document.getElementById('v-gap').textContent = '14px';
+  document.getElementById('v-phone-w').textContent = '393px';
+  document.getElementById('v-phone-h').textContent = '852px';
+  document.getElementById('v-spark-min').textContent = '140';
+  document.getElementById('v-spark-max').textContent = '175';
+  document.getElementById('v-board-gap').textContent = '11px';
+}
+function exportParams() {
+  const params = {
+    cardRadius: getComputedStyle(document.documentElement).getPropertyValue('--card-radius').trim(),
+    cardGap: getComputedStyle(document.documentElement).getPropertyValue('--card-gap').trim(),
+    phoneWidth: getComputedStyle(document.documentElement).getPropertyValue('--phone-w').trim(),
+    phoneHeight: getComputedStyle(document.documentElement).getPropertyValue('--phone-h').trim(),
+    sparkMinSize: getComputedStyle(document.documentElement).getPropertyValue('--spark-min-size').trim(),
+    sparkMaxSize: getComputedStyle(document.documentElement).getPropertyValue('--spark-max-size').trim(),
+    boardColGap: getComputedStyle(document.documentElement).getPropertyValue('--board-col-gap').trim(),
+    colors: {
+      dark: getComputedStyle(document.documentElement).getPropertyValue('--dark').trim(),
+      green: getComputedStyle(document.documentElement).getPropertyValue('--green').trim(),
+      purple: getComputedStyle(document.documentElement).getPropertyValue('--purple').trim(),
+      bg: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),
+    },
+    exportedAt: new Date().toISOString(),
+    project: 'sparkflow',
+    prototypeVersion: 'v3'
+  };
+  const blob = new Blob([JSON.stringify(params, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'sparkflow-v3-params.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('参数 JSON 已导出');
+}
+
+// ===================== SYNC SIMULATION =====================
+setTimeout(() => {
+  const pill = document.getElementById('sync-pill');
+  pill.className = 'sync-pill err';
+  pill.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>同步异常</span>`;
+}, 3500);
+
+// ===================== TOAST =====================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  setTimeout(() => t.classList.remove('on'), 2200);
+}
+
+// ===================== INIT =====================
+renderBoard();
+renderTasks();
+renderCalendar();
+renderSparks();
+</script>
+</body>
+</html>

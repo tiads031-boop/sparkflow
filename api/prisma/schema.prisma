@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  wechatId      String?   @unique
+  nickname      String?
+  avatarUrl     String?
+  settings      Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  inspirations  Inspiration[]
+  tasks         Task[]
+  pomodoroSessions PomodoroSession[]
+  calendarEvents CalendarEvent[]
+  aiConversations AIConversation[]
+  pushSubscriptions PushSubscription[]
+
+  @@map("users")
+}
+
+model Inspiration {
+  id            String   @id @default(uuid())
+  userId        String
+  sourceUrl     String
+  sourceType    String   @default("article")
+  title         String?
+  description   String?
+  contentText   String?  @db.Text
+  coverImage    String?
+  author        String?
+  publishedAt   DateTime?
+  aiSummary     String?  @db.Text
+  aiInsights    Json     @default("[]")
+  tags          String[]
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task          Task?
+
+  @@index([userId])
+  @@index([status])
+  @@index([tags])
+  @@map("inspirations")
+}
+
+model Task {
+  id              String    @id @default(uuid())
+  userId          String
+  inspirationId   String?   @unique
+  title           String
+  description     String?
+  status          String    @default("todo")
+  priority        String    @default("medium")
+  estimatedMinutes Int?
+  scheduledStart  DateTime?
+  scheduledEnd    DateTime?
+  dueDate         DateTime?
+  tags            String[]
+  contextMdHash   String?    // 关联 CURRENT_CONTEXT.md 条目（标题标准化 SHA256 前8位）
+  aiFeasibility   Json?
+  createdAt       DateTime  @default(now())
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pomodoroSessions PomodoroSession[]
+  calendarEvents  CalendarEvent[]
+  inspiration     Inspiration? @relation(fields: [inspirationId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("tasks")
+}
+
+model PomodoroSession {
+  id                String    @id @default(uuid())
+  userId            String
+  taskId            String?
+  duration          Int       @default(25)
+  startedAt         DateTime  @default(now())
+  endedAt           DateTime?
+  status            String    @default("completed") // completed/interrupted
+  interruptionCount Int       @default(0)
+  notes             String?
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task              Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([taskId])
+  @@map("pomodoro_sessions")
+}
+
+model CalendarEvent {
+  id            String    @id @default(uuid())
+  userId        String
+  taskId        String?
+  title         String
+  eventType     String    @default("task") // task/focus/meeting/reminder
+  startTime     DateTime
+  endTime       DateTime
+  isAllDay      Boolean   @default(false)
+  recurrenceRule String?
+  color         String    @default("#185FA5")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task          Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([startTime])
+  @@map("calendar_events")
+}
+
+model AIConversation {
+  id                String    @id @default(uuid())
+  userId            String
+  conversationType  String
+  userMessage       String
+  aiResponse        String    @db.Text
+  context           Json?
+  createdAt         DateTime  @default(now())
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([conversationType])
+  @@map("ai_conversations")
+}
+
+model PushSubscription {
+  id              String    @id @default(uuid())
+  userId          String
+  endpoint        String
+  p256dh          String
+  auth            String
+  createdAt       DateTime  @default(now())
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}

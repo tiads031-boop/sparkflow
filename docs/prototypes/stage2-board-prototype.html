@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>sparkflow · Board Prototype — 参数调参</title>
+<style>
+  :root {
+    --bg: #080b12;
+    --bg-soft: #0d1320;
+    --panel: rgba(15,23,42,.78);
+    --card-bg: rgba(15,23,42,.72);
+    --card-hover: rgba(30,41,59,.82);
+    --line: rgba(148,163,184,.18);
+    --line-strong: rgba(56,189,248,.34);
+    --text: #e5edf7;
+    --muted: #8fa1b8;
+    --muted-2: #627085;
+    --primary: #38bdf8;
+    --accent: #22d3ee;
+    --ok: #34d399;
+    --high: #fb7185;
+    --mid: #fbbf24;
+    --low: #8fa1b8;
+    --done: #627085;
+    --card-radius: 16px;
+    --card-gap: 10px;
+    --card-shadow: 0 12px 32px rgba(0,0,0,.28);
+    --card-alpha: 75;
+    --card-pad: 14px;
+    --base-font: 14px;
+    --section-gap: 18px;
+    --priority-bar-w: 4px;
+    --glow-intensity: 0.4;
+    --bg-bright: 44;
+    --nav-h: 56px;
+    --header-h: 52px;
+    --focus-ring: 0 0 0 3px rgba(56,189,248,.14);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { height: 100%; overflow: hidden; }
+  body {
+    height: 100%;
+    overflow: hidden;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
+    font-size: var(--base-font);
+    color: var(--text);
+    background: radial-gradient(circle at 50% -20%, rgba(56,189,248,.12), transparent 50%),
+                radial-gradient(circle at 80% 60%, rgba(129,140,248,.08), transparent 40%),
+                linear-gradient(180deg,
+                  hsl(220 30% calc(var(--bg-bright) * .18)) 0%,
+                  hsl(222 28% calc(var(--bg-bright) * .16)) 40%,
+                  hsl(225 25% calc(var(--bg-bright) * .22)) 100%);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* ─── App Shell ─── */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--header-h);
+    padding: 0 16px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(8,11,18,.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    flex-shrink: 0;
+    z-index: 10;
+  }
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: -0.02em;
+  }
+  .header-dot {
+    width: 8px; height: 8px; border-radius: 99px;
+    background: var(--primary);
+    box-shadow: 0 0 calc(14px * var(--glow-intensity)) var(--primary);
+  }
+  .header-time {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 99px;
+  }
+
+  /* ─── Main Content ─── */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ─── Section ─── */
+  .section { margin-bottom: var(--section-gap); }
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: calc(var(--card-radius) - 4px);
+    background: rgba(15,23,42,.48);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    transition: background .18s;
+  }
+  .section-header:hover { background: rgba(30,41,59,.58); }
+  .section-title {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 800; font-size: 13px; letter-spacing: -0.01em;
+  }
+  .section-dot { width: 6px; height: 6px; border-radius: 99px; }
+  .section-dot.project { background: var(--primary); }
+  .section-dot.personal { background: var(--accent); }
+  .section-count {
+    font-size: 11px; color: var(--muted-2);
+    padding: 3px 8px; border-radius: 99px;
+    border: 1px solid var(--line);
+  }
+  .section-chevron {
+    font-size: 11px; color: var(--muted-2);
+    transition: transform .2s;
+  }
+  .section.collapsed .section-chevron { transform: rotate(-90deg); }
+  .section-body { margin-top: var(--card-gap); display: grid; gap: var(--card-gap); }
+  .section.collapsed .section-body { display: none; }
+
+  /* ─── Project Group (within 项目待办) ─── */
+  .project-group { margin-bottom: 6px; }
+  .project-label {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    padding: 4px 10px; margin-bottom: var(--card-gap);
+    letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  .project-label .status-tag {
+    font-weight: 400; font-size: 10px; margin-left: 6px;
+    padding: 2px 6px; border-radius: 99px;
+  }
+  .status-tag.active { background: rgba(56,189,248,.14); color: var(--primary); }
+  .status-tag.secondary { background: rgba(129,140,248,.10); color: var(--accent); }
+  .status-tag.idle { background: rgba(148,163,184,.08); color: var(--muted-2); }
+
+  /* ─── Card ─── */
+  .card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    gap: 10px;
+    padding: var(--card-pad);
+    border: 1px solid var(--line);
+    border-radius: var(--card-radius);
+    background: rgba(15,23,42, calc(var(--card-alpha) / 100));
+    box-shadow: var(--card-shadow);
+    cursor: pointer;
+    transition: transform .15s, border-color .18s, background .18s;
+    align-items: flex-start;
+  }
+  .card:active { transform: scale(.985); }
+  .card:hover { border-color: var(--line-strong); background: var(--card-hover); }
+
+  /* Priority bar */
+  .card-bar {
+    flex-shrink: 0;
+    width: var(--priority-bar-w);
+    align-self: stretch;
+    border-radius: 99px;
+    opacity: .8;
+  }
+  .card-bar.high { background: var(--high); box-shadow: 0 0 8px var(--high); }
+  .card-bar.mid { background: var(--mid); }
+  .card-bar.low { background: var(--low); }
+  .card-bar.done { background: var(--done); opacity: .4; }
+
+  .card-body { flex: 1; min-width: 0; }
+  .card-title {
+    font-weight: 700; font-size: var(--base-font);
+    line-height: 1.35; margin-bottom: 4px;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .card.done .card-title { text-decoration: line-through; opacity: .5; }
+  .card-desc {
+    font-size: 12px; color: var(--muted); line-height: 1.4;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden; margin-bottom: 6px;
+  }
+  .card-meta {
+    display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--muted-2);
+  }
+  .card-priority {
+    padding: 2px 6px; border-radius: 99px;
+    font-size: 10px; font-weight: 600;
+  }
+  .card-priority.high { background: rgba(251,113,133,.15); color: var(--high); }
+  .card-priority.mid { background: rgba(251,191,36,.12); color: var(--mid); }
+  .card-priority.low { background: rgba(148,163,184,.08); color: var(--low); }
+
+  /* Checkbox */
+  .card-check {
+    flex-shrink: 0; width: 20px; height: 20px; margin-top: 1px;
+    border: 2px solid var(--line); border-radius: 6px;
+    display: grid; place-items: center; transition: all .18s;
+    cursor: pointer; z-index: 1;
+  }
+  .card-check:hover { border-color: var(--ok); }
+  .card-check.done { border-color: var(--ok); background: var(--ok); }
+  .card-check.done::after { content: '✓'; font-size: 11px; font-weight: 800; color: #080b12; }
+
+  /* Notes panel */
+  .card-notes {
+    display: none; margin-top: 8px; padding: 10px;
+    border-radius: 10px; background: rgba(2,6,23,.28);
+    border: 1px solid var(--line); font-size: 11px; color: var(--muted);
+    line-height: 1.55;
+  }
+  .card.expanded .card-notes { display: block; }
+  .card.expanded .card-desc { -webkit-line-clamp: unset; }
+
+  /* ─── Bottom Nav ─── */
+  .bottom-nav {
+    display: flex; align-items: center; justify-content: space-around;
+    height: var(--nav-h); flex-shrink: 0;
+    border-top: 1px solid var(--line);
+    background: rgba(8,11,18,.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 0 8px; padding-bottom: env(safe-area-inset-bottom, 0);
+    z-index: 10;
+  }
+  .nav-tab {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; padding: 6px 16px; border-radius: 12px;
+    color: var(--muted-2); font-size: 10px; font-weight: 600;
+    cursor: pointer; transition: all .18s; border: 1px solid transparent;
+  }
+  .nav-tab.on {
+    color: var(--primary);
+    border-color: rgba(56,189,248,.28);
+    background: rgba(56,189,248,.08);
+  }
+  .nav-tab svg { width: 20px; height: 20px; }
+
+  /* ─── Pages ─── */
+  .page { display: none; }
+  .page.on { display: flex; flex-direction: column; height: 100%; }
+
+  /* Inspiration page placeholder */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 48px 24px; text-align: center; gap: 12px;
+  }
+  .empty-state svg { width: 48px; height: 48px; opacity: .3; }
+  .empty-state p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  /* ─── Settings page ─── */
+  .settings-section {
+    margin-bottom: var(--section-gap);
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--card-radius);
+    background: rgba(15,23,42,.48);
+  }
+  .settings-section h3 {
+    font-size: 13px; font-weight: 700; margin-bottom: 10px;
+    letter-spacing: -0.01em;
+  }
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid rgba(148,163,184,.06);
+    gap: 12px;
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-label { font-size: 13px; }
+  .setting-hint { font-size: 10px; color: var(--muted-2); margin-top: 2px; }
+  .toggle {
+    position: relative; width: 44px; height: 26px; border-radius: 99px;
+    background: rgba(148,163,184,.18); cursor: pointer; flex-shrink: 0;
+    transition: background .2s;
+  }
+  .toggle.on { background: var(--ok); }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 20px; height: 20px; border-radius: 99px; background: #fff;
+    transition: transform .2s;
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* ─── Parameter Control Panel ─── */
+  .ctrl-overlay {
+    position: fixed; inset: 0; z-index: 9998;
+    background: rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .ctrl-overlay.on { opacity: 1; pointer-events: auto; }
+  .ctrl {
+    position: fixed; bottom: 0; left: 50%; transform: translate(-50%, 100%);
+    width: min(480px, 100%); max-height: 70vh; z-index: 9999;
+    border: 1px solid var(--line); border-radius: var(--card-radius) var(--card-radius) 0 0;
+    background: rgba(12,18,30,.96); box-shadow: 0 -8px 40px rgba(0,0,0,.5);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    padding: 0; transition: transform .3s cubic-bezier(.32,.72,0,1);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .ctrl.on { transform: translate(-50%, 0); }
+  .ctrl-handle {
+    width: 36px; height: 4px; border-radius: 99px;
+    background: var(--muted-2); margin: 10px auto 0; flex-shrink: 0;
+  }
+  .ctrl-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+  }
+  .ctrl-title { font-weight: 800; font-size: 14px; }
+  .ctrl-actions { display: flex; gap: 8px; }
+  .ctrl-actions button {
+    padding: 6px 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: rgba(15,23,42,.52); color: var(--text); cursor: pointer;
+    font-size: 11px; font-weight: 600; transition: all .15s;
+  }
+  .ctrl-actions button:hover { border-color: var(--line-strong); background: rgba(30,41,59,.72); }
+  .ctrl-actions button.primary {
+    border-color: rgba(56,189,248,.42);
+    background: linear-gradient(135deg, rgba(56,189,248,.18), rgba(129,140,248,.1));
+    color: #e0f7ff;
+  }
+  .ctrl-body {
+    flex: 1; overflow-y: auto; padding: 14px 16px; -webkit-overflow-scrolling: touch;
+  }
+  .ctrl-group { margin-bottom: 16px; }
+  .ctrl-group h4 {
+    font-size: 11px; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .08em; margin-bottom: 10px;
+  }
+  .ctrl-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  }
+  .ctrl-row label {
+    min-width: 90px; font-size: 12px; color: var(--muted); flex-shrink: 0;
+  }
+  .ctrl-row input[type=range] {
+    flex: 1; accent-color: var(--primary); height: 4px;
+  }
+  .ctrl-row input[type=number] {
+    width: 58px; padding: 5px 6px; border: 1px solid var(--line);
+    border-radius: 8px; background: rgba(2,6,23,.4); color: var(--text);
+    font-size: 12px; text-align: center;
+  }
+  .ctrl-row input[type=color] {
+    width: 32px; height: 26px; border: 1px solid var(--line);
+    border-radius: 6px; padding: 2px; cursor: pointer;
+    background: transparent;
+  }
+  .ctrl-divider { border-top: 1px solid var(--line); margin: 12px 0; }
+
+  @media (min-width: 480px) {
+    .ctrl {
+      left: auto; right: 12px; transform: translate(calc(100% + 20px), 0);
+      top: 12px; bottom: 12px; width: 360px; max-height: none;
+      border-radius: var(--card-radius);
+    }
+    .ctrl.on { transform: translate(0, 0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-brand">
+      <div class="header-dot"></div>
+      <span>sparkflow</span>
+    </div>
+    <div class="header-time" id="clock">--</div>
+  </div>
+
+  <!-- ====== Board Page ====== -->
+  <div class="page on" id="page-board">
+    <div class="main" id="board-main">
+      <!-- 项目待办 -->
+      <div class="section" id="sec-project">
+        <div class="section-header" onclick="toggleSection('sec-project')">
+          <div class="section-title">
+            <div class="section-dot project"></div>
+            项目待办
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="section-count" id="project-count">0</span>
+            <span class="section-chevron">▼</span>
+          </div>
+        </div>
+        <div class="section-body" id="project-body">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- 个人待办 -->
+      <div class="section" id="sec-personal">
+        <div class="section-header" onclick="toggleSection('sec-personal')">
+          <div class="section-title">
+            <div class="section-dot personal"></div>
+            个人待办
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="section-count" id="personal-count">0</span>
+            <span class="section-chevron">▼</span>
+          </div>
+        </div>
+        <div class="section-body" id="personal-body">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Inspiration Page ====== -->
+  <div class="page" id="page-inspiration">
+    <div class="main" style="display:flex;align-items:center;justify-content:center">
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        <p>灵感列表<br><span style="font-size:11px;opacity:.6">来自微信收藏 / 文章链接 / 临时想法</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Settings Page ====== -->
+  <div class="page" id="page-settings">
+    <div class="main">
+      <div class="settings-section">
+        <h3>通知</h3>
+        <div class="setting-row">
+          <div><div class="setting-label">推送提醒</div><div class="setting-hint">截止日期到达时手机弹出通知</div></div>
+          <div class="toggle" id="toggle-push" onclick="toggleSetting('toggle-push')"></div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">每日摘要</div><div class="setting-hint">每天早上 9:00 推送待办概览</div></div>
+          <div class="toggle on" onclick="toggleSetting(this)"></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>数据</h3>
+        <div class="setting-row">
+          <div><div class="setting-label">同步 CURRENT_CONTEXT.md</div><div class="setting-hint">D:\\Mindd\\Work\\CURRENT_CONTEXT.md</div></div>
+          <span style="font-size:11px;color:var(--ok)">已连接</span>
+        </div>
+        <div class="setting-row" style="cursor:pointer" onclick="openCtrl()">
+          <div><div class="setting-label">视觉参数</div><div class="setting-hint">打开调参面板</div></div>
+          <span style="font-size:11px;color:var(--primary)">调整 →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <div class="nav-tab on" data-page="board" onclick="switchPage('board')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+      <span>看板</span>
+    </div>
+    <div class="nav-tab" data-page="inspiration" onclick="switchPage('inspiration')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+      <span>灵感</span>
+    </div>
+    <div class="nav-tab" data-page="settings" onclick="switchPage('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <span>设置</span>
+    </div>
+  </div>
+</div>
+
+<!-- Parameter Control Panel -->
+<div class="ctrl-overlay" id="ctrl-overlay" onclick="closeCtrl()"></div>
+<div class="ctrl" id="ctrl">
+  <div class="ctrl-handle"></div>
+  <div class="ctrl-header">
+    <span class="ctrl-title">视觉参数</span>
+    <div class="ctrl-actions">
+      <button onclick="resetParams()">重置</button>
+      <button class="primary" onclick="exportJSON()">导出 JSON</button>
+    </div>
+  </div>
+  <div class="ctrl-body">
+    <div class="ctrl-group">
+      <h4>卡片</h4>
+      <div class="ctrl-row"><label>间距 (px)</label><input type="range" id="param-card-gap" min="4" max="24" value="10" oninput="onParam('card-gap',this.value)"><input type="number" value="10" onchange="onParam('card-gap',this.value)"></div>
+      <div class="ctrl-row"><label>圆角 (px)</label><input type="range" id="param-card-radius" min="4" max="32" value="16" oninput="onParam('card-radius',this.value)"><input type="number" value="16" onchange="onParam('card-radius',this.value)"></div>
+      <div class="ctrl-row"><label>透明度 (%)</label><input type="range" id="param-card-alpha" min="30" max="100" value="75" oninput="onParam('card-alpha',this.value)"><input type="number" value="75" onchange="onParam('card-alpha',this.value)"></div>
+      <div class="ctrl-row"><label>内边距 (px)</label><input type="range" id="param-card-pad" min="8" max="24" value="14" oninput="onParam('card-pad',this.value)"><input type="number" value="14" onchange="onParam('card-pad',this.value)"></div>
+      <div class="ctrl-row"><label>阴影强度</label><input type="range" id="param-card-shadow" min="0" max="60" value="28" oninput="onParam('card-shadow',this.value)"><input type="number" value="28" onchange="onParam('card-shadow',this.value)"></div>
+    </div>
+    <div class="ctrl-group">
+      <h4>排版</h4>
+      <div class="ctrl-row"><label>字体大小 (px)</label><input type="range" id="param-base-font" min="12" max="18" value="14" oninput="onParam('base-font',this.value)"><input type="number" value="14" onchange="onParam('base-font',this.value)"></div>
+      <div class="ctrl-row"><label>分区间距 (px)</label><input type="range" id="param-section-gap" min="8" max="36" value="18" oninput="onParam('section-gap',this.value)"><input type="number" value="18" onchange="onParam('section-gap',this.value)"></div>
+    </div>
+    <div class="ctrl-group">
+      <h4>配色</h4>
+      <div class="ctrl-row"><label>背景亮度</label><input type="range" id="param-bg-bright" min="20" max="80" value="44" oninput="onParam('bg-bright',this.value)"><input type="number" value="44" onchange="onParam('bg-bright',this.value)"></div>
+      <div class="ctrl-row"><label>发光强度</label><input type="range" id="param-glow-intensity" min="0" max="1" step="0.05" value="0.4" oninput="onParam('glow-intensity',this.value)"><input type="number" value="0.4" step="0.05" onchange="onParam('glow-intensity',this.value)"></div>
+      <div class="ctrl-row"><label>高优先级色</label><input type="range" id="param-prio-high-h" min="340" max="10" value="355"><input type="color" value="#fb7185" onchange="onColor('high',this.value)"></div>
+      <div class="ctrl-row"><label>中优先级色</label><input type="color" value="#fbbf24" onchange="onColor('mid',this.value)"></div>
+      <div class="ctrl-row"><label>主色调</label><input type="color" value="#38bdf8" onchange="onColor('primary',this.value)"></div>
+    </div>
+    <div class="ctrl-divider"></div>
+    <div class="ctrl-group">
+      <h4>预览数据</h4>
+      <p style="font-size:11px;color:var(--muted);line-height:1.5">以下为模拟数据，基于 CURRENT_CONTEXT.md 实际条目。切换看板分区查看效果。</p>
+    </div>
+  </div>
+</div>
+
+<!-- FAB for opening control panel -->
+<style>
+  .fab {
+    position: fixed; bottom: calc(var(--nav-h) + 20px + env(safe-area-inset-bottom, 0));
+    right: 18px; z-index: 100;
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 1px solid var(--line);
+    background: rgba(15,23,42,.88); backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--primary);
+    display: grid; place-items: center;
+    cursor: pointer; box-shadow: var(--card-shadow);
+    transition: all .18s;
+  }
+  .fab:hover { border-color: var(--line-strong); }
+  .fab svg { width: 18px; height: 18px; }
+</style>
+<div class="fab" onclick="openCtrl()" title="调参面板">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+</div>
+
+<script>
+  // Sample data from CURRENT_CONTEXT.md
+  const sampleData = {
+    project: [
+      {
+        hash: 'news-briefing', title: 'news-briefing', statusTag: 'active',
+        entries: [
+          { title: '端到端跑通 npm run update-news', desc: 'API key 已配、40 信源就位，待小鱼调动执行', priority: 'high', status: 'todo', notes: [] },
+          { title: '编辑评估脚本（旧数据后验）', desc: '用 archive 数据让 AI 输出编辑 diff，校准编辑人格', priority: 'high', status: 'todo', notes: [] },
+          { title: 'DeepSeek 缓存分层改造', desc: '三层结构+定价数据+实施清单，已写入蓝图 §21.5', priority: 'high', status: 'todo', notes: ['Phase 21.5 缓存分层方案已完善：三层结构（固定/半固定/动态）+ 定价数据 + 四步实施清单'] },
+          { title: 'Story 数量放开', desc: '移除 MAX_STORIES 硬上限 + 自适应 Jaccard 阈值 + 软上限', priority: 'medium', status: 'todo', notes: [] },
+          { title: 'AI 对话功能 MVP', desc: '「聊这条」入口 + user-knowledge-gaps.json 记忆管理', priority: 'medium', status: 'todo', notes: [] },
+          { title: '阅读统计阈值微调', desc: '按真实使用数据调整已读时长', priority: 'low', status: 'todo', notes: [] },
+        ]
+      },
+      {
+        hash: 'api-quota-monitor', title: 'api-quota-monitor', statusTag: 'secondary',
+        entries: [
+          { title: '启动 UI 实测', desc: 'python -m quota_monitor serve-ui，验证正式版视觉参数', priority: 'high', status: 'todo', notes: ['已在频道提醒小鱼'] },
+          { title: 'Dashboard 原型视觉调参完成', desc: 'stage1_visual_params.json 已导出，15 项参数已合入正式版', priority: 'medium', status: 'done', notes: ['原型参数：sidebarW 253, maxW 1382, cardAlpha 75'] },
+          { title: '设置页完整国际化', desc: '表单标签、alert 弹窗、详情页文本', priority: 'low', status: 'todo', notes: [] },
+        ]
+      },
+      {
+        hash: 'fish-reader', title: 'fish-reader', statusTag: 'idle',
+        entries: [
+          { title: '书籍 store → 多媒介 collection store', desc: '兼容旧数据', priority: 'high', status: 'todo', notes: [] },
+        ]
+      },
+    ],
+    personal: [
+      { title: '论文与文献整理', desc: '优先级最高', priority: 'high', status: 'todo', notes: [] },
+      { title: '大学生数字素养300问提纲审阅', desc: '截止周六，逐章查看并给出反馈', priority: 'high', status: 'todo', notes: ['文件：D:\\Mindd\\Work\\300第一章.docx', '反馈维度：架构逻辑、内容完整性', '当前进度：第一章已读取，含4小节 / 约44个问题条目'] },
+      { title: '六级备考计划', desc: '规划阶段', priority: 'high', status: 'todo', notes: [] },
+      { title: '裁判文书本地搜索部署', desc: '硬盘购置 + cncases/cases 搭建', priority: 'medium', status: 'todo', notes: ['仓库：cncases/cases（Rust）', '前置：购置 1TB 外接 SSD（USB 3.0+），预算 ¥350-500'] },
+    ]
+  };
+
+  // ─── Render Board ───
+  function renderBoard() {
+    const projectBody = document.getElementById('project-body');
+    const personalBody = document.getElementById('personal-body');
+
+    let projHTML = '';
+    let projTodoCount = 0;
+
+    for (const pg of sampleData.project) {
+      const tagClass = pg.statusTag === 'active' ? 'active' : pg.statusTag === 'secondary' ? 'secondary' : 'idle';
+      const tagLabel = pg.statusTag === 'active' ? '主力' : pg.statusTag === 'secondary' ? '次活跃' : '搁置/就绪';
+
+      let cardsHTML = '';
+      for (const e of pg.entries) {
+        const isDone = e.status === 'done';
+        if (!isDone) projTodoCount++;
+        const prioLabel = e.priority === 'high' ? 'P0' : e.priority === 'mid' ? 'P1' : '';
+        const notesHTML = e.notes && e.notes.length > 0
+          ? `<div class="card-notes">${e.notes.map(n => `<div>${n}</div>`).join('')}</div>`
+          : '';
+
+        cardsHTML += `
+          <div class="card${isDone ? ' done' : ''}" onclick="toggleCardExpand(this)" data-hash="${e.title}">
+            <div class="card-bar ${e.priority}${isDone ? ' done' : ''}"></div>
+            <div class="card-body">
+              <div class="card-title">${e.title}</div>
+              ${e.desc ? `<div class="card-desc">${e.desc}</div>` : ''}
+              <div class="card-meta">
+                ${prioLabel ? `<span class="card-priority ${e.priority}">${prioLabel}</span>` : ''}
+              </div>
+              ${notesHTML}
+            </div>
+            <div class="card-check${isDone ? ' done' : ''}" onclick="event.stopPropagation();toggleCardStatus(this)" data-title="${e.title}"></div>
+          </div>`;
+      }
+
+      projHTML += `
+        <div class="project-group">
+          <div class="project-label">${pg.title}<span class="status-tag ${tagClass}">${tagLabel}</span></div>
+          ${cardsHTML}
+        </div>`;
+    }
+
+    let personalHTML = '';
+    let personalTodoCount = 0;
+    for (const e of sampleData.personal) {
+      if (e.status !== 'done') personalTodoCount++;
+      const notesHTML = e.notes && e.notes.length > 0
+        ? `<div class="card-notes">${e.notes.map(n => `<div>${n}</div>`).join('')}</div>`
+        : '';
+
+      personalHTML += `
+        <div class="card${e.status === 'done' ? ' done' : ''}" onclick="toggleCardExpand(this)" data-hash="${e.title}">
+          <div class="card-bar ${e.priority}${e.status === 'done' ? ' done' : ''}"></div>
+          <div class="card-body">
+            <div class="card-title">${e.title}</div>
+            ${e.desc ? `<div class="card-desc">${e.desc}</div>` : ''}
+            <div class="card-meta">
+              <span class="card-priority ${e.priority}">${e.priority === 'high' ? '🔴' : e.priority === 'medium' ? 'P1' : ''}</span>
+            </div>
+            ${notesHTML}
+          </div>
+          <div class="card-check${e.status === 'done' ? ' done' : ''}" onclick="event.stopPropagation();toggleCardStatus(this)" data-title="${e.title}"></div>
+        </div>`;
+    }
+
+    projectBody.innerHTML = projHTML;
+    personalBody.innerHTML = personalHTML;
+    document.getElementById('project-count').textContent = projTodoCount;
+    document.getElementById('personal-count').textContent = personalTodoCount;
+  }
+
+  function toggleCardExpand(card) {
+    card.classList.toggle('expanded');
+  }
+
+  function toggleCardStatus(check) {
+    const card = check.closest('.card');
+    const isDone = card.classList.contains('done');
+    if (isDone) {
+      card.classList.remove('done');
+      check.classList.remove('done');
+    } else {
+      card.classList.add('done');
+      check.classList.add('done');
+    }
+    // Update sample data
+    const title = check.dataset.title;
+    for (const pg of sampleData.project) {
+      for (const e of pg.entries) {
+        if (e.title === title) { e.status = isDone ? 'todo' : 'done'; return; }
+      }
+    }
+    for (const e of sampleData.personal) {
+      if (e.title === title) { e.status = isDone ? 'todo' : 'done'; return; }
+    }
+  }
+
+  function toggleSection(id) {
+    document.getElementById(id).classList.toggle('collapsed');
+  }
+
+  // ─── Page Navigation ───
+  function switchPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('on'));
+    document.getElementById('page-' + name).classList.add('on');
+    document.querySelector(`.nav-tab[data-page="${name}"]`).classList.add('on');
+  }
+
+  // ─── Settings Toggle ───
+  function toggleSetting(el) {
+    el.classList.toggle('on');
+  }
+
+  // ─── Parameter Control ───
+  const params = {
+    'card-gap': 10, 'card-radius': 16, 'card-alpha': 75,
+    'card-pad': 14, 'card-shadow': 28,
+    'base-font': 14, 'section-gap': 18,
+    'bg-bright': 44, 'glow-intensity': 0.4,
+    'color-high': '#fb7185', 'color-mid': '#fbbf24', 'color-primary': '#38bdf8',
+  };
+
+  const defaultParams = { ...params };
+
+  function onParam(key, value) {
+    params[key] = typeof value === 'string' ? parseFloat(value) : value;
+    applyParams();
+  }
+
+  function onColor(key, value) {
+    params['color-' + key] = value;
+    document.documentElement.style.setProperty('--' + (key === 'high' ? 'high' : key === 'mid' ? 'mid' : 'primary'), value);
+  }
+
+  function applyParams() {
+    const r = document.documentElement.style;
+    r.setProperty('--card-gap', params['card-gap'] + 'px');
+    r.setProperty('--card-radius', params['card-radius'] + 'px');
+    r.setProperty('--card-alpha', params['card-alpha']);
+    r.setProperty('--card-pad', params['card-pad'] + 'px');
+    r.setProperty('--card-shadow', `0 ${Math.round(params['card-shadow'] * .43)}px ${Math.round(params['card-shadow'] * 1.14)}px rgba(0,0,0,.${Math.min(99, Math.round(params['card-shadow'] * 1.4))})`);
+    r.setProperty('--base-font', params['base-font'] + 'px');
+    r.setProperty('--section-gap', params['section-gap'] + 'px');
+    r.setProperty('--bg-bright', params['bg-bright']);
+    r.setProperty('--glow-intensity', params['glow-intensity']);
+
+    // Sync number inputs
+    document.querySelectorAll('.ctrl-row input[type=number]').forEach(inp => {
+      const range = inp.parentElement.querySelector('input[type=range]');
+      if (range) {
+        const key = range.id.replace('param-', '');
+        if (params[key] !== undefined) inp.value = params[key];
+      }
+    });
+  }
+
+  function resetParams() {
+    Object.assign(params, defaultParams);
+    document.getElementById('param-card-gap').value = params['card-gap'];
+    document.getElementById('param-card-radius').value = params['card-radius'];
+    document.getElementById('param-card-alpha').value = params['card-alpha'];
+    document.getElementById('param-card-pad').value = params['card-pad'];
+    document.getElementById('param-card-shadow').value = params['card-shadow'];
+    document.getElementById('param-base-font').value = params['base-font'];
+    document.getElementById('param-section-gap').value = params['section-gap'];
+    document.getElementById('param-bg-bright').value = params['bg-bright'];
+    document.getElementById('param-glow-intensity').value = params['glow-intensity'];
+    applyParams();
+  }
+
+  function exportJSON() {
+    const json = JSON.stringify(params, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sparkflow_board_params.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('参数已导出 · sparkflow_board_params.json');
+  }
+
+  function openCtrl() {
+    document.getElementById('ctrl').classList.add('on');
+    document.getElementById('ctrl-overlay').classList.add('on');
+  }
+
+  function closeCtrl() {
+    document.getElementById('ctrl').classList.remove('on');
+    document.getElementById('ctrl-overlay').classList.remove('on');
+  }
+
+  // ─── Toast ───
+  function showToast(msg) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'toast';
+      toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:99px;background:rgba(15,23,42,.94);border:1px solid var(--line);color:var(--text);font-size:13px;z-index:99999;opacity:0;transition:opacity .25s;pointer-events:none;backdrop-filter:blur(12px);';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+  }
+
+  // ─── Clock ───
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ─── Init ───
+  renderBoard();
+  updateClock();
+  setInterval(updateClock, 30000);
+  applyParams();
+</script>
+</body>
+</html>
