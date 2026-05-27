@@ -128,7 +128,7 @@ export default function App() {
   const tasks = useAppStore((s) => s.tasks);
   const sparks = useAppStore((s) => s.sparks);
   const setSparks = useAppStore((s) => s.setSparks);
-  const toggleSubtask = useAppStore((s) => s.toggleSubtask);
+  const updateTask = useAppStore((s) => s.updateTask);
   const deleteTask = useAppStore((s) => s.deleteTask);
   const deleteSpark = useAppStore((s) => s.deleteSpark);
   const addTask = useAppStore((s) => s.addTask);
@@ -145,22 +145,22 @@ export default function App() {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
-    mode: 'view' | 'create';
+    mode: 'create' | 'edit';
     context: 'task' | 'spark';
     data: any;
-  }>({ isOpen: false, mode: 'view', context: 'task', data: null });
+  }>({ isOpen: false, mode: 'create', context: 'task', data: null });
 
   const handleOpenCreate = (context: string) =>
     setModalConfig({ isOpen: true, mode: 'create', context: context as 'task' | 'spark', data: null });
 
   const handleOpenDetail = (item: any, context: string) =>
-    setModalConfig({ isOpen: true, mode: 'view', context: context as 'task' | 'spark', data: item });
+    setModalConfig({ isOpen: true, mode: 'edit', context: context as 'task' | 'spark', data: item });
 
   const handleCloseModal = () =>
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
   const handleSaveItem = ({
-    title, content, context, status, priority, dueDate, column,
+    id, title, content, context, status, priority, dueDate, column,
   }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
 
@@ -169,48 +169,52 @@ export default function App() {
         priority === 'High Priority' ? 'dark' :
         priority === 'Medium' ? 'green' : 'purple'
       ) as Task['colorType'];
-      const newTask = {
-        id: String(Date.now()),
-        title: title || '未命名任务',
-        time: 'Just now',
-        status: status || 'To do' as const,
-        priority: priority || 'Medium' as const,
-        colorType,
-        comments: 0,
-        subtasks: content ? [{ id: String(Date.now() + 1), title: content, completed: false }] : [],
-        column: column || 'personal' as const,
-        dueDate,
-      };
-      addTask(newTask);
-      setActiveTab('tasks');
-    } else {
-      const maxZ = Math.max(...sparks.map((s) => s.z), 0) + 1;
-      addSpark({
-        id: String(Date.now()),
-        text: title + (content ? ` — ${content}` : ''),
-        color: sparkColors[Math.floor(Math.random() * sparkColors.length)],
-        size: 155 + Math.floor(Math.random() * 35),
-        pos: { x: 15 + Math.floor(Math.random() * 90), y: 40 + Math.floor(Math.random() * 140) },
-        rot: (Math.random() - 0.5) * 6,
-        z: maxZ,
-      });
-      setActiveTab('sparks');
-    }
-  };
 
-  const handleToggleSubtask = (taskId: string, subtaskId: string) => {
-    toggleSubtask(taskId, subtaskId);
-    const t = tasks.find((t) => t.id === taskId);
-    if (t) {
-      setModalConfig((prev) => ({
-        ...prev,
-        data: {
-          ...t,
-          subtasks: t.subtasks.map((s) =>
-            s.id === subtaskId ? { ...s, completed: !s.completed } : s
-          ),
-        },
-      }));
+      if (id) {
+        updateTask(id, {
+          title: title || '未命名任务',
+          description: content,
+          status: status || 'To do',
+          priority: priority || 'Medium',
+          colorType,
+          column: column || 'personal',
+          dueDate: dueDate || undefined,
+        });
+      } else {
+        const newTask = {
+          id: String(Date.now()),
+          title: title || '未命名任务',
+          time: 'Just now',
+          status: status || 'To do' as const,
+          priority: priority || 'Medium' as const,
+          colorType,
+          comments: 0,
+          subtasks: content ? [{ id: String(Date.now() + 1), title: content, completed: false }] : [],
+          column: column || 'personal' as const,
+          dueDate,
+        };
+        addTask(newTask);
+        setActiveTab('tasks');
+      }
+    } else {
+      if (id) {
+        const s = sparks.find((sp) => sp.id === id);
+        if (s) {
+          setSparks(sparks.map((sp) => sp.id === id ? { ...sp, text: title + (content ? ` — ${content}` : '') } : sp));
+        }
+      } else {
+        const maxZ = Math.max(...sparks.map((s) => s.z), 0) + 1;
+        addSpark({
+          id: String(Date.now()),
+          text: title + (content ? ` — ${content}` : ''),
+          color: sparkColors[Math.floor(Math.random() * sparkColors.length)],
+          size: 155 + Math.floor(Math.random() * 35),
+          pos: { x: 15 + Math.floor(Math.random() * 90), y: 40 + Math.floor(Math.random() * 140) },
+          rot: (Math.random() - 0.5) * 6,
+          z: maxZ,
+        });
+        setActiveTab('sparks');
+      }
     }
   };
 
@@ -271,7 +275,6 @@ export default function App() {
           config={modalConfig}
           onClose={handleCloseModal}
           onSave={handleSaveItem}
-          onToggleSubtask={handleToggleSubtask}
           onDelete={handleDeleteItem}
         />
         <SyncConflictModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
