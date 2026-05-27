@@ -1,0 +1,7 @@
+{
+  "apiUrl": "https://sparkflow-jych.onrender.com/api",
+  "apiKey": "填入你的 API_KEY（与 Render 环境变量中设的一致）",
+  "localMdPath": "D:/Mindd/Work/CURRENT_CONTEXT.md",
+  "backupDir": "./.sync-backups",
+  "maxBackups": 20
+}

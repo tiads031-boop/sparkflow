@@ -77,6 +77,23 @@ export class ContextBridgeService {
     return this.read() as ContextWriteResponse;
   }
 
+  /** 解析原始 md 文本为条目列表（供外部使用） */
+  parseRaw(content: string): ContextEntry[] {
+    return parseMd(content);
+  }
+
+  /** 强制写入原始 md 文本（覆盖模式，同步用） */
+  async forceWriteRaw(content: string): Promise<void> {
+    const dir = require('path').dirname(this.mdPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(this.mdPath, content, 'utf-8');
+    // 后台同步到数据库（不阻塞返回）
+    const entries = parseMd(content);
+    this.syncEntriesToDb(entries).catch((e) =>
+      this.logger.error(`Sync-push DB sync failed: ${e.message}`),
+    );
+  }
+
   /** 计算条目的 contextMdHash */
   hashEntry(title: string): string {
     return hashTitle(title);

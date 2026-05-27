@@ -1,0 +1,9 @@
+# 同步配置包含 API Key，不提交到 git
+.sync-config.json
+.sync-state.json
+
+# 同步备份
+.sync-backups/
+
+# 示例配置模板（可提交）
+!sync-config.example.json
