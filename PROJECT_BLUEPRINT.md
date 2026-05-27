@@ -1,7 +1,7 @@
 # sparkflow — 项目改造/开发蓝图
 
 > 本文档记录项目的所有决策、实施进度和下一步计划。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-27 | **状态**: Phase 3 Web Push 编码完成，待部署验证
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-28 | **状态**: Phase 6 V4 正式版编码中，Dashboard 图表交互 + Calendar 时间线已完成
 
 ---
 
@@ -32,6 +32,7 @@ sparkflow 原本是一个灵感记录与任务管理应用，`sparkflow-api`（N
 | 13 | md 协议扩展 | `@key:value` 元数据标记嵌入 description，支持扩展状态和 dueDate | 不破坏 md 可读性，AI 和人类都能理解 |
 | 14 | 状态体系 | md 存 `todo/in-progress/in-review/done/cancelled`，前端映射为 `To do/In progress/In review/Done/Cancelled` | 协议层保持简洁，表现层丰富 |
 | 15 | 子任务协议 | notes（备注块）用 `> [x] text` / `> [ ] text` 承载 completed 状态；普通 `> text` 默认 `completed: false` | 不破坏 md 可读性，checkbox 语义自解释；所有备注行统一升格为子任务 |
+| 16 | 时间线数据扩展 | `@start:HH:MM` + `@duration:MIN` 元数据标记，不进 DB 纯协议层 | 向后兼容，支持 Calendar 时间线精确渲染时段 |
 
 ---
 
@@ -160,6 +161,13 @@ PWA → POST /api/context/write (mtime + 变更)
 | CalendarView 绑定真实任务 | ✅ | 从 store 读取，显示有 dueDate 的任务 |
 | 子任务状态持久化 | ✅ | notes 协议扩展为 `NoteItem[]`（含 completed），前后端映射双向传递 |
 | 番茄钟专注时长持久化 | ✅ | `POST /pomodoro` 创建 session；`complete`/`interrupt` 结束；Dashboard stats 实时拉取 |
+| **V4 交互原型：Dashboard + Calendar 细化** | ✅ | 原型已交付，含日/周/月切换、柱形图下钻、日历头伸缩、时间线拖拽、参数面板（6 项滑杆 + 导出 JSON） |
+| **V4 原型修正：任务列表/灵感墙还原 V3** | ✅ | 任务列表恢复状态筛选 pill + TaskCard 彩色大卡片 + 空状态虚线卡片；灵感墙恢复散落绝对定位 + 整理/灵感按钮 |
+| **V4 正式版：Dashboard 日/周/月切换 + 柱状图下钻** | ✅ | 基于 chartView store 状态切换视图，柱状图按 hour/周几/日期段动态计算，点击柱子弹出 DrillSheet 底部弹层显示当期任务列表 |
+| **V4 正式版：Calendar 时间线重构 Phase A** | ✅ | 24h 时间线刻度 + 任务块按 startTime/duration 定位 + 当前时间指示线（紫色渐变 + 圆点） |
+| **V4 正式版：Calendar 日历头伸缩 Phase B** | ✅ | 展开=月历网格 / 收缩=单行周历，事件日绿点标记，prev/next 导航（月/周） |
+| **V4 正式版：Calendar 拖拽 Phase C** | ✅ | Pointer Events 拖拽移动 startTime + 底部 resize 调整 duration，磁吸到 snapMinutes 粒度，拖拽后自动 updateTask 持久化 |
+| **决策确认：@start + @duration 协议扩展** | ✅ | 时间线数据模型向后兼容扩展，不进 DB 纯协议层携带 |
 
 ---
 
@@ -246,6 +254,20 @@ PWA → POST /api/context/write (mtime + 变更)
 ---
 
 ## 七、更新日志
+
+### 2026-05-28（V4 正式版：Dashboard + Calendar）
+- **Dashboard 图表交互升级**：日/周/月三维度切换（pill 按钮），柱状图按 hour/周几/日期段动态计算分布
+- **Dashboard 柱状图下钻**：点击柱子弹出 `DrillSheet` 底部弹层，显示该时段真实任务列表（基于 dueDate/startTime 过滤）
+- **Calendar 时间线重构**：基于 V4 params JSON 配置的 24h 时间线（0:00-24:00，`hourHeight: 60px`），按 `startTime` + `duration` 精确定位任务块
+- **Calendar 当前时间指示线**：紫色渐变 + 圆点，仅在选中今天时显示，每分钟刷新
+- **Calendar 日历头伸缩**：展开=月历网格（7×5/6），收缩=单行周历；事件日绿点标记；prev/next 支持月/周导航
+- **Calendar 拖拽交互**：Pointer Events 实现，任务块主体拖拽移动 `startTime`，底部 resize 手柄调整 `duration`，磁吸到 `snapMinutes`（30min）粒度
+- **Task 类型扩展**：新增 `startTime?: string`（"HH:MM"）和 `duration?: number`（分钟）字段
+- **Store 扩展**：新增 `chartView`、`selectedDate`、`calendarHeaderExpanded` 状态及对应 setter
+- **V4 config 模块**：`web/src/v4config.ts` 从 `sparkflow-v4-dashboard-calendar-params.json` 读取所有参数，组件直接引用 `V4.hourHeight` 等常量
+- **CSS 增强**：`.animate-slide-up`（底部弹层）、`.task-block.dragging`（拖拽阴影）、`.task-block:hover`（悬浮效果）
+- **App.tsx 适配**：`CalendarView` 传入 `onTaskClick` 回调，双击任务块打开 `DarkFrostedModal`
+- **构建验证**：TypeScript 无错误，Vite 生产构建通过（1745 modules）
 
 ### 2026-05-27（部署完成 + 功能迭代）
 - **部署上线**：Render 后端 `sparkflow-jych.onrender.com` + Vercel 前端 `sparkflow031.vercel.app`
@@ -357,6 +379,18 @@ PWA → POST /api/context/write (mtime + 变更)
   - Zustand store 统一数据模型（Task/Spark/Board/Pomodoro）
   - 构建通过（Vite 8 + TypeScript 6.0）
 
+### 2026-05-27（V4 交互原型：Dashboard + Calendar 细化）
+- **V4 可交互原型交付**: `docs/prototypes/sparkflow-v4-dashboard-calendar-prototype.html`
+  - Dashboard：日/周/月三态柱状图切换（本地状态），点击柱子弹出底部任务明细弹层
+  - Calendar：顶部日历头伸缩（展开=月历网格 / 收缩=单行周历），时间线主体（7:00-23:00），任务块按 startTime+duration 定位，当前时间指示线
+  - 拖拽交互：任务块主体拖拽移动开始时间（磁吸到 snapMinutes 粒度），底部 resize 手柄调整时长
+  - 参数面板：6 项滑杆（hourHeight / timelineStart / timelineEnd / snapMinutes / taskBlockRadius）+ 日历头默认展开开关 + 图表默认视图选择 + 导出 JSON + 重置
+  - 双击任务块打开 DarkFrostedModal 风格编辑弹窗（模拟正式版交互）
+  - 任务列表：保留 V3 正式版设计（状态筛选 pill、彩色 TaskCard、空状态虚线卡片、右上角计数）
+  - 灵感墙：保留 V3 正式版设计（散落绝对定位卡片、Zap 图标、三点菜单、整理/灵感按钮）
+  - 完整 5 标签页导航，保持现有 #cae393 / #b0a8db / #242424 配色和 rounded-[2rem] 卡片体系
+- **原型验证**: Dashboard 周视图柱状图正常，Calendar 月历展开/收缩正常，时间线刻度与任务块定位正确，任务列表/灵感墙 V3 设计已还原
+
 ### 2026-05-06
 - **项目蓝图创建**: 确立 sparkflow 新定位（CURRENT_CONTEXT 可视化管理面板）
 - **方案细致化**: 确认 10 项关键决策，覆盖解析规范、同步机制、数据模型、推送、灵感转化、部署
@@ -403,7 +437,12 @@ PWA → POST /api/context/write (mtime + 变更)
 | P0 | BoardView 拖拽换列持久化 | 拖拽换列后 `updateTask({column})` → `syncToApi` → `tasksToEntries` 映射 `section` → `renderMd` 按分区写回 | ✅ |
 | P1 | 子任务状态持久化 | notes 协议扩展为 `NoteItem[]`（含 completed），解析/渲染/合并/前后端映射全链路打通 | ✅ |
 | P1 | 番茄钟专注时长持久化 | `POST /pomodoro` 创建 session；`complete`/`interrupt` 结束；Dashboard stats 实时拉取 | ✅ |
+| P1 | Dashboard 图表交互：日/周/月切换 + 柱形图点击下钻 | 前端本地状态 + 三维度数据计算 + 底部 DrillSheet 弹层；**正式版已完成** | ✅ |
+| P1 | Calendar 时间线重构 Phase A：静态时间线渲染 | hourHeight/snapMinutes 参数化，任务块按 startTime+duration 定位，当前时间指示线；**正式版已完成** | ✅ |
+| P1 | Calendar 日历头伸缩 Phase B | 月历 ↔ 单行周历切换，选日过滤时间线，事件日绿点标记；**正式版已完成** | ✅ |
+| P1 | Calendar 拖拽 Phase C | Pointer Events 垂直拖拽移动开始时间，底部边缘 resize 时长，磁吸粒度；**正式版已完成** | ✅ |
 | P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | 🚧 编码完成，待部署 |
 | P2 | Phase 4：灵感转化流程完善 | Inspiration → Task + 写入 CURRENT_CONTEXT.md | ⬜ |
 | P2 | Render 休眠缓解 | 免费层 15 分钟休眠，首次请求 30s+ 延迟 | ⬜ |
+| P2 | md 协议扩展：@start、@duration 元数据标记 | 后端 parse/render 支持 @start:HH:MM @duration:MIN 协议标签，前端 entriesToTasks/tasksToEntries 双向映射 | ⬜ |
 | P3 | 多用户 / 正式 OAuth | 当前 API Key 方案仅适合单用户 | ⬜ |

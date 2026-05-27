@@ -21,6 +21,10 @@ export interface Task {
   estimatedMinutes?: number;
   contextMdHash?: string;
   column?: 'project' | 'personal';
+  /** V4 Calendar: 开始时间 "HH:MM" */
+  startTime?: string;
+  /** V4 Calendar: 持续时长 (分钟) */
+  duration?: number;
 }
 
 export interface Spark {
@@ -185,9 +189,23 @@ const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]']
 const DEFAULT_DURATION = 25 * 60;
 
 // --- Store ---
+export type ChartView = 'day' | 'week' | 'month';
+
 interface AppState {
   activeTab: 'dashboard' | 'tasks' | 'board' | 'calendar' | 'sparks';
   setActiveTab: (tab: AppState['activeTab']) => void;
+
+  /** V4 Dashboard: 图表视图模式 */
+  chartView: ChartView;
+  setChartView: (view: ChartView) => void;
+
+  /** V4 Calendar: 选中日期 */
+  selectedDate: Date;
+  setSelectedDate: (date: Date) => void;
+
+  /** V4 Calendar: 日历头展开状态 */
+  calendarHeaderExpanded: boolean;
+  setCalendarHeaderExpanded: (expanded: boolean) => void;
 
   tasks: Task[];
   setTasks: (tasks: Task[]) => void;
@@ -245,6 +263,15 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   activeTab: 'tasks',
   setActiveTab: (tab) => set({ activeTab: tab }),
+
+  chartView: 'month' as ChartView,
+  setChartView: (view) => set({ chartView: view }),
+
+  selectedDate: new Date(),
+  setSelectedDate: (date) => set({ selectedDate: date }),
+
+  calendarHeaderExpanded: false,
+  setCalendarHeaderExpanded: (expanded) => set({ calendarHeaderExpanded: expanded }),
 
   tasks: [],
   setTasks: (tasks) => set({ tasks }),
