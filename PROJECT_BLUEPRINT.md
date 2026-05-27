@@ -268,6 +268,8 @@ PWA → POST /api/context/write (mtime + 变更)
 - **CSS 增强**：`.animate-slide-up`（底部弹层）、`.task-block.dragging`（拖拽阴影）、`.task-block:hover`（悬浮效果）
 - **App.tsx 适配**：`CalendarView` 传入 `onTaskClick` 回调，双击任务块打开 `DarkFrostedModal`
 - **构建验证**：TypeScript 无错误，Vite 生产构建通过（1745 modules）
+- **本地 dev server 验证**：`vite --host` 在端口 5174 启动；浏览器访问确认 Dashboard pill 按钮 + Calendar 收缩态周历 + 24h 时间线刻度布局正确；API 因 Render 休眠显示同步异常，不影响 UI 框架验证
+- **GitHub 推送**：Commit `ac0af46` 推送至 `tiads031-boop/sparkflow.git`；Git Credential Manager 缓存冲突（绑定了另一 GitHub 账号），已执行 `git credential-manager erase` 清除后重新推送成功；Vercel 自动构建已触发
 
 ### 2026-05-27（部署完成 + 功能迭代）
 - **部署上线**：Render 后端 `sparkflow-jych.onrender.com` + Vercel 前端 `sparkflow031.vercel.app`
