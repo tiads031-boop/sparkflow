@@ -172,7 +172,7 @@ function DrillSheet({
       />
       {/* Sheet */}
       <div
-        className="absolute bottom-0 left-0 right-0 rounded-t-[2rem] p-5 bg-[#f4f4f6] overflow-y-auto animate-slide-up"
+        className="absolute bottom-0 left-0 right-0 rounded-t-[2rem] p-5 bg-[#f4f4f6] overflow-y-auto animate-slide-up-sheet"
         style={{ maxHeight: '55%', pointerEvents: 'auto' }}
       >
         <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mb-4" />

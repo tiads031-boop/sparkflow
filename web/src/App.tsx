@@ -268,12 +268,12 @@ export default function App() {
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slide-in-from-bottom-8 { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes zoom-in-95 { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes slide-up-sheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .animate-in { animation-duration: 0.3s; animation-fill-mode: forwards; }
         .fade-in { animation-name: fade-in; }
         .slide-in-from-bottom-8 { animation-name: slide-in-from-bottom-8; }
         .zoom-in-95 { animation-name: zoom-in-95; }
-        .animate-slide-up { animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0.6, 1) both; }
+        .animate-slide-up-sheet { animation: slide-up-sheet 0.3s cubic-bezier(0.32, 0.72, 0.6, 1) both; }
         .task-block.dragging { box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 50 !important; }
         .task-block:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: box-shadow 0.2s; }
         .task-block { transition: box-shadow 0.2s, transform 0.1s; }
