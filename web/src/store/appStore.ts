@@ -235,7 +235,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTab: 'tasks',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  tasks: initialTasks,
+  tasks: [],
   setTasks: (tasks) => set({ tasks }),
 
   addTask: async (task) => {
@@ -346,7 +346,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const tasks = entriesToTasks(entries);
       set({ entries, tasks, lastKnownMtime: mtime, isLoading: false, hasLoaded: true });
     } catch (err: any) {
-      set({ syncError: err.message || '加载失败', isLoading: false, hasLoaded: true });
+      set({ syncError: err.message || '加载失败', isLoading: false, hasLoaded: true, tasks: [] });
     }
   },
 
