@@ -210,7 +210,21 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   const [inlineTitle, setInlineTitle] = useState('');
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressPos = useRef<{ x: number; y: number } | null>(null);
+  const longPressPointerId = useRef<number | null>(null);
+  const longPressRect = useRef<DOMRect | null>(null);
   const isLongPressing = useRef(false);
+  const creatingGhostRef = useRef<typeof creatingGhost>(null);
+  // 同步 creatingGhost 到 ref
+  creatingGhostRef.current = creatingGhost;
+
+  // 卸载时清理 timer
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+    };
+  }, []);
 
   // 截止任务快速安排状态
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
@@ -392,20 +406,29 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   // ==================== 长按创建 ====================
 
   const handleTimelinePointerDown = useCallback((e: React.PointerEvent) => {
-    // 不干扰已有任务块的拖拽
+    // 不干扰已有任务块或内联创建卡片
     if ((e.target as HTMLElement).closest('.task-block')) return;
     if ((e.target as HTMLElement).closest('.inline-create-card')) return;
 
     const rect = timelineRef.current?.getBoundingClientRect();
     if (!rect) return;
 
+    // 将所有关键值存入 ref，避免 setTimeout 内依赖 React 合成事件
     longPressPos.current = { x: e.clientX, y: e.clientY };
+    longPressPointerId.current = e.pointerId;
+    longPressRect.current = rect;
+
+    // 清除之前的 timer
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
 
     longPressTimer.current = setTimeout(() => {
-      if (!longPressPos.current) return;
+      if (!longPressPos.current || !longPressRect.current) return;
 
-      // 计算磁吸后的开始时间
-      const relativeY = longPressPos.current.y - rect.top;
+      // 计算磁吸后的开始时间（使用 ref 中的坐标和 rect）
+      const relativeY = longPressPos.current.y - longPressRect.current.top;
       const rawHour = relativeY / hourH + startH;
       const snappedH = snap(rawHour, V4.snapMinutes / 60);
       const snappedTop = (snappedH - startH) * hourH;
@@ -427,8 +450,17 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       // 触觉反馈
       navigator.vibrate?.(10);
 
-      // 捕获指针以接收后续事件
-      timelineRef.current?.setPointerCapture(e.pointerId);
+      // 捕获指针以接收后续 move/up 事件（使用 ref 中存储的 pointerId）
+      const pid = longPressPointerId.current;
+      if (pid != null && timelineRef.current) {
+        try {
+          timelineRef.current.setPointerCapture(pid);
+        } catch (err) {
+          console.warn('[Timeline] setPointerCapture failed:', err);
+          isLongPressing.current = false;
+          setCreatingGhost(null);
+        }
+      }
     }, 500);
   }, [hourH, startH]);
 
@@ -445,29 +477,47 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
         longPressTimer.current = null;
       }
       longPressPos.current = null;
+      longPressPointerId.current = null;
+      longPressRect.current = null;
       return;
     }
 
     // ghost 模式：调整高度
-    if (isLongPressing.current && creatingGhost) {
-      const rect = timelineRef.current?.getBoundingClientRect();
-      if (!rect) return;
+    if (!isLongPressing.current) return;
 
-      const relativeY = e.clientY - rect.top;
-      const startTop = creatingGhost.top;
-      const rawHeight = relativeY - startTop;
-      const minH = (V4.snapMinutes / 60) * hourH;
-      const maxH = (endH - startH) * hourH - startTop;
-      const clampedHeight = Math.max(minH, Math.min(rawHeight, maxH));
-      const rawDuration = (clampedHeight / hourH) * 60;
-      const snappedDur = Math.max(snap(rawDuration, V4.snapMinutes), V4.snapMinutes);
-      const snappedHeight = (snappedDur / 60) * hourH;
+    // 通过 ref 读取当前的 ghost 状态，避免 stale closure
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (!rect) return;
 
-      setCreatingGhost((prev) =>
-        prev ? { ...prev, duration: snappedDur, height: snappedHeight } : null
-      );
-    }
-  }, [creatingGhost, hourH, startH, endH]);
+    const pressY = longPressPos.current.y;
+    if (pressY == null) return;
+
+    const startRawHour = (pressY - longPressRect.current!.top) / hourH + startH;
+    const snappedStartH = snap(startRawHour, V4.snapMinutes / 60);
+    const startTop = (snappedStartH - startH) * hourH;
+
+    const relativeY = e.clientY - rect.top;
+    const rawHeight = relativeY - startTop;
+    const minH = (V4.snapMinutes / 60) * hourH;
+    const maxH = (endH - startH) * hourH - startTop;
+    const clampedHeight = Math.max(minH, Math.min(rawHeight, maxH));
+    const rawDuration = (clampedHeight / hourH) * 60;
+    const snappedDur = Math.max(snap(rawDuration, V4.snapMinutes), V4.snapMinutes);
+    const snappedHeight = (snappedDur / 60) * hourH;
+
+    // 用函数式 setState 避免依赖 creatingGhost
+    setCreatingGhost((prev) => {
+      if (!prev) return null;
+      const hh = Math.floor(snappedStartH);
+      const mm = Math.round((snappedStartH - hh) * 60);
+      return {
+        startTime: `${pad(hh)}:${pad(mm)}`,
+        duration: snappedDur,
+        top: startTop,
+        height: snappedHeight,
+      };
+    });
+  }, [hourH, startH, endH]);
 
   const handleTimelinePointerUp = useCallback((e: React.PointerEvent) => {
     if (longPressTimer.current) {
@@ -475,20 +525,24 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       longPressTimer.current = null;
     }
 
-    if (isLongPressing.current && creatingGhost) {
-      // 进入内联标题编辑
-      setInlineCreating(creatingGhost);
-      setInlineTitle('');
+    if (isLongPressing.current) {
+      const ghost = creatingGhostRef.current;
+      if (ghost) {
+        setInlineCreating(ghost);
+        setInlineTitle('');
+      }
       setCreatingGhost(null);
     }
 
     isLongPressing.current = false;
     longPressPos.current = null;
+    longPressPointerId.current = null;
+    longPressRect.current = null;
 
     try {
       timelineRef.current?.releasePointerCapture(e.pointerId);
     } catch { /* pointer may already be released */ }
-  }, [creatingGhost]);
+  }, []);
 
   const confirmInlineCreate = useCallback(() => {
     if (!inlineCreating || !inlineTitle.trim()) {
