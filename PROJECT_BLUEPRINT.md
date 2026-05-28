@@ -602,6 +602,6 @@ PWA → POST /api/context/write (mtime + 变更)
 | P1 | **部署截止时间通知（VAPID 密钥配置）** | Render 环境变量设置 VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT，然后推送代码触发自动部署 | 🚧 编码完成，待部署环境变量 |
 | P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | 🚧 编码完成，context-bridge→DB 同步已修复 |
 | P2 | Phase 4：灵感转化流程完善 | Inspiration → Task + 写入 CURRENT_CONTEXT.md | ⬜ |
-| P2 | Render 休眠缓解 | 免费层 15 分钟休眠，首次请求 30s+ 延迟 | ⬜ |
+| P2 | Render 休眠缓解 | 本地定时任务每 10 分钟 ping API，保持容器活跃 | ✅ |
 | P2 | md 协议扩展：@start、@duration 元数据标记 | 后端 parse/render 支持 @start:HH:MM @duration:MIN 协议标签，使时间线数据可写入 CURRENT_CONTEXT.md 供 AI 读取 | ⬜ |
 | P3 | 多用户 / 正式 OAuth | 当前 API Key 方案仅适合单用户 | ⬜ |
