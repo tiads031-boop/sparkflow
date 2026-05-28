@@ -54,6 +54,8 @@ export const createSyncSlice: StateCreator<AppState, [], [], SyncSlice> = (set, 
   // ─────────────────────────────────────────────
   loadFromApi: async () => {
     set({ isLoading: true, syncError: null });
+    // 记录请求发起时的 mtime，用于防止过期响应覆盖本地更新
+    const startMtime = get().lastKnownMtime;
 
     // 1. 先尝试从 localStorage 恢复缓存，实现 immediate render
     try {
@@ -70,7 +72,21 @@ export const createSyncSlice: StateCreator<AppState, [], [], SyncSlice> = (set, 
 
     try {
       const res = await apiRequest('/context');
+
+      // 请求期间本地已通过 syncToApi 更新过，丢弃此次过期响应
+      if (startMtime !== get().lastKnownMtime) {
+        set({ isLoading: false });
+        return;
+      }
+
       const data = await res.json();
+
+      // 再次检查（json 解析可能耗时）
+      if (startMtime !== get().lastKnownMtime) {
+        set({ isLoading: false });
+        return;
+      }
+
       const entries: ContextEntry[] = data.entries || [];
       const mtime: number = data.mtime || 0;
       const tasks = entriesToTasks(entries);
@@ -190,9 +206,17 @@ export const createSyncSlice: StateCreator<AppState, [], [], SyncSlice> = (set, 
   pollForUpdates: async () => {
     const { lastKnownMtime, isSyncing } = get();
     if (isSyncing) return;
+    // 记录请求发起时的 mtime，防止过期响应覆盖本地更新
+    const startMtime = lastKnownMtime;
 
     try {
       const res = await apiRequest('/context');
+
+      // 请求期间本地已更新，丢弃此次响应
+      if (startMtime !== get().lastKnownMtime) return;
+      // 同步仍在进行中（可能在 network 返回前开始的）
+      if (get().isSyncing) return;
+
       const data = await res.json();
       const serverMtime: number = data.mtime || 0;
 

@@ -67,7 +67,6 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
     monday.setDate(today.getDate() - (dayOfWeek - 1));
     monday.setHours(0, 0, 0, 0);
 
-    const baseH = total > 0 ? Math.min(cfg.baseHeightMax, cfg.baseHeightBase + total * cfg.totalScale) : cfg.baseHeightEmpty;
     return days.map((_, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
@@ -76,12 +75,26 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
         const dd = new Date(t.dueDate);
         return dd.toDateString() === d.toDateString();
       });
-      const scale = cfg.dayWeights[i];
+
+      // 基于当天任务数计算总高度
+      const dayTotal = dayTasks.length;
+      const dayDone = dayTasks.filter((t) => t.status === 'Done').length;
+      const dayInProgress = dayTasks.filter((t) => t.status === 'In progress' || t.status === 'In review').length;
+      const dayTodo = dayTasks.filter((t) => t.status === 'To do').length;
+
+      const baseH = dayTotal > 0
+        ? Math.min(cfg.baseHeightMax, cfg.baseHeightBase + dayTotal * cfg.totalScale)
+        : cfg.baseHeightEmpty;
+
+      // 三段高度按当天各状态比例分配
+      const h1 = dayTotal > 0 ? Math.round(baseH * (dayDone / dayTotal)) : 0;
+      const h2 = dayTotal > 0 ? Math.round(baseH * (dayInProgress / dayTotal)) : 0;
+      const h3 = dayTotal > 0 ? Math.round(baseH * (dayTodo / dayTotal)) : 0;
+
       return {
-        // h1 涉及 done 任务数量占比，保留原有业务逻辑
-        h1: Math.min(Math.round(baseH * scale * (active.filter((t) => t.status === 'Done').length / Math.max(total, 1))) + 10, 85),
-        h2: Math.min(Math.round(baseH * scale * cfg.segmentRatios[0]) + cfg.segmentMinHeights[0], cfg.segmentMaxHeights[0]),
-        h3: Math.min(Math.round(baseH * scale * cfg.segmentRatios[1]) + cfg.segmentMinHeights[1], cfg.segmentMaxHeights[1]),
+        h1: Math.max(cfg.segmentMinHeights[0], Math.min(h1, cfg.segmentMaxHeights[0])),
+        h2: Math.max(cfg.segmentMinHeights[0], Math.min(h2, cfg.segmentMaxHeights[0])),
+        h3: Math.max(cfg.segmentMinHeights[1], Math.min(h3, cfg.segmentMaxHeights[1])),
         label: days[i],
         fullLabel: `周${days[i]}`,
         taskCount: dayTasks.length,

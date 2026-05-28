@@ -320,29 +320,82 @@ export class CourseService {
     try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
 
     const excludeSet = new Set(options?.excludeCourses || []);
-    const semesterStart = options?.semesterStart || '2025-03-03';
-    const semesterEnd = options?.semesterEnd
-      ? new Date(options.semesterEnd)
-      : new Date('2025-07-04');
 
-    const semesterMonday = this.getMonday(new Date(semesterStart + 'T00:00:00'));
-
-    // 按课程名分组
-    const courseMap = new Map<string, { instances: { start: Date; end: Date }[]; location: string; uid: string }>();
+    // ── 展开 RRULE，收集所有实际课程实例 ──
+    const rawInstances: { summary: string; start: Date; end: Date; location: string; uid: string }[] = [];
 
     for (const [, ev] of Object.entries(events)) {
       if ((ev as any).type !== 'VEVENT') continue;
       const summary = (ev as any).summary?.trim();
       if (!summary || excludeSet.has(summary)) continue;
-      if ((ev as any).start < semesterMonday || (ev as any).start > semesterEnd) continue;
 
-      if (!courseMap.has(summary)) {
-        courseMap.set(summary, { instances: [], location: '', uid: (ev as any).uid || '' });
+      const location = (ev as any).location || '';
+      const uid = (ev as any).uid || '';
+      const duration = (ev as any).end.getTime() - (ev as any).start.getTime();
+
+      if ((ev as any).rrule) {
+        // 展开 RRULE：为每个重复实例生成 start/end
+        const allStarts: Date[] = (ev as any).rrule.all();
+        for (const start of allStarts) {
+          rawInstances.push({
+            summary,
+            start,
+            end: new Date(start.getTime() + duration),
+            location,
+            uid,
+          });
+        }
+      } else {
+        rawInstances.push({
+          summary,
+          start: (ev as any).start,
+          end: (ev as any).end,
+          location,
+          uid,
+        });
       }
-      const course = courseMap.get(summary)!;
-      course.instances.push({ start: (ev as any).start, end: (ev as any).end });
-      if (!course.location && (ev as any).location) {
-        course.location = (ev as any).location;
+    }
+
+    // ── 自动推断学期日期范围（未提供时从实例中取最早/最晚日期） ──
+    let semesterEnd: Date | null = options?.semesterEnd ? new Date(options.semesterEnd) : null;
+    let semesterStart: string = options?.semesterStart || (() => {
+      // 从实例中推断最早日期作为学期开始
+      if (rawInstances.length === 0) return '2025-03-03';
+      let earliest = rawInstances[0].start;
+      for (const inst of rawInstances) {
+        if (inst.start < earliest) earliest = inst.start;
+      }
+      return earliest.toISOString().split('T')[0];
+    })();
+
+    if (!semesterEnd) {
+      // 从实例中推断最晚日期 + 1 周缓冲作为学期结束
+      let latest = rawInstances[0]?.end ?? new Date();
+      for (const inst of rawInstances) {
+        if (inst.end > latest) latest = inst.end;
+      }
+      semesterEnd = new Date(latest);
+      semesterEnd.setDate(semesterEnd.getDate() + 7);
+    }
+
+    const semesterMonday = this.getMonday(new Date(semesterStart + 'T00:00:00'));
+
+    // ── 按课程名分组（应用日期范围过滤） ──
+    const courseMap = new Map<string, { instances: { start: Date; end: Date }[]; location: string; uid: string }>();
+
+    for (const inst of rawInstances) {
+      if (inst.start < semesterMonday || inst.start > semesterEnd) continue;
+
+      if (!courseMap.has(inst.summary)) {
+        courseMap.set(inst.summary, { instances: [], location: '', uid: inst.uid });
+      }
+      const course = courseMap.get(inst.summary)!;
+      course.instances.push({ start: inst.start, end: inst.end });
+      if (!course.location && inst.location) {
+        course.location = inst.location;
+      }
+      if (!course.uid && inst.uid) {
+        course.uid = inst.uid;
       }
     }
 
@@ -430,10 +483,12 @@ export class CourseService {
 
   // ==================== ICS 导入工具函数 ====================
 
+  /** 将 UTC Date 转为 CST（北京时间）后再格式化时间字符串 */
   private formatTime(date: Date): string {
-    const h = date.getHours().toString().padStart(2, '0');
-    const m = date.getMinutes().toString().padStart(2, '0');
-    return `${h}:${m}`;
+    // node-ical 返回 UTC 时间，课程是 CST 时区 (UTC+8)
+    const localH = (date.getUTCHours() + 8) % 24;
+    const localM = date.getUTCMinutes();
+    return `${localH.toString().padStart(2, '0')}:${localM.toString().padStart(2, '0')}`;
   }
 
   private getMonday(d: Date): Date {
@@ -452,8 +507,11 @@ export class CourseService {
     return Math.floor(diffDays / 7) + 1;
   }
 
+  /** 返回 CST（中国时间）下的星期几（1=周一，7=周日） */
   private getDayOfWeek(date: Date): number {
-    const dow = date.getDay();
+    // node-ical 返回 UTC 时间，+8h 偏移得到 CST 对应的星期
+    const localDate = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+    const dow = localDate.getUTCDay();
     return dow === 0 ? 7 : dow;
   }
 }
