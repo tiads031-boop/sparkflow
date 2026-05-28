@@ -1,7 +1,7 @@
 # sparkflow — 项目改造/开发蓝图
 
 > 本文档记录项目的所有决策、实施进度和下一步计划。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-28（移除手机框） | **状态**: Phase 6 V4 正式版完成，双向同步+轮询机制已落地
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-28（Course 模块基础设施 + 原型交付） | **状态**: Phase 6 V4 正式版完成，Course 模块后端就绪，原型待评审
 
 ---
 
@@ -601,7 +601,202 @@ PWA → POST /api/context/write (mtime + 变更)
 | P1 | **截止任务拖入时间线（增强交互）** | 长按截止任务卡片 → 拖到时间线目标位置 → 松手设置 startTime + duration（混合方案 A） | ⬜ |
 | P1 | **部署截止时间通知（VAPID 密钥配置）** | Render 环境变量设置 VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT，然后推送代码触发自动部署 | 🚧 编码完成，待部署环境变量 |
 | P2 | Phase 3：Web Push 通知集成 | web-push + @nestjs/schedule 定时检查截止日期 | 🚧 编码完成，context-bridge→DB 同步已修复 |
+| P1 | **Course 模块：ICS 课程表导入 + CalendarView 课程渲染** | Prisma Schema 扩展 Course/CourseNote 表；ICS 解析脚本（node-ical 解析 + prisma 直写）；CalendarView 混入课程事件（只读虚线块） | ✅ Schema+导入脚本+CalendarView 已完成，待实际 ICS 数据导入验证 |
+| P1 | **Course 模块：课程详情页（CourseDetailView）** | 课程详情页原型已交付（含调课/换课编辑 + 参数面板）；正式版待原型确认后实现 | 🚧 原型阶段，待用户评审 |
+| P1 | **Course 模块：任务关联课程 + 课程待办** | Task 表扩展 `courseId`；TaskCard/DarkFrostedModal 新增课程选择器；支持按课程筛选任务列表 | 🚧 方案确认，待实施 |
+| P2 | **Course 模块：课程笔记看板（CourseNote Kanban）** | 新增 CourseNote 表；前端按课程分栏看板（参考高校记 Memo）；侧边栏切换课程 + 长按拖拽排序；置顶/编辑/删除笔记卡片 | 🚧 方案确认，待实施 |
+| P2 | **Course 模块：学期周历 + 课程管理编辑器** | 周历视图（Mon-Sun 网格）显示课程安排；课表编辑器（网格点击编辑课程名称/教师/教室/单双周）；时间段设置；学期起止配置 | 🚧 方案确认，待实施 |
+| P2 | **Course 模块：事件追踪（考试/考证/竞赛）** | CalendarEvent `eventType` 扩展 `exam/cert/contest/other`；独立事件列表页；倒计时显示；按类型筛选 | 🚧 方案确认，待实施 |
 | P2 | Phase 4：灵感转化流程完善 | Inspiration → Task + 写入 CURRENT_CONTEXT.md | ⬜ |
 | P2 | Render 休眠缓解 | 本地定时任务每 10 分钟 ping API，保持容器活跃 | ✅ |
 | P2 | md 协议扩展：@start、@duration 元数据标记 | 后端 parse/render 支持 @start:HH:MM @duration:MIN 协议标签，使时间线数据可写入 CURRENT_CONTEXT.md 供 AI 读取 | ⬜ |
 | P3 | 多用户 / 正式 OAuth | 当前 API Key 方案仅适合单用户 | ⬜ |
+
+---
+
+## 十、Course 模块整体规划（2026-05-28 创立，同日修订）
+
+### 10.1 设计原则
+
+SparkFlow 引入课程模块时，需避免与现有任务体系冲突：
+
+1. **课程数据不入 md 协议**：周期性 ICS 事件不适合写入 CURRENT_CONTEXT.md
+2. **课程是 CalendarEvent 的子集**：CalendarEvent 表扩展 `courseId` + `isOverride` 字段
+3. **任务是课程的附属**：Task 表扩展 `courseId`，一个课程可关联多个待办
+4. **课程详情页是核心入口**：每门课一个详情页（CourseDetailView），展示基本信息 + 所有实例按周排列 + 编辑入口
+5. **调课 ≠ 换课**：
+   - **调课（Adjust）**：修改单个 CalendarEvent 的时间/教室，标记 `isOverride: true`
+   - **换课（Swap）**：修改 Course 元数据（dayOfWeek/startTime/endTime/weeks）→ 批量更新非覆盖 CalendarEvent，isOverride=true 的实例跳过
+6. **课程笔记独立存储**：`CourseNote` 独立模型，按课程分栏看板，不与 Sparks（灵感）混用
+
+### 10.2 高校记 → SparkFlow 功能映射
+
+| 高校记模块 | SparkFlow 对应 | 复用/新建 |
+|---|---|---|
+| 课程表（首页双栏） | CalendarView 时间线课程块 | 复用 CalendarView，混入 course events |
+| 日程 Todo（schedule） | Task（`startTime` + `dueDate` 已支持） | 复用 Task，增加 `courseId` |
+| 打卡 Todo（checkin） | Task subtasks / 独立 checkin 模式 | 复用 Task + notes 子任务 |
+| 课程备忘（Memo Kanban） | **CourseNote 看板** | 新建模型 + 新建视图 |
+| 长期任务（Task 进度追踪） | 现有 Task + Dashboard 统计 | 复用，扩展进度字段 |
+| 事件追踪（Exam/Cert/Contest） | CalendarEvent `eventType` 扩展 | 复用 CalendarEvent |
+| 周回顾（Weekly Review） | CalendarView 周视图 + 聚合面板 | 复用，扩展周视图 |
+| 提醒面板（Reminder） | Dashboard 今日概览 + Push 通知 | 复用 Dashboard |
+| 课表编辑器（网格编辑） | **ScheduleEditor 组件** | 新建组件 |
+
+### 10.3 数据模型扩展（Prisma Schema）
+
+```prisma
+// 新增 Course 模型：课程元数据
+model Course {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  teacher     String?
+  room        String?
+  color       String    @default("#b0a8db")
+  icsUid      String?   @unique  // ICS VEVENT UID，幂等导入键
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events      CalendarEvent[]
+  tasks       Task[]
+  notes       CourseNote[]
+
+  @@index([userId])
+  @@map("courses")
+}
+
+// 扩展 Task：增加 courseId 关联
+model Task {
+  // ... 现有字段保留 ...
+  courseId      String?
+  course        Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@index([courseId])
+}
+
+// 扩展 CalendarEvent：增加 courseId 关联
+model CalendarEvent {
+  // ... 现有字段保留 ...
+  courseId      String?
+  course        Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  @@index([courseId])
+}
+
+// 新增 CourseNote：课程笔记/备忘
+model CourseNote {
+  id        String    @id @default(uuid())
+  userId    String
+  courseId  String
+  body      String    @db.Text
+  pinned    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([courseId])
+  @@map("course_notes")
+}
+```
+
+### 10.4 ICS 导入脚本设计
+
+配置文件：`scripts/course-import-config.json`
+```json
+{
+  "apiUrl": "https://sparkflow-jych.onrender.com/api",
+  "apiKey": "...",
+  "userId": "default",
+  "icsPath": "D:/Mindd/Work/sparkflow/课程表.ics",
+  "semesterStart": "2025-03-03",
+  "semesterEnd": "2025-07-04",
+  "filters": {
+    "excludeCourses": ["形势与政策"]
+  }
+}
+```
+
+脚本：`scripts/import-courses.js`
+- 依赖：`rrule`（RRULE 展开）、`node-ical`（ICS 解析）
+- 流程：
+  1. 解析 ICS → 提取 VEVENT（SUMMARY, DTSTART, DTEND, RRULE, LOCATION, UID）
+  2. 按课程名称去重 → `POST /courses` 创建 Course（幂等：icsUid 唯一）
+  3. 展开 RRULE → 在学期范围内生成每个具体实例
+  4. 每个实例 → `POST /calendar` 创建 CalendarEvent（`eventType: 'course'`, `courseId: ...`）
+  5. 已存在（UID 匹配）→ `PATCH /calendar/:id` 更新
+
+### 10.5 前端模块改动
+
+#### Phase A：CalendarView 课程渲染（P0）
+- `appStore.ts`：新增 `calendarEvents` 状态 + `fetchCalendarEvents(start, end)` action
+- `CalendarView.tsx`：
+  - 组件 mount 时按选中日期范围拉取 `calendarEvents`
+  - `dayTasks` 过滤逻辑扩展：同时混入当日的 `calendarEvents`（`eventType === 'course'`）
+  - 课程块样式：虚线边框、固定课程色、只读（不绑定拖拽/resize）
+  - 块内显示：`课程名 · 教室 · 教师`
+
+#### Phase B：任务关联课程（P1）
+- `Task` 接口：新增 `courseId?: string`
+- `DarkFrostedModal` 创建/编辑表单：新增"关联课程"下拉选择（从 Course 表拉取）
+- `TasksView` / `BoardView`：支持按课程筛选，课程名作为标签展示在 TaskCard 上
+- `DashboardView`：今日概览混入"今日课程"区块（参考高校记提醒面板）
+
+#### Phase C：课程笔记看板（P2）
+- 新增 `CourseNotesView.tsx`：
+  - 左侧 sidebar：课程列表（带笔记计数 badge），点击切换，长按拖拽排序
+  - 右侧 swipe track：每门课程一个全屏 board
+  - board 内：笔记卡片列表（支持置顶、编辑、删除）
+  - 底部"添加备忘"按钮：即时创建空卡片 + 进入编辑态
+- 新增 API 端点：`GET /courses/:id/notes`、`POST /course-notes`、`PATCH /course-notes/:id`、`DELETE /course-notes/:id`
+
+#### Phase D：课表编辑器 + 学期管理（P2）
+- 新增 `ScheduleEditor.tsx`：
+  - 7×N 网格（Mon-Sun × 时间段），点击格子编辑课程
+  - 时间段设置面板（增删改节次、起止时间）
+  - 学期起止设置（开学日期 + 总周数，计算当前周）
+  - 单双周过滤支持
+- 设置页入口："课表编辑"菜单项
+
+#### Phase E：事件追踪（P2）
+- `CalendarEvent.eventType` 扩展枚举：`task` / `focus` / `meeting` / `reminder` / `course` / `exam` / `cert` / `contest` / `other`
+- 新增 `EventsView.tsx`：考试/考证/竞赛/其他 分类列表，倒计时显示，按类型筛选
+
+### 10.6 实施优先级
+
+| 优先级 | 模块 | 预估工作量 | 阻塞项 |
+|---|---|---|---|
+| P0 | Prisma Schema 迁移（Course + CourseNote + 外键） | 1h | 无 |
+| P0 | NestJS API（Course / CourseNote CRUD + CalendarEvent 扩展） | 4h | Schema 迁移 |
+| P0 | ICS 导入脚本 + 配置文件 | 3h | API 就绪 |
+| P0 | CalendarView 混入课程事件 | 3h | API 就绪 |
+| P1 | Task 关联 courseId + 前端选择器 | 2h | Course API 就绪 |
+| P1 | Dashboard 今日课程区块 | 2h | CalendarView 课程渲染 |
+| P2 | CourseNote 看板（Sidebar + Swipe + 卡片） | 6h | Course API 就绪 |
+| P2 | ScheduleEditor 课表编辑器 | 4h | Course API 就绪 |
+| P2 | EventsView 事件追踪 | 3h | CalendarEvent 扩展 |
+
+### 2026-05-28（Course 模块后端基础设施 + 原型交付）
+- **Prisma Schema 迁移**: 新增 Course / CourseNote 模型 + CalendarEvent 扩展 courseId + isOverride + Task 扩展 courseId
+  - 迁移 SQL：`api/prisma/migrations/20260528083100_add_course_models/migration.sql`
+  - Schema 验证通过，Prisma Client 重新生成
+- **Course API 模块**: `api/src/course/` (controller + service + module)
+  - CRUD：findAll / findOne / create / update / remove
+  - 课程实例：findEvents + adjustEvent（调课，标记 isOverride）
+  - 课程笔记：findNotes / createNote / updateNote / deleteNote
+  - 换课逻辑：update 时检测排课规则变化 → 自动 trigger regenerateEvents（跳过 isOverride 实例）
+  - TypeScript 零错误
+- **ICS 导入脚本**: `scripts/import-courses.js` + `scripts/course-import-config.json`
+  - 依赖 node-ical（ICS 解析）+ @prisma/client（直写 DB），独立运行
+  - 按课程名分组 → 创建/更新 Course（icsUid 幂等）→ 批量生成 CalendarEvent
+- **CalendarView 课程事件渲染**: 混入 course 类型 CalendarEvent
+  - 新增 CourseEvent 接口 + fetchCalendarEvents API 调用
+  - 课程块样式：虚线边框 + 课程色半透明背景 + "课程" badge + isOverride 标记
+  - 头部计数：`X 项任务 · Y 课`
+- **CourseDetailView 交互原型**: `docs/prototypes/sparkflow-course-detail-prototype.html`
+  - Hero 卡片 + 下次课程卡片 + 实例列表 + 调课/换课浮层
+  - 参数面板：6 项滑杆 + 导出 JSON + 重置

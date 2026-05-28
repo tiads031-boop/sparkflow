@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SparkFlow — 课程详情页 交互原型</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --phone-w: 393px;
+      --phone-h: 852px;
+      --card-radius: 20px;
+      --c-dark: #242424;
+      --c-purple: #b0a8db;
+      --c-green: #cae393;
+      --c-bg: #f4f4f6;
+      --course-color: #b0a8db;
+      --instance-row-gap: 8px;
+      --instance-font-size: 12px;
+      --hero-radius: 28px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: #111;
+      display: flex; align-items: center; justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+    }
+    .phone-frame {
+      width: var(--phone-w); height: var(--phone-h);
+      background: var(--c-bg); border-radius: 40px;
+      border: 6px solid #333; box-shadow: 0 0 50px rgba(0,0,0,0.5);
+      position: relative; overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* ============ 参数面板 ============ */
+    .param-panel {
+      position: fixed; bottom: 20px; right: 20px;
+      background: rgba(36,36,36,0.92); color: #fff;
+      border-radius: 16px; padding: 16px; z-index: 200;
+      max-width: 280px; backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.15);
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .param-panel.collapsed { max-height: 44px; overflow: hidden; padding-bottom: 12px; }
+    .param-panel:not(.collapsed) { max-height: 520px; }
+    .param-panel-header {
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; margin-bottom: 8px;
+    }
+    .param-panel-header span { font-size: 13px; font-weight: 600; }
+    .param-row { margin-bottom: 12px; }
+    .param-row label { font-size: 10px; opacity: 0.6; display: block; margin-bottom: 4px; }
+    .param-row input[type=range] { width: 100%; accent-color: var(--c-purple); }
+    .param-row input[type=color] { width: 32px; height: 24px; border: none; border-radius: 4px; cursor: pointer; }
+    .param-value { font-size: 10px; opacity: 0.5; float: right; }
+
+    /* ============ 编辑浮层 ============ */
+    .edit-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 150; display: flex; align-items: flex-end; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    .edit-overlay.show { opacity: 1; pointer-events: auto; }
+    .edit-sheet {
+      width: var(--phone-w); background: #fff;
+      border-radius: 24px 24px 0 0; padding: 20px 20px 32px;
+      transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      max-height: 70vh; overflow-y: auto;
+    }
+    .edit-overlay.show .edit-sheet { transform: translateY(0); }
+    .edit-sheet h3 { font-size: 16px; font-weight: 700; color: var(--c-dark); margin-bottom: 16px; }
+    .edit-field { margin-bottom: 14px; }
+    .edit-field label { font-size: 11px; color: #888; display: block; margin-bottom: 4px; }
+    .edit-field input, .edit-field select {
+      width: 100%; padding: 10px 14px; border-radius: 12px;
+      border: 1px solid #e5e5e5; font-size: 14px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .edit-field input:focus, .edit-field select:focus { border-color: var(--c-purple); }
+    .edit-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+    /* ============ 实例行 ============ */
+    .instance-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px; border-radius: 14px;
+      background: #fff; margin-bottom: var(--instance-row-gap);
+      border: 1px solid #eee; cursor: pointer;
+      transition: all 0.15s; font-size: var(--instance-font-size);
+    }
+    .instance-row:hover { border-color: var(--c-purple); background: #faf8ff; }
+    .instance-row.overridden { border-style: dashed; border-color: rgba(176,168,219,0.5); background: rgba(176,168,219,0.04); }
+    .instance-week { font-weight: 700; color: var(--c-dark); min-width: 40px; }
+    .instance-date { color: #888; min-width: 70px; font-size: 11px; }
+    .instance-time { color: var(--c-dark); font-variant-numeric: tabular-nums; }
+    .instance-room { color: #888; font-size: 10px; margin-left: auto; }
+  </style>
+</head>
+<body>
+
+<div class="phone-frame" id="app">
+  <!-- 顶部导航 -->
+  <div class="flex-shrink-0 flex items-center justify-between px-5 py-3 bg-white/80 backdrop-blur border-b border-gray-100 z-10">
+    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors" onclick="alert('返回日历')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <span class="text-sm font-bold text-[#242424]">课程详情</span>
+    <button class="text-xs font-medium px-3 py-1.5 rounded-full bg-[#b0a8db]/15 text-[#b0a8db] hover:bg-[#b0a8db]/25 transition-colors" onclick="openEditCourse()">编辑</button>
+  </div>
+
+  <!-- 滚动内容 -->
+  <div class="flex-1 overflow-y-auto hide-scrollbar px-5 pt-4 pb-24" id="scrollArea">
+
+    <!-- 课程 Hero 卡片 -->
+    <div class="rounded-[var(--hero-radius)] p-6 mb-5 text-white shadow-sm" id="courseHero" style="background: var(--course-color)">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <h1 class="text-xl font-bold mb-1" id="heroName">高等数学</h1>
+          <p class="text-sm opacity-75" id="heroTeacher">张教授</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-lg" id="heroEmoji">📐</div>
+      </div>
+      <div class="flex items-center gap-3 text-sm opacity-80">
+        <span id="heroRoom">📍 教3-201</span>
+        <span id="heroSchedule">🕐 周三 8:00-9:40</span>
+      </div>
+      <div class="mt-2 text-xs opacity-60" id="heroWeeks">📅 第1-16周 · 共16次</div>
+    </div>
+
+    <!-- 下次课程卡片 -->
+    <div class="bg-white rounded-[var(--card-radius)] p-5 shadow-sm mb-5 border border-gray-100" id="nextSession">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="w-2 h-2 rounded-full animate-pulse" style="background: var(--course-color)"></span>
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wide">下次课程</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-base font-bold text-[#242424]" id="nextDate">5月28日 周三</p>
+          <p class="text-sm text-gray-500" id="nextTime">8:00 - 9:40 · 第12周</p>
+        </div>
+        <div class="text-xs px-3 py-1.5 rounded-full font-medium" id="nextBadge" style="background: var(--course-color); color: #fff">进行中</div>
+      </div>
+    </div>
+
+    <!-- 课程实例列表 -->
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-bold text-[#242424]">课程实例</h2>
+        <span class="text-[10px] text-gray-400" id="instanceCount">16 次</span>
+      </div>
+      <div id="instanceList"></div>
+    </div>
+
+    <!-- 关联待办占位 -->
+    <div class="mt-5">
+      <h2 class="text-sm font-bold text-[#242424] mb-3">关联待办</h2>
+      <div class="bg-white rounded-[var(--card-radius)] p-5 shadow-sm border border-gray-100 text-center">
+        <p class="text-xs text-gray-400">暂无关联待办</p>
+        <button class="mt-2 text-xs text-[#b0a8db] font-medium" onclick="alert('创建待办 — 后续正式版实现')">+ 添加课程待办</button>
+      </div>
+    </div>
+
+  </div><!-- /scrollArea -->
+</div>
+
+<!-- ============ 调课浮层 ============ -->
+<div class="edit-overlay" id="adjustOverlay" onclick="if(event.target===this) closeAdjust()">
+  <div class="edit-sheet" id="adjustSheet">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="m-0">调整单次课程</h3>
+      <button class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" onclick="closeAdjust()">✕</button>
+    </div>
+    <p class="text-xs text-gray-400 mb-4" id="adjustTitle">第12周 · 5月28日 周三</p>
+    <div class="edit-field">
+      <label>调整日期</label>
+      <input type="date" id="adjustDate" value="2025-05-28">
+    </div>
+    <div class="edit-field">
+      <label>开始时间</label>
+      <input type="time" id="adjustStart" value="08:00">
+    </div>
+    <div class="edit-field">
+      <label>结束时间</label>
+      <input type="time" id="adjustEnd" value="09:40">
+    </div>
+    <div class="edit-field">
+      <label>教室（可选）</label>
+      <input type="text" id="adjustRoom" placeholder="教3-201">
+    </div>
+    <div class="edit-actions">
+      <button class="flex-1 py-2.5 rounded-full border border-gray-200 text-gray-500 text-sm" onclick="closeAdjust()">取消</button>
+      <button class="flex-1 py-2.5 rounded-full text-white text-sm font-medium" style="background: var(--course-color)" onclick="saveAdjust()">保存调整</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 换课浮层 ============ -->
+<div class="edit-overlay" id="swapOverlay" onclick="if(event.target===this) closeSwap()">
+  <div class="edit-sheet" id="swapSheet">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="m-0">编辑课程信息</h3>
+      <button class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center" onclick="closeSwap()">✕</button>
+    </div>
+    <p class="text-xs text-gray-400 mb-4">修改后将重新生成课程安排，已手动调整的实例不受影响</p>
+    <div class="edit-field">
+      <label>课程名称</label>
+      <input type="text" id="swapName" value="高等数学">
+    </div>
+    <div class="edit-field">
+      <label>教师</label>
+      <input type="text" id="swapTeacher" value="张教授">
+    </div>
+    <div class="edit-field">
+      <label>星期</label>
+      <select id="swapDay">
+        <option value="1">周一</option><option value="2">周二</option>
+        <option value="3" selected>周三</option><option value="4">周四</option>
+        <option value="5">周五</option><option value="6">周六</option><option value="7">周日</option>
+      </select>
+    </div>
+    <div class="edit-field">
+      <label>开始时间</label>
+      <input type="time" id="swapStart" value="08:00">
+    </div>
+    <div class="edit-field">
+      <label>结束时间</label>
+      <input type="time" id="swapEnd" value="09:40">
+    </div>
+    <div class="edit-field">
+      <label>教室</label>
+      <input type="text" id="swapRoom" value="教3-201">
+    </div>
+    <div class="edit-field">
+      <label>课程颜色</label>
+      <input type="color" id="swapColor" value="#b0a8db" style="width:100%;height:36px">
+    </div>
+    <div class="edit-actions">
+      <button class="flex-1 py-2.5 rounded-full border border-gray-200 text-gray-500 text-sm" onclick="closeSwap()">取消</button>
+      <button class="flex-1 py-2.5 rounded-full text-white text-sm font-medium" style="background: var(--course-color)" onclick="saveSwap()">保存修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 参数面板 ============ -->
+<div class="param-panel" id="paramPanel">
+  <div class="param-panel-header" onclick="toggleParams()">
+    <span>⚙️ 参数调整</span>
+    <span id="paramToggle">▼</span>
+  </div>
+  <div class="param-row">
+    <label>课程颜色 <span class="param-value" id="colVal">#b0a8db</span></label>
+    <div style="display:flex;align-items:center;gap:8px">
+      <input type="range" min="0" max="5" value="0" id="colorPreset" oninput="updateColorPreset()" style="flex:1">
+      <input type="color" value="#b0a8db" id="colorPicker" onchange="updateColorDirect()">
+    </div>
+  </div>
+  <div class="param-row">
+    <label>Hero 卡片圆角 <span class="param-value" id="hrVal">28px</span></label>
+    <input type="range" min="12" max="48" value="28" id="heroRadius" oninput="updateHeroRadius()">
+  </div>
+  <div class="param-row">
+    <label>实例行间距 <span class="param-value" id="igVal">8px</span></label>
+    <input type="range" min="4" max="20" value="8" id="instanceGap" oninput="updateInstanceGap()">
+  </div>
+  <div class="param-row">
+    <label>实例字号 <span class="param-value" id="fsVal">12px</span></label>
+    <input type="range" min="10" max="16" value="12" id="instanceFontSize" oninput="updateInstanceFontSize()">
+  </div>
+  <div class="param-row">
+    <label>显示已调标记 <span class="param-value" id="omVal">是</span></label>
+    <input type="range" min="0" max="1" value="1" id="showOverride" oninput="toggleOverrideBadge()">
+  </div>
+  <div class="param-actions mt-3 flex gap-2">
+    <button class="flex-1 py-2 rounded-full bg-white/10 text-xs hover:bg-white/20 transition-colors" onclick="exportParams()">📋 导出 JSON</button>
+    <button class="flex-1 py-2 rounded-full bg-white/10 text-xs hover:bg-white/20 transition-colors" onclick="resetParams()">🔄 重置</button>
+  </div>
+</div>
+
+<script>
+// ==================== 数据模型 ====================
+
+const courseData = {
+  id: 'course-1',
+  name: '高等数学',
+  teacher: '张教授',
+  room: '教3-201',
+  color: '#b0a8db',
+  dayOfWeek: 3,       // 周三
+  startTime: '08:00',
+  endTime: '09:40',
+  weeks: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],
+};
+
+// 生成实例（含 mock 调课数据）
+const semesterStart = new Date('2025-03-03T00:00:00');
+function getMonday(d) { const m = new Date(d); const dow = m.getDay()||7; if(dow!==1) m.setDate(m.getDate()-(dow-1)); m.setHours(0,0,0,0); return m; }
+const monday = getMonday(semesterStart);
+
+const instances = courseData.weeks.map((w, i) => {
+  const d = new Date(monday);
+  d.setDate(d.getDate() + (w-1)*7 + (courseData.dayOfWeek-1));
+  const [sh, sm] = courseData.startTime.split(':').map(Number);
+  const [eh, em] = courseData.endTime.split(':').map(Number);
+  d.setHours(sh, sm, 0, 0);
+  const end = new Date(d);
+  end.setHours(eh, em, 0, 0);
+  
+  // Mock：第8周调课（时间改为 10:00-11:40）
+  const isOverride = w === 8;
+  const actualStart = isOverride ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), 10, 0) : d;
+  const actualEnd = isOverride ? new Date(d.getFullYear(), d.getMonth(), d.getDate(), 11, 40) : end;
+  
+  return {
+    id: `ev-${w}`,
+    week: w,
+    date: d,
+    startTime: actualStart,
+    endTime: actualEnd,
+    isOverride,
+    room: isOverride ? '教1-105' : courseData.room,
+  };
+});
+
+// 当前模拟日期（用于"下次课程"）
+const mockToday = new Date('2025-05-28T10:00:00');
+
+// ==================== 渲染函数 ====================
+
+function pad(n) { return n.toString().padStart(2,'0'); }
+function fmtTime(d) { return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function fmtDate(d) { return `${d.getMonth()+1}月${d.getDate()}日 周${['日','一','二','三','四','五','六'][d.getDay()]}`; }
+
+function renderAll() {
+  renderHero();
+  renderNextSession();
+  renderInstances();
+}
+
+function renderHero() {
+  document.getElementById('heroName').textContent = courseData.name;
+  document.getElementById('heroTeacher').textContent = courseData.teacher;
+  document.getElementById('heroRoom').textContent = `📍 ${courseData.room}`;
+  const dayNames = ['','周一','周二','周三','周四','周五','周六','周日'];
+  document.getElementById('heroSchedule').textContent = `🕐 ${dayNames[courseData.dayOfWeek]} ${courseData.startTime}-${courseData.endTime}`;
+  document.getElementById('heroWeeks').textContent = `📅 第${courseData.weeks[0]}-${courseData.weeks[courseData.weeks.length-1]}周 · 共${courseData.weeks.length}次`;
+  document.getElementById('courseHero').style.background = courseData.color;
+}
+
+function renderNextSession() {
+  // 找最近一次还没发生的课程
+  const upcoming = instances.filter(inst => inst.startTime > mockToday);
+  const next = upcoming.length > 0 ? upcoming[0] : instances[instances.length-1];
+  document.getElementById('nextDate').textContent = fmtDate(next.date);
+  document.getElementById('nextTime').textContent = `${fmtTime(next.startTime)} - ${fmtTime(next.endTime)} · 第${next.week}周`;
+  const isNow = next.startTime <= mockToday && next.endTime >= mockToday;
+  document.getElementById('nextBadge').textContent = isNow ? '进行中' : '即将开始';
+  document.getElementById('nextBadge').style.background = courseData.color;
+}
+
+function renderInstances() {
+  const list = document.getElementById('instanceList');
+  const showOverride = document.getElementById('showOverride').value === '1';
+  document.getElementById('instanceCount').textContent = `${instances.length} 次`;
+  
+  list.innerHTML = instances.map(inst => {
+    const isOv = inst.isOverride && showOverride;
+    return `
+      <div class="instance-row${isOv?' overridden':''}" onclick="openAdjust('${inst.id}')">
+        <span class="instance-week">W${inst.week}</span>
+        <span class="instance-date">${fmtDate(inst.date)}</span>
+        <span class="instance-time">${fmtTime(inst.startTime)}-${fmtTime(inst.endTime)}</span>
+        <span class="instance-room">${inst.room}${isOv?' ⚡':''}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// ==================== 调课 ====================
+
+let adjustingId = '';
+
+function openAdjust(evId) {
+  adjustingId = evId;
+  const inst = instances.find(i => i.id === evId);
+  if (!inst) return;
+  
+  document.getElementById('adjustTitle').textContent = `第${inst.week}周 · ${fmtDate(inst.date)}`;
+  document.getElementById('adjustDate').value = inst.date.toISOString().slice(0,10);
+  document.getElementById('adjustStart').value = fmtTime(inst.startTime);
+  document.getElementById('adjustEnd').value = fmtTime(inst.endTime);
+  document.getElementById('adjustRoom').value = inst.room;
+  document.getElementById('adjustOverlay').classList.add('show');
+}
+
+function closeAdjust() {
+  document.getElementById('adjustOverlay').classList.remove('show');
+  adjustingId = '';
+}
+
+function saveAdjust() {
+  const inst = instances.find(i => i.id === adjustingId);
+  if (!inst) return;
+  
+  const newDate = document.getElementById('adjustDate').value;
+  const newStart = document.getElementById('adjustStart').value;
+  const newEnd = document.getElementById('adjustEnd').value;
+  const newRoom = document.getElementById('adjustRoom').value;
+  
+  const [sy,sm,sd] = newDate.split('-').map(Number);
+  const [sh,sm2] = newStart.split(':').map(Number);
+  const [eh,em] = newEnd.split(':').map(Number);
+  
+  inst.startTime = new Date(sy, sm-1, sd, sh, sm2);
+  inst.endTime = new Date(sy, sm-1, sd, eh, em);
+  inst.room = newRoom || inst.room;
+  inst.isOverride = true;
+  
+  renderAll();
+  closeAdjust();
+  
+  // Toast
+  showToast('已保存单次调整 ✓');
+}
+
+// ==================== 换课 ====================
+
+function openEditCourse() {
+  document.getElementById('swapName').value = courseData.name;
+  document.getElementById('swapTeacher').value = courseData.teacher;
+  document.getElementById('swapDay').value = courseData.dayOfWeek;
+  document.getElementById('swapStart').value = courseData.startTime;
+  document.getElementById('swapEnd').value = courseData.endTime;
+  document.getElementById('swapRoom').value = courseData.room;
+  document.getElementById('swapColor').value = courseData.color;
+  document.getElementById('swapOverlay').classList.add('show');
+}
+
+function closeSwap() {
+  document.getElementById('swapOverlay').classList.remove('show');
+}
+
+function saveSwap() {
+  courseData.name = document.getElementById('swapName').value || courseData.name;
+  courseData.teacher = document.getElementById('swapTeacher').value || '';
+  courseData.dayOfWeek = parseInt(document.getElementById('swapDay').value);
+  courseData.startTime = document.getElementById('swapStart').value;
+  courseData.endTime = document.getElementById('swapEnd').value;
+  courseData.room = document.getElementById('swapRoom').value;
+  courseData.color = document.getElementById('swapColor').value;
+  
+  // 更新颜色变量和其他 UI
+  document.documentElement.style.setProperty('--course-color', courseData.color);
+  document.getElementById('colorPicker').value = courseData.color;
+  
+  renderAll();
+  closeSwap();
+  
+  showToast('已保存课程修改 ✓（未调课实例已更新）');
+}
+
+// ==================== Toast ====================
+
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#242424;color:#fff;padding:10px 20px;border-radius:999px;font-size:13px;z-index:300;pointer-events:none;opacity:0;transition:opacity 0.3s';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+}
+
+// ==================== 参数面板 ====================
+
+let panelCollapsed = false;
+function toggleParams() {
+  panelCollapsed = !panelCollapsed;
+  document.getElementById('paramPanel').classList.toggle('collapsed', panelCollapsed);
+  document.getElementById('paramToggle').textContent = panelCollapsed ? '▶' : '▼';
+}
+
+function updateColorPreset() {
+  const presets = ['#b0a8db', '#a68b7b', '#8fa3a0', '#bfa98e', '#c4978a', '#8b9dad'];
+  const idx = parseInt(document.getElementById('colorPreset').value);
+  const color = presets[idx] || '#b0a8db';
+  courseData.color = color;
+  document.documentElement.style.setProperty('--course-color', color);
+  document.getElementById('colorPicker').value = color;
+  document.getElementById('colVal').textContent = color;
+  renderHero();
+}
+
+function updateColorDirect() {
+  const color = document.getElementById('colorPicker').value;
+  courseData.color = color;
+  document.documentElement.style.setProperty('--course-color', color);
+  document.getElementById('colVal').textContent = color;
+  renderHero();
+}
+
+function updateHeroRadius() {
+  const v = document.getElementById('heroRadius').value;
+  document.getElementById('hrVal').textContent = v + 'px';
+  document.getElementById('courseHero').style.borderRadius = v + 'px';
+  document.documentElement.style.setProperty('--hero-radius', v + 'px');
+}
+
+function updateInstanceGap() {
+  const v = document.getElementById('instanceGap').value;
+  document.getElementById('igVal').textContent = v + 'px';
+  document.documentElement.style.setProperty('--instance-row-gap', v + 'px');
+}
+
+function updateInstanceFontSize() {
+  const v = document.getElementById('instanceFontSize').value;
+  document.getElementById('fsVal').textContent = v + 'px';
+  document.documentElement.style.setProperty('--instance-font-size', v + 'px');
+}
+
+function toggleOverrideBadge() {
+  const v = document.getElementById('showOverride').value;
+  document.getElementById('omVal').textContent = v === '1' ? '是' : '否';
+  renderInstances();
+}
+
+function resetParams() {
+  document.getElementById('colorPreset').value = 0;
+  document.getElementById('colorPicker').value = '#b0a8db';
+  document.getElementById('heroRadius').value = 28;
+  document.getElementById('instanceGap').value = 8;
+  document.getElementById('instanceFontSize').value = 12;
+  document.getElementById('showOverride').value = 1;
+  
+  courseData.color = '#b0a8db';
+  document.documentElement.style.setProperty('--course-color', '#b0a8db');
+  document.documentElement.style.setProperty('--hero-radius', '28px');
+  document.documentElement.style.setProperty('--instance-row-gap', '8px');
+  document.documentElement.style.setProperty('--instance-font-size', '12px');
+  document.getElementById('courseHero').style.borderRadius = '28px';
+  
+  document.getElementById('colVal').textContent = '#b0a8db';
+  document.getElementById('hrVal').textContent = '28px';
+  document.getElementById('igVal').textContent = '8px';
+  document.getElementById('fsVal').textContent = '12px';
+  document.getElementById('omVal').textContent = '是';
+  
+  renderAll();
+}
+
+function exportParams() {
+  const params = {
+    courseColor: courseData.color,
+    heroRadius: parseInt(document.getElementById('heroRadius').value),
+    instanceGap: parseInt(document.getElementById('instanceGap').value),
+    instanceFontSize: parseInt(document.getElementById('instanceFontSize').value),
+    showOverrideBadge: document.getElementById('showOverride').value === '1',
+  };
+  const blob = new Blob([JSON.stringify(params, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'course-detail-params.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('参数已导出 📋');
+}
+
+// ==================== 初始化 ====================
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.documentElement.style.setProperty('--course-color', courseData.color);
+  renderAll();
+});
+</script>
+
+</body>
+</html>

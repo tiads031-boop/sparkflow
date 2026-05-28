@@ -2,6 +2,38 @@ import { useRef, useCallback, useEffect, useState } from 'react';
 import { useAppStore, type Task } from '../store/appStore';
 import { V4 } from '../v4config';
 
+// ==================== 课程事件类型 & API ====================
+
+interface CourseEvent {
+  id: string;
+  courseId: string;
+  title: string;
+  eventType: string;
+  startTime: string;
+  endTime: string;
+  color?: string;
+  isOverride?: boolean;
+}
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '') as string;
+const API_KEY = (import.meta.env.VITE_API_KEY || '') as string;
+const DEFAULT_USER_ID = (import.meta.env.VITE_DEFAULT_USER_ID || 'default') as string;
+
+async function fetchCalendarEvents(start: string, end: string): Promise<CourseEvent[]> {
+  try {
+    const url = API_BASE
+      ? `${API_BASE}/calendar?userId=${DEFAULT_USER_ID}&start=${start}&end=${end}`
+      : `/calendar?userId=${DEFAULT_USER_ID}&start=${start}&end=${end}`;
+    const headers: Record<string, string> = {};
+    if (API_KEY) headers['X-API-Key'] = API_KEY;
+    const res = await fetch(url, { headers });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
+
 // ==================== 类型 ====================
 
 interface DragState {
@@ -217,6 +249,20 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   // 同步 creatingGhost 到 ref
   creatingGhostRef.current = creatingGhost;
 
+  // 课程事件
+  const [courseEvents, setCourseEvents] = useState<CourseEvent[]>([]);
+
+  // 拉取课程事件（选中日期所在周）
+  useEffect(() => {
+    const weekStart = getMonday(selectedDate);
+    const weekEnd = addDays(weekStart, 7);
+    const startStr = weekStart.toISOString();
+    const endStr = weekEnd.toISOString();
+    fetchCalendarEvents(startStr, endStr).then((events) => {
+      setCourseEvents(events.filter((e) => e.eventType === 'course'));
+    });
+  }, [selectedDate]);
+
   // 截止任务快速安排状态
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
   const [scheduleStartTime, setScheduleStartTime] = useState('09:00');
@@ -267,7 +313,23 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     .filter((t) => t.startTime)
     .sort((a, b) => parseTime(a.startTime!) - parseTime(b.startTime!));
 
+  // 今日课程事件（合并 eventType='course'）
+  const dayCourseEvents = courseEvents.filter((ev) => {
+    const evDate = new Date(ev.startTime);
+    return isSameDay(evDate, selectedDate);
+  });
+
   const timelineHeight = (endH - startH) * hourH;
+
+  // 计算课程块颜色（提取色值，默认淡紫）
+  const getCourseBlockStyle = (color?: string) => {
+    const c = color || '#b0a8db';
+    return {
+      background: `${c}15`,
+      borderColor: `${c}60`,
+      textColor: '#242424',
+    };
+  };
 
   const handleChangeMonth = useCallback((dir: number) => {
     const d = new Date(selectedDate);
@@ -633,11 +695,92 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     setSchedulingTaskId(null);
   }, []);
 
+  // ==================== ICS 导入 ====================
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
+
+  const handleImportClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userId', DEFAULT_USER_ID);
+
+      const url = API_BASE
+        ? `${API_BASE}/courses/import-ics`
+        : '/courses/import-ics';
+      const headers: Record<string, string> = {};
+      if (API_KEY) headers['X-API-Key'] = API_KEY;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: '导入失败' }));
+        throw new Error(err.message || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      setImportResult(
+        `✅ 新建 ${data.created?.length || 0} 门，更新 ${data.updated?.length || 0} 门，共 ${data.eventCount || 0} 次课`,
+      );
+
+      // 刷新课程事件
+      const weekStart = getMonday(selectedDate);
+      const weekEnd = addDays(weekStart, 7);
+      const events = await fetchCalendarEvents(weekStart.toISOString(), weekEnd.toISOString());
+      setCourseEvents(events.filter((ev) => ev.eventType === 'course'));
+    } catch (err: any) {
+      setImportResult(`❌ ${err.message || '导入失败'}`);
+    } finally {
+      setImporting(false);
+      // 清空 input 以便重复选择同一文件
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [selectedDate]);
+
   const formatDate = (d: Date) => `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 
   return (
     <div className="animate-page-enter pb-24">
-      <h1 className="text-xl font-bold mb-5 text-[#242424]">日程安排</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-xl font-bold text-[#242424]">日程安排</h1>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".ics"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={handleImportClick}
+            disabled={importing}
+            className="text-[11px] px-3 py-1.5 rounded-full bg-[#b0a8db]/10 text-[#b0a8db] font-medium hover:bg-[#b0a8db]/20 transition-colors disabled:opacity-50"
+          >
+            {importing ? '导入中…' : '📅 导入课表'}
+          </button>
+        </div>
+      </div>
+      {importResult && (
+        <div className={`mb-4 text-xs px-4 py-2 rounded-xl ${importResult.startsWith('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+          {importResult}
+        </div>
+      )}
 
       <CalendarHeader
         selectedDate={selectedDate}
@@ -653,7 +796,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden">
         <div className="p-4 pb-2 flex items-center justify-between">
           <h3 className="text-sm font-bold text-[#242424]">
-            {formatDate(selectedDate)} · {dayTasks.length} 项
+            {formatDate(selectedDate)} · {dayTasks.length} 项任务 · {dayCourseEvents.length} 课
           </h3>
           <span className="text-[10px] text-gray-400">长按空区创建 · 拖拽调整时间</span>
         </div>
@@ -816,6 +959,55 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
               </div>
             );
           })}
+
+          {/* 课程块（只读虚线） */}
+          {dayCourseEvents.map((ev) => {
+            const st = new Date(ev.startTime);
+            const et = new Date(ev.endTime);
+            const startHr = st.getHours() + st.getMinutes() / 60;
+            const endHr = et.getHours() + et.getMinutes() / 60;
+            const durationMin = Math.round((endHr - startHr) * 60);
+            const top = (startHr - startH) * hourH;
+            const h = Math.max(((endHr - startHr) * hourH), 36);
+            const style = getCourseBlockStyle(ev.color);
+
+            return (
+              <div
+                key={`course-${ev.id}`}
+                className="absolute left-14 right-2 rounded-[11px] px-3 py-2 select-none overflow-hidden z-5"
+                style={{
+                  top: `${top}px`,
+                  height: `${h}px`,
+                  background: style.background,
+                  border: `1.5px dashed ${style.borderColor}`,
+                  color: style.textColor,
+                }}
+                onClick={() => {
+                  // TODO: 跳转课程详情页
+                  console.log('[Course] navigate to course detail', ev.courseId);
+                }}
+              >
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ background: ev.color || '#b0a8db' }}
+                  />
+                  <span className="text-xs font-semibold truncate">
+                    {ev.title}
+                    {ev.isOverride && (
+                      <span className="ml-1 text-[9px] opacity-50">(已调)</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] opacity-50">
+                    {`${pad(st.getHours())}:${pad(st.getMinutes())} - ${pad(et.getHours())}:${pad(et.getMinutes())}`} · {durationMin}min
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-black/5 opacity-50">课程</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -935,9 +1127,9 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       })()}
 
       {/* 空状态 */}
-      {dayTasks.length === 0 && (
+      {(dayTasks.length === 0 && dayCourseEvents.length === 0) && (
         <div className="bg-white rounded-[2rem] p-8 shadow-sm mt-4 text-center">
-          <p className="text-sm text-gray-400">该日无日程安排</p>
+          <p className="text-sm text-gray-400">该日无日程安排 · 无课程</p>
         </div>
       )}
     </div>

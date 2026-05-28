@@ -1,0 +1,18 @@
+{
+  "$comment": "课程表 ICS 导入配置",
+  "icsPath": "D:/Mindd/Work/sparkflow/日历-大二下.ics",
+  "userId": "default",
+  "semesterStart": "2025-03-03",
+  "semesterEnd": "2025-07-04",
+  "filters": {
+    "excludeCourses": ["形势与政策"],
+    "weekMapping": null
+  },
+  "colorMap": {
+    "_comment": "课程名 → 色值映射（可选），未匹配的课程使用随机色",
+    "高等数学": "#a68b7b",
+    "大学英语": "#8fa3a0",
+    "线性代数": "#bfa98e"
+  },
+  "defaultColor": "#b0a8db"
+}

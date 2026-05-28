@@ -15,12 +15,14 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  inspirations  Inspiration[]
-  tasks         Task[]
-  pomodoroSessions PomodoroSession[]
-  calendarEvents CalendarEvent[]
-  aiConversations AIConversation[]
+  inspirations      Inspiration[]
+  tasks             Task[]
+  pomodoroSessions  PomodoroSession[]
+  calendarEvents    CalendarEvent[]
+  aiConversations   AIConversation[]
   pushSubscriptions PushSubscription[]
+  courses           Course[]
+  courseNotes       CourseNote[]
 
   @@map("users")
 }
@@ -74,14 +76,17 @@ model Task {
   completedAt     DateTime?
   updatedAt       DateTime  @updatedAt
 
+  courseId        String?
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   pomodoroSessions PomodoroSession[]
   calendarEvents  CalendarEvent[]
   inspiration     Inspiration? @relation(fields: [inspirationId], references: [id])
+  course          Course?    @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([status])
   @@index([dueDate])
+  @@index([courseId])
   @@map("tasks")
 }
 
@@ -108,21 +113,25 @@ model CalendarEvent {
   id            String    @id @default(uuid())
   userId        String
   taskId        String?
+  courseId      String?
   title         String
-  eventType     String    @default("task") // task/focus/meeting/reminder
+  eventType     String    @default("task") // task/focus/meeting/reminder/course
   startTime     DateTime
   endTime       DateTime
   isAllDay      Boolean   @default(false)
   recurrenceRule String?
+  isOverride    Boolean   @default(false) // 是否为手动调课覆盖（换课时跳过）
   color         String    @default("#185FA5")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   task          Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  course        Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([startTime])
+  @@index([courseId])
   @@map("calendar_events")
 }
 
@@ -140,6 +149,53 @@ model AIConversation {
   @@index([userId])
   @@index([conversationType])
   @@map("ai_conversations")
+}
+
+model Course {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  teacher     String?
+  room        String?
+  color       String    @default("#b0a8db")
+  
+  // 课程规则模板（换课时修改这些字段）
+  dayOfWeek   Int?                    // 1=Mon..7=Sun
+  startTime   String?                 // "08:00"
+  endTime     String?                 // "09:40"
+  weeks       Json?     @default("[]") // [1,2,3,...] 或 {"type":"all"} 或 {"type":"odd"} 
+  location    String?                 // 校区/教学楼
+  
+  // ICS 来源
+  icsUid      String?   @unique
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events      CalendarEvent[]
+  tasks       Task[]
+  notes       CourseNote[]
+
+  @@index([userId])
+  @@map("courses")
+}
+
+model CourseNote {
+  id        String    @id @default(uuid())
+  userId    String
+  courseId  String
+  body      String    @db.Text
+  pinned    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([courseId])
+  @@map("course_notes")
 }
 
 model PushSubscription {
