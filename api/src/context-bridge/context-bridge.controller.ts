@@ -12,13 +12,13 @@ import type {
 export class ContextBridgeController {
   constructor(private readonly contextBridgeService: ContextBridgeService) {}
 
-  /** 获取看板数据 */
+  /** 获取看板数据（从 Supabase 读取） */
   @Get()
-  read(): ContextDoc {
+  async read(): Promise<ContextDoc> {
     return this.contextBridgeService.read();
   }
 
-  /** 保存看板数据（带冲突检测）
+  /** 保存看板数据（写入 Supabase）
    * - 支持明文 JSON body：{ entries, lastKnownMtime }
    * - 支持 base64 编码 body：{ content: base64String, encoding: 'base64' }，绕过 WAF 内容扫描
    */
@@ -46,7 +46,7 @@ export class ContextBridgeController {
 
   /** 同步：从本地推送原始 md 文本到 Render（支持 base64 + skipDone）
    * - encoding: 'base64' 绕过 WAF 内容扫描
-   * - skipDone: true 时只推送未完成的条目，Render 上已有的已完成条目也会被删除 */
+   * - skipDone: true 时只推送未完成的条目，已完成条目被清除 */
   @Post('sync-push-raw')
   @HttpCode(HttpStatus.OK)
   async syncPushRaw(
@@ -58,7 +58,6 @@ export class ContextBridgeController {
     }
 
     if (body.skipDone) {
-      // 过滤模式：只保留未完成的条目（Render 上已完成的历史也一并清除）
       const incomingEntries = this.contextBridgeService.parseRaw(rawContent);
       const activeEntries = incomingEntries.filter(
         (e) => e.status !== 'done' && e.status !== 'cancelled',
@@ -70,14 +69,14 @@ export class ContextBridgeController {
 
     // 全量覆盖模式
     const entries = this.contextBridgeService.parseRaw(rawContent);
-    await this.contextBridgeService.forceWriteRaw(rawContent);
+    await this.contextBridgeService.forceWrite(entries);
     return { ok: true, entryCount: entries.length };
   }
 
-  /** 同步：获取 Render 当前状态（供本地 pull 使用） */
+  /** 同步：获取 Render 当前状态（从 Supabase 读取） */
   @Get('sync-state')
-  syncState(): { entries: ContextEntry[]; mtime: number; count: number } {
-    const doc = this.contextBridgeService.read();
+  async syncState(): Promise<{ entries: ContextEntry[]; mtime: number; count: number }> {
+    const doc = await this.contextBridgeService.read();
     return {
       entries: doc.entries,
       mtime: doc.mtime,
@@ -85,14 +84,9 @@ export class ContextBridgeController {
     };
   }
 
-  /** 同步：获取原始 md 文本（供本地 pull 使用） */
+  /** 同步：获取本地 md 原始文本（供本地 pull 重建 md 文件） */
   @Get('raw')
   raw(): { content: string; mtime: number } {
-    const fs = require('fs');
-    const configService = (this.contextBridgeService as any).configService;
-    const mdPath = configService.get('CONTEXT_MD_PATH') || 'D:/Mindd/Work/CURRENT_CONTEXT.md';
-    const content = fs.readFileSync(mdPath, 'utf-8');
-    const stat = fs.statSync(mdPath);
-    return { content, mtime: stat.mtimeMs };
+    return this.contextBridgeService.readLocalMd();
   }
 }

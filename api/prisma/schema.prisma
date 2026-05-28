@@ -66,6 +66,9 @@ model Task {
   dueDate         DateTime?
   tags            String[]
   contextMdHash   String?    // 关联 CURRENT_CONTEXT.md 条目（标题标准化 SHA256 前8位）
+  column          String?   @default("personal")  // 'project' | 'personal'
+  project         String?                      // folder / 项目名称
+  notes           Json?     @default("[]")     // 子任务列表 [{text, completed}]
   aiFeasibility   Json?
   createdAt       DateTime  @default(now())
   completedAt     DateTime?
