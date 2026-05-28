@@ -6,7 +6,7 @@
  */
 import type { StateCreator } from 'zustand';
 import type { AppState } from './index';
-import { apiRequest } from '../api/client';
+import { apiRequest, DEFAULT_USER_ID } from '../api/client';
 
 export interface PushSlice {
   /** 当前是否已订阅 */
