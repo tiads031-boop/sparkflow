@@ -36,6 +36,9 @@ sparkflow 原本是一个灵感记录与任务管理应用，`sparkflow-api`（N
 | 17 | 外部变更感知 | 前端每 15s 轮询 GET /context 对比 mtime，mtime 变化时自动拉取更新 | 弥补 AI/手动编辑 md 后前端无感知的缺口；轮询比 fs.watch 更兼容部署环境 |
 | 18 | 同步策略：skipDone | push 时 `skipDone: true` 只推送未完成条目，Render 上已完成历史一并清除 | PWA 只看板展示活跃任务，减少传输量和视觉噪音；本地 md 仍保留完整历史 |
 | 19 | 项目分组展示 | BoardView 项目待办列按 `project` 字段分组渲染，项目名作为可折叠区块 | 前端纯展示层改动，不改 md 协议；P0/P1/P2 优先级徽章直接显示在子任务卡片上 |
+| 20 | 个人文件夹分组 | `## 个人待办` 下支持 `### folder-name` 分组，个人任务也可按文件夹组织 | 统一两列的交互模式：项目/个人都支持用户创建文件夹、拖拽归类、折叠展开 |
+| 21 | 文件夹创建 UI | BoardView 列头 FolderPlus 按钮 + 即时输入框创建新文件夹/项目 | 零弹窗、零模态层，输入即创建，体验轻量；创建后自动展开新文件夹 |
+| 22 | 任务编辑 folder 字段 | DarkFrostedModal 编辑/创建表单新增 folder 输入框 | 用户可手动指定任务归属的文件夹/项目，覆盖自动分组结果 |
 
 ---
 
@@ -334,7 +337,25 @@ PWA → POST /api/context/write (mtime + 变更)
   - 个人待办列保持原有卡片样式
 - **Task 类型扩展**：新增 `project?: string` 字段，`entriesToTasks` / `tasksToEntries` 双向映射
 - **蓝图更新**：新增决策点 #18（skipDone 同步策略）、#19（项目分组展示）
-- **部署状态**：Render 已部署最新代码，24 条活跃条目正确分组；Vercel 自动构建中
+
+### 2026-05-28（个人/项目统一分组 + 文件夹创建）
+- **两列统一分组**：项目待办列和个人待办列都使用相同的 GroupedColumn 渲染逻辑
+  - 按 `project`/`folder` 字段分组，组内按 P0 > P1 > P2 排序
+  - 每组可折叠/展开，显示待办计数
+  - "未分组"（无 folder 的任务）默认展开，其他组默认展开
+- **个人文件夹支持**：`## 个人待办` 下支持 `### folder-name` 分组标题
+  - renderMd 动态生成 personal 区的 `###` 文件夹标题（模板缺失时）
+  - 解析器已有 `project` 字段支持，个人区 `###` 标题自动映射为 folder
+- **文件夹创建 UI**：BoardView 每列右上角 FolderPlus 按钮
+  - 点击展开即时输入框（Enter 创建 / Esc 取消）
+  - 创建时自动添加一个占位任务，用户可在其中添加真实任务
+  - 零弹窗、零模态层，输入即创建
+- **快速添加栏扩展**：新增 Tag 按钮，点击展开文件夹/项目输入框
+  - 创建任务时可直接指定归属的 folder/project
+- **DarkFrostedModal folder 编辑**：编辑/创建表单新增 folder 输入框
+  - 根据当前 column 动态切换 placeholder（项目/文件夹）
+- **蓝图更新**：新增决策点 #20（个人文件夹分组）、#21（文件夹创建 UI）、#22（任务编辑 folder 字段）
+- **部署状态**：Render 已部署，Vercel 自动构建中
 
 ### 2026-05-28（V4 正式版：Dashboard + Calendar）
 - **Dashboard 图表交互升级**：日/周/月三维度切换（pill 按钮），柱状图按 hour/周几/日期段动态计算分布
