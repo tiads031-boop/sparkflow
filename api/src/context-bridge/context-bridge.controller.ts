@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, HttpCode, HttpStatus, HttpException } from '@nestjs/common';
 import { ContextBridgeService } from './context-bridge.service';
+import { renderMd } from './render';
 import type {
   ContextDoc,
   ContextWriteRequest,
@@ -84,9 +85,12 @@ export class ContextBridgeController {
     };
   }
 
-  /** 同步：获取本地 md 原始文本（供本地 pull 重建 md 文件） */
+  /** 同步：从 Supabase 渲染为 md 文本（供本地 pull 重建 md 文件） */
   @Get('raw')
-  raw(): { content: string; mtime: number } {
-    return this.contextBridgeService.readLocalMd();
+  async raw(): Promise<{ content: string; mtime: number }> {
+    const doc = await this.contextBridgeService.read();
+    const template = this.contextBridgeService.readLocalMd().content;
+    const content = renderMd(template, doc.entries);
+    return { content, mtime: doc.mtime };
   }
 }
