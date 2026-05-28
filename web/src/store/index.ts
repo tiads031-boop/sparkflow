@@ -24,9 +24,10 @@ import { createPushSlice, type PushSlice } from './pushSlice';
 import { createSyncSlice, type SyncSlice } from './syncSlice';
 import { createUISlice, type UISlice } from './uiSlice';
 import { createDataSlice, type DataSlice } from './dataSlice';
+import { createCourseSlice, type CourseSlice } from './courseSlice';
 
 // ── AppState = 所有 slice 的并集 ──
-export type AppState = TaskSlice & PomodoroSlice & PushSlice & SyncSlice & UISlice & DataSlice;
+export type AppState = TaskSlice & PomodoroSlice & PushSlice & SyncSlice & UISlice & DataSlice & CourseSlice;
 
 // ── 组合 store ──
 export const useAppStore = create<AppState>()((...args) => ({
@@ -36,6 +37,7 @@ export const useAppStore = create<AppState>()((...args) => ({
   ...createSyncSlice(...args),
   ...createUISlice(...args),
   ...createDataSlice(...args),
+  ...createCourseSlice(...args),
 }));
 
 // ── Re-export constants (保持外部兼容) ──

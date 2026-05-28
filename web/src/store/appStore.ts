@@ -21,4 +21,8 @@ export type {
   NoteItem,
   ContextEntry,
   ChartView,
+  Course,
+  CourseDetail,
+  CourseNote,
+  CourseFormData,
 } from '../types';

@@ -115,9 +115,59 @@ export interface ContextEntry {
 }
 
 // ════════════════════════════════════════════════════
+// Course & CourseNote
+// ════════════════════════════════════════════════════
+
+export interface Course {
+  id: string;
+  userId: string;
+  name: string;
+  teacher?: string;
+  room?: string;
+  color: string;
+  dayOfWeek?: number;   // 1=Mon..7=Sun
+  startTime?: string;    // "08:00"
+  endTime?: string;      // "09:40"
+  weeks?: number[];      // [1,2,3,...]
+  location?: string;
+  icsUid?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { events: number; tasks: number; notes: number };
+}
+
+export interface CourseDetail extends Course {
+  events: CalendarEvent[];
+  tasks: Task[];
+  notes: CourseNote[];
+}
+
+export interface CourseNote {
+  id: string;
+  userId: string;
+  courseId: string;
+  body: string;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CourseFormData {
+  name: string;
+  teacher?: string;
+  room?: string;
+  color?: string;
+  dayOfWeek?: number;
+  startTime?: string;
+  endTime?: string;
+  weeks?: number[];
+  location?: string;
+}
+
+// ════════════════════════════════════════════════════
 // UI State
 // ════════════════════════════════════════════════════
 
 export type ChartView = 'day' | 'week' | 'month';
 
-export type ActiveTab = 'dashboard' | 'tasks' | 'board' | 'calendar' | 'sparks';
+export type ActiveTab = 'dashboard' | 'tasks' | 'board' | 'calendar' | 'sparks' | 'courses';

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Home, CheckSquare, Calendar as CalendarIcon, Zap,
-  Plus, Bell, BellOff, AlertCircle, LayoutGrid, RefreshCw, CheckCircle2,
+  Plus, Bell, BellOff, AlertCircle, LayoutGrid, RefreshCw, CheckCircle2, BookOpen,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
 import DashboardView from './components/DashboardView';
@@ -9,6 +9,9 @@ import TasksView from './components/TasksView';
 import BoardView from './components/BoardView';
 import CalendarView from './components/CalendarView';
 import SparksView from './components/SparksView';
+import CourseView from './components/CourseView';
+import CourseDetailView from './components/CourseDetailView';
+import { importIcs } from './api/courses';
 import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
 import SyncConflictModal from './components/SyncConflictModal';
 
@@ -17,6 +20,7 @@ const navItems = [
   { id: 'tasks' as const, label: '任务', icon: CheckSquare },
   { id: 'board' as const, label: '看板', icon: LayoutGrid },
   { id: 'calendar' as const, label: '日历', icon: CalendarIcon },
+  { id: 'courses' as const, label: '课程', icon: BookOpen },
   { id: 'sparks' as const, label: '灵感', icon: Zap },
 ];
 
@@ -165,13 +169,31 @@ export default function App() {
   const unsubscribeFromPush = useAppStore((s) => s.unsubscribeFromPush);
   const checkPushStatus = useAppStore((s) => s.checkPushStatus);
 
+  // ── Course 状态 ──
+  const courses = useAppStore((s) => s.courses);
+  const loadCourses = useAppStore((s) => s.loadCourses);
+  const selectedCourse = useAppStore((s) => s.selectedCourse);
+  const setSelectedCourse = useAppStore((s) => s.setSelectedCourse);
+  const loadCourseDetail = useAppStore((s) => s.loadCourseDetail);
+  const removeCourse = useAppStore((s) => s.removeCourse);
+  const addCourse = useAppStore((s) => s.addCourse);
+
+  const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
+  const [showCreateCourse, setShowCreateCourse] = useState(false);
+
   const pollForUpdates = useAppStore((s) => s.pollForUpdates);
 
   useEffect(() => {
     loadFromApi();
     loadPomodoroStats();
     checkPushStatus();
-  }, [loadFromApi, loadPomodoroStats, checkPushStatus]);
+    loadCourses();
+  }, [loadFromApi, loadPomodoroStats, checkPushStatus, loadCourses]);
+
+  // 切换到课程 tab 时加载课程数据
+  useEffect(() => {
+    if (activeTab === 'courses') loadCourses();
+  }, [activeTab, loadCourses]);
 
   // 轮询检测 CURRENT_CONTEXT.md 外部变更（每 15 秒）
   useEffect(() => {
@@ -311,10 +333,31 @@ export default function App() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto hide-scrollbar px-5 relative z-10 pb-20">
-          {activeTab === 'dashboard' && <DashboardView tasks={tasks} pomodoro={pomodoro} />}
+          {/* Course detail view (full page) */}
+          {activeTab === 'courses' && viewingCourseId ? (
+            <CourseDetailView onBack={() => setViewingCourseId(null)} />
+          ) : activeTab === 'dashboard' && <DashboardView tasks={tasks} pomodoro={pomodoro} />}
           {activeTab === 'tasks' && <TasksView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'board' && <BoardView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'calendar' && <CalendarView onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
+          {activeTab === 'courses' && !viewingCourseId && (
+            <CourseView
+              onCourseClick={(courseId) => {
+                loadCourseDetail(courseId);
+                setViewingCourseId(courseId);
+              }}
+              onAddClick={() => setShowCreateCourse(true)}
+              onImportClick={async (file) => {
+                try {
+                  const result = await importIcs(file);
+                  alert(`导入完成：新增 ${result.created.length} 门，更新 ${result.updated.length} 门，共 ${result.eventCount} 次课`);
+                  loadCourses();
+                } catch (err: any) {
+                  alert(`导入失败：${err.message}`);
+                }
+              }}
+            />
+          )}
           {activeTab === 'sparks' && (
             <SparksView
               sparks={sparks}
