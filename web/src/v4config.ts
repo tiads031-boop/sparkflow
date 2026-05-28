@@ -26,10 +26,12 @@ export const V4 = {
     day: {
       /** 时间段分组步长（小时） */
       groupStep: 2,
+      /** 基础高度最大值（百分比上限，防溢出） */
+      baseHeightMax: 75,
       /** 基础高度（有任务时） */
       baseHeightBase: 20,
-      /** 总任务数影响系数 */
-      totalScale: 2,
+      /** 单时段任务数影响系数 */
+      totalScale: 6,
       /** 基础高度（无任务时） */
       baseHeightEmpty: 10,
       /** 最小高度比例 */
@@ -64,10 +66,12 @@ export const V4 = {
     month: {
       /** 分组步长（天） */
       groupStep: 3,
+      /** 基础高度最大值（百分比上限，防溢出） */
+      baseHeightMax: 75,
       /** 基础高度（有任务时） */
       baseHeightBase: 18,
-      /** 总任务数影响系数 */
-      totalScale: 2,
+      /** 单时段任务数影响系数 */
+      totalScale: 4,
       /** 基础高度（无任务时） */
       baseHeightEmpty: 10,
       /** 最小高度比例 */

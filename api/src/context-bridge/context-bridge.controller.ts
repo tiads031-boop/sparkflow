@@ -65,12 +65,15 @@ export class ContextBridgeController {
       );
       const skippedCount = incomingEntries.length - activeEntries.length;
       await this.contextBridgeService.forceWrite(activeEntries);
+      // 同步写入本地 md，保持文件与 Supabase 一致
+      this.contextBridgeService.writeLocalMd(activeEntries);
       return { ok: true, entryCount: activeEntries.length, skippedDone: skippedCount };
     }
 
     // 全量覆盖模式
     const entries = this.contextBridgeService.parseRaw(rawContent);
     await this.contextBridgeService.forceWrite(entries);
+    this.contextBridgeService.writeLocalMd(entries);
     return { ok: true, entryCount: entries.length };
   }
 

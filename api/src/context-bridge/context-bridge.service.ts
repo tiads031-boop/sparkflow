@@ -18,6 +18,9 @@ export class ContextBridgeService {
   private mdPath: string;
   private defaultUserId: string;
 
+  /** 单调递增的上下文版本号，用于 poll 检测变更 */
+  private contextVersion = 0;
+
   constructor(
     private configService: ConfigService,
     private prisma: PrismaService,
@@ -60,8 +63,8 @@ export class ContextBridgeService {
       };
     });
 
-    // mtime 用当前时间戳（Supabase 无主文件 mtime 概念）
-    return { entries, mtime: Date.now() };
+    // mtime 用上下文版本号（稳定值，仅写入时递增）
+    return { entries, mtime: this.contextVersion };
   }
 
   /** 写入 Supabase（upsert 模式）：按 contextMdHash 逐条 upsert，清理孤立条目 */
@@ -137,7 +140,18 @@ export class ContextBridgeService {
     }
 
     const doc = await this.read();
-    return { success: true, entries: doc.entries, mtime: doc.mtime };
+
+    // 同步写入本地 CURRENT_CONTEXT.md，防止 sync-context.cjs push 读取过时文件覆盖 Supabase
+    try {
+      this.writeLocalMd(doc.entries);
+    } catch (err) {
+      this.logger.warn(`writeLocalMd 失败（不影响主流程）: ${err}`);
+    }
+
+    // 递增版本号，使 pollForUpdates 能检测到变更
+    this.contextVersion++;
+
+    return { success: true, entries: doc.entries, mtime: this.contextVersion };
   }
 
   /** 强制写入（忽略冲突），复用 write() 的 upsert 逻辑 */

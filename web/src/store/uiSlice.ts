@@ -7,6 +7,7 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from './index';
 import type { ActiveTab, ChartView } from '../types';
+import { V4 } from '../v4config';
 
 export interface UISlice {
   /** 当前底部导航标签 */
@@ -30,7 +31,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => (
   activeTab: 'tasks',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
-  chartView: 'month' as ChartView,
+  chartView: V4.chartDefaultView as ChartView,
   setChartView: (view) => set({ chartView: view }),
 
   selectedDate: new Date(),

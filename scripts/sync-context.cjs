@@ -173,20 +173,33 @@ async function push(config) {
 
   // 先检查远程状态
   let remoteMtime = null;
+  let remoteEntryCount = 0;
+  let remoteActiveCount = 0;
   try {
     const state = await apiRequest(config, 'GET', '/context/sync-state');
     remoteMtime = state.mtime;
+    remoteEntryCount = state.count || state.entries?.length || 0;
+    remoteActiveCount = state.entries
+      ? state.entries.filter(e => e.status !== 'done' && e.status !== 'cancelled').length
+      : 0;
   } catch {
     console.log('  ⚠️  无法获取远程状态，将直接推送');
   }
 
-  if (remoteMtime) {
+  if (remoteMtime != null) {
     const prevState = loadState();
-    if (prevState.renderMtime && prevState.renderMtime !== remoteMtime) {
+    if (prevState.renderMtime != null && prevState.renderMtime !== remoteMtime) {
       console.log('  ⚠️  警告：远程内容自上次同步后已变更');
       console.log(`     上次记录 mtime: ${prevState.renderMtime}`);
       console.log(`     当前远程 mtime: ${remoteMtime}`);
-      console.log('     推送将覆盖远程内容。如需保留远程变更，请先 pull。');
+    }
+
+    // 防御性检查：远程活跃条目 > 本地条目 → 可能丢失 Web 界面操作
+    if (remoteActiveCount > localLines) {
+      console.log(`  ⚠️  远程活跃条目 (${remoteActiveCount}) > 本地条目 (${localLines})`);
+      console.log('     服务器上有通过 Web 界面新增/修改的任务，push 将覆盖它们。');
+      console.log('     如果不需要保留 Web 操作，可以继续。');
+      console.log('     建议：先执行 pull 合并后再 push。');
     }
   }
 

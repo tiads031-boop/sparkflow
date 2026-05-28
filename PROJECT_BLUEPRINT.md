@@ -1,7 +1,7 @@
 # sparkflow — 项目改造/开发蓝图
 
 > 本文档记录项目的所有决策、实施进度和下一步计划。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-28（Course 模块基础设施 + 原型交付） | **状态**: Phase 6 V4 正式版完成，Course 模块后端就绪，原型待评审
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-29（同步覆盖 + Dashboard 柱状图修复） | **状态**: Phase 6 V4 正式版完成，Course 模块后端就绪，原型待评审
 
 ---
 
@@ -577,6 +577,11 @@ PWA → POST /api/context/write (mtime + 变更)
 | 2026-05-28 | **无截止时间通知确认** | 设置截止时间后保存时弹出通知确认弹窗（"需要提醒"/"不需要"），为后续 Web Push 截止提醒留接口 |
 | 2026-05-28 | **截止时间时区偏移 8 小时**：前端 `datetime-local` 传本地时间 (GMT+8)，服务器 `new Date()` 按 UTC 解读 | App.tsx `handleSaveItem` 保存前转 `toISOString()`；DarkFrostedModal 编辑时还原为本地时间供输入框 |
 | 2026-05-28 | **Render WAF 拦截 sync-push**：`python -m quota_monitor serve-ui` 等命令模式出现在 md 内容中，触发 Render 反向代理 403 Blocked | sync-push-raw 端点支持 `encoding: 'base64'`，同步脚本默认 base64 编码请求体，绕过 WAF 内容扫描 |
+| 2026-05-29 | **前端操作被 sync-context.cjs push 覆盖**：API `write()`/`sync-push-raw` 写入 Supabase 后未同步更新本地 CURRENT_CONTEXT.md，手动 push 时读取过时本地文件覆盖服务器数据 | `write()` 和 `sync-push-raw` 末尾调用 `writeLocalMd()` 同步本地文件；前端 `syncToApi` 引入 `syncGeneration` 计数器 + `pollForUpdates` 代数校验防竞态 |
+| 2026-05-29 | **`isSyncing` 锁静默丢弃并发同步请求（真正根因）**：快速操作时第二次 `syncToApi` 被 `isSyncing=true` 阻挡直接 return，丢弃操作；第一次同步响应整表替换回滚第二次的操作 | 新增 `needsResync` 标记：被阻挡时设置标记，同步完成后自动重触发 |
+| 2026-05-29 | **`read()` 返回 `Date.now()` 导致 poll 每次刷新**：mtime 为动态时间戳，`pollForUpdates` 的 `serverMtime === lastKnownMtime` 永不为真 | 改用内存 `contextVersion` 计数器，仅在 `write()` 时递增 |
+| 2026-05-29 | **sync-context.cjs push 无差异检测**：push 前不做服务器/本地差异对比，用户不知道将要覆盖 Web 操作的数据 | push 前获取远程条目数，远程活跃条目 > 本地条目时打印警告 |
+| 2026-05-29 | **Dashboard 柱状图数据映射错误**：日视图只显示有 startTime 的任务，周/月视图只显示有 dueDate 的任务；日/月视图三段颜色使用固定比例而非实际状态分布；柱高公式基于全局而非时段内任务数；`V4.chartDefaultView` 被硬编码覆盖 | 日视图追加"全天"条容纳仅有 dueDate 的任务；周/月视图追加"未排"条容纳无 dueDate 的任务；全部视图改用实际状态比例 + 组内归一化柱高；纯全天任务时清除空小时柱；`uiSlice.ts` 改为读取 `V4.chartDefaultView` |
 | 2026-05-28 | **renderMd 丢失项目标题**：Render 容器重启后 `ensureFile()` 生成空模板（无 `###` 标题），forceWrite 重建时所有项目条目误入个人待办区 | renderMd 预扫描模板，无 `###` 标题时动态生成项目分组标题，确保条目归属正确 |
 | 2026-05-28 | **时间线长按创建不响应**：React 合成事件的 `e.pointerId` 在 `setTimeout` 异步回调中失效，`setPointerCapture` 静默失败后 ghost 无法接收 pointermove | 改为 ref 即时存储 `pointerId` + `rect`，`setPointerCapture` 加 try-catch，`useCallback` 移除 `creatingGhost` 依赖并用函数式 `setState` |
 | 2026-05-28 | **ghost 拖拽无法调整时长（只能 30min）**：`setPointerCapture` + React 合成事件在移动端不可靠组合——pointer capture 后 React fiber 树与浏览器事件目标映射不一致，导致 `pointermove` 丢失 | 弃用 `setPointerCapture`，ghost 激活后注册原生 `document.addEventListener('pointermove/pointerup')`，原生 listener 直接读 `ev.clientY` + `getBoundingClientRect()` 计算坐标，完全绕过 React 事件系统 |

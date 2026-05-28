@@ -22,6 +22,12 @@ export interface SyncSlice {
   lastKnownMtime: number | null;
   setLastKnownMtime: (mtime: number | null) => void;
 
+  // ── 同步代数（防竞态）──
+  syncGeneration: number;
+
+  // ── 堆积同步标记 ──
+  needsResync: boolean;
+
   // ── API 操作状态 ──
   isLoading: boolean;
   syncError: string | null;
@@ -42,6 +48,9 @@ export const createSyncSlice: StateCreator<AppState, [], [], SyncSlice> = (set, 
   setConflicts: (conflicts) => set({ conflicts }),
   lastKnownMtime: null,
   setLastKnownMtime: (mtime) => set({ lastKnownMtime: mtime }),
+
+  syncGeneration: 0,
+  needsResync: false,
 
   isLoading: false,
   syncError: null,
@@ -116,8 +125,12 @@ export const createSyncSlice: StateCreator<AppState, [], [], SyncSlice> = (set, 
   // ─────────────────────────────────────────────
   syncToApi: async () => {
     const { tasks, lastKnownMtime, isSyncing } = get();
-    if (isSyncing) return;
-    set({ isSyncing: true, syncError: null });
+    // 上一次同步仍在进行中：标记需要重同步，不静默丢弃
+    if (isSyncing) {
+      set({ needsResync: true });
+      return;
+    }
+    set({ isSyncing: true, syncError: null, needsResync: false });
 
     const entries = tasksToEntries(tasks);
     const body = JSON.stringify({ entries, lastKnownMtime });
@@ -177,7 +190,13 @@ export const createSyncSlice: StateCreator<AppState, [], [], SyncSlice> = (set, 
         lastKnownMtime: newMtime,
         conflicts: [],
         isSyncing: false,
+        syncGeneration: get().syncGeneration + 1,
       });
+
+      // 如果有被阻塞的操作在等待，立即重新同步
+      if (get().needsResync) {
+        await get().syncToApi();
+      }
 
       // 同步成功后更新本地缓存
       try {
@@ -204,16 +223,18 @@ export const createSyncSlice: StateCreator<AppState, [], [], SyncSlice> = (set, 
   // 轮询检测外部 md 变更（15s 间隔）
   // ─────────────────────────────────────────────
   pollForUpdates: async () => {
-    const { lastKnownMtime, isSyncing } = get();
+    const { lastKnownMtime, isSyncing, syncGeneration } = get();
     if (isSyncing) return;
-    // 记录请求发起时的 mtime，防止过期响应覆盖本地更新
+    // 记录请求发起时的 mtime 和代数，防止过期响应覆盖本地更新
     const startMtime = lastKnownMtime;
+    const startGen = syncGeneration;
 
     try {
       const res = await apiRequest('/context');
 
-      // 请求期间本地已更新，丢弃此次响应
+      // 请求期间本地已通过 syncToApi 更新，丢弃此次响应
       if (startMtime !== get().lastKnownMtime) return;
+      if (startGen !== get().syncGeneration) return;
       // 同步仍在进行中（可能在 network 返回前开始的）
       if (get().isSyncing) return;
 

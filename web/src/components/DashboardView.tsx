@@ -33,63 +33,147 @@ interface BarData {
 /** 计算指定 view 下的柱状图数据 */
 function computeBars(tasks: Task[], view: ChartView): BarData[] {
   const active = tasks.filter((t) => t.status !== 'Cancelled');
-  const total = active.length;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0];
 
   if (view === 'day') {
     const cfg = V4.chart.day;
     const bars: BarData[] = [];
+
+    // 找到今日相关的所有活跃任务
+    const todayTasks = active.filter((t) => {
+      // 有 dueDate 匹配今天，或有 startTime（视为今天安排的任务）
+      if (t.dueDate) {
+        const dd = new Date(t.dueDate);
+        dd.setHours(0, 0, 0, 0);
+        if (dd.getTime() === today.getTime()) return true;
+      }
+      // 没有 dueDate 但有 startTime 的，视为今天的任务
+      if (t.startTime && !t.dueDate) return true;
+      return false;
+    });
+
     for (let h = V4.timelineStartHour; h < V4.timelineEndHour; h += cfg.groupStep) {
-      const hourTasks = active.filter((t) => {
+      const hourTasks = todayTasks.filter((t) => {
         if (!t.startTime) return false;
         const startH = parseInt(t.startTime.split(':')[0], 10);
         return startH >= h && startH < h + cfg.groupStep;
       });
-      const ratio = cfg.ratioMin + hourTasks.length * cfg.ratioPerTask;
-      const base = total > 0 ? cfg.baseHeightBase + total * cfg.totalScale : cfg.baseHeightEmpty;
+
+      // 按实际状态分布计算三段高度
+      const groupTotal = hourTasks.length;
+      const groupDone = hourTasks.filter((t) => t.status === 'Done').length;
+      const groupInProgress = hourTasks.filter((t) => t.status === 'In progress' || t.status === 'In review').length;
+      const groupTodo = hourTasks.filter((t) => t.status === 'To do').length;
+
+      // 高度直接映射任务数（最少 3% 保证可见性，最多 95%）
+      const maxGroupTotal = Math.max(1, ...bars.map(() => 0), groupTotal);
+      // 用 todayTasks 中的最大组做基准归一化
+      const todayMaxTotal = Math.max(1, ...todayTasks.reduce((acc, t) => {
+        if (!t.startTime) return acc;
+        const startH = parseInt(t.startTime.split(':')[0], 10);
+        const slot = Math.floor((startH - V4.timelineStartHour) / cfg.groupStep);
+        return acc.map((v, i) => i === slot ? v + 1 : v);
+      }, new Array(Math.ceil((V4.timelineEndHour - V4.timelineStartHour) / cfg.groupStep)).fill(0)));
+
+      const heightPct = groupTotal > 0
+        ? Math.max(cfg.baseHeightEmpty, Math.round((groupTotal / todayMaxTotal) * 90))
+        : cfg.baseHeightEmpty;
+
+      const h1 = groupTotal > 0 ? Math.round(heightPct * (groupDone / groupTotal)) : 0;
+      const h2 = groupTotal > 0 ? Math.round(heightPct * (groupInProgress / groupTotal)) : 0;
+      const h3 = groupTotal > 0 ? Math.round(heightPct * (groupTodo / groupTotal)) : 0;
+
       bars.push({
-        h1: Math.min(Math.round(base * ratio * cfg.segmentRatios[0]) + cfg.segmentMinHeights[0], cfg.segmentMaxHeights[0]),
-        h2: Math.min(Math.round(base * ratio * cfg.segmentRatios[1]) + cfg.segmentMinHeights[1], cfg.segmentMaxHeights[1]),
-        h3: Math.min(Math.round(base * ratio * cfg.segmentRatios[2]) + cfg.segmentMinHeights[2], cfg.segmentMaxHeights[2]),
+        h1: Math.max(cfg.segmentMinHeights[0], Math.min(h1, cfg.segmentMaxHeights[0])),
+        h2: Math.max(cfg.segmentMinHeights[0], Math.min(h2, cfg.segmentMaxHeights[0])),
+        h3: Math.max(cfg.segmentMinHeights[1], Math.min(h3, cfg.segmentMaxHeights[1])),
         label: `${h}`,
         fullLabel: `${h}:00~${h + cfg.groupStep}:00`,
         taskCount: hourTasks.length,
       });
     }
+
+    // 如果今日有 without startTime 但 dueDate 匹配今天的任务，追加一个"全天"条
+    const allDayTasks = todayTasks.filter((t) => !t.startTime);
+    if (allDayTasks.length > 0) {
+      // 没有任何时间排期任务时，全天任务就是唯一数据，清除空时间柱
+      if (todayTasks.filter((t) => t.startTime).length === 0) {
+        bars.length = 0;
+      }
+      const adTotal = allDayTasks.length;
+      const adDone = allDayTasks.filter((t) => t.status === 'Done').length;
+      const adInProgress = allDayTasks.filter((t) => t.status === 'In progress' || t.status === 'In review').length;
+      const adTodo = allDayTasks.filter((t) => t.status === 'To do').length;
+      const allDayPct = Math.round((adTotal / Math.max(1, todayTasks.length)) * 80);
+      const h1 = adTotal > 0 ? Math.round(allDayPct * (adDone / adTotal)) : 0;
+      const h2 = adTotal > 0 ? Math.round(allDayPct * (adInProgress / adTotal)) : 0;
+      const h3 = adTotal > 0 ? Math.round(allDayPct * (adTodo / adTotal)) : 0;
+      bars.push({
+        h1, h2, h3,
+        label: '全天',
+        fullLabel: '全天任务',
+        taskCount: adTotal,
+      });
+    }
+
     return bars;
   }
 
   if (view === 'week') {
     const cfg = V4.chart.week;
     const days = ['一', '二', '三', '四', '五', '六', '日'];
-    const today = new Date();
-    const dayOfWeek = today.getDay() || 7; // 1=Mon
+    const dayOfWeek = today.getDay() || 7;
     const monday = new Date(today);
     monday.setDate(today.getDate() - (dayOfWeek - 1));
     monday.setHours(0, 0, 0, 0);
 
-    return days.map((_, i) => {
+    // 找出本周有 dueDate 的活跃任务
+    const weekTasks = active.filter((t) => {
+      if (!t.dueDate) return false;
+      const dd = new Date(t.dueDate);
+      dd.setHours(0, 0, 0, 0);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return dd >= monday && dd <= sunday;
+    });
+
+    const unscheduledCount = active.filter((t) => !t.dueDate).length;
+
+    // 找本周任务数最多的一天当基准
+    const dayTotals = days.map((_, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      const dayTasks = active.filter((t) => {
-        if (!t.dueDate) return false;
-        const dd = new Date(t.dueDate);
-        return dd.toDateString() === d.toDateString();
+      return weekTasks.filter((t) => {
+        const dd = new Date(t.dueDate!);
+        dd.setHours(0, 0, 0, 0);
+        return dd.getTime() === d.getTime();
+      }).length;
+    });
+    const maxDayTotal = Math.max(1, ...dayTotals);
+
+    const result = days.map((_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dayTasks = weekTasks.filter((t) => {
+        const dd = new Date(t.dueDate!);
+        dd.setHours(0, 0, 0, 0);
+        return dd.getTime() === d.getTime();
       });
 
-      // 基于当天任务数计算总高度
       const dayTotal = dayTasks.length;
       const dayDone = dayTasks.filter((t) => t.status === 'Done').length;
       const dayInProgress = dayTasks.filter((t) => t.status === 'In progress' || t.status === 'In review').length;
       const dayTodo = dayTasks.filter((t) => t.status === 'To do').length;
 
-      const baseH = dayTotal > 0
-        ? Math.min(cfg.baseHeightMax, cfg.baseHeightBase + dayTotal * cfg.totalScale)
-        : cfg.baseHeightEmpty;
+      const heightPct = dayTotal > 0
+        ? Math.max(cfg.baseHeightEmpty, Math.round((dayTotal / maxDayTotal) * 90))
+        : 0;
 
-      // 三段高度按当天各状态比例分配
-      const h1 = dayTotal > 0 ? Math.round(baseH * (dayDone / dayTotal)) : 0;
-      const h2 = dayTotal > 0 ? Math.round(baseH * (dayInProgress / dayTotal)) : 0;
-      const h3 = dayTotal > 0 ? Math.round(baseH * (dayTodo / dayTotal)) : 0;
+      const h1 = dayTotal > 0 ? Math.round(heightPct * (dayDone / dayTotal)) : 0;
+      const h2 = dayTotal > 0 ? Math.round(heightPct * (dayInProgress / dayTotal)) : 0;
+      const h3 = dayTotal > 0 ? Math.round(heightPct * (dayTodo / dayTotal)) : 0;
 
       return {
         h1: Math.max(cfg.segmentMinHeights[0], Math.min(h1, cfg.segmentMaxHeights[0])),
@@ -100,39 +184,111 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
         taskCount: dayTasks.length,
       };
     });
+
+    // 如果有未安排日期的活跃任务，追加一个"未安排"条
+    if (unscheduledCount > 0) {
+      const unscheduledTasks = active.filter((t) => !t.dueDate);
+      const usTodo = unscheduledTasks.filter((t) => t.status === 'To do').length;
+      const usInProgress = unscheduledTasks.filter((t) => t.status === 'In progress' || t.status === 'In review').length;
+      const usDone = unscheduledTasks.filter((t) => t.status === 'Done').length;
+      const usPct = Math.min(90, Math.round((unscheduledCount / Math.max(1, maxDayTotal)) * 80));
+      result.push({
+        h1: unscheduledCount > 0 ? Math.round(usPct * (usDone / unscheduledCount)) : 0,
+        h2: unscheduledCount > 0 ? Math.round(usPct * (usInProgress / unscheduledCount)) : 0,
+        h3: unscheduledCount > 0 ? Math.round(usPct * (usTodo / unscheduledCount)) : 0,
+        label: '未排',
+        fullLabel: '未安排日期',
+        taskCount: unscheduledCount,
+      });
+    }
+
+    return result;
   }
 
-  // month: group by groupStep-day intervals
-  const cfg = V4.chart.month;
-  const today = new Date();
+  // month: 按 groupStep 天区间分组
+  const mCfg = V4.chart.month;
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  const bars: BarData[] = [];
-  for (let d = 1; d <= daysInMonth; d += cfg.groupStep) {
-    const dayTasks = active.filter((t) => {
-      if (!t.dueDate) return false;
-      const dd = new Date(t.dueDate);
-      return dd.getMonth() === today.getMonth() && dd.getDate() >= d && dd.getDate() < d + cfg.groupStep;
+  const monthTasks = active.filter((t) => {
+    if (!t.dueDate) return false;
+    const dd = new Date(t.dueDate);
+    return dd.getMonth() === today.getMonth() && dd.getFullYear() === today.getFullYear();
+  });
+  const unscheduledMonth = active.filter((t) => !t.dueDate).length;
+
+  // 找当月最多任务的时间段做基准
+  const slotTotals: number[] = [];
+  for (let d = 1; d <= daysInMonth; d += mCfg.groupStep) {
+    slotTotals.push(monthTasks.filter((t) => {
+      const dd = new Date(t.dueDate!);
+      return dd.getDate() >= d && dd.getDate() < d + mCfg.groupStep;
+    }).length);
+  }
+  const maxSlotTotal = Math.max(1, ...slotTotals);
+
+  const monthBars: BarData[] = [];
+  for (let d = 1; d <= daysInMonth; d += mCfg.groupStep) {
+    const dayTasks = monthTasks.filter((t) => {
+      const dd = new Date(t.dueDate!);
+      return dd.getDate() >= d && dd.getDate() < d + mCfg.groupStep;
     });
-    const ratio = cfg.ratioMin + dayTasks.length * cfg.ratioPerTask;
-    const base = total > 0 ? cfg.baseHeightBase + total * cfg.totalScale : cfg.baseHeightEmpty;
-    bars.push({
-      h1: Math.min(Math.round(base * ratio * cfg.segmentRatios[0]) + cfg.segmentMinHeights[0], cfg.segmentMaxHeights[0]),
-      h2: Math.min(Math.round(base * ratio * cfg.segmentRatios[1]) + cfg.segmentMinHeights[1], cfg.segmentMaxHeights[1]),
-      h3: Math.min(Math.round(base * ratio * cfg.segmentRatios[2]) + cfg.segmentMinHeights[2], cfg.segmentMaxHeights[2]),
+    const dt = dayTasks.length;
+    const dDone = dayTasks.filter((t) => t.status === 'Done').length;
+    const dInProgress = dayTasks.filter((t) => t.status === 'In progress' || t.status === 'In review').length;
+    const dTodo = dayTasks.filter((t) => t.status === 'To do').length;
+
+    const hp = dt > 0
+      ? Math.max(mCfg.baseHeightEmpty, Math.round((dt / maxSlotTotal) * 90))
+      : 0;
+
+    monthBars.push({
+      h1: dt > 0 ? Math.round(hp * (dDone / dt)) : 0,
+      h2: dt > 0 ? Math.round(hp * (dInProgress / dt)) : 0,
+      h3: dt > 0 ? Math.round(hp * (dTodo / dt)) : 0,
       label: `${d}`,
       fullLabel: `${d}日`,
-      taskCount: dayTasks.length,
+      taskCount: dt,
     });
   }
-  return bars;
+
+  if (unscheduledMonth > 0) {
+    const usTasks = active.filter((t) => !t.dueDate);
+    const usPct = Math.min(90, Math.round((unscheduledMonth / Math.max(1, maxSlotTotal)) * 80));
+    monthBars.push({
+      h1: unscheduledMonth > 0 ? Math.round(usPct * (usTasks.filter((t) => t.status === 'Done').length / unscheduledMonth)) : 0,
+      h2: unscheduledMonth > 0 ? Math.round(usPct * (usTasks.filter((t) => t.status === 'In progress' || t.status === 'In review').length / unscheduledMonth)) : 0,
+      h3: unscheduledMonth > 0 ? Math.round(usPct * (usTasks.filter((t) => t.status === 'To do').length / unscheduledMonth)) : 0,
+      label: '未排',
+      fullLabel: '未安排日期',
+      taskCount: unscheduledMonth,
+    });
+  }
+
+  return monthBars;
 }
 
 /** 获取对应柱状图时段的真实任务列表 */
 function getBarTasks(tasks: Task[], view: ChartView, barIndex: number): Task[] {
   const active = tasks.filter((t) => t.status !== 'Cancelled');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   if (view === 'day') {
     const cfg = V4.chart.day;
+    const barCount = Math.ceil((V4.timelineEndHour - V4.timelineStartHour) / cfg.groupStep);
+
+    // 全天任务条（最后一个 bar）
+    if (barIndex >= barCount) {
+      return active.filter((t) => {
+        if (t.startTime) return false;
+        if (t.dueDate) {
+          const dd = new Date(t.dueDate);
+          dd.setHours(0, 0, 0, 0);
+          return dd.getTime() === today.getTime();
+        }
+        return false;
+      });
+    }
+
     const h = V4.timelineStartHour + barIndex * cfg.groupStep;
     return active.filter((t) => {
       if (!t.startTime) return false;
@@ -142,27 +298,40 @@ function getBarTasks(tasks: Task[], view: ChartView, barIndex: number): Task[] {
   }
 
   if (view === 'week') {
-    const today = new Date();
     const dayOfWeek = today.getDay() || 7;
     const monday = new Date(today);
     monday.setDate(today.getDate() - (dayOfWeek - 1));
     monday.setHours(0, 0, 0, 0);
+
+    // 未安排条（最后一个 bar）
+    if (barIndex >= 7) {
+      return active.filter((t) => !t.dueDate);
+    }
+
     const d = new Date(monday);
     d.setDate(monday.getDate() + barIndex);
     return active.filter((t) => {
       if (!t.dueDate) return false;
-      return new Date(t.dueDate).toDateString() === d.toDateString();
+      const dd = new Date(t.dueDate);
+      dd.setHours(0, 0, 0, 0);
+      return dd.getTime() === d.getTime();
     });
   }
 
   // month
-  const cfg = V4.chart.month;
-  const today = new Date();
-  const startDay = 1 + barIndex * cfg.groupStep;
+  const mCfg = V4.chart.month;
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const barCount = Math.ceil(daysInMonth / mCfg.groupStep);
+
+  if (barIndex >= barCount) {
+    return active.filter((t) => !t.dueDate);
+  }
+
+  const startDay = 1 + barIndex * mCfg.groupStep;
   return active.filter((t) => {
     if (!t.dueDate) return false;
     const dd = new Date(t.dueDate);
-    return dd.getMonth() === today.getMonth() && dd.getDate() >= startDay && dd.getDate() < startDay + cfg.groupStep;
+    return dd.getFullYear() === today.getFullYear() && dd.getMonth() === today.getMonth() && dd.getDate() >= startDay && dd.getDate() < startDay + mCfg.groupStep;
   });
 }
 
