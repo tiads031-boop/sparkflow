@@ -70,13 +70,15 @@ function extractSkeleton(template: string): string[] {
 export function renderMd(template: string, entries: ContextEntry[]): string {
   const output: string[] = [];
 
-  // 分组条目
+  // 分组条目：按 section + project/folder 分组
   const byProject = new Map<string, ContextEntry[]>();
-  const personalEntries: ContextEntry[] = [];
+  const byFolder = new Map<string, ContextEntry[]>();
 
   for (const e of entries) {
     if (e.section === 'personal') {
-      personalEntries.push(e);
+      const folder = e.project || '__default__';
+      if (!byFolder.has(folder)) byFolder.set(folder, []);
+      byFolder.get(folder)!.push(e);
     } else {
       const proj = e.project || '__default__';
       if (!byProject.has(proj)) byProject.set(proj, []);
@@ -84,7 +86,7 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
     }
   }
 
-  // 项目条目排序：高优先级在前，同优先级按 status（待办在前）
+  // 条目排序：高优先级在前，同优先级按 status（待办在前）
   const sortEntries = (a: ContextEntry, b: ContextEntry) => {
     const pOrder = { high: 0, medium: 1, low: 2 };
     if (pOrder[a.priority] !== pOrder[b.priority]) return pOrder[a.priority] - pOrder[b.priority];
@@ -92,10 +94,8 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
     return 0;
   };
 
-  for (const [, list] of byProject) {
-    list.sort(sortEntries);
-  }
-  personalEntries.sort(sortEntries);
+  for (const [, list] of byProject) list.sort(sortEntries);
+  for (const [, list] of byFolder) list.sort(sortEntries);
 
   // 预扫描模板，判断是否存在 ### 项目标题
   const templateLines = template.split('\n');
@@ -141,6 +141,24 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
       inEntryZone = true;
       projectEntryWritten = true; // 标记项目区已结束
       output.push(rawLine);
+
+      // 若个人待办区无 ### 文件夹标题，动态输出所有文件夹分组
+      if (!hasProjectHeaders && !personalEntryWritten) {
+        for (const [folderName, folderEntries] of byFolder) {
+          if (folderName !== '__default__') {
+            output.push(`### ${folderName}`);
+          }
+          for (const e of folderEntries) {
+            output.push(entryToMdLine(e));
+            for (const note of e.notes) {
+              const mark = note.completed ? '[x]' : '[ ]';
+              output.push(`> ${mark} ${note.text}`);
+            }
+          }
+        }
+        byFolder.clear();
+        personalEntryWritten = true;
+      }
       continue;
     }
 
@@ -151,7 +169,7 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
       continue;
     }
 
-    // 项目标题行
+    // 项目/文件夹标题行
     if (line.startsWith('### ')) {
       const projRaw = line.slice(4).trim();
       const arrowIdx = projRaw.indexOf('←');
@@ -159,7 +177,7 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
 
       output.push(rawLine);
 
-      // 在该项目标题下输出对应条目
+      // 在该项目/文件夹标题下输出对应条目
       if (currentSection === 'project') {
         const projEntries = byProject.get(projName);
         if (projEntries && projEntries.length > 0) {
@@ -170,8 +188,19 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
               output.push(`> ${mark} ${note.text}`);
             }
           }
-          // 标记已输出，防止重复
           byProject.delete(projName);
+        }
+      } else if (currentSection === 'personal') {
+        const folderEntries = byFolder.get(projName);
+        if (folderEntries && folderEntries.length > 0) {
+          for (const e of folderEntries) {
+            output.push(entryToMdLine(e));
+            for (const note of e.notes) {
+              const mark = note.completed ? '[x]' : '[ ]';
+              output.push(`> ${mark} ${note.text}`);
+            }
+          }
+          byFolder.delete(projName);
         }
       }
       continue;
@@ -192,16 +221,17 @@ export function renderMd(template: string, entries: ContextEntry[]): string {
     output.push(rawLine);
   }
 
-  // 追加未输出的个人待办
-  if (personalEntries.length > 0 && !personalEntryWritten) {
-    for (const e of personalEntries) {
-      output.push(entryToMdLine(e));
-      for (const note of e.notes) {
-        const mark = note.completed ? '[x]' : '[ ]';
-        output.push(`> ${mark} ${note.text}`);
+  // 追加未输出的个人文件夹条目（模板缺失文件夹标题的情况）
+  for (const [, folderEntries] of byFolder) {
+    if (folderEntries.length > 0) {
+      for (const e of folderEntries) {
+        output.push(entryToMdLine(e));
+        for (const note of e.notes) {
+          const mark = note.completed ? '[x]' : '[ ]';
+          output.push(`> ${mark} ${note.text}`);
+        }
       }
     }
-    personalEntryWritten = true;
   }
 
   // 追加未输出的项目条目（对应项目中已删除项目标题的情况）

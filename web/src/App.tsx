@@ -202,7 +202,7 @@ export default function App() {
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
   const handleSaveItem = ({
-    id, title, content, context, status, priority, dueDate, column, subtasks,
+    id, title, content, context, status, priority, dueDate, column, subtasks, project,
   }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
 
@@ -225,6 +225,7 @@ export default function App() {
           colorType,
           column: column || 'personal',
           dueDate: normalizedDueDate || undefined,
+          project: project || undefined,
           ...(subtasks !== undefined ? { subtasks } : {}),
         });
       } else {
@@ -239,6 +240,7 @@ export default function App() {
           subtasks: content ? [{ id: String(Date.now() + 1), title: content, completed: false }] : [],
           column: column || 'personal' as const,
           dueDate: normalizedDueDate,
+          project: project || undefined,
         };
         addTask(newTask);
         setActiveTab('tasks');

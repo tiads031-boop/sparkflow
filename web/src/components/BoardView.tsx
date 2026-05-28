@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Task } from '../store/appStore';
 import { useAppStore } from '../store/appStore';
-import { Clock, GripVertical, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  Clock, GripVertical, Plus, ChevronDown, ChevronRight,
+  FolderPlus, X, Tag,
+} from 'lucide-react';
 
 interface BoardViewProps {
   tasks: Task[];
@@ -24,13 +27,24 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
   const addTask = useAppStore((s) => s.addTask);
   const [quickTitle, setQuickTitle] = useState('');
   const [quickColumn, setQuickColumn] = useState<'project' | 'personal'>('personal');
+  const [quickFolder, setQuickFolder] = useState('');
+  const [showFolderInput, setShowFolderInput] = useState(false);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
-  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [newFolderCol, setNewFolderCol] = useState<'project' | 'personal' | null>(null);
+  const [newFolderName, setNewFolderName] = useState('');
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const columns = ['project', 'personal'] as const;
 
   const activeTasks = tasks.filter((t) => t.status !== 'Done' && t.status !== 'Cancelled');
+
+  useEffect(() => {
+    if (newFolderCol && folderInputRef.current) {
+      folderInputRef.current.focus();
+    }
+  }, [newFolderCol]);
 
   const handleDragStart = (taskId: string) => {
     setDragTaskId(taskId);
@@ -57,31 +71,55 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
       comments: 0,
       subtasks: [],
       column: quickColumn,
+      project: quickFolder.trim() || undefined,
     });
     setQuickTitle('');
+    setQuickFolder('');
+  };
+
+  const handleCreateFolder = (column: 'project' | 'personal') => {
+    if (!newFolderName.trim()) {
+      setNewFolderCol(null);
+      return;
+    }
+    // 创建一个空文件夹：添加一个占位任务，用户可以在里面添加真实任务
+    const taskColors = ['dark', 'green', 'purple'] as const;
+    addTask({
+      id: String(Date.now()),
+      title: '（新建文件夹）',
+      time: 'Just now',
+      status: 'To do',
+      priority: 'Low',
+      colorType: taskColors[Math.floor(Math.random() * taskColors.length)],
+      comments: 0,
+      subtasks: [],
+      column,
+      project: newFolderName.trim(),
+    });
+    setNewFolderName('');
+    setNewFolderCol(null);
   };
 
   const statusLabel = (s: string) =>
     s === 'In progress' ? '进行中' : s === 'In review' ? '审核中' : s === 'To do' ? '待处理' : s;
 
-  const toggleProject = (project: string) => {
-    setCollapsedProjects((prev) => {
+  const toggleGroup = (group: string) => {
+    setCollapsedGroups((prev) => {
       const next = new Set(prev);
-      if (next.has(project)) next.delete(project);
-      else next.add(project);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
       return next;
     });
   };
 
-  // 按项目名分组，按优先级排序
-  const groupByProject = (colTasks: Task[]) => {
+  // 按 folder/project 分组，按优先级排序
+  const groupByFolder = (colTasks: Task[]) => {
     const groups = new Map<string, Task[]>();
     for (const t of colTasks) {
-      const proj = t.project?.trim() || '其他';
-      if (!groups.has(proj)) groups.set(proj, []);
-      groups.get(proj)!.push(t);
+      const folder = t.project?.trim() || '其他';
+      if (!groups.has(folder)) groups.set(folder, []);
+      groups.get(folder)!.push(t);
     }
-    // 每个组内按优先级排序：P0 > P1 > P2
     const pOrder = { 'High Priority': 0, 'Medium': 1, 'Low': 2 };
     for (const [, list] of groups) {
       list.sort((a, b) => pOrder[a.priority] - pOrder[b.priority]);
@@ -99,30 +137,55 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
       </div>
 
       {/* Quick add */}
-      <div className="flex gap-2 mb-5">
-        <input
-          type="text"
-          value={quickTitle}
-          onChange={(e) => setQuickTitle(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
-          placeholder="快速添加任务..."
-          className="flex-1 px-4 py-2.5 rounded-full text-sm bg-white border border-gray-100 focus:outline-none focus:border-[#b0a8db] focus:ring-2 focus:ring-[#b0a8db]/20 transition-all placeholder:text-gray-300"
-        />
-        <select
-          value={quickColumn}
-          onChange={(e) => setQuickColumn(e.target.value as 'project' | 'personal')}
-          className="px-3 py-2.5 rounded-full text-xs bg-white border border-gray-100 text-[#242424] focus:outline-none"
-        >
-          <option value="personal">个人</option>
-          <option value="project">项目</option>
-        </select>
-        <button
-          onClick={handleQuickAdd}
-          disabled={!quickTitle.trim()}
-          className="w-10 h-10 rounded-full bg-[#242424] text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-30"
-        >
-          <Plus size={18} />
-        </button>
+      <div className="space-y-2 mb-5">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={quickTitle}
+            onChange={(e) => setQuickTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+            placeholder="快速添加任务..."
+            className="flex-1 px-4 py-2.5 rounded-full text-sm bg-white border border-gray-100 focus:outline-none focus:border-[#b0a8db] focus:ring-2 focus:ring-[#b0a8db]/20 transition-all placeholder:text-gray-300"
+          />
+          <select
+            value={quickColumn}
+            onChange={(e) => setQuickColumn(e.target.value as 'project' | 'personal')}
+            className="px-3 py-2.5 rounded-full text-xs bg-white border border-gray-100 text-[#242424] focus:outline-none"
+          >
+            <option value="personal">个人</option>
+            <option value="project">项目</option>
+          </select>
+          <button
+            onClick={() => setShowFolderInput(!showFolderInput)}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+              showFolderInput
+                ? 'bg-[#b0a8db] text-white'
+                : 'bg-white border border-gray-100 text-gray-400 hover:text-[#242424]'
+            }`}
+            title="指定文件夹"
+          >
+            <Tag size={16} />
+          </button>
+          <button
+            onClick={handleQuickAdd}
+            disabled={!quickTitle.trim()}
+            className="w-10 h-10 rounded-full bg-[#242424] text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-30"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+        {showFolderInput && (
+          <div className="flex gap-2 animate-in fade-in">
+            <input
+              type="text"
+              value={quickFolder}
+              onChange={(e) => setQuickFolder(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+              placeholder={`${quickColumn === 'project' ? '项目名称' : '文件夹名称'}（可选）`}
+              className="flex-1 px-4 py-2 rounded-full text-xs bg-white border border-gray-100 focus:outline-none focus:border-[#b0a8db] transition-all placeholder:text-gray-300"
+            />
+          </div>
+        )}
       </div>
 
       {/* Two columns */}
@@ -130,43 +193,8 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
         {columns.map((col) => {
           const colTasks = activeTasks.filter((t) => (t.column || 'personal') === col);
           const meta = columnMeta[col];
-
-          // 个人待办列保持原有渲染
-          if (col === 'personal') {
-            return (
-              <div
-                key={col}
-                onDragOver={(e) => { e.preventDefault(); setDragOverCol(col); }}
-                onDragLeave={() => setDragOverCol(null)}
-                onDrop={() => handleDrop(col)}
-                className={`rounded-2xl p-3 min-h-[200px] transition-all ${
-                  dragOverCol === col ? 'ring-2 ring-[#cae393] bg-[#cae393]/5' : meta.bg
-                }`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
-                    <h3 className="text-sm font-bold text-[#242424]">{meta.title}</h3>
-                  </div>
-                  <span className="text-xs text-gray-400">{colTasks.length}</span>
-                </div>
-
-                <div className="space-y-2">
-                  {colTasks.map((task) => (
-                    <TaskCard key={task.id} task={task} dragTaskId={dragTaskId} onDragStart={handleDragStart} onTaskClick={onTaskClick} />
-                  ))}
-                  {colTasks.length === 0 && (
-                    <p className="text-center text-xs text-gray-300 py-6">拖拽任务到此处</p>
-                  )}
-                </div>
-              </div>
-            );
-          }
-
-          // 项目待办列：按项目分组
-          const projectGroups = groupByProject(colTasks);
-          const sortedProjects = Array.from(projectGroups.entries()).sort((a, b) => {
-            // "其他" 放最后
+          const folderGroups = groupByFolder(colTasks);
+          const sortedGroups = Array.from(folderGroups.entries()).sort((a, b) => {
             if (a[0] === '其他') return 1;
             if (b[0] === '其他') return -1;
             return a[0].localeCompare(b[0]);
@@ -179,7 +207,9 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
               onDragLeave={() => setDragOverCol(null)}
               onDrop={() => handleDrop(col)}
               className={`rounded-2xl p-3 min-h-[200px] transition-all ${
-                dragOverCol === col ? 'ring-2 ring-[#b0a8db] bg-[#b0a8db]/5' : meta.bg
+                dragOverCol === col
+                  ? `ring-2 ${col === 'project' ? 'ring-[#b0a8db] bg-[#b0a8db]/5' : 'ring-[#cae393] bg-[#cae393]/5'}`
+                  : meta.bg
               }`}
             >
               <div className="flex items-center justify-between mb-3">
@@ -187,91 +217,102 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
                   <h3 className="text-sm font-bold text-[#242424]">{meta.title}</h3>
                 </div>
-                <span className="text-xs text-gray-400">{colTasks.length}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-400">{colTasks.length}</span>
+                  <button
+                    onClick={() => setNewFolderCol(col)}
+                    className="w-6 h-6 rounded-full bg-white/60 hover:bg-white flex items-center justify-center text-gray-400 hover:text-[#242424] transition-all"
+                    title="创建文件夹"
+                  >
+                    <FolderPlus size={12} />
+                  </button>
+                </div>
               </div>
 
+              {/* 新建文件夹输入 */}
+              {newFolderCol === col && (
+                <div className="flex gap-2 mb-3 animate-in fade-in">
+                  <input
+                    ref={folderInputRef}
+                    type="text"
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateFolder(col);
+                      if (e.key === 'Escape') setNewFolderCol(null);
+                    }}
+                    placeholder={`新建${col === 'project' ? '项目' : '文件夹'}名称...`}
+                    className="flex-1 px-3 py-1.5 rounded-lg text-xs bg-white border border-gray-100 focus:outline-none focus:border-[#b0a8db] transition-all placeholder:text-gray-300"
+                  />
+                  <button
+                    onClick={() => handleCreateFolder(col)}
+                    className="px-2.5 py-1.5 rounded-lg text-xs bg-[#242424] text-white hover:bg-[#333] transition-colors"
+                  >
+                    创建
+                  </button>
+                  <button
+                    onClick={() => { setNewFolderCol(null); setNewFolderName(''); }}
+                    className="px-2 py-1.5 rounded-lg text-xs text-gray-400 hover:text-[#242424] transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
               <div className="space-y-2.5">
-                {sortedProjects.map(([project, projTasks]) => {
-                  const isCollapsed = collapsedProjects.has(project);
-                  const badge = project;
+                {sortedGroups.map(([groupName, groupTasks]) => {
+                  const isCollapsed = collapsedGroups.has(groupName);
+                  const isDefault = groupName === '其他';
                   return (
-                    <div key={project} className="rounded-xl overflow-hidden border border-gray-100/60 bg-white/80 backdrop-blur-sm">
-                      {/* 项目标题栏（主任务） */}
+                    <div
+                      key={groupName}
+                      className={`rounded-xl overflow-hidden ${
+                        isDefault
+                          ? ''
+                          : 'border border-gray-100/60 bg-white/80 backdrop-blur-sm'
+                      }`}
+                    >
+                      {/* 文件夹/项目标题栏 */}
                       <button
-                        onClick={() => toggleProject(project)}
-                        className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                        onClick={() => toggleGroup(groupName)}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 transition-colors ${
+                          isDefault ? 'py-0 mb-2' : 'hover:bg-gray-50'
+                        }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          {isCollapsed ? (
-                            <ChevronRight size={14} className="text-gray-400 flex-shrink-0" />
-                          ) : (
-                            <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
+                          {!isDefault && (
+                            isCollapsed ? (
+                              <ChevronRight size={14} className="text-gray-400 flex-shrink-0" />
+                            ) : (
+                              <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
+                            )
                           )}
-                          <span className="text-xs font-bold text-[#242424] truncate">{badge}</span>
+                          <span className={`truncate ${
+                            isDefault
+                              ? 'text-[10px] text-gray-300 uppercase tracking-wider'
+                              : 'text-xs font-bold text-[#242424]'
+                          }`}>
+                            {isDefault ? '未分组' : groupName}
+                          </span>
                         </div>
-                        <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
-                          {projTasks.length}
-                        </span>
+                        {!isDefault && (
+                          <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
+                            {groupTasks.length}
+                          </span>
+                        )}
                       </button>
 
                       {/* 子任务列表 */}
-                      {!isCollapsed && (
-                        <div className="px-2 pb-2 space-y-1.5">
-                          {projTasks.map((task) => (
-                            <div
+                      {(!isCollapsed || isDefault) && (
+                        <div className={`space-y-1.5 ${isDefault ? '' : 'px-2 pb-2'}`}>
+                          {groupTasks.map((task) => (
+                            <TaskCard
                               key={task.id}
-                              draggable
-                              onDragStart={() => handleDragStart(task.id)}
-                              onClick={() => onTaskClick(task)}
-                              className={`rounded-lg p-2.5 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-sm ${
-                                task.colorType === 'dark'
-                                  ? 'bg-[#242424] text-white'
-                                  : task.colorType === 'green'
-                                    ? 'bg-[#cae393] text-[#242424]'
-                                    : 'bg-white text-[#242424] border border-gray-100'
-                              } ${dragTaskId === task.id ? 'opacity-50 scale-95' : ''}`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <GripVertical size={11} className="mt-0.5 opacity-20 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-start gap-1.5 mb-1.5">
-                                    <span
-                                      className={`text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0 ${
-                                        priorityBadge(task.priority).bg
-                                      } ${priorityBadge(task.priority).text}`}
-                                    >
-                                      {priorityBadge(task.priority).label}
-                                    </span>
-                                    <p className="text-[11px] font-semibold leading-snug mt-0.5">{task.title}</p>
-                                  </div>
-                                  {task.description && (
-                                    <p className="text-[10px] opacity-60 leading-snug ml-[22px]">{task.description}</p>
-                                  )}
-                                  <div className="flex items-center gap-2 mt-1.5 ml-[22px]">
-                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-black/5 opacity-70">
-                                      {statusLabel(task.status)}
-                                    </span>
-                                    {task.subtasks.length > 0 && (
-                                      <div className="flex items-center gap-1 flex-1">
-                                        <div className="flex-1 h-1 rounded-full bg-black/10 overflow-hidden max-w-[60px]">
-                                          <div
-                                            className="h-full rounded-full bg-current opacity-40"
-                                            style={{
-                                              width: `${Math.round(
-                                                (task.subtasks.filter((s) => s.completed).length / task.subtasks.length) * 100
-                                              )}%`,
-                                            }}
-                                          />
-                                        </div>
-                                        <span className="text-[9px] opacity-50">
-                                          {task.subtasks.filter((s) => s.completed).length}/{task.subtasks.length}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                              task={task}
+                              dragTaskId={dragTaskId}
+                              onDragStart={handleDragStart}
+                              onTaskClick={onTaskClick}
+                            />
                           ))}
                         </div>
                       )}
@@ -306,7 +347,7 @@ function TaskCard({
       draggable
       onDragStart={() => onDragStart(task.id)}
       onClick={() => onTaskClick(task)}
-      className={`rounded-xl p-3 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md ${
+      className={`rounded-lg p-2.5 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-sm ${
         task.colorType === 'dark'
           ? 'bg-[#242424] text-white'
           : task.colorType === 'green'
@@ -315,9 +356,9 @@ function TaskCard({
       } ${dragTaskId === task.id ? 'opacity-50 scale-95' : ''}`}
     >
       <div className="flex items-start gap-2">
-        <GripVertical size={12} className="mt-0.5 opacity-30 flex-shrink-0" />
+        <GripVertical size={11} className="mt-0.5 opacity-20 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-1.5">
+          <div className="flex items-start gap-1.5 mb-1.5">
             <span
               className={`text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0 ${
                 priorityBadge(task.priority).bg
@@ -325,36 +366,33 @@ function TaskCard({
             >
               {priorityBadge(task.priority).label}
             </span>
-            <p className="text-xs font-semibold leading-snug">{task.title}</p>
+            <p className="text-[11px] font-semibold leading-snug mt-0.5">{task.title}</p>
           </div>
-          <div className="flex items-center gap-2">
-            {task.time && (
-              <span className="flex items-center gap-1 text-[10px] opacity-60">
-                <Clock size={10} />
-                {task.time}
-              </span>
-            )}
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-black/5 opacity-60">
+          {task.description && (
+            <p className="text-[10px] opacity-60 leading-snug ml-[22px]">{task.description}</p>
+          )}
+          <div className="flex items-center gap-2 mt-1.5 ml-[22px]">
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-black/5 opacity-70">
               {'待处理'}
             </span>
-          </div>
-          {task.subtasks.length > 0 && (
-            <div className="mt-2 flex items-center gap-1.5">
-              <div className="flex-1 h-1 rounded-full bg-black/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-current opacity-40"
-                  style={{
-                    width: `${Math.round(
-                      (task.subtasks.filter((s) => s.completed).length / task.subtasks.length) * 100
-                    )}%`,
-                  }}
-                />
+            {task.subtasks.length > 0 && (
+              <div className="flex items-center gap-1 flex-1">
+                <div className="flex-1 h-1 rounded-full bg-black/10 overflow-hidden max-w-[60px]">
+                  <div
+                    className="h-full rounded-full bg-current opacity-40"
+                    style={{
+                      width: `${Math.round(
+                        (task.subtasks.filter((s) => s.completed).length / task.subtasks.length) * 100
+                      )}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-[9px] opacity-50">
+                  {task.subtasks.filter((s) => s.completed).length}/{task.subtasks.length}
+                </span>
               </div>
-              <span className="text-[10px] opacity-50">
-                {task.subtasks.filter((s) => s.completed).length}/{task.subtasks.length}
-              </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

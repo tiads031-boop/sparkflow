@@ -266,11 +266,11 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         </div>
       </div>
 
-      {/* Column + Due Date row */}
+      {/* Column + Folder row */}
       <div className="flex gap-3 mb-3">
         <div className="flex-1">
           <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">分类</span>
-          <div className="flex gap-1">
+          <div className="flex gap-1 mb-2">
             {(['project', 'personal'] as const).map((c) => (
               <button
                 key={c}
@@ -285,6 +285,13 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
               </button>
             ))}
           </div>
+          <input
+            type="text"
+            value={folder}
+            onChange={(e) => setFolder(e.target.value)}
+            placeholder={column === 'project' ? '项目名称（可选）' : '文件夹名称（可选）'}
+            className="w-full bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50 placeholder:text-white/20 transition-all"
+          />
         </div>
       </div>
 
@@ -638,7 +645,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
 
                 <div>
                   <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">分类</span>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 mb-2">
                     {(['project', 'personal'] as const).map((c) => (
                       <button
                         key={c}
@@ -653,6 +660,13 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                       </button>
                     ))}
                   </div>
+                  <input
+                    type="text"
+                    value={folder}
+                    onChange={(e) => setFolder(e.target.value)}
+                    placeholder={column === 'project' ? '项目名称（可选）' : '文件夹名称（可选）'}
+                    className="w-full bg-white/10 text-white text-[11px] px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50 placeholder:text-white/20 transition-all"
+                  />
                 </div>
 
                 <div>
