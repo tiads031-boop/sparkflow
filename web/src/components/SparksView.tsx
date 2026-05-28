@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { Spark } from '../store/appStore';
 import { Zap, MoreHorizontal, LayoutGrid, Plus } from 'lucide-react';
 
@@ -12,6 +12,20 @@ interface SparksViewProps {
 export default function SparksView({ sparks, setSparks, onSparkClick, onAddClick }: SparksViewProps) {
   const [dragId, setDragId] = useState<string | null>(null);
   const dragInfo = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [bounds, setBounds] = useState({ width: 375, height: 500 });
+
+  useEffect(() => {
+    const updateBounds = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setBounds({ width: rect.width, height: rect.height });
+      }
+    };
+    updateBounds();
+    window.addEventListener('resize', updateBounds);
+    return () => window.removeEventListener('resize', updateBounds);
+  }, []);
 
   const handlePointerDown = (e: React.PointerEvent, spark: Spark) => {
     e.stopPropagation();
@@ -37,7 +51,7 @@ export default function SparksView({ sparks, setSparks, onSparkClick, onAddClick
           return {
             ...s,
             pos: {
-              x: Math.max(0, Math.min(220, dragInfo.current.initialX + dx)),
+              x: Math.max(0, Math.min(bounds.width - (s.size || 160), dragInfo.current.initialX + dx)),
               y: Math.max(0, dragInfo.current.initialY + dy),
             },
           };
@@ -52,9 +66,10 @@ export default function SparksView({ sparks, setSparks, onSparkClick, onAddClick
   const handleAutoArrange = () => {
     let yLeft = 10;
     let yRight = 10;
+    const colWidth = Math.max(160, bounds.width / 2 - 15);
     const updated = sparks.map((s, idx) => {
       const isLeft = idx % 2 === 0;
-      const x = isLeft ? 10 : 180;
+      const x = isLeft ? 10 : bounds.width - colWidth - 10;
       const y = isLeft ? yLeft : yRight;
       if (isLeft) yLeft += 160;
       else yRight += 160;
@@ -89,6 +104,7 @@ export default function SparksView({ sparks, setSparks, onSparkClick, onAddClick
       </div>
 
       <div
+        ref={containerRef}
         className="relative flex-1 w-full min-h-[500px]"
         style={{ height: maxBoardHeight + 'px' }}
       >

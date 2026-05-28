@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { Task } from '../store/appStore';
 import { useAppStore } from '../store/appStore';
 import {
-  Clock, GripVertical, Plus, ChevronDown, ChevronRight,
+  GripVertical, Plus, ChevronDown, ChevronRight,
   FolderPlus, X, Tag,
 } from 'lucide-react';
 
@@ -99,9 +99,6 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
     setNewFolderName('');
     setNewFolderCol(null);
   };
-
-  const statusLabel = (s: string) =>
-    s === 'In progress' ? '进行中' : s === 'In review' ? '审核中' : s === 'To do' ? '待处理' : s;
 
   const toggleGroup = (group: string) => {
     setCollapsedGroups((prev) => {

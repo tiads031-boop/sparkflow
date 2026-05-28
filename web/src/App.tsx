@@ -116,7 +116,7 @@ function BottomNav({
   setActiveTab: (tab: 'dashboard' | 'tasks' | 'board' | 'calendar' | 'sparks') => void;
 }) {
   return (
-    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-[#242424] rounded-full px-1.5 py-1.5 flex items-center gap-1 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-40">
+    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#242424] rounded-full px-1.5 py-1.5 flex items-center gap-1 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-40">
       {navItems.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
@@ -273,7 +273,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen font-sans bg-black/90 flex justify-center items-center p-2 sm:p-4">
+    <div className="min-h-svh font-sans bg-[#f4f4f6] flex justify-center">
       {/* CSS custom properties injection */}
       <style>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -293,8 +293,8 @@ export default function App() {
         .task-block { transition: box-shadow 0.2s, transform 0.1s; }
       `}</style>
 
-      {/* Phone frame */}
-      <div className="w-full max-w-md h-[92svh] sm:h-[850px] relative shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-[#f4f4f6] overflow-hidden rounded-[2.5rem] border-[6px] border-[#333] flex flex-col">
+      {/* App container (removed phone frame, full-screen adaptive) */}
+      <div className="w-full h-svh flex flex-col overflow-hidden sm:max-w-lg sm:mx-auto">
         {/* Header */}
         <div className="px-5 pt-5 pb-0 relative z-20">
           <Header

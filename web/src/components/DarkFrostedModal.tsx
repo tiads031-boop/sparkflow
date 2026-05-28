@@ -23,6 +23,7 @@ export interface SaveParams {
   dueDate?: string;
   column?: 'project' | 'personal';
   subtasks?: Subtask[];
+  project?: string;
 }
 
 interface Props {
@@ -51,6 +52,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [dueDate, setDueDate] = useState('');
   const [column, setColumn] = useState<'project' | 'personal'>('personal');
+  const [folder, setFolder] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // ---- subtask state (edit mode only) ----
@@ -85,6 +87,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setPriority('Medium');
         setDueDate('');
         setColumn('personal');
+        setFolder('');
         setHasDueDate(false);
       } else if (config.data) {
         const hasExistingDueDate = !!config.data.dueDate;
@@ -104,6 +107,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setPriority(config.data.priority || 'Medium');
         setDueDate(localDueDate);
         setColumn(config.data.column || 'personal');
+        setFolder(config.data.project || '');
         setSubtasks(config.data.subtasks || []);
         setHasDueDate(hasExistingDueDate);
       }
@@ -127,6 +131,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       priority: isTask ? priority : undefined,
       dueDate: isTask ? (hasDueDate && dueDate ? dueDate : undefined) : undefined,
       column: isTask ? column : undefined,
+      project: isTask ? (folder || undefined) : undefined,
       subtasks: isTask && !isCreate ? subtasks : undefined,
     };
     onSave(saveParams);
