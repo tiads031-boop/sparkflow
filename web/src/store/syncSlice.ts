@@ -9,7 +9,7 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from './index';
 import type { ContextEntry, SyncConflict, Task } from '../types';
-import { apiRequest, DEFAULT_USER_ID } from '../api/client';
+import { apiRequest } from '../api/client';
 import { entriesToTasks, tasksToEntries } from './mapping';
 
 export interface SyncSlice {

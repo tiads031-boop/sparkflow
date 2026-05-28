@@ -6,7 +6,7 @@
  */
 import type { StateCreator } from 'zustand';
 import type { AppState } from './index';
-import { apiRequest, DEFAULT_USER_ID } from '../api/client';
+import { apiRequest } from '../api/client';
 
 export interface PushSlice {
   /** 当前是否已订阅 */
@@ -19,7 +19,7 @@ export interface PushSlice {
 }
 
 /** VAPID 公钥 Base64 URL-safe → Uint8Array */
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
+function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = atob(base64);
@@ -27,7 +27,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
-  return outputArray;
+  return outputArray as Uint8Array<ArrayBuffer>;
 }
 
 export const createPushSlice: StateCreator<AppState, [], [], PushSlice> = (set) => ({
