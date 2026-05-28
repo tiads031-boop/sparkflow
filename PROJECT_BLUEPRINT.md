@@ -38,6 +38,8 @@ sparkflow 原本是一个灵感记录与任务管理应用，`sparkflow-api`（N
 | 19 | 项目分组展示 | BoardView 项目待办列按 `project` 字段分组渲染，项目名作为可折叠区块 | 前端纯展示层改动，不改 md 协议；P0/P1/P2 优先级徽章直接显示在子任务卡片上 |
 | 20 | 个人文件夹分组 | `## 个人待办` 下支持 `### folder-name` 分组，个人任务也可按文件夹组织 | 统一两列的交互模式：项目/个人都支持用户创建文件夹、拖拽归类、折叠展开 |
 | 21 | 文件夹创建 UI | BoardView 列头 FolderPlus 按钮 + 即时输入框创建新文件夹/项目 | 零弹窗、零模态层，输入即创建，体验轻量；创建后自动展开新文件夹 |
+| 22 | **架构 B：Supabase 为主存储** | 移除 Render 文件系统依赖，ContextBridge read/write 直接操作 Supabase Task 表；CURRENT_CONTEXT.md 降级为本地 AI 可读副本 | Render 免费层容器重启后文件系统重置，导致数据丢失；Supabase PostgreSQL 持久化，重启后数据完整保留 |
+| 23 | Task 表扩展 | 新增 `column`（'project' \| 'personal'）、`project`（folder 名）、`notes`（子任务 JSON）字段 | 支撑 Supabase 主存储方案，完整保存看板元数据 |
 | 22 | 任务编辑 folder 字段 | DarkFrostedModal 编辑/创建表单新增 folder 输入框 | 用户可手动指定任务归属的文件夹/项目，覆盖自动分组结果 |
 | 23 | **前端移除手机框** | 去掉拟物化手机外壳，改为移动端全屏 + 桌面端 `sm:max-w-lg` 居中 | PWA 应用体验，不再被手机框限制；安卓为主的使用场景无需安全区适配 |
 | 24 | **SparksView 拖拽边界动态化** | `useRef` + `window resize` 监听读取容器宽度，替代硬编码 `220px` | 去掉手机框后灵感墙自适应任何容器宽度 |
@@ -339,6 +341,20 @@ PWA → POST /api/context/write (mtime + 变更)
   - 个人待办列保持原有卡片样式
 - **Task 类型扩展**：新增 `project?: string` 字段，`entriesToTasks` / `tasksToEntries` 双向映射
 - **蓝图更新**：新增决策点 #18（skipDone 同步策略）、#19（项目分组展示）
+
+### 2026-05-28（架构 B：Supabase 为主存储）
+- **架构重构**：Render 文件系统不可靠（免费层容器重启后数据清零）→ 改为 Supabase PostgreSQL 为主存储
+  - Prisma schema：Task 表新增 `column`（'project' | 'personal'，默认 'personal'）、`project`（folder/项目名）、`notes`（子任务 JSONB，默认 `[]`）
+  - Migration：`20260528023113_add_column_project_notes` 已生成并应用（本地 + Render 部署时自动执行）
+  - `ContextBridgeService.read()`：从 Supabase Task 表读取，按 column → project → priority → createdAt 排序，组装 `ContextEntry[]`
+  - `ContextBridgeService.write()`：`deleteMany` 清理旧数据 + `create` 批量创建，事务级原子覆盖
+  - `ContextBridgeService.forceWrite()`：同上，供 sync-push-raw 调用
+  - `ContextBridgeService` 保留 `readLocalMd()` / `writeLocalMd()`：供本地 AI 副本读写，Render 上不再依赖文件系统
+  - `ContextBridgeController`：所有端点改为 async，适配 Supabase 异步读取；`GET /context/raw` 改为从 Supabase 渲染后返回，支持 pull 重建本地 md
+- **数据验证**：push 24 条活跃条目到 Supabase，column/project 字段全部正确写入；Render 休眠后唤醒，24 条数据完整保留（✅ 持久化验证通过）
+- **同步脚本**：`sync-context.cjs` 无需修改，push 走 `sync-push-raw`（base64 + skipDone），pull 走 `raw`（已从 Supabase 渲染），双向流程正常工作
+- **蓝图更新**：新增决策点 #22（架构 B）、#23（Task 表扩展字段）
+- **部署状态**：Render 已部署（`6be617b`），Vercel 自动构建中
 
 ### 2026-05-28（个人/项目统一分组 + 文件夹创建）
 - **两列统一分组**：项目待办列和个人待办列都使用相同的 GroupedColumn 渲染逻辑
