@@ -34,7 +34,7 @@ export class ContextBridgeService {
     const tasks = await this.prisma.task.findMany({
       where: { userId: this.defaultUserId },
       orderBy: [
-        { column: 'asc' },
+        { section: 'asc' },
         { project: 'asc' },
         { priority: 'desc' },
         { createdAt: 'asc' },
@@ -50,7 +50,7 @@ export class ContextBridgeService {
         description: t.description || '',
         status: (t.status as ContextEntry['status']) || 'todo',
         priority: (t.priority as ContextEntry['priority']) || 'low',
-        section: (t.column as 'project' | 'personal') || 'personal',
+        section: (t.section as 'project' | 'personal') || 'personal',
         project: t.project || '',
         notes,
         rawLine: '',
@@ -64,21 +64,31 @@ export class ContextBridgeService {
     return { entries, mtime: Date.now() };
   }
 
-  /** 写入 Supabase（覆盖模式）：清理旧数据 + 批量创建 */
+  /** 写入 Supabase（upsert 模式）：按 contextMdHash 逐条 upsert，清理孤立条目 */
   async write(req: ContextWriteRequest): Promise<ContextWriteResponse | ContextConflictResponse> {
-    // Supabase 写入无冲突检测（数据库事务天然原子）
-    // 但为了保持 API 兼容性，仍然比较 mtime（虽然意义已不大）
-    const currentDoc = await this.read();
 
-    // 删除该用户下所有现有 tasks
-    await this.prisma.task.deleteMany({
-      where: { userId: this.defaultUserId },
-    });
-
-    // 批量创建新 entries
+    // 逐条 upsert：存在则只更新 Protocol 字段，不存在则创建（含 DB 字段默认值）
+    const entryHashes = new Set<string>();
     for (const entry of req.entries) {
-      await this.prisma.task.create({
-        data: {
+      entryHashes.add(entry.hash);
+      await this.prisma.task.upsert({
+        where: {
+          contextMdHash_userId: {
+            contextMdHash: entry.hash,
+            userId: this.defaultUserId,
+          },
+        },
+        update: {
+          title: entry.title,
+          description: entry.description,
+          status: entry.status,
+          priority: entry.priority,
+          dueDate: entry.dueDate ? new Date(entry.dueDate) : null,
+          section: entry.section,
+          project: entry.project || null,
+          notes: entry.notes as any,
+        },
+        create: {
           userId: this.defaultUserId,
           contextMdHash: entry.hash,
           title: entry.title,
@@ -86,43 +96,53 @@ export class ContextBridgeService {
           status: entry.status,
           priority: entry.priority,
           dueDate: entry.dueDate ? new Date(entry.dueDate) : null,
-          column: entry.section,
+          section: entry.section,
           project: entry.project || null,
           notes: entry.notes as any,
           tags: [],
         },
       });
+    }
+
+    // 清理孤立条目：DB 中存在但 entries 中已移除的 task
+    // contextMdHash 为 null 的条目永不被清理
+    const allMdTasks = await this.prisma.task.findMany({
+      where: { userId: this.defaultUserId, contextMdHash: { not: null } },
+      select: { id: true, contextMdHash: true },
+    });
+
+    for (const t of allMdTasks) {
+      if (entryHashes.has(t.contextMdHash!)) continue;
+
+      // 检查关联：有 pomodoro 或 calendar 记录的软删除，无关联的硬删除
+      const orphan = await this.prisma.task.findUnique({
+        where: { id: t.id },
+        include: { pomodoroSessions: true, calendarEvents: true },
+      });
+      if (!orphan) continue;
+
+      const hasAssociations =
+        orphan.pomodoroSessions.length > 0 || orphan.calendarEvents.length > 0;
+
+      if (hasAssociations) {
+        // 软删除：设 status='cancelled'
+        await this.prisma.task.update({
+          where: { id: t.id },
+          data: { status: 'cancelled' },
+        });
+      } else {
+        // 硬删除
+        await this.prisma.task.delete({ where: { id: t.id } });
+      }
     }
 
     const doc = await this.read();
     return { success: true, entries: doc.entries, mtime: doc.mtime };
   }
 
-  /** 强制写入（忽略冲突） */
+  /** 强制写入（忽略冲突），复用 write() 的 upsert 逻辑 */
   async forceWrite(entries: ContextEntry[]): Promise<ContextWriteResponse> {
-    await this.prisma.task.deleteMany({
-      where: { userId: this.defaultUserId },
-    });
-
-    for (const entry of entries) {
-      await this.prisma.task.create({
-        data: {
-          userId: this.defaultUserId,
-          contextMdHash: entry.hash,
-          title: entry.title,
-          description: entry.description,
-          status: entry.status,
-          priority: entry.priority,
-          dueDate: entry.dueDate ? new Date(entry.dueDate) : null,
-          column: entry.section,
-          project: entry.project || null,
-          notes: entry.notes as any,
-          tags: [],
-        },
-      });
-    }
-
-    return this.read() as Promise<ContextWriteResponse>;
+    return this.write({ entries, lastKnownMtime: 0 }) as Promise<ContextWriteResponse>;
   }
 
   /** 解析原始 md 文本（供 sync-push-raw 等使用） */

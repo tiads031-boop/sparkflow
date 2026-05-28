@@ -55,28 +55,35 @@ model Inspiration {
 }
 
 model Task {
-  id              String    @id @default(uuid())
-  userId          String
-  inspirationId   String?   @unique
+  // ════════════════════════════════════════════════════
+  // Protocol fields (sync to md, upsert 时覆盖)
+  // ════════════════════════════════════════════════════
+  contextMdHash   String?
   title           String
   description     String?
   status          String    @default("todo")
   priority        String    @default("medium")
+  section         String?   @default("personal")  // RENAMED from 'column'
+  project         String?
+  notes           Json?     @default("[]")
+  dueDate         DateTime?
+
+  // ════════════════════════════════════════════════════
+  // DB-only fields (never touched by md sync)
+  // ════════════════════════════════════════════════════
+  id              String    @id @default(uuid())
+  userId          String
+  inspirationId   String?   @unique
   estimatedMinutes Int?
   scheduledStart  DateTime?
   scheduledEnd    DateTime?
-  dueDate         DateTime?
   tags            String[]
-  contextMdHash   String?    // 关联 CURRENT_CONTEXT.md 条目（标题标准化 SHA256 前8位）
-  column          String?   @default("personal")  // 'project' | 'personal'
-  project         String?                      // folder / 项目名称
-  notes           Json?     @default("[]")     // 子任务列表 [{text, completed}]
   aiFeasibility   Json?
+  courseId        String?
   createdAt       DateTime  @default(now())
   completedAt     DateTime?
   updatedAt       DateTime  @updatedAt
 
-  courseId        String?
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   pomodoroSessions PomodoroSession[]
   calendarEvents  CalendarEvent[]
@@ -87,6 +94,7 @@ model Task {
   @@index([status])
   @@index([dueDate])
   @@index([courseId])
+  @@unique([contextMdHash, userId])
   @@map("tasks")
 }
 

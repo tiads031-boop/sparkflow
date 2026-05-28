@@ -26,7 +26,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
   const updateTask = useAppStore((s) => s.updateTask);
   const addTask = useAppStore((s) => s.addTask);
   const [quickTitle, setQuickTitle] = useState('');
-  const [quickColumn, setQuickColumn] = useState<'project' | 'personal'>('personal');
+  const [quickSection, setQuickSection] = useState<'project' | 'personal'>('personal');
   const [quickFolder, setQuickFolder] = useState('');
   const [showFolderInput, setShowFolderInput] = useState(false);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
@@ -50,9 +50,9 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
     setDragTaskId(taskId);
   };
 
-  const handleDrop = (column: 'project' | 'personal') => {
+  const handleDrop = (section: 'project' | 'personal') => {
     if (dragTaskId) {
-      updateTask(dragTaskId, { column });
+      updateTask(dragTaskId, { section });
     }
     setDragTaskId(null);
     setDragOverCol(null);
@@ -70,14 +70,14 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
       colorType: taskColors[Math.floor(Math.random() * taskColors.length)],
       comments: 0,
       subtasks: [],
-      column: quickColumn,
+      section: quickSection,
       project: quickFolder.trim() || undefined,
     });
     setQuickTitle('');
     setQuickFolder('');
   };
 
-  const handleCreateFolder = (column: 'project' | 'personal') => {
+  const handleCreateFolder = (section: 'project' | 'personal') => {
     if (!newFolderName.trim()) {
       setNewFolderCol(null);
       return;
@@ -93,7 +93,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
       colorType: taskColors[Math.floor(Math.random() * taskColors.length)],
       comments: 0,
       subtasks: [],
-      column,
+      section,
       project: newFolderName.trim(),
     });
     setNewFolderName('');
@@ -145,8 +145,8 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
             className="flex-1 px-4 py-2.5 rounded-full text-sm bg-white border border-gray-100 focus:outline-none focus:border-[#b0a8db] focus:ring-2 focus:ring-[#b0a8db]/20 transition-all placeholder:text-gray-300"
           />
           <select
-            value={quickColumn}
-            onChange={(e) => setQuickColumn(e.target.value as 'project' | 'personal')}
+            value={quickSection}
+            onChange={(e) => setQuickSection(e.target.value as 'project' | 'personal')}
             className="px-3 py-2.5 rounded-full text-xs bg-white border border-gray-100 text-[#242424] focus:outline-none"
           >
             <option value="personal">个人</option>
@@ -178,7 +178,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
               value={quickFolder}
               onChange={(e) => setQuickFolder(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
-              placeholder={`${quickColumn === 'project' ? '项目名称' : '文件夹名称'}（可选）`}
+              placeholder={`${quickSection === 'project' ? '项目名称' : '文件夹名称'}（可选）`}
               className="flex-1 px-4 py-2 rounded-full text-xs bg-white border border-gray-100 focus:outline-none focus:border-[#b0a8db] transition-all placeholder:text-gray-300"
             />
           </div>
@@ -188,7 +188,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
       {/* Two columns */}
       <div className="grid grid-cols-2 gap-3">
         {columns.map((col) => {
-          const colTasks = activeTasks.filter((t) => (t.column || 'personal') === col);
+          const colTasks = activeTasks.filter((t) => (t.section || 'personal') === col);
           const meta = columnMeta[col];
           const folderGroups = groupByFolder(colTasks);
           const sortedGroups = Array.from(folderGroups.entries()).sort((a, b) => {

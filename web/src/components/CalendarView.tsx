@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import { useAppStore, type Task } from '../store/appStore';
 import { V4 } from '../v4config';
+import { api, DEFAULT_USER_ID } from '../api/client';
 
 // ==================== 课程事件类型 & API ====================
 
@@ -15,24 +16,11 @@ interface CourseEvent {
   isOverride?: boolean;
 }
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '') as string;
-const API_KEY = (import.meta.env.VITE_API_KEY || '') as string;
-const DEFAULT_USER_ID = (import.meta.env.VITE_DEFAULT_USER_ID || 'default') as string;
-
-async function fetchCalendarEvents(start: string, end: string): Promise<CourseEvent[]> {
-  try {
-    const url = API_BASE
-      ? `${API_BASE}/calendar?userId=${DEFAULT_USER_ID}&start=${start}&end=${end}`
-      : `/calendar?userId=${DEFAULT_USER_ID}&start=${start}&end=${end}`;
-    const headers: Record<string, string> = {};
-    if (API_KEY) headers['X-API-Key'] = API_KEY;
-    const res = await fetch(url, { headers });
-    if (!res.ok) return [];
-    return await res.json();
-  } catch {
-    return [];
-  }
-}
+const fetchCalendarEvents = (start: string, end: string) =>
+  api.get<CourseEvent[]>(
+    `/calendar?userId=${DEFAULT_USER_ID}&start=${start}&end=${end}`,
+    { fallback: [] },
+  );
 
 // ==================== 类型 ====================
 
@@ -645,7 +633,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       startTime: inlineCreating.startTime,
       duration: inlineCreating.duration,
       dueDate: selectedDate.toISOString(),
-      column: 'personal',
+      section: 'personal',
     };
 
     addTask(newTask);
@@ -717,24 +705,11 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       formData.append('file', file);
       formData.append('userId', DEFAULT_USER_ID);
 
-      const url = API_BASE
-        ? `${API_BASE}/courses/import-ics`
-        : '/courses/import-ics';
-      const headers: Record<string, string> = {};
-      if (API_KEY) headers['X-API-Key'] = API_KEY;
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: '导入失败' }));
-        throw new Error(err.message || `HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await api.post<{ created: any[]; updated: any[]; eventCount: number }>(
+        '/courses/import-ics',
+        formData,
+        { throwOnError: true },
+      );
       setImportResult(
         `✅ 新建 ${data.created?.length || 0} 门，更新 ${data.updated?.length || 0} 门，共 ${data.eventCount || 0} 次课`,
       );

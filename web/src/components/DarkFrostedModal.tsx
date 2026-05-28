@@ -21,7 +21,7 @@ export interface SaveParams {
   status?: Task['status'];
   priority?: Task['priority'];
   dueDate?: string;
-  column?: 'project' | 'personal';
+  section?: 'project' | 'personal';
   subtasks?: Subtask[];
   project?: string;
 }
@@ -51,7 +51,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const [status, setStatus] = useState<Task['status']>('To do');
   const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [dueDate, setDueDate] = useState('');
-  const [column, setColumn] = useState<'project' | 'personal'>('personal');
+  const [section, setSection] = useState<'project' | 'personal'>('personal');
   const [folder, setFolder] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -86,7 +86,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setStatus('To do');
         setPriority('Medium');
         setDueDate('');
-        setColumn('personal');
+        setSection('personal');
         setFolder('');
         setHasDueDate(false);
       } else if (config.data) {
@@ -106,7 +106,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setStatus(config.data.status || 'To do');
         setPriority(config.data.priority || 'Medium');
         setDueDate(localDueDate);
-        setColumn(config.data.column || 'personal');
+        setSection(config.data.section || 'personal');
         setFolder(config.data.project || '');
         setSubtasks(config.data.subtasks || []);
         setHasDueDate(hasExistingDueDate);
@@ -130,7 +130,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       status: isTask ? status : undefined,
       priority: isTask ? priority : undefined,
       dueDate: isTask ? (hasDueDate && dueDate ? dueDate : undefined) : undefined,
-      column: isTask ? column : undefined,
+      section: isTask ? section : undefined,
       project: isTask ? (folder || undefined) : undefined,
       subtasks: isTask && !isCreate ? subtasks : undefined,
     };
@@ -271,7 +271,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         </div>
       </div>
 
-      {/* Column + Folder row */}
+      {/* Section + Folder row */}
       <div className="flex gap-3 mb-3">
         <div className="flex-1">
           <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">分类</span>
@@ -279,9 +279,9 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
             {(['project', 'personal'] as const).map((c) => (
               <button
                 key={c}
-                onClick={() => setColumn(c)}
+                onClick={() => setSection(c)}
                 className={`px-2 py-1 rounded-full text-[10px] font-medium transition-all ${
-                  column === c
+                  section === c
                     ? 'bg-white/20 text-white'
                     : 'bg-white/10 text-white/60 hover:bg-white/20'
                 }`}
@@ -294,7 +294,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
             type="text"
             value={folder}
             onChange={(e) => setFolder(e.target.value)}
-            placeholder={column === 'project' ? '项目名称（可选）' : '文件夹名称（可选）'}
+            placeholder={section === 'project' ? '项目名称（可选）' : '文件夹名称（可选）'}
             className="w-full bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50 placeholder:text-white/20 transition-all"
           />
         </div>
@@ -654,9 +654,9 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                     {(['project', 'personal'] as const).map((c) => (
                       <button
                         key={c}
-                        onClick={() => setColumn(c)}
+                        onClick={() => setSection(c)}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-                          column === c
+                          section === c
                             ? 'bg-white/20 text-white'
                             : 'bg-white/10 text-white/60 hover:bg-white/20'
                         }`}
@@ -669,7 +669,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                     type="text"
                     value={folder}
                     onChange={(e) => setFolder(e.target.value)}
-                    placeholder={column === 'project' ? '项目名称（可选）' : '文件夹名称（可选）'}
+                    placeholder={section === 'project' ? '项目名称（可选）' : '文件夹名称（可选）'}
                     className="w-full bg-white/10 text-white text-[11px] px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50 placeholder:text-white/20 transition-all"
                   />
                 </div>

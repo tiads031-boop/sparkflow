@@ -21,6 +21,68 @@ export const V4 = {
   chartDefaultView: (paramsJson.params.chartDefaultView as string) === 'month' ? 'month'
     : (paramsJson.params.chartDefaultView as string) === 'day' ? 'day' : 'week',
 
+  /** 柱状图视觉参数，按视图分组 */
+  chart: {
+    day: {
+      /** 时间段分组步长（小时） */
+      groupStep: 2,
+      /** 基础高度（有任务时） */
+      baseHeightBase: 20,
+      /** 总任务数影响系数 */
+      totalScale: 2,
+      /** 基础高度（无任务时） */
+      baseHeightEmpty: 10,
+      /** 最小高度比例 */
+      ratioMin: 0.3,
+      /** 每任务增加比例 */
+      ratioPerTask: 0.25,
+      /** h1/h2/h3 段高度占比 */
+      segmentRatios: [0.5, 0.3, 0.2],
+      /** h1/h2/h3 最小高度 */
+      segmentMinHeights: [10, 5, 3],
+      /** h1/h2/h3 最大高度 */
+      segmentMaxHeights: [75, 45, 30],
+    },
+    week: {
+      /** 周一到周日权重系数 */
+      dayWeights: [0.6, 0.8, 0.4, 1.0, 0.7, 0.5, 0.3],
+      /** 基础高度最大值 */
+      baseHeightMax: 60,
+      /** 基础高度 */
+      baseHeightBase: 20,
+      /** 总任务数影响系数 */
+      totalScale: 3,
+      /** 无任务时的基础高度 */
+      baseHeightEmpty: 15,
+      /** h2/h3 段高度占比 */
+      segmentRatios: [0.4, 0.3],
+      /** h2/h3 最小高度 */
+      segmentMinHeights: [5, 5],
+      /** h2/h3 最大高度 */
+      segmentMaxHeights: [50, 40],
+    },
+    month: {
+      /** 分组步长（天） */
+      groupStep: 3,
+      /** 基础高度（有任务时） */
+      baseHeightBase: 18,
+      /** 总任务数影响系数 */
+      totalScale: 2,
+      /** 基础高度（无任务时） */
+      baseHeightEmpty: 10,
+      /** 最小高度比例 */
+      ratioMin: 0.3,
+      /** 每任务增加比例 */
+      ratioPerTask: 0.2,
+      /** h1/h2/h3 段高度占比 */
+      segmentRatios: [0.5, 0.3, 0.2],
+      /** h1/h2/h3 最小高度 */
+      segmentMinHeights: [8, 5, 3],
+      /** h1/h2/h3 最大高度 */
+      segmentMaxHeights: [70, 40, 25],
+    },
+  } as const,
+
   // 色值
   colors: {
     dark: (paramsJson.colors.dark as string) || '#242424',

@@ -36,22 +36,22 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
   const total = active.length;
 
   if (view === 'day') {
-    // 按小时分组：从 timelineStartHour 到 timelineEndHour
+    const cfg = V4.chart.day;
     const bars: BarData[] = [];
-    for (let h = V4.timelineStartHour; h < V4.timelineEndHour; h += 2) {
+    for (let h = V4.timelineStartHour; h < V4.timelineEndHour; h += cfg.groupStep) {
       const hourTasks = active.filter((t) => {
         if (!t.startTime) return false;
         const startH = parseInt(t.startTime.split(':')[0], 10);
-        return startH >= h && startH < h + 2;
+        return startH >= h && startH < h + cfg.groupStep;
       });
-      const ratio = 0.3 + hourTasks.length * 0.25;
-      const base = total > 0 ? 20 + total * 2 : 10;
+      const ratio = cfg.ratioMin + hourTasks.length * cfg.ratioPerTask;
+      const base = total > 0 ? cfg.baseHeightBase + total * cfg.totalScale : cfg.baseHeightEmpty;
       bars.push({
-        h1: Math.min(Math.round(base * ratio * 0.5) + 10, 75),
-        h2: Math.min(Math.round(base * ratio * 0.3) + 5, 45),
-        h3: Math.min(Math.round(base * ratio * 0.2) + 3, 30),
+        h1: Math.min(Math.round(base * ratio * cfg.segmentRatios[0]) + cfg.segmentMinHeights[0], cfg.segmentMaxHeights[0]),
+        h2: Math.min(Math.round(base * ratio * cfg.segmentRatios[1]) + cfg.segmentMinHeights[1], cfg.segmentMaxHeights[1]),
+        h3: Math.min(Math.round(base * ratio * cfg.segmentRatios[2]) + cfg.segmentMinHeights[2], cfg.segmentMaxHeights[2]),
         label: `${h}`,
-        fullLabel: `${h}:00~${h + 2}:00`,
+        fullLabel: `${h}:00~${h + cfg.groupStep}:00`,
         taskCount: hourTasks.length,
       });
     }
@@ -59,6 +59,7 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
   }
 
   if (view === 'week') {
+    const cfg = V4.chart.week;
     const days = ['一', '二', '三', '四', '五', '六', '日'];
     const today = new Date();
     const dayOfWeek = today.getDay() || 7; // 1=Mon
@@ -66,8 +67,7 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
     monday.setDate(today.getDate() - (dayOfWeek - 1));
     monday.setHours(0, 0, 0, 0);
 
-    const ratios = [0.6, 0.8, 0.4, 1.0, 0.7, 0.5, 0.3];
-    const baseH = total > 0 ? Math.min(60, 20 + total * 3) : 15;
+    const baseH = total > 0 ? Math.min(cfg.baseHeightMax, cfg.baseHeightBase + total * cfg.totalScale) : cfg.baseHeightEmpty;
     return days.map((_, i) => {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
@@ -76,11 +76,12 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
         const dd = new Date(t.dueDate);
         return dd.toDateString() === d.toDateString();
       });
-      const scale = ratios[i];
+      const scale = cfg.dayWeights[i];
       return {
+        // h1 涉及 done 任务数量占比，保留原有业务逻辑
         h1: Math.min(Math.round(baseH * scale * (active.filter((t) => t.status === 'Done').length / Math.max(total, 1))) + 10, 85),
-        h2: Math.min(Math.round(baseH * scale * 0.4) + 5, 50),
-        h3: Math.min(Math.round(baseH * scale * 0.3) + 5, 40),
+        h2: Math.min(Math.round(baseH * scale * cfg.segmentRatios[0]) + cfg.segmentMinHeights[0], cfg.segmentMaxHeights[0]),
+        h3: Math.min(Math.round(baseH * scale * cfg.segmentRatios[1]) + cfg.segmentMinHeights[1], cfg.segmentMaxHeights[1]),
         label: days[i],
         fullLabel: `周${days[i]}`,
         taskCount: dayTasks.length,
@@ -88,22 +89,23 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
     });
   }
 
-  // month: group by 3-day intervals
+  // month: group by groupStep-day intervals
+  const cfg = V4.chart.month;
   const today = new Date();
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const bars: BarData[] = [];
-  for (let d = 1; d <= daysInMonth; d += 3) {
+  for (let d = 1; d <= daysInMonth; d += cfg.groupStep) {
     const dayTasks = active.filter((t) => {
       if (!t.dueDate) return false;
       const dd = new Date(t.dueDate);
-      return dd.getMonth() === today.getMonth() && dd.getDate() >= d && dd.getDate() < d + 3;
+      return dd.getMonth() === today.getMonth() && dd.getDate() >= d && dd.getDate() < d + cfg.groupStep;
     });
-    const ratio = 0.3 + dayTasks.length * 0.2;
-    const base = total > 0 ? 18 + total * 2 : 10;
+    const ratio = cfg.ratioMin + dayTasks.length * cfg.ratioPerTask;
+    const base = total > 0 ? cfg.baseHeightBase + total * cfg.totalScale : cfg.baseHeightEmpty;
     bars.push({
-      h1: Math.min(Math.round(base * ratio * 0.5) + 8, 70),
-      h2: Math.min(Math.round(base * ratio * 0.3) + 5, 40),
-      h3: Math.min(Math.round(base * ratio * 0.2) + 3, 25),
+      h1: Math.min(Math.round(base * ratio * cfg.segmentRatios[0]) + cfg.segmentMinHeights[0], cfg.segmentMaxHeights[0]),
+      h2: Math.min(Math.round(base * ratio * cfg.segmentRatios[1]) + cfg.segmentMinHeights[1], cfg.segmentMaxHeights[1]),
+      h3: Math.min(Math.round(base * ratio * cfg.segmentRatios[2]) + cfg.segmentMinHeights[2], cfg.segmentMaxHeights[2]),
       label: `${d}`,
       fullLabel: `${d}日`,
       taskCount: dayTasks.length,
@@ -117,11 +119,12 @@ function getBarTasks(tasks: Task[], view: ChartView, barIndex: number): Task[] {
   const active = tasks.filter((t) => t.status !== 'Cancelled');
 
   if (view === 'day') {
-    const h = V4.timelineStartHour + barIndex * 2;
+    const cfg = V4.chart.day;
+    const h = V4.timelineStartHour + barIndex * cfg.groupStep;
     return active.filter((t) => {
       if (!t.startTime) return false;
       const startH = parseInt(t.startTime.split(':')[0], 10);
-      return startH >= h && startH < h + 2;
+      return startH >= h && startH < h + cfg.groupStep;
     });
   }
 
@@ -140,12 +143,13 @@ function getBarTasks(tasks: Task[], view: ChartView, barIndex: number): Task[] {
   }
 
   // month
+  const cfg = V4.chart.month;
   const today = new Date();
-  const startDay = 1 + barIndex * 3;
+  const startDay = 1 + barIndex * cfg.groupStep;
   return active.filter((t) => {
     if (!t.dueDate) return false;
     const dd = new Date(t.dueDate);
-    return dd.getMonth() === today.getMonth() && dd.getDate() >= startDay && dd.getDate() < startDay + 3;
+    return dd.getMonth() === today.getMonth() && dd.getDate() >= startDay && dd.getDate() < startDay + cfg.groupStep;
   });
 }
 
