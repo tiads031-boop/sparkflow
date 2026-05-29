@@ -17,6 +17,7 @@ import {
   updateCourseNote as apiUpdateNote,
   deleteCourseNote as apiDeleteNote,
 } from '../api/courses';
+import { DEFAULT_USER_ID } from '../api/client';
 
 export interface CourseSlice {
   // ── 状态 ──
@@ -52,7 +53,8 @@ export const createCourseSlice: StateCreator<AppState, [], [], CourseSlice> = (s
   loadCourses: async () => {
     set({ isCoursesLoading: true, coursesError: null });
     try {
-      const courses = await fetchCourses();
+      const semesterId = get().activeSemesterId;
+      const courses = await fetchCourses(DEFAULT_USER_ID, semesterId);
       set({ courses, isCoursesLoading: false });
     } catch (err: any) {
       set({ coursesError: err.message || '加载课程失败', isCoursesLoading: false });

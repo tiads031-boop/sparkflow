@@ -90,12 +90,13 @@ function CalendarHeader({
   onChangeMonth: (dir: number) => void;
   onChangeWeek: (dir: number) => void;
   tasks: Task[];
+  courseEventDays: Set<string>;
 }) {
   const today = new Date();
   const monthLabel = selectedDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
   const weekStart = getMonday(selectedDate);
 
-  // 有日程的日期集合
+  // 有日程的日期集合（任务 + 课程事件合并）
   const eventDays = new Set<string>();
   tasks.forEach((t) => {
     if (t.dueDate || t.startTime) {
@@ -103,6 +104,7 @@ function CalendarHeader({
       eventDays.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
     }
   });
+  courseEventDays.forEach((key) => eventDays.add(key));
 
   if (expanded) {
     // 月历网格
@@ -250,6 +252,16 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       setCourseEvents(events.filter((e) => e.eventType === 'course'));
     });
   }, [selectedDate]);
+
+  // 课程事件日期集合（用于日历绿点）
+  const courseEventDays = useMemo(() => {
+    const days = new Set<string>();
+    courseEvents.forEach((ev) => {
+      const d = new Date(ev.startTime);
+      days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+    });
+    return days;
+  }, [courseEvents]);
 
   // 截止任务快速安排状态
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
@@ -765,6 +777,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
         onChangeMonth={handleChangeMonth}
         onChangeWeek={handleChangeWeek}
         tasks={tasks}
+        courseEventDays={courseEventDays}
       />
 
       {/* 时间线卡片 */}

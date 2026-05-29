@@ -25,4 +25,5 @@ export type {
   CourseDetail,
   CourseNote,
   CourseFormData,
+  Semester,
 } from '../types';

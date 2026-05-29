@@ -1,7 +1,7 @@
 # sparkflow — 项目改造/开发蓝图
 
 > 本文档记录项目的所有决策、实施进度和下一步计划。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-29（同步覆盖 + Dashboard 柱状图修复） | **状态**: Phase 6 V4 正式版完成，Course 模块后端就绪，原型待评审
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-05-29（学期系统 v1 完成） | **状态**: Phase 7 学期系统开发完成
 
 ---
 
@@ -43,6 +43,10 @@ sparkflow 原本是一个灵感记录与任务管理应用，`sparkflow-api`（N
 | 22 | 任务编辑 folder 字段 | DarkFrostedModal 编辑/创建表单新增 folder 输入框 | 用户可手动指定任务归属的文件夹/项目，覆盖自动分组结果 |
 | 23 | **前端移除手机框** | 去掉拟物化手机外壳，改为移动端全屏 + 桌面端 `sm:max-w-lg` 居中 | PWA 应用体验，不再被手机框限制；安卓为主的使用场景无需安全区适配 |
 | 24 | **SparksView 拖拽边界动态化** | `useRef` + `window resize` 监听读取容器宽度，替代硬编码 `220px` | 去掉手机框后灵感墙自适应任何容器宽度 |
+| 25 | **学期数据模型** | 新增 `Semester` 表（id, userId, name, startDate, endDate, isActive, weeks）；Course 加 `semesterId` FK | 课表天然按学期组织，不同学期课程和时间安排完全不同；startDate 作为第1周周一，统一周数计算基准 |
+| 26 | **学期筛选 UI** | CourseView 顶部加水平滚动学期 pill 选择器，当前激活学期默认选中；支持新建/编辑/删除学期 | 用户可自由切换学期查看对应课程；pill 交互最轻量，不打断浏览流 |
+| 27 | **周周期配置** | 学期 startDate 即为第1周周一，前端通过 `(today - startDate) / 7d + 1` 计算当前周数；课程详情页显示当前周 | 统一周数计算基准，消除 ICS 导入时硬编码的 `getSemesterStart()` 魔数 |
+| 28 | **日历绿点扩展** | CalendarHeader 的 `eventDays` 从只收集 task 日期 → 合并 task + courseEvent 日期 | 用户一眼看到哪天有课、哪天有任务，无需切 tab 就能感知日程密度 |
 
 ---
 
@@ -55,6 +59,9 @@ sparkflow/
 │   │   ├── context-bridge/  ← 新增模块：md 解析/编辑/写回
 │   │   ├── tasks/           ← 现有 Task 模块（扩展 contextMdHash 关联）
 │   │   ├── inspirations/    ← 现有 Inspiration 模块
+│   │   ├── course/           ← 课程管理：CRUD + ICS 导入 + CalendarEvent 生成
+│   │   ├── calendar/         ← 日历事件查询（时间线 + 课程块）
+│   │   ├── semester/         ← 学期管理：CRUD + 激活切换 + 自动匹配
 │   │   ├── push/            ← 新增模块：Web Push 订阅与推送
 │   │   └── schedule/        ← 新增：定时检查截止日期
 │   ├── prisma/

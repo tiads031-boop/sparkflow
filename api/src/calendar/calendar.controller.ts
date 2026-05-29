@@ -10,8 +10,9 @@ export class CalendarController {
     @Query('userId') userId: string,
     @Query('start') start: string,
     @Query('end') end: string,
+    @Query('semesterId') semesterId?: string,
   ) {
-    return this.calendarService.findAll(userId, start, end);
+    return this.calendarService.findAll(userId, start, end, semesterId);
   }
 
   @Post()

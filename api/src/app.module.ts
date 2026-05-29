@@ -9,6 +9,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { PomodoroModule } from './pomodoro/pomodoro.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { CourseModule } from './course/course.module';
+import { SemesterModule } from './semester/semester.module';
 import { ContextBridgeModule } from './context-bridge/context-bridge.module';
 import { PushModule } from './push/push.module';
 import { CommonModule } from './common/common.module';
@@ -25,6 +26,7 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
     PomodoroModule,
     CalendarModule,
     CourseModule,
+    SemesterModule,
     ContextBridgeModule,
     ScheduleModule.forRoot(),
     PushModule,

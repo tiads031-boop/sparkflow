@@ -5,13 +5,21 @@ import { PrismaService } from '../prisma/prisma.service';
 export class CalendarService {
   constructor(private prisma: PrismaService) {}
 
-  findAll(userId: string, start: string, end: string) {
+  findAll(userId: string, start: string, end: string, semesterId?: string) {
+    const where: any = {
+      userId,
+      startTime: { gte: new Date(start) },
+      endTime: { lte: new Date(end) },
+    };
+
+    if (semesterId) {
+      where.OR = [
+        { courseId: null },
+        { course: { semesterId } },
+      ];
+    }
+
     return this.prisma.calendarEvent.findMany({
-      where: {
-        userId,
-        startTime: { gte: new Date(start) },
-        endTime: { lte: new Date(end) },
-      },
       orderBy: { startTime: 'asc' },
       include: { task: true },
     });

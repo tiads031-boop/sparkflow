@@ -76,6 +76,13 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
   const addCourse = useAppStore((s) => s.addCourse);
   const isCoursesLoading = useAppStore((s) => s.isCoursesLoading);
   const coursesError = useAppStore((s) => s.coursesError);
+  const semesters = useAppStore((s) => s.semesters);
+  const activeSemesterId = useAppStore((s) => s.activeSemesterId);
+  const loadSemesters = useAppStore((s) => s.loadSemesters);
+  const setActiveSemester = useAppStore((s) => s.setActiveSemester);
+  const addSemester = useAppStore((s) => s.addSemester);
+  const editSemester = useAppStore((s) => s.editSemester);
+  const removeSemester = useAppStore((s) => s.removeSemester);
 
   // ── Form state ──
   const [showForm, setShowForm] = useState(false);
@@ -90,10 +97,16 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggered = useRef(false);
 
-  // ── Load courses on mount ──
+  // ── Load courses & semesters on mount ──
   useEffect(() => {
     loadCourses();
-  }, [loadCourses]);
+    loadSemesters();
+  }, [loadCourses, loadSemesters]);
+
+  // ── Re-load when active semester changes ──
+  useEffect(() => {
+    loadCourses();
+  }, [activeSemesterId, loadCourses]);
 
   // ── Handlers: Form ──
   const openForm = useCallback(() => {
@@ -122,6 +135,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
         dayOfWeek: formData.dayOfWeek || undefined,
         startTime: formData.startTime || undefined,
         endTime: formData.endTime || undefined,
+        semesterId: activeSemesterId || undefined,
       };
       await addCourse(data);
       closeForm();
@@ -190,6 +204,39 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [onImportClick]);
 
+  // ── Semester form state ──
+  const [showSemesterForm, setShowSemesterForm] = useState(false);
+  const [semesterForm, setSemesterForm] = useState<{ id?: string; name: string; startDate: string; endDate: string }>({
+    name: '', startDate: '', endDate: '',
+  });
+
+  const openSemesterForm = (semester?: typeof semesters[number]) => {
+    if (semester) {
+      const s = new Date(semester.startDate);
+      const e = new Date(semester.endDate);
+      setSemesterForm({
+        id: semester.id,
+        name: semester.name,
+        startDate: `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`,
+        endDate: `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, '0')}-${String(e.getDate()).padStart(2, '0')}`,
+      });
+    } else {
+      setSemesterForm({ name: '', startDate: '', endDate: '' });
+    }
+    setShowSemesterForm(true);
+  };
+
+  const handleSemesterSubmit = async () => {
+    if (!semesterForm.name.trim() || !semesterForm.startDate || !semesterForm.endDate) return;
+    if (semesterForm.id) {
+      await editSemester(semesterForm.id, semesterForm);
+    } else {
+      await addSemester(semesterForm);
+    }
+    setShowSemesterForm(false);
+    await loadCourses();
+  };
+
   // ── Render ──
   const hasCourses = courses.length > 0;
 
@@ -227,6 +274,47 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
           </button>
         </div>
       </div>
+
+      {/* ── 学期筛选 Pill 栏 ── */}
+      {semesters.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 overflow-x-auto hide-scrollbar -mx-1 px-1">
+          {/* 全部 */}
+          <button
+            onClick={() => { setActiveSemester(null); }}
+            className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+              !activeSemesterId
+                ? 'bg-[#242424] text-white'
+                : 'bg-white text-gray-500 border border-gray-200 hover:border-[#b0a8db]'
+            }`}
+          >
+            全部
+          </button>
+          {semesters.map((sem) => (
+            <button
+              key={sem.id}
+              onClick={() => { setActiveSemester(sem.id); }}
+              onContextMenu={(e) => { e.preventDefault(); openSemesterForm(sem); }}
+              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+                activeSemesterId === sem.id
+                  ? 'bg-[#242424] text-white'
+                  : 'bg-white text-gray-500 border border-gray-200 hover:border-[#b0a8db]'
+              }`}
+            >
+              {sem.name}
+              {sem.isActive && (
+                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-[#cae393] inline-block" />
+              )}
+            </button>
+          ))}
+          {/* 新建学期 */}
+          <button
+            onClick={() => openSemesterForm()}
+            className="flex-shrink-0 w-8 h-8 rounded-full bg-[#b0a8db]/15 text-[#b0a8db] flex items-center justify-center hover:bg-[#b0a8db]/25 transition-colors"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+      )}
 
       {/* ── Error banner ── */}
       {coursesError && (
@@ -564,6 +652,84 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
             {courses.filter((c) => c.dayOfWeek).length > 0 &&
               ` · ${courses.filter((c) => c.dayOfWeek).length} 门已排课`}
           </span>
+        </div>
+      )}
+
+      {/* ── Semester form bottom sheet ── */}
+      {showSemesterForm && (
+        <div className="absolute inset-0 z-50" style={{ pointerEvents: 'none' }}>
+          <div
+            className="absolute inset-0 bg-black/30"
+            style={{ pointerEvents: 'auto' }}
+            onClick={() => setShowSemesterForm(false)}
+          />
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-[2rem] px-5 pt-5 pb-8 bg-[#f4f4f6] overflow-y-auto animate-slide-up-sheet"
+            style={{ maxHeight: '85%', pointerEvents: 'auto' }}
+          >
+            <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mb-5" />
+            <h3 className="text-lg font-bold text-[#242424] mb-5">
+              {semesterForm.id ? '编辑学期' : '新建学期'}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">学期名称</label>
+                <input
+                  type="text"
+                  value={semesterForm.name}
+                  onChange={(e) => setSemesterForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="如：大二下学期"
+                  className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-sm text-[#242424] placeholder:text-gray-300 focus:border-[#b0a8db] focus:outline-none"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">起始日期（第 1 周周一）</label>
+                <input
+                  type="date"
+                  value={semesterForm.startDate}
+                  onChange={(e) => setSemesterForm((f) => ({ ...f, startDate: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-sm text-[#242424] focus:border-[#b0a8db] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">结束日期</label>
+                <input
+                  type="date"
+                  value={semesterForm.endDate}
+                  onChange={(e) => setSemesterForm((f) => ({ ...f, endDate: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-sm text-[#242424] focus:border-[#b0a8db] focus:outline-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-3">
+                <button
+                  onClick={() => setShowSemesterForm(false)}
+                  className="flex-1 py-3 rounded-full bg-white text-[#242424] font-medium text-sm border border-gray-200"
+                >
+                  取消
+                </button>
+                {semesterForm.id && (
+                  <button
+                    onClick={async () => {
+                      await removeSemester(semesterForm.id!);
+                      setShowSemesterForm(false);
+                      await loadCourses();
+                    }}
+                    className="py-3 px-4 rounded-full bg-red-500 text-white font-medium text-sm"
+                  >
+                    删除
+                  </button>
+                )}
+                <button
+                  onClick={handleSemesterSubmit}
+                  disabled={!semesterForm.name.trim() || !semesterForm.startDate || !semesterForm.endDate}
+                  className="flex-1 py-3 rounded-full bg-[#242424] text-white font-medium text-sm disabled:opacity-40"
+                >
+                  {semesterForm.id ? '保存' : '创建'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

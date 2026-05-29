@@ -13,12 +13,14 @@ export class CourseController {
   async importIcs(
     @UploadedFile() file: Express.Multer.File,
     @Body('userId') userId: string,
+    @Body('semesterId') semesterId?: string,
     @Body('semesterStart') semesterStart?: string,
     @Body('semesterEnd') semesterEnd?: string,
     @Body('excludeCourses') excludeCourses?: string,
   ) {
     if (!file) throw new Error('请上传 .ics 文件');
     return this.courseService.importFromIcs(file.buffer, userId, {
+      semesterId,
       semesterStart,
       semesterEnd,
       excludeCourses: excludeCourses ? excludeCourses.split(',').map((s) => s.trim()) : undefined,
@@ -28,8 +30,11 @@ export class CourseController {
   // ==================== Course CRUD ====================
 
   @Get()
-  findAll(@Query('userId') userId: string) {
-    return this.courseService.findAll(userId);
+  findAll(
+    @Query('userId') userId: string,
+    @Query('semesterId') semesterId?: string,
+  ) {
+    return this.courseService.findAll(userId, semesterId);
   }
 
   @Get(':id')
@@ -50,6 +55,7 @@ export class CourseController {
     weeks?: number[];
     location?: string;
     icsUid?: string;
+    semesterId?: string;
   }) {
     return this.courseService.create(data);
   }

@@ -120,12 +120,30 @@ export interface ContextEntry {
 }
 
 // ════════════════════════════════════════════════════
+// Semester
+// ════════════════════════════════════════════════════
+
+export interface Semester {
+  id: string;
+  userId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  weeks?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { courses: number };
+}
+
+// ════════════════════════════════════════════════════
 // Course & CourseNote
 // ════════════════════════════════════════════════════
 
 export interface Course {
   id: string;
   userId: string;
+  semesterId?: string | null;
   name: string;
   teacher?: string;
   room?: string;

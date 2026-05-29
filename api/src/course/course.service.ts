@@ -16,6 +16,7 @@ interface CourseCreateData {
   weeks?: number[];
   location?: string;
   icsUid?: string;
+  semesterId?: string;
 }
 
 interface CourseUpdateData {
@@ -28,6 +29,7 @@ interface CourseUpdateData {
   endTime?: string;
   weeks?: number[];
   location?: string;
+  semesterId?: string;
   regenerate?: boolean; // 是否触发换课：重新生成 CalendarEvent
 }
 
@@ -44,9 +46,13 @@ export class CourseService {
 
   // ==================== Course CRUD ====================
 
-  async findAll(userId: string) {
+  async findAll(userId: string, semesterId?: string) {
+    const where: any = { userId };
+    if (semesterId) {
+      where.semesterId = semesterId;
+    }
     return this.prisma.course.findMany({
-      where: { userId },
+      where,
       orderBy: { createdAt: 'asc' },
       include: { _count: { select: { events: true, tasks: true, notes: true } } },
     });
@@ -79,6 +85,7 @@ export class CourseService {
         weeks: data.weeks ?? [],
         location: data.location,
         icsUid: data.icsUid,
+        semesterId: data.semesterId || null,
       },
     });
 
@@ -181,7 +188,7 @@ export class CourseService {
   private async generateEvents(course: any) {
     if (!course.dayOfWeek || !course.startTime || !course.endTime) return;
 
-    const semesterStart = this.getSemesterStart();
+    const semesterStart = await this.getCourseSemesterStart(course);
     const instances = this.expandSchedule(
       semesterStart,
       course.dayOfWeek,
@@ -281,12 +288,31 @@ export class CourseService {
     return monday;
   }
 
+  /**
+   * 获取课程对应学期的起始日
+   * 优先 semesterId → 再查 isActive 学期 → 兜底上周一
+   */
+  private async getCourseSemesterStart(course: any): Promise<Date> {
+    if (course.semesterId) {
+      const semester = await this.prisma.semester.findUnique({
+        where: { id: course.semesterId },
+      });
+      if (semester) return semester.startDate;
+    }
+    const activeSemester = await this.prisma.semester.findFirst({
+      where: { userId: course.userId, isActive: true },
+    });
+    if (activeSemester) return activeSemester.startDate;
+    return this.getSemesterStart();
+  }
+
   // ==================== ICS 文件导入 ====================
 
   async importFromIcs(
     fileBuffer: Buffer,
     userId: string,
     options?: {
+      semesterId?: string;
       semesterStart?: string;
       semesterEnd?: string;
       excludeCourses?: string[];
@@ -380,6 +406,39 @@ export class CourseService {
 
     const semesterMonday = this.getMonday(new Date(semesterStart + 'T00:00:00'));
 
+    // ── 确定 semesterId：传参 → 自动匹配 → 自动创建 ──
+    let semesterId = options?.semesterId || null;
+
+    if (!semesterId && semesterEnd) {
+      const matched = await this.prisma.semester.findFirst({
+        where: {
+          userId,
+          startDate: { lte: semesterMonday },
+          endDate: { gte: semesterEnd },
+        },
+        orderBy: { startDate: 'desc' },
+      });
+      if (matched) {
+        semesterId = matched.id;
+      } else {
+        const startStr = semesterMonday.toISOString().split('T')[0];
+        const endStr = semesterEnd.toISOString().split('T')[0];
+        const weeks = Math.ceil(
+          (semesterEnd.getTime() - semesterMonday.getTime()) / (7 * 24 * 60 * 60 * 1000),
+        );
+        const newSemester = await this.prisma.semester.create({
+          data: {
+            userId,
+            name: `${startStr} ~ ${endStr} 学期`,
+            startDate: semesterMonday,
+            endDate: semesterEnd,
+            weeks,
+          },
+        });
+        semesterId = newSemester.id;
+      }
+    }
+
     // ── 按课程名分组（应用日期范围过滤） ──
     const courseMap = new Map<string, { instances: { start: Date; end: Date }[]; location: string; uid: string }>();
 
@@ -399,10 +458,11 @@ export class CourseService {
       }
     }
 
-    const results: { created: string[]; updated: string[]; eventCount: number } = {
+    const results: { created: string[]; updated: string[]; eventCount: number; semesterId?: string } = {
       created: [],
       updated: [],
       eventCount: 0,
+      semesterId: semesterId || undefined,
     };
 
     for (const [courseName, data] of courseMap.entries()) {
@@ -432,6 +492,7 @@ export class CourseService {
         course = await this.prisma.course.update({
           where: { id: existing.id },
           data: {
+            semesterId: semesterId || undefined,
             dayOfWeek, startTime, endTime,
             weeks: uniqueWeeks,
             room: data.location || undefined,
@@ -448,6 +509,7 @@ export class CourseService {
         course = await this.prisma.course.create({
           data: {
             userId, name: courseName,
+            semesterId: semesterId || null,
             room: data.location || null,
             location: data.location || null,
             color, dayOfWeek, startTime, endTime,

@@ -23,8 +23,28 @@ model User {
   pushSubscriptions PushSubscription[]
   courses           Course[]
   courseNotes       CourseNote[]
+  semesters         Semester[]
 
   @@map("users")
+}
+
+model Semester {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isActive  Boolean  @default(false)
+  weeks     Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courses Course[]
+
+  @@index([userId])
+  @@index([userId, isActive])
+  @@map("semesters")
 }
 
 model Inspiration {
@@ -162,6 +182,7 @@ model AIConversation {
 model Course {
   id          String    @id @default(uuid())
   userId      String
+  semesterId  String?
   name        String
   teacher     String?
   room        String?
@@ -181,11 +202,13 @@ model Course {
   updatedAt   DateTime  @updatedAt
 
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  semester    Semester?         @relation(fields: [semesterId], references: [id], onDelete: SetNull)
   events      CalendarEvent[]
   tasks       Task[]
   notes       CourseNote[]
 
   @@index([userId])
+  @@index([userId, semesterId])
   @@map("courses")
 }
 

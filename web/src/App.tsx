@@ -171,6 +171,7 @@ export default function App() {
 
   // ── Course 状态 ──
   const loadCourses = useAppStore((s) => s.loadCourses);
+  const loadSemesters = useAppStore((s) => s.loadSemesters);
   const loadCourseDetail = useAppStore((s) => s.loadCourseDetail);
 
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
@@ -182,12 +183,13 @@ export default function App() {
     loadPomodoroStats();
     checkPushStatus();
     loadCourses();
-  }, [loadFromApi, loadPomodoroStats, checkPushStatus, loadCourses]);
+    loadSemesters();
+  }, [loadFromApi, loadPomodoroStats, checkPushStatus, loadCourses, loadSemesters]);
 
   // 切换到课程 tab 时加载课程数据
   useEffect(() => {
-    if (activeTab === 'courses') loadCourses();
-  }, [activeTab, loadCourses]);
+    if (activeTab === 'courses') { loadCourses(); loadSemesters(); }
+  }, [activeTab, loadCourses, loadSemesters]);
 
   // 轮询检测 CURRENT_CONTEXT.md 外部变更（每 15 秒）
   useEffect(() => {
