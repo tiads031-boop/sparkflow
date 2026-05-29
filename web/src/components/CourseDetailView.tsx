@@ -46,7 +46,7 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
   });
 
   const sortedEvents = [...c.events]
-    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
     .slice(0, 15);
 
   const handleAddNote = async () => {
@@ -134,9 +134,9 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
                   className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: c.color || '#b0a8db' }}
                 />
-                <span className="text-xs text-gray-500 w-16">{formatEventDate(ev.start)}</span>
+                <span className="text-xs text-gray-500 w-16">{formatEventDate(ev.startTime)}</span>
                 <span className="text-sm text-[#242424] font-medium">
-                  {formatEventTime(ev.start)} - {formatEventTime(ev.end)}
+                  {formatEventTime(ev.startTime)} - {formatEventTime(ev.endTime)}
                 </span>
               </div>
             ))}

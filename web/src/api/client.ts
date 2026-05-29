@@ -34,7 +34,7 @@ interface ApiOptions extends RequestOptions {
  * body 为 FormData 时不默认设置 Content-Type，让浏览器自动处理 boundary。
  */
 export async function apiRequest(path: string, options?: RequestOptions): Promise<Response> {
-  const url = API_BASE ? `${API_BASE}${path}` : path;
+  const url = API_BASE ? `${API_BASE}${path}` : `/api${path}`;
 
   const isFormData = options?.body instanceof FormData;
 

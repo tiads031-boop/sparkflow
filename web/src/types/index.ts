@@ -77,9 +77,14 @@ export interface PomodoroState {
 export interface CalendarEvent {
   id: string;
   title: string;
-  start: string;
-  end: string;
+  /** 对应数据库 CalendarEvent.startTime，API 序列化为 ISO 字符串 */
+  startTime: string;
+  /** 对应数据库 CalendarEvent.endTime，API 序列化为 ISO 字符串 */
+  endTime: string;
+  eventType?: string;
+  courseId?: string;
   color?: string;
+  isOverride?: boolean;
   extendedProps?: { taskId?: string; eventType?: string };
 }
 
