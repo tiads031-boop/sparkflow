@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { useAppStore, type Task } from '../store/appStore';
 import { V4 } from '../v4config';
 import { api, DEFAULT_USER_ID } from '../api/client';
@@ -82,6 +82,7 @@ function CalendarHeader({
   onChangeMonth,
   onChangeWeek,
   tasks,
+  courseEventDays,
 }: {
   selectedDate: Date;
   expanded: boolean;

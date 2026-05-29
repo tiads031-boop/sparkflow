@@ -185,6 +185,7 @@ export interface CourseFormData {
   endTime?: string;
   weeks?: number[];
   location?: string;
+  semesterId?: string;
 }
 
 // ════════════════════════════════════════════════════
