@@ -126,5 +126,3 @@ export async function adjustCourseEvent(
   });
   return res.json();
 }
-
-import type { CalendarEvent } from '../types';

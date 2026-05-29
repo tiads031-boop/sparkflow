@@ -117,7 +117,7 @@ function BottomNav({
   setActiveTab,
 }: {
   activeTab: string;
-  setActiveTab: (tab: 'dashboard' | 'tasks' | 'board' | 'calendar' | 'sparks') => void;
+  setActiveTab: (tab: 'dashboard' | 'tasks' | 'board' | 'calendar' | 'courses' | 'sparks') => void;
 }) {
   return (
     <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#242424] rounded-full px-1.5 py-1.5 flex items-center gap-1 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-40">
@@ -170,16 +170,10 @@ export default function App() {
   const checkPushStatus = useAppStore((s) => s.checkPushStatus);
 
   // ── Course 状态 ──
-  const courses = useAppStore((s) => s.courses);
   const loadCourses = useAppStore((s) => s.loadCourses);
-  const selectedCourse = useAppStore((s) => s.selectedCourse);
-  const setSelectedCourse = useAppStore((s) => s.setSelectedCourse);
   const loadCourseDetail = useAppStore((s) => s.loadCourseDetail);
-  const removeCourse = useAppStore((s) => s.removeCourse);
-  const addCourse = useAppStore((s) => s.addCourse);
 
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
-  const [showCreateCourse, setShowCreateCourse] = useState(false);
 
   const pollForUpdates = useAppStore((s) => s.pollForUpdates);
 
@@ -346,7 +340,7 @@ export default function App() {
                 loadCourseDetail(courseId);
                 setViewingCourseId(courseId);
               }}
-              onAddClick={() => setShowCreateCourse(true)}
+              onAddClick={() => {}}
               onImportClick={async (file) => {
                 try {
                   const result = await importIcs(file);

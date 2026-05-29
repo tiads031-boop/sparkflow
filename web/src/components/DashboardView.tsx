@@ -35,7 +35,6 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
   const active = tasks.filter((t) => t.status !== 'Cancelled');
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().split('T')[0];
 
   if (view === 'day') {
     const cfg = V4.chart.day;
@@ -67,8 +66,6 @@ function computeBars(tasks: Task[], view: ChartView): BarData[] {
       const groupInProgress = hourTasks.filter((t) => t.status === 'In progress' || t.status === 'In review').length;
       const groupTodo = hourTasks.filter((t) => t.status === 'To do').length;
 
-      // 高度直接映射任务数（最少 3% 保证可见性，最多 95%）
-      const maxGroupTotal = Math.max(1, ...bars.map(() => 0), groupTotal);
       // 用 todayTasks 中的最大组做基准归一化
       const todayMaxTotal = Math.max(1, ...todayTasks.reduce((acc, t) => {
         if (!t.startTime) return acc;

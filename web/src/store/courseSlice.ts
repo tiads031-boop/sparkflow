@@ -6,7 +6,7 @@
  */
 import type { StateCreator } from 'zustand';
 import type { AppState } from './index';
-import type { Course, CourseDetail, CourseNote, CourseFormData } from '../types';
+import type { Course, CourseDetail, CourseFormData } from '../types';
 import {
   fetchCourses,
   fetchCourseDetail,

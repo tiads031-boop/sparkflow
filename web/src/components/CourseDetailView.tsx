@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Pencil, Pin, PinOff, Trash2, Send, MapPin, Clock, User } from 'lucide-react';
+import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { CourseNote } from '../types';
 
