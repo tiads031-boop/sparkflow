@@ -44,6 +44,28 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
 
   const [noteText, setNoteText] = useState('');
 
+  // ⚠️ useMemo 必须在 early return 之前，保证 hooks 调用顺序一致
+  const { thisWeekEvents, otherEvents } = useMemo(() => {
+    if (!selectedCourse) return { thisWeekEvents: [], otherEvents: [] };
+    const all = [...selectedCourse.events]
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    const weekRange = getWeekRange();
+    const thisWeek: typeof all = [];
+    const other: typeof all = [];
+    for (const ev of all) {
+      const d = new Date(ev.startTime);
+      if (d >= weekRange.monday && d <= weekRange.sunday) {
+        thisWeek.push(ev);
+      } else {
+        other.push(ev);
+      }
+    }
+    return { thisWeekEvents: thisWeek, otherEvents: other.slice(0, 15) };
+  }, [selectedCourse]);
+
+  const hasAnyEvents = thisWeekEvents.length > 0 || otherEvents.length > 0;
+  const totalEvents = selectedCourse?.events?.length ?? 0;
+
   if (!selectedCourse) {
     return (
       <div className="animate-page-enter">
@@ -60,26 +82,6 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
-
-  const { thisWeekEvents, otherEvents } = useMemo(() => {
-    const all = [...c.events]
-      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-    const weekRange = getWeekRange();
-    const thisWeek: typeof all = [];
-    const other: typeof all = [];
-    for (const ev of all) {
-      const d = new Date(ev.startTime);
-      if (d >= weekRange.monday && d <= weekRange.sunday) {
-        thisWeek.push(ev);
-      } else {
-        other.push(ev);
-      }
-    }
-    return { thisWeekEvents: thisWeek, otherEvents: other.slice(0, 15) };
-  }, [c.events]);
-
-  const hasAnyEvents = thisWeekEvents.length > 0 || otherEvents.length > 0;
-  const totalEvents = c.events.length;
 
   const handleAddNote = async () => {
     const text = noteText.trim();
