@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User, Sparkles } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { CourseNote } from '../types';
 
@@ -15,6 +15,28 @@ const DAY_LABELS: Record<number, string> = {
   1: '周一', 2: '周二', 3: '周三', 4: '周四',
   5: '周五', 6: '周六', 7: '周日',
 };
+
+// ════════════════════════════════════════════════════
+// Week helpers
+// ════════════════════════════════════════════════════
+
+function getWeekRange(): { monday: Date; sunday: Date } {
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (day - 1));
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { monday, sunday };
+}
+
+function isThisWeek(isoStr: string): boolean {
+  const d = new Date(isoStr);
+  const { monday, sunday } = getWeekRange();
+  return d >= monday && d <= sunday;
+}
 
 // ════════════════════════════════════════════════════
 // Component
@@ -45,9 +67,25 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  const sortedEvents = [...c.events]
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-    .slice(0, 15);
+  const { thisWeekEvents, otherEvents } = useMemo(() => {
+    const all = [...c.events]
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    const weekRange = getWeekRange();
+    const thisWeek: typeof all = [];
+    const other: typeof all = [];
+    for (const ev of all) {
+      const d = new Date(ev.startTime);
+      if (d >= weekRange.monday && d <= weekRange.sunday) {
+        thisWeek.push(ev);
+      } else {
+        other.push(ev);
+      }
+    }
+    return { thisWeekEvents: thisWeek, otherEvents: other.slice(0, 15) };
+  }, [c.events]);
+
+  const hasAnyEvents = thisWeekEvents.length > 0 || otherEvents.length > 0;
+  const totalEvents = c.events.length;
 
   const handleAddNote = async () => {
     const text = noteText.trim();
@@ -121,29 +159,88 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
       </div>
 
       {/* Schedule (events list) */}
-      {sortedEvents.length > 0 && (
+      {hasAnyEvents && (
         <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4">
           <h3 className="text-sm font-bold text-[#242424] mb-3">上课安排</h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto hide-scrollbar">
-            {sortedEvents.map((ev) => (
-              <div
-                key={ev.id}
-                className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-[#f4f4f6]"
-              >
-                <div
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: c.color || '#b0a8db' }}
-                />
-                <span className="text-xs text-gray-500 w-16">{formatEventDate(ev.startTime)}</span>
-                <span className="text-sm text-[#242424] font-medium">
-                  {formatEventTime(ev.startTime)} - {formatEventTime(ev.endTime)}
-                </span>
+
+          {/* ── 本周课程（焦点聚焦）── */}
+          {thisWeekEvents.length > 0 && (
+            <div className="mb-3">
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <Sparkles size={14} className="text-[#b0a8db]" />
+                <span className="text-xs font-bold text-[#b0a8db] tracking-wide">本周课程</span>
+                <span className="text-[10px] text-gray-400 ml-auto">{thisWeekEvents.length} 节</span>
               </div>
-            ))}
-          </div>
-          {c.events.length > 15 && (
+              <div className="space-y-1.5">
+                {thisWeekEvents.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="flex items-center gap-3 py-3 px-4 rounded-2xl transition-all duration-300"
+                    style={{
+                      background: `${c.color || '#b0a8db'}12`,
+                      boxShadow: `0 0 0 1px ${c.color || '#b0a8db'}20, 0 2px 8px ${c.color || '#b0a8db'}10`,
+                    }}
+                  >
+                    <div
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: c.color || '#b0a8db',
+                        boxShadow: `0 0 0 3px ${c.color || '#b0a8db'}30`,
+                      }}
+                    />
+                    <span className="text-xs text-[#242424] w-16 font-semibold">
+                      {formatEventDate(ev.startTime)}
+                    </span>
+                    <span className="text-sm text-[#242424] font-bold">
+                      {formatEventTime(ev.startTime)} - {formatEventTime(ev.endTime)}
+                    </span>
+                    <span
+                      className="ml-auto text-[9px] px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                      style={{
+                        background: `${c.color || '#b0a8db'}30`,
+                        color: '#242424',
+                      }}
+                    >
+                      本周
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── 后续课程 ── */}
+          {otherEvents.length > 0 && (
+            <div>
+              {thisWeekEvents.length > 0 && (
+                <div className="flex items-center gap-1.5 mb-2.5 mt-1">
+                  <span className="text-xs font-bold text-gray-400 tracking-wide">后续课程</span>
+                  <span className="text-[10px] text-gray-400 ml-auto">{otherEvents.length} 节</span>
+                </div>
+              )}
+              <div className="space-y-2 max-h-64 overflow-y-auto hide-scrollbar">
+                {otherEvents.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-[#f4f4f6]"
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: c.color || '#b0a8db' }}
+                    />
+                    <span className="text-xs text-gray-500 w-16">{formatEventDate(ev.startTime)}</span>
+                    <span className="text-sm text-[#242424] font-medium">
+                      {formatEventTime(ev.startTime)} - {formatEventTime(ev.endTime)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {totalEvents > 15 && thisWeekEvents.length < totalEvents && (
             <p className="text-xs text-gray-400 text-center mt-2">
-              仅显示最近 15 次课，共 {c.events.length} 次
+              仅显示最近 15 次课，共 {totalEvents} 次
             </p>
           )}
         </div>
