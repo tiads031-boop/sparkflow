@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { Task } from '../store/appStore';
 import { useAppStore } from '../store/appStore';
+import { resolveMentions } from '../utils/mentionUtils';
 import {
   GripVertical, Plus, ChevronDown, ChevronRight,
   FolderPlus, X, Tag,
@@ -35,6 +36,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
   const [newFolderCol, setNewFolderCol] = useState<'project' | 'personal' | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const hasAutoCollapsed = useRef<boolean>(false);
 
   const columns = ['project', 'personal'] as const;
 
@@ -45,6 +47,37 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
       folderInputRef.current.focus();
     }
   }, [newFolderCol]);
+
+  // 首次进入看板时，自动折叠所有没有「In progress」任务的分组
+  useEffect(() => {
+    if (hasAutoCollapsed.current) return;
+
+    const groups = new Map<string, Task[]>();
+    for (const t of activeTasks) {
+      const folder = t.project?.trim() || '其他';
+      if (!groups.has(folder)) groups.set(folder, []);
+      groups.get(folder)!.push(t);
+    }
+
+    const toCollapse: string[] = [];
+    for (const [groupName, groupTasks] of groups) {
+      if (groupName === '其他') continue;
+      const hasInProgress = groupTasks.some((t) => t.status === 'In progress');
+      if (!hasInProgress) {
+        toCollapse.push(groupName);
+      }
+    }
+
+    if (toCollapse.length > 0) {
+      setCollapsedGroups((prev) => {
+        const next = new Set(prev);
+        for (const g of toCollapse) next.add(g);
+        return next;
+      });
+    }
+
+    hasAutoCollapsed.current = true;
+  }, [activeTasks]);
 
   const handleDragStart = (taskId: string) => {
     setDragTaskId(taskId);
@@ -123,6 +156,25 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
     }
     return groups;
   };
+
+  // 计算每个项目/文件夹的 @回链计数（非本组任务引用了该项目名）
+  const backlinkCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of activeTasks) {
+      if (!t.description) continue;
+      const mentions = t.description.match(/@([^\s@]+)/g);
+      if (!mentions) continue;
+      const taskProject = t.project?.trim() || '';
+      for (const m of mentions) {
+        const name = m.slice(1);
+        // 排除自己引用自己所在项目
+        if (name && name !== taskProject) {
+          counts.set(name, (counts.get(name) || 0) + 1);
+        }
+      }
+    }
+    return counts;
+  }, [activeTasks]);
 
   return (
     <div className="animate-page-enter">
@@ -293,9 +345,16 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
                           </span>
                         </div>
                         {!isDefault && (
-                          <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
-                            {groupTasks.length}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                            {backlinkCounts.get(groupName) ? (
+                              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-[#b0a8db]/15 text-[#b0a8db]" title={`${backlinkCounts.get(groupName)} 个任务引用了此项目`}>
+                                @{backlinkCounts.get(groupName)}
+                              </span>
+                            ) : null}
+                            <span className="text-[10px] text-gray-400">
+                              {groupTasks.length}
+                            </span>
+                          </div>
                         )}
                       </button>
 
@@ -306,6 +365,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
                             <TaskCard
                               key={task.id}
                               task={task}
+                              allTasks={tasks}
                               dragTaskId={dragTaskId}
                               onDragStart={handleDragStart}
                               onTaskClick={onTaskClick}
@@ -330,15 +390,33 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
 
 function TaskCard({
   task,
+  allTasks,
   dragTaskId,
   onDragStart,
   onTaskClick,
 }: {
   task: Task;
+  allTasks: Task[];
   dragTaskId: string | null;
   onDragStart: (id: string) => void;
   onTaskClick: (task: Task) => void;
 }) {
+  const mentions = useMemo(() => {
+    if (!task.description) return { projectMentions: [] as string[], taskMentions: [] as { id: string; title: string }[] };
+    return resolveMentions(
+      task.description.match(/@([^\s@]+)/g)?.map((m) => m) ?? [],
+      allTasks,
+      task.id,
+    );
+  }, [task.description, allTasks, task.id]);
+
+  const allMentionItems = [
+    ...mentions.projectMentions.map((p) => ({ kind: 'project' as const, label: p, id: p })),
+    ...mentions.taskMentions.map((t) => ({ kind: 'task' as const, label: t.title, id: t.id })),
+  ];
+  const visibleItems = allMentionItems.slice(0, 3);
+  const overflow = allMentionItems.length - 3;
+
   return (
     <div
       draggable
@@ -367,6 +445,30 @@ function TaskCard({
           </div>
           {task.description && (
             <p className="text-[10px] opacity-60 leading-snug ml-[22px]">{task.description}</p>
+          )}
+          {allMentionItems.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap mt-1.5 ml-[22px]">
+              {visibleItems.map((item) => (
+                <span
+                  key={item.kind === 'project' ? `p-${item.id}` : `t-${item.id}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // TODO: navigate to board view and highlight group
+                  }}
+                  className="text-[8px] font-medium px-1.5 py-0.5 rounded-full cursor-pointer transition-opacity hover:opacity-80"
+                  style={{
+                    backgroundColor: item.kind === 'project' ? '#b0a8db33' : '#cae39333',
+                    color: item.kind === 'project' ? '#b0a8db' : '#587a1e',
+                    border: `1px solid ${item.kind === 'project' ? '#b0a8db55' : '#cae39355'}`,
+                  }}
+                >
+                  @{item.label}
+                </span>
+              ))}
+              {overflow > 0 && (
+                <span className="text-[8px] text-gray-400 ml-0.5">+{overflow}</span>
+              )}
+            </div>
           )}
           <div className="flex items-center gap-2 mt-1.5 ml-[22px]">
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-black/5 opacity-70">

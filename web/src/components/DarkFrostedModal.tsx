@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ArrowLeft, Check, ArrowRight, Plus, Trash2,
   Play, Pause, RotateCcw, CheckCircle2,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { Task, Subtask } from '../store/appStore';
+import { resolveMentions } from '../utils/mentionUtils';
 
 interface ModalConfig {
   isOpen: boolean;
@@ -77,6 +78,16 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const resumePomodoroStore = useAppStore((s) => s.resumePomodoro);
   const stopPomodoroStore = useAppStore((s) => s.stopPomodoro);
   const completePomodoroStore = useAppStore((s) => s.completePomodoro);
+  const tasks = useAppStore((s) => s.tasks);
+
+  const contentMentions = useMemo(() => {
+    if (!content) return { projectMentions: [] as string[], taskMentions: [] as { id: string; title: string }[] };
+    const mentions = content.match(/@([^\s@]+)/g);
+    if (!mentions) return { projectMentions: [] as string[], taskMentions: [] as { id: string; title: string }[] };
+    return resolveMentions(mentions, tasks, config.data?.id);
+  }, [content, tasks, config.data?.id]);
+
+  const hasMentionMatches = contentMentions.projectMentions.length > 0 || contentMentions.taskMentions.length > 0;
 
   useEffect(() => {
     if (config.isOpen) {
@@ -226,9 +237,29 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
-        className="bg-transparent border-none text-white/80 text-sm outline-none placeholder:text-white/20 resize-none h-12 mb-4"
+        className="bg-transparent border-none text-white/80 text-sm outline-none placeholder:text-white/20 resize-none h-12 mb-2"
         placeholder="添加描述..."
       />
+
+      {/* @mention preview */}
+      {hasMentionMatches && (
+        <div className="mb-3 max-h-[60px] overflow-y-auto rounded-lg bg-white/5 p-2 space-y-0.5">
+          {contentMentions.projectMentions.map((p) => (
+            <div key={`p-${p}`} className="flex items-center gap-1.5 text-[10px] text-white/60">
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#b0a8db' }} />
+              <span className="truncate">{p}</span>
+              <span className="text-[8px] text-white/25 flex-shrink-0 ml-auto">项目</span>
+            </div>
+          ))}
+          {contentMentions.taskMentions.map((t) => (
+            <div key={`t-${t.id}`} className="flex items-center gap-1.5 text-[10px] text-white/60">
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#cae393' }} />
+              <span className="truncate">{t.title}</span>
+              <span className="text-[8px] text-white/25 flex-shrink-0 ml-auto">任务</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Status */}
       <div className="mb-3">
@@ -605,6 +636,25 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
               />
+              {/* @mention preview */}
+              {hasMentionMatches && (
+                <div className="mt-2 max-h-[60px] overflow-y-auto rounded-lg bg-white/5 p-2 space-y-0.5">
+                  {contentMentions.projectMentions.map((p) => (
+                    <div key={`cp-${p}`} className="flex items-center gap-1.5 text-[10px] text-white/60">
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#b0a8db' }} />
+                      <span className="truncate">{p}</span>
+                      <span className="text-[8px] text-white/25 flex-shrink-0 ml-auto">项目</span>
+                    </div>
+                  ))}
+                  {contentMentions.taskMentions.map((t) => (
+                    <div key={`ct-${t.id}`} className="flex items-center gap-1.5 text-[10px] text-white/60">
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: '#cae393' }} />
+                      <span className="truncate">{t.title}</span>
+                      <span className="text-[8px] text-white/25 flex-shrink-0 ml-auto">任务</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {isTask && (
