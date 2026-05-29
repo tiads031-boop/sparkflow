@@ -32,12 +32,6 @@ function getWeekRange(): { monday: Date; sunday: Date } {
   return { monday, sunday };
 }
 
-function isThisWeek(isoStr: string): boolean {
-  const d = new Date(isoStr);
-  const { monday, sunday } = getWeekRange();
-  return d >= monday && d <= sunday;
-}
-
 // ════════════════════════════════════════════════════
 // Component
 // ════════════════════════════════════════════════════
