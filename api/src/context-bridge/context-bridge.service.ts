@@ -35,7 +35,7 @@ export class ContextBridgeService {
   /** 从 Supabase Task 表读取并组装为 ContextEntry[] */
   async read(): Promise<ContextDoc> {
     const tasks = await this.prisma.task.findMany({
-      where: { userId: this.defaultUserId },
+      where: { userId: this.defaultUserId, status: { not: 'cancelled' } },
       orderBy: [
         { section: 'asc' },
         { project: 'asc' },
@@ -149,6 +149,44 @@ export class ContextBridgeService {
     }
 
     // 递增版本号，使 pollForUpdates 能检测到变更
+    this.contextVersion++;
+
+    return { success: true, entries: doc.entries, mtime: this.contextVersion };
+  }
+
+  async deleteEntry(hash: string): Promise<ContextWriteResponse> {
+    const task = await this.prisma.task.findUnique({
+      where: {
+        contextMdHash_userId: {
+          contextMdHash: hash,
+          userId: this.defaultUserId,
+        },
+      },
+      include: { pomodoroSessions: true, calendarEvents: true },
+    });
+
+    if (task) {
+      const hasAssociations =
+        task.pomodoroSessions.length > 0 || task.calendarEvents.length > 0;
+
+      if (hasAssociations) {
+        await this.prisma.task.update({
+          where: { id: task.id },
+          data: { status: 'cancelled' },
+        });
+      } else {
+        await this.prisma.task.delete({ where: { id: task.id } });
+      }
+    }
+
+    const doc = await this.read();
+
+    try {
+      this.writeLocalMd(doc.entries);
+    } catch (err) {
+      this.logger.warn(`writeLocalMd 失败（不影响主流程）: ${err}`);
+    }
+
     this.contextVersion++;
 
     return { success: true, entries: doc.entries, mtime: this.contextVersion };

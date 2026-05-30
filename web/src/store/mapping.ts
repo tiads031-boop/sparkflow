@@ -31,7 +31,9 @@ const PRIORITY_TO_COLOR: Record<ContextEntry['priority'], Task['colorType']> = {
 };
 
 export function entriesToTasks(entries: ContextEntry[]): Task[] {
-  return entries.map((e) => ({
+  return entries
+    .filter((e) => e.status !== 'cancelled')
+    .map((e) => ({
     id: e.hash,
     title: e.title,
     description: e.description,
@@ -49,7 +51,7 @@ export function entriesToTasks(entries: ContextEntry[]): Task[] {
     })),
     time: e.description || undefined,
     dueDate: e.dueDate,
-  }));
+    }));
 }
 
 // ════════════════════════════════════════════════════

@@ -834,3 +834,26 @@ model CourseNote {
 - **CourseDetailView 交互原型**: `docs/prototypes/sparkflow-course-detail-prototype.html`
   - Hero 卡片 + 下次课程卡片 + 实例列表 + 调课/换课浮层
   - 参数面板：6 项滑杆 + 导出 JSON + 重置
+
+---
+
+## 11. Deletion flashback fix（2026-05-30）
+
+### Problem
+- Web 端删除任务后，卡片会短暂消失又闪回，最终无法稳定删除。
+- Root cause: delete 仍走全量 `syncToApi()`，服务端会按“缺失即删除”推断；同时 `read()` 会把已软删除的 `cancelled` 任务重新读回前端，形成闪现。
+
+### Implemented fix
+- **Backend read filter**: `api/src/context-bridge/context-bridge.service.ts` 的 `read()` 只返回 `status != 'cancelled'` 的任务。
+- **Explicit delete API**: 新增 `DELETE /context/entries/:hash`，由前端显式声明删除，而不是依赖整表 diff 猜删除。
+- **Soft vs hard delete**: 若任务有关联 `pomodoroSessions` 或 `calendarEvents`，则写成 `status='cancelled'`；否则直接物理删除。
+- **Frontend fallback filter**: `web/src/store/mapping.ts` 的 `entriesToTasks()` 过滤 `cancelled`，避免历史脏数据再次渲染。
+- **Frontend delete flow**: `web/src/store/taskSlice.ts` 的 `deleteTask()` 改为 optimistic remove → `DELETE /context/entries/:hash` → 用服务端返回的 `entries`/`mtime` 回写 `tasks`、`entries`、`lastKnownMtime`、`syncGeneration` 和本地缓存。
+
+### Validation
+- `web`: `cmd /c npm run build` 通过。
+- `api`: 依赖安装仍受阻于 Prisma engines 下载失败（`ECONNRESET`），因此尚未完成后端 build 验证。
+
+### Follow-up
+- 若后端安装恢复，优先执行 `cmd /c npm install` 与 `cmd /c npm run build` 完成 NestJS/Prisma 验证。
+- 后续可继续把“删除”从单条接口扩展到批量删除，避免未来再回退到全量同步推断删除。

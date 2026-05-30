@@ -7,7 +7,8 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from './index';
 import type { Task } from '../types';
-import { hashTitle } from '../api/client';
+import { api, hashTitle } from '../api/client';
+import { entriesToTasks } from './mapping';
 
 export interface TaskSlice {
   tasks: Task[];
@@ -42,7 +43,23 @@ export const createTaskSlice: StateCreator<AppState, [], [], TaskSlice> = (set, 
 
     set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) }));
     try {
-      await get().syncToApi();
+      const hash = deletedTask?.contextMdHash || id;
+      const result = await api.delete<{
+        entries: AppState['entries'];
+        mtime: number;
+      }>(`/context/entries/${encodeURIComponent(hash)}`, {
+        throwOnError: true,
+      });
+      const tasks = entriesToTasks(result.entries);
+
+      localStorage.setItem('sparkflow_tasks_v5', JSON.stringify(tasks));
+
+      set((state) => ({
+        tasks,
+        entries: result.entries,
+        lastKnownMtime: result.mtime,
+        syncGeneration: state.syncGeneration + 1,
+      }));
     } catch {
       if (deletedTask) {
         set({ tasks: prevTasks });

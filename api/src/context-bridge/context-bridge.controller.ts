@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, HttpCode, HttpStatus, HttpException } from '@nestjs/common';
+import { Controller, Get, Post, Body, HttpCode, HttpStatus, HttpException, Delete, Param } from '@nestjs/common';
 import { ContextBridgeService } from './context-bridge.service';
 import { renderMd } from './render';
 import type {
@@ -43,6 +43,12 @@ export class ContextBridgeController {
     }
     // 409 冲突
     throw new HttpException(result, HttpStatus.CONFLICT);
+  }
+
+  @Delete('entries/:hash')
+  @HttpCode(HttpStatus.OK)
+  async deleteEntry(@Param('hash') hash: string): Promise<ContextWriteResponse> {
+    return this.contextBridgeService.deleteEntry(hash);
   }
 
   /** 同步：从本地推送原始 md 文本到 Render（支持 base64 + skipDone）
