@@ -25,6 +25,10 @@ export interface SaveParams {
   section?: 'project' | 'personal';
   subtasks?: Subtask[];
   project?: string;
+  /** 开始时间 "HH:MM" */
+  startTime?: string;
+  /** 持续时长 (分钟) */
+  duration?: number;
 }
 
 interface Props {
@@ -59,6 +63,10 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   // ---- subtask state (edit mode only) ----
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+
+  // ---- time & duration ----
+  const [startTime, setStartTime] = useState('');
+  const [duration, setDuration] = useState<number | undefined>(undefined);
 
   // ---- deadline toggle & notification confirm ----
   const [hasDueDate, setHasDueDate] = useState(false);
@@ -100,6 +108,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setSection('personal');
         setFolder('');
         setHasDueDate(false);
+        setStartTime('');
+        setDuration(undefined);
       } else if (config.data) {
         const hasExistingDueDate = !!config.data.dueDate;
         // 将 UTC ISO 字符串还原为本地时间格式供 datetime-local 输入框使用
@@ -121,6 +131,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setFolder(config.data.project || '');
         setSubtasks(config.data.subtasks || []);
         setHasDueDate(hasExistingDueDate);
+        setStartTime(config.data.startTime || '');
+        setDuration(config.data.duration || undefined);
       }
       setOrder([0, 1, 2]);
       setDragOffset(0);
@@ -144,6 +156,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       section: isTask ? section : undefined,
       project: isTask ? (folder || undefined) : undefined,
       subtasks: isTask && !isCreate ? subtasks : undefined,
+      startTime: isTask ? (startTime || undefined) : undefined,
+      duration: isTask ? duration : undefined,
     };
     onSave(saveParams);
     // notifyBeforeDeadline 标记可在后续版本中扩展存入 task
@@ -362,6 +376,35 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
           <p className="text-[10px] text-white/20 italic">不设置截止时间</p>
         )}
       </div>
+
+      {/* Time & Duration */}
+      {isTask && (
+        <div className="mb-4">
+          <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">开始时间</span>
+          <input
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className="w-full bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50 mb-2"
+          />
+          <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">预计时长</span>
+          <div className="flex gap-1">
+            {[30, 60, 90, 120].map((d) => (
+              <button
+                key={d}
+                onClick={() => setDuration(duration === d ? undefined : d)}
+                className={`px-2 py-1 rounded-full text-[10px] font-medium transition-all ${
+                  duration === d
+                    ? 'bg-[#cae393] text-[#242424]'
+                    : 'bg-white/10 text-white/60 hover:bg-white/20'
+                }`}
+              >
+                {d >= 60 ? `${d / 60}h` : `${d}m`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Delete */}
       {!isCreate && (
@@ -753,6 +796,33 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                   {!hasDueDate && (
                     <p className="text-[10px] text-white/20 italic">不设置截止时间</p>
                   )}
+                </div>
+
+                {/* Time & Duration */}
+                <div>
+                  <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">开始时间</span>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full bg-white/10 text-white text-xs px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50 mb-2"
+                  />
+                  <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">预计时长</span>
+                  <div className="flex gap-1.5">
+                    {[30, 60, 90, 120].map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => setDuration(duration === d ? undefined : d)}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
+                          duration === d
+                            ? 'bg-[#cae393] text-[#242424]'
+                            : 'bg-white/10 text-white/60 hover:bg-white/20'
+                        }`}
+                      >
+                        {d >= 60 ? `${d / 60}h` : `${d}m`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </>
             )}

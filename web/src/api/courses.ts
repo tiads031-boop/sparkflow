@@ -11,10 +11,10 @@ import type { Course, CourseDetail, CourseNote, CourseFormData, CalendarEvent } 
 const BASE = '/courses';
 
 /** 获取用户所有课程（可选按学期筛选） */
-export async function fetchCourses(userId = DEFAULT_USER_ID, semesterId?: string | null): Promise<Course[]> {
+export async function fetchCourses(userId = DEFAULT_USER_ID, semesterId?: string | null, signal?: AbortSignal): Promise<Course[]> {
   let url = `${BASE}?userId=${userId}`;
   if (semesterId) url += `&semesterId=${semesterId}`;
-  const res = await apiRequest(url);
+  const res = await apiRequest(url, { signal });
   return res.json();
 }
 

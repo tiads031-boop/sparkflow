@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as ical from 'node-ical';
 
 interface CourseCreateData {
   userId: string;
@@ -323,16 +324,6 @@ export class CourseService {
     const tmpDir = os.tmpdir();
     const tmpPath = path.join(tmpDir, `course-import-${Date.now()}.ics`);
     fs.writeFileSync(tmpPath, fileBuffer);
-
-    let ical: any;
-    try {
-      ical = require('node-ical');
-    } catch {
-      try {
-        fs.unlinkSync(tmpPath);
-      } catch { /* ignore */ }
-      throw new Error('node-ical 未安装，无法解析 ICS 文件');
-    }
 
     let events: any;
     try {

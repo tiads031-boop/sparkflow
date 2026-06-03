@@ -52,12 +52,19 @@ export const createCourseSlice: StateCreator<AppState, [], [], CourseSlice> = (s
 
   loadCourses: async () => {
     set({ isCoursesLoading: true, coursesError: null });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15_000);
     try {
       const semesterId = get().activeSemesterId;
-      const courses = await fetchCourses(DEFAULT_USER_ID, semesterId);
+      const courses = await fetchCourses(DEFAULT_USER_ID, semesterId, controller.signal);
+      clearTimeout(timeoutId);
       set({ courses, isCoursesLoading: false });
     } catch (err: any) {
-      set({ coursesError: err.message || '加载课程失败', isCoursesLoading: false });
+      clearTimeout(timeoutId);
+      const message = err.name === 'AbortError'
+        ? '加载课程超时，请检查网络后重试'
+        : (err.message || '加载课程失败');
+      set({ coursesError: message, isCoursesLoading: false });
     }
   },
 

@@ -13,6 +13,13 @@ export class ApiKeyGuard implements CanActivate {
       return true;
     }
 
+    if (
+      request.method === 'GET' &&
+      request.path?.endsWith('/google/auth/callback')
+    ) {
+      return true;
+    }
+
     const apiKey = this.configService.get<string>('API_KEY');
 
     // 如果未配置 API_KEY，则跳过验证（本地开发便利）

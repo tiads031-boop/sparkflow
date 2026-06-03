@@ -3,11 +3,12 @@ import { useAppStore, type Task } from '../store/appStore';
 import { V4 } from '../v4config';
 import { api, DEFAULT_USER_ID } from '../api/client';
 
-// ==================== 课程事件类型 & API ====================
+// ==================== 日历事件类型 & API ====================
 
-interface CourseEvent {
+interface CalendarApiEvent {
   id: string;
-  courseId: string;
+  taskId?: string | null;
+  courseId?: string;
   title: string;
   eventType: string;
   startTime: string;
@@ -17,7 +18,7 @@ interface CourseEvent {
 }
 
 const fetchCalendarEvents = (start: string, end: string) =>
-  api.get<CourseEvent[]>(
+  api.get<CalendarApiEvent[]>(
     `/calendar?userId=${DEFAULT_USER_ID}&start=${start}&end=${end}`,
     { fallback: [] },
   );
@@ -82,7 +83,7 @@ function CalendarHeader({
   onChangeMonth,
   onChangeWeek,
   tasks,
-  courseEventDays,
+  calendarEventDays,
 }: {
   selectedDate: Date;
   expanded: boolean;
@@ -91,13 +92,13 @@ function CalendarHeader({
   onChangeMonth: (dir: number) => void;
   onChangeWeek: (dir: number) => void;
   tasks: Task[];
-  courseEventDays: Set<string>;
+  calendarEventDays: Set<string>;
 }) {
   const today = new Date();
   const monthLabel = selectedDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
   const weekStart = getMonday(selectedDate);
 
-  // 有日程的日期集合（任务 + 课程事件合并）
+  // 有日程的日期集合（任务 + 日历事件合并）
   const eventDays = new Set<string>();
   tasks.forEach((t) => {
     if (t.dueDate || t.startTime) {
@@ -105,7 +106,7 @@ function CalendarHeader({
       eventDays.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
     }
   });
-  courseEventDays.forEach((key) => eventDays.add(key));
+  calendarEventDays.forEach((key) => eventDays.add(key));
 
   if (expanded) {
     // 月历网格
@@ -221,6 +222,8 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   const setHeaderExpanded = useAppStore((s) => s.setCalendarHeaderExpanded);
   const updateTask = useAppStore((s) => s.updateTask);
   const addTask = useAppStore((s) => s.addTask);
+  const isGoogleConnected = useAppStore((s) => s.isConnected);
+  const lastGoogleSyncAt = useAppStore((s) => s.lastSyncAt);
 
   const timelineRef = useRef<HTMLDivElement>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
@@ -240,29 +243,29 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   // 同步 creatingGhost 到 ref
   creatingGhostRef.current = creatingGhost;
 
-  // 课程事件
-  const [courseEvents, setCourseEvents] = useState<CourseEvent[]>([]);
+  // 日历事件（课程 / Google / 本地 / 手动）
+  const [calendarEvents, setCalendarEvents] = useState<CalendarApiEvent[]>([]);
 
-  // 拉取课程事件（选中日期所在周）
+  // 拉取日历事件（选中日期所在周）
   useEffect(() => {
     const weekStart = getMonday(selectedDate);
     const weekEnd = addDays(weekStart, 7);
     const startStr = weekStart.toISOString();
     const endStr = weekEnd.toISOString();
     fetchCalendarEvents(startStr, endStr).then((events) => {
-      setCourseEvents(events.filter((e) => e.eventType === 'course'));
+      setCalendarEvents(events.filter((event) => !event.taskId));
     });
-  }, [selectedDate]);
+  }, [selectedDate, lastGoogleSyncAt]);
 
-  // 课程事件日期集合（用于日历绿点）
-  const courseEventDays = useMemo(() => {
+  // 日历事件日期集合（用于日历绿点）
+  const calendarEventDays = useMemo(() => {
     const days = new Set<string>();
-    courseEvents.forEach((ev) => {
+    calendarEvents.forEach((ev) => {
       const d = new Date(ev.startTime);
       days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
     });
     return days;
-  }, [courseEvents]);
+  }, [calendarEvents]);
 
   // 截止任务快速安排状态
   const [schedulingTaskId, setSchedulingTaskId] = useState<string | null>(null);
@@ -314,21 +317,34 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     .filter((t) => t.startTime)
     .sort((a, b) => parseTime(a.startTime!) - parseTime(b.startTime!));
 
-  // 今日课程事件（合并 eventType='course'）
-  const dayCourseEvents = courseEvents.filter((ev) => {
+  // 今日日历事件（Google / 本地 / manual / course）
+  const dayCalendarEvents = calendarEvents.filter((ev) => {
     const evDate = new Date(ev.startTime);
     return isSameDay(evDate, selectedDate);
   });
 
   const timelineHeight = (endH - startH) * hourH;
 
-  // 计算课程块颜色（提取色值，默认淡紫）
-  const getCourseBlockStyle = (color?: string) => {
-    const c = color || '#b0a8db';
+  // 计算日历事件块颜色（提取色值，按来源给默认色）
+  const getCalendarBlockMeta = (eventType?: string, color?: string) => {
+    const normalizedType = (eventType || 'manual').toLowerCase();
+    const defaultColor =
+      normalizedType.includes('google') ? '#4285f4'
+      : normalizedType.includes('local') || normalizedType.includes('android') ? '#34a853'
+      : normalizedType === 'course' ? '#b0a8db'
+      : '#fbbc04';
+    const c = color || defaultColor;
+    const label =
+      normalizedType.includes('google') ? 'Google'
+      : normalizedType.includes('local') || normalizedType.includes('android') ? '本地'
+      : normalizedType === 'course' ? '课程'
+      : '日程';
     return {
       background: `${c}15`,
       borderColor: `${c}60`,
       textColor: '#242424',
+      accent: c,
+      label,
     };
   };
 
@@ -727,11 +743,11 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
         `✅ 新建 ${data.created?.length || 0} 门，更新 ${data.updated?.length || 0} 门，共 ${data.eventCount || 0} 次课`,
       );
 
-      // 刷新课程事件
+      // 刷新日历事件
       const weekStart = getMonday(selectedDate);
       const weekEnd = addDays(weekStart, 7);
       const events = await fetchCalendarEvents(weekStart.toISOString(), weekEnd.toISOString());
-      setCourseEvents(events.filter((ev) => ev.eventType === 'course'));
+      setCalendarEvents(events.filter((ev) => !ev.taskId));
     } catch (err: any) {
       setImportResult(`❌ ${err.message || '导入失败'}`);
     } finally {
@@ -778,14 +794,14 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
         onChangeMonth={handleChangeMonth}
         onChangeWeek={handleChangeWeek}
         tasks={tasks}
-        courseEventDays={courseEventDays}
+        calendarEventDays={calendarEventDays}
       />
 
       {/* 时间线卡片 */}
       <div className="bg-white rounded-[2rem] shadow-sm overflow-hidden">
         <div className="p-4 pb-2 flex items-center justify-between">
           <h3 className="text-sm font-bold text-[#242424]">
-            {formatDate(selectedDate)} · {dayTasks.length} 项任务 · {dayCourseEvents.length} 课
+            {formatDate(selectedDate)} · {dayTasks.length} 项任务 · {dayCalendarEvents.length} 日程
           </h3>
           <span className="text-[10px] text-gray-400">长按空区创建 · 拖拽调整时间</span>
         </div>
@@ -919,6 +935,13 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
                 onPointerDown={(e) => onTaskPointerDown(e, task.id, task.startTime!, task.duration || 60)}
                 onDoubleClick={() => onTaskClick?.(task)}
               >
+                {/* 同步状态指示点 */}
+                {isGoogleConnected && (
+                  <span
+                    className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#cae393]"
+                    title="已同步到 Google 日历"
+                  />
+                )}
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${task.colorType === 'dark' ? 'bg-white/60' : ''}`}
@@ -949,8 +972,8 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
             );
           })}
 
-          {/* 课程块（只读虚线） */}
-          {dayCourseEvents.map((ev) => {
+          {/* 日历事件块（只读虚线） */}
+          {dayCalendarEvents.map((ev) => {
             const st = new Date(ev.startTime);
             const et = new Date(ev.endTime);
             const startHr = st.getHours() + st.getMinutes() / 60;
@@ -958,11 +981,11 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
             const durationMin = Math.round((endHr - startHr) * 60);
             const top = (startHr - startH) * hourH;
             const h = Math.max(((endHr - startHr) * hourH), 36);
-            const style = getCourseBlockStyle(ev.color);
+            const style = getCalendarBlockMeta(ev.eventType, ev.color);
 
             return (
               <div
-                key={`course-${ev.id}`}
+                key={`calendar-${ev.id}`}
                 className="absolute left-14 right-2 rounded-[11px] px-3 py-2 select-none overflow-hidden z-5"
                 style={{
                   top: `${top}px`,
@@ -972,14 +995,22 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
                   color: style.textColor,
                 }}
                 onClick={() => {
-                  // TODO: 跳转课程详情页
-                  console.log('[Course] navigate to course detail', ev.courseId);
+                  if (ev.courseId) {
+                    console.log('[Calendar] navigate to course detail', ev.courseId);
+                  }
                 }}
               >
+                {/* 同步状态指示点 */}
+                {isGoogleConnected && (
+                  <span
+                    className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#cae393]"
+                    title="已同步到 Google 日历"
+                  />
+                )}
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span
                     className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: ev.color || '#b0a8db' }}
+                    style={{ background: style.accent }}
                   />
                   <span className="text-xs font-semibold truncate">
                     {ev.title}
@@ -992,7 +1023,9 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
                   <span className="text-[10px] opacity-50">
                     {`${pad(st.getHours())}:${pad(st.getMinutes())} - ${pad(et.getHours())}:${pad(et.getMinutes())}`} · {durationMin}min
                   </span>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-black/5 opacity-50">课程</span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-black/5 opacity-50">
+                    {style.label}
+                  </span>
                 </div>
               </div>
             );
@@ -1116,9 +1149,9 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       })()}
 
       {/* 空状态 */}
-      {(dayTasks.length === 0 && dayCourseEvents.length === 0) && (
+      {(dayTasks.length === 0 && dayCalendarEvents.length === 0) && (
         <div className="bg-white rounded-[2rem] p-8 shadow-sm mt-4 text-center">
-          <p className="text-sm text-gray-400">该日无日程安排 · 无课程</p>
+          <p className="text-sm text-gray-400">该日无日程安排</p>
         </div>
       )}
     </div>

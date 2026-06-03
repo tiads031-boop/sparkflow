@@ -25,8 +25,33 @@ export class CalendarController {
     taskId?: string;
     isAllDay?: boolean;
     color?: string;
+    location?: string;
+    externalSource?: string;
+    externalEventId?: string;
+    sourceCalendarTitle?: string;
   }) {
     return this.calendarService.create(data);
+  }
+
+  @Post('import-local')
+  importLocal(@Body() data: {
+    userId: string;
+    platform?: string;
+    source?: string;
+    events: Array<{
+      externalEventId: string;
+      title: string;
+      startTime: string;
+      endTime: string;
+      isAllDay?: boolean;
+      eventType?: string;
+      sourceCalendarTitle?: string;
+      location?: string;
+      description?: string;
+      color?: string;
+    }>;
+  }) {
+    return this.calendarService.importLocal(data);
   }
 
   @Patch(':id')

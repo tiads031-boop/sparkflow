@@ -4,7 +4,7 @@ import { useAppStore } from '../store/appStore';
 import { resolveMentions } from '../utils/mentionUtils';
 import {
   GripVertical, Plus, ChevronDown, ChevronRight,
-  FolderPlus, X, Tag,
+  FolderPlus, X, Tag, Clock,
 } from 'lucide-react';
 
 interface BoardViewProps {
@@ -30,6 +30,9 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
   const [quickSection, setQuickSection] = useState<'project' | 'personal'>('personal');
   const [quickFolder, setQuickFolder] = useState('');
   const [showFolderInput, setShowFolderInput] = useState(false);
+  const [showTimeInput, setShowTimeInput] = useState(false);
+  const [quickStartTime, setQuickStartTime] = useState('');
+  const [quickDuration, setQuickDuration] = useState<number | undefined>(undefined);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -37,8 +40,12 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
   const [newFolderName, setNewFolderName] = useState('');
   const folderInputRef = useRef<HTMLInputElement>(null);
   const hasAutoCollapsed = useRef<boolean>(false);
+  const [boardFilter, setBoardFilter] = useState<'all' | 'personal' | 'project'>('all');
 
   const columns = ['project', 'personal'] as const;
+  const visibleColumns = boardFilter === 'all'
+    ? columns
+    : columns.filter((c) => c === boardFilter);
 
   const activeTasks = tasks.filter((t) => t.status !== 'Done' && t.status !== 'Cancelled');
 
@@ -105,9 +112,14 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
       subtasks: [],
       section: quickSection,
       project: quickFolder.trim() || undefined,
+      startTime: quickStartTime || undefined,
+      duration: quickDuration || undefined,
     });
     setQuickTitle('');
     setQuickFolder('');
+    setQuickStartTime('');
+    setQuickDuration(undefined);
+    setShowTimeInput(false);
   };
 
   const handleCreateFolder = (section: 'project' | 'personal') => {
@@ -185,6 +197,27 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
         </div>
       </div>
 
+      {/* Filter pills */}
+      <div className="flex items-center gap-2 mb-4">
+        {([
+          { key: 'all', label: '全部' },
+          { key: 'personal', label: '个人' },
+          { key: 'project', label: '项目' },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setBoardFilter(key)}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
+              boardFilter === key
+                ? 'bg-[#242424] text-white'
+                : 'bg-white text-gray-500 border border-gray-200 hover:border-[#b0a8db]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Quick add */}
       <div className="space-y-2 mb-5">
         <div className="flex gap-2">
@@ -216,6 +249,17 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
             <Tag size={16} />
           </button>
           <button
+            onClick={() => setShowTimeInput(!showTimeInput)}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+              showTimeInput
+                ? 'bg-[#cae393] text-[#242424]'
+                : 'bg-white border border-gray-100 text-gray-400 hover:text-[#242424]'
+            }`}
+            title="设置时间"
+          >
+            <Clock size={16} />
+          </button>
+          <button
             onClick={handleQuickAdd}
             disabled={!quickTitle.trim()}
             className="w-10 h-10 rounded-full bg-[#242424] text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-30"
@@ -235,11 +279,34 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
             />
           </div>
         )}
+        {showTimeInput && (
+          <div className="flex items-center gap-2 animate-in fade-in">
+            <input
+              type="time"
+              value={quickStartTime}
+              onChange={(e) => setQuickStartTime(e.target.value)}
+              className="w-28 px-3 py-2 rounded-full text-xs bg-white border border-gray-100 focus:outline-none focus:border-[#cae393] transition-all"
+            />
+            {[30, 60, 90, 120].map((d) => (
+              <button
+                key={d}
+                onClick={() => setQuickDuration(quickDuration === d ? undefined : d)}
+                className={`px-2 py-1.5 rounded-full text-[10px] font-medium transition-all ${
+                  quickDuration === d
+                    ? 'bg-[#cae393] text-[#242424]'
+                    : 'bg-white border border-gray-100 text-gray-400 hover:bg-gray-50'
+                }`}
+              >
+                {d >= 60 ? `${d / 60}h` : `${d}m`}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Two columns */}
-      <div className="grid grid-cols-2 gap-3">
-        {columns.map((col) => {
+      {/* Columns — dynamic grid: 2 cols for all, 1 col for single filter */}
+      <div className={`grid gap-3 ${visibleColumns.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+        {visibleColumns.map((col) => {
           const colTasks = activeTasks.filter((t) => (t.section || 'personal') === col);
           const meta = columnMeta[col];
           const folderGroups = groupByFolder(colTasks);

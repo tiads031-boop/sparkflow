@@ -27,7 +27,7 @@ export interface Task {
   description?: string;
   dueDate?: string;
   estimatedMinutes?: number;
-  contextMdHash?: string;
+
   /** 看板分区：项目待办 / 个人待办 */
   section?: 'project' | 'personal';
   /** 文件夹 / 项目名称 */
@@ -86,37 +86,6 @@ export interface CalendarEvent {
   color?: string;
   isOverride?: boolean;
   extendedProps?: { taskId?: string; eventType?: string };
-}
-
-// ════════════════════════════════════════════════════
-// Sync & ContextBridge
-// ════════════════════════════════════════════════════
-
-export interface SyncConflict {
-  id: string;
-  field: string;
-  mine: string;
-  latest: string;
-}
-
-/** 协议层备注 / 子任务项 */
-export interface NoteItem {
-  text: string;
-  completed: boolean;
-}
-
-/** ContextBridge 协议层原始条目 */
-export interface ContextEntry {
-  hash: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'in-progress' | 'in-review' | 'done' | 'cancelled';
-  priority: 'high' | 'medium' | 'low';
-  section: 'project' | 'personal';
-  project: string;
-  notes: NoteItem[];
-  rawLine: string;
-  dueDate?: string;
 }
 
 // ════════════════════════════════════════════════════
@@ -194,4 +163,11 @@ export interface CourseFormData {
 
 export type ChartView = 'day' | 'week' | 'month';
 
-export type ActiveTab = 'dashboard' | 'tasks' | 'board' | 'calendar' | 'sparks' | 'courses';
+export type ActiveTab =
+  | 'dashboard'
+  | 'tasks'
+  | 'board'
+  | 'calendar'
+  | 'sparks'
+  | 'courses'
+  | 'settings';

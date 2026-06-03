@@ -9,7 +9,6 @@ dist-ssr/
 .env
 .env.*
 !.env.example
-!.env.production  # web/.env.production is a template (no real secrets)
 
 # IDE
 .vscode/
@@ -28,3 +27,7 @@ Thumbs.db
 # Generated Prisma client
 api/src/generated/
 api/prisma/generated/
+
+# Service account / private key material
+*firebase-adminsdk*.json
+*service-account*.json

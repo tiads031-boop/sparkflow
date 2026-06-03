@@ -8,16 +8,53 @@
  * - API 地址由 VITE_API_BASE_URL 环境变量驱动
  * - 认证使用 X-API-Key header
  * - 未配置 API_KEY 时自动跳过（本地开发零摩擦）
+ * - Capacitor 环境（APK）没有 Vite proxy，自动使用 VITE_API_BASE_URL 直连
  */
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '') as string;
+const RAW_API_BASE = (import.meta.env.VITE_API_BASE_URL || '') as string;
 const API_KEY = (import.meta.env.VITE_API_KEY || '') as string;
 
 /** 默认用户 ID，单用户工具使用固定值 */
 export const DEFAULT_USER_ID = (import.meta.env.VITE_DEFAULT_USER_ID || 'default') as string;
 
+const API_BASE = RAW_API_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
+
+/**
+ * 检测当前是否运行在 Capacitor 原生环境
+ *
+ * 不能 import 来自 capacitor/index.ts（那里面引了 @capacitor/push-notifications，
+ * PWA 环境会报错），所以内联一份轻量检测。
+ */
+function isCapacitorNative(): boolean {
+  try {
+    return !!(window as any).Capacitor?.isNativePlatform?.();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 解析 API 请求的完整 URL
+ *
+ * PWA 开发环境：Vite proxy 将 /api/* 转发到 localhost:3001，用相对路径即可
+ * Capacitor APP 环境：APK 内无 proxy，直接拼接 VITE_API_BASE_URL + path
+ */
+function resolveApiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  // Capacitor 原生环境：必须用完整后端 URL，NestJS 后端有 /api 全局前缀
+  if (isCapacitorNative() && API_BASE) {
+    return `${API_BASE}/api${normalizedPath}`;
+  }
+  // PWA 环境：VITE_API_BASE_URL 有值则用，否则走相对路径由 Vite proxy 兜底
+  if (API_BASE) {
+    return `${API_BASE}/api${normalizedPath}`;
+  }
+  return `/api${normalizedPath}`;
+}
+
 interface RequestOptions extends Omit<RequestInit, 'headers'> {
   headers?: Record<string, string>;
+  signal?: AbortSignal;
 }
 
 interface ApiOptions extends RequestOptions {
@@ -34,7 +71,7 @@ interface ApiOptions extends RequestOptions {
  * body 为 FormData 时不默认设置 Content-Type，让浏览器自动处理 boundary。
  */
 export async function apiRequest(path: string, options?: RequestOptions): Promise<Response> {
-  const url = API_BASE ? `${API_BASE}${path}` : `/api${path}`;
+  const url = resolveApiUrl(path);
 
   const isFormData = options?.body instanceof FormData;
 
@@ -100,33 +137,3 @@ export const api = {
   delete: <T>(path: string, options?: ApiOptions) =>
     requestJson<T>('DELETE', path, undefined, options),
 };
-
-/**
- * 计算标题的 contextMdHash（SHA-256 前 8 位）
- *
- * 复用自 appStore.ts 原始实现。
- * 与服务端 context-bridge/parse.ts 的 hashTitle 逻辑一致。
- */
-export async function hashTitle(title: string): Promise<string> {
-  const normalized = title.trim().toLowerCase().replace(/\s+/g, ' ');
-  const encoder = new TextEncoder();
-  const data = encoder.encode(normalized);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 8);
-}
-
-/**
- * 同步请求的 base64 编码 fallback
- *
- * Render WAF 会拦截包含命令模式（如 `python -m ...`）的请求体。
- * 同步脚本使用 base64 编码绕过内容扫描。
- * 参考：蓝图已知问题 2026-05-28
- */
-export function encodeSyncBody(body: string): { encoding: 'base64'; content: string } {
-  const encoded = btoa(unescape(encodeURIComponent(body)));
-  return { encoding: 'base64', content: encoded };
-}

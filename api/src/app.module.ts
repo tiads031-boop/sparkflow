@@ -10,8 +10,8 @@ import { PomodoroModule } from './pomodoro/pomodoro.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { CourseModule } from './course/course.module';
 import { SemesterModule } from './semester/semester.module';
-import { ContextBridgeModule } from './context-bridge/context-bridge.module';
 import { PushModule } from './push/push.module';
+import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 import { CommonModule } from './common/common.module';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 
@@ -27,9 +27,9 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
     CalendarModule,
     CourseModule,
     SemesterModule,
-    ContextBridgeModule,
     ScheduleModule.forRoot(),
     PushModule,
+    GoogleCalendarModule,
   ],
   providers: [
     {

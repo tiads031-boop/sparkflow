@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Home, CheckSquare, Calendar as CalendarIcon, Zap,
-  Plus, Bell, BellOff, AlertCircle, LayoutGrid, RefreshCw, CheckCircle2, BookOpen,
+  Plus, Bell, BellOff, LayoutGrid, BookOpen, Settings,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
 import DashboardView from './components/DashboardView';
@@ -11,9 +11,18 @@ import CalendarView from './components/CalendarView';
 import SparksView from './components/SparksView';
 import CourseView from './components/CourseView';
 import CourseDetailView from './components/CourseDetailView';
+import SettingsView from './components/SettingsView';
 import { importIcs } from './api/courses';
 import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
-import SyncConflictModal from './components/SyncConflictModal';
+
+// ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
+function isCapacitorNative(): boolean {
+  try {
+    return !!(window as any).Capacitor?.isNativePlatform?.();
+  } catch {
+    return false;
+  }
+}
 
 const navItems = [
   { id: 'dashboard' as const, label: '仪表盘', icon: Home },
@@ -22,67 +31,26 @@ const navItems = [
   { id: 'calendar' as const, label: '日历', icon: CalendarIcon },
   { id: 'courses' as const, label: '课程', icon: BookOpen },
   { id: 'sparks' as const, label: '灵感', icon: Zap },
+  { id: 'settings' as const, label: '设置', icon: Settings },
 ];
 
 function Header({
   onAddClick,
-  onSyncClick,
-  syncError,
-  isSyncing,
-  hasLoaded,
   pushEnabled,
   pushSupported,
   onTogglePush,
 }: {
   onAddClick: (context: string) => void;
-  onSyncClick: () => void;
-  syncError: string | null;
-  isSyncing: boolean;
-  hasLoaded: boolean;
   pushEnabled: boolean;
   pushSupported: boolean;
   onTogglePush: () => void;
 }) {
-  const showBadge = syncError || isSyncing || hasLoaded;
-
-  const badgeContent = (() => {
-    if (syncError) {
-      return (
-        <div
-          onClick={onSyncClick}
-          className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-500 border border-red-100 cursor-pointer hover:bg-red-100 transition-colors shadow-sm animate-pulse text-xs"
-        >
-          <AlertCircle size={12} />
-          <span className="font-bold tracking-wide">同步异常</span>
-        </div>
-      );
-    }
-    if (isSyncing) {
-      return (
-        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 border border-gray-200 text-xs">
-          <RefreshCw size={12} className="animate-spin" />
-          <span className="font-bold tracking-wide">同步中</span>
-        </div>
-      );
-    }
-    if (hasLoaded) {
-      return (
-        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-50 text-green-600 border border-green-100 text-xs">
-          <CheckCircle2 size={12} />
-          <span className="font-bold tracking-wide">已同步</span>
-        </div>
-      );
-    }
-    return null;
-  })();
-
   return (
     <div className="flex justify-between items-center mb-4">
       <div className="flex items-center gap-3">
         <div className="text-xl font-black tracking-tighter text-[#242424] italic select-none">
           SparkFlow<span className="text-[#cae393]">.</span>
         </div>
-        {showBadge && badgeContent}
       </div>
       <div className="flex gap-2">
         <button
@@ -117,7 +85,7 @@ function BottomNav({
   setActiveTab,
 }: {
   activeTab: string;
-  setActiveTab: (tab: 'dashboard' | 'tasks' | 'board' | 'calendar' | 'courses' | 'sparks') => void;
+  setActiveTab: (tab: 'dashboard' | 'tasks' | 'board' | 'calendar' | 'courses' | 'sparks' | 'settings') => void;
 }) {
   return (
     <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#242424] rounded-full px-1.5 py-1.5 flex items-center gap-1 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-40">
@@ -156,18 +124,16 @@ export default function App() {
   const addTask = useAppStore((s) => s.addTask);
   const addSpark = useAppStore((s) => s.addSpark);
   const toggleSubtask = useAppStore((s) => s.toggleSubtask);
-  const loadFromApi = useAppStore((s) => s.loadFromApi);
+  const loadTasks = useAppStore((s) => s.loadTasks);
   const loadPomodoroStats = useAppStore((s) => s.loadPomodoroStats);
   const tick = useAppStore((s) => s.tick);
-  const syncError = useAppStore((s) => s.syncError);
-  const isSyncing = useAppStore((s) => s.isSyncing);
-  const hasLoaded = useAppStore((s) => s.hasLoaded);
   const pomodoro = useAppStore((s) => s.pomodoro);
   const pushEnabled = useAppStore((s) => s.pushEnabled);
   const pushSupported = useAppStore((s) => s.pushSupported);
   const subscribeToPush = useAppStore((s) => s.subscribeToPush);
   const unsubscribeFromPush = useAppStore((s) => s.unsubscribeFromPush);
   const checkPushStatus = useAppStore((s) => s.checkPushStatus);
+  const checkGoogleStatus = useAppStore((s) => s.checkStatus);
 
   // ── Course 状态 ──
   const loadCourses = useAppStore((s) => s.loadCourses);
@@ -176,33 +142,55 @@ export default function App() {
 
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
 
-  const pollForUpdates = useAppStore((s) => s.pollForUpdates);
-
   useEffect(() => {
-    loadFromApi();
+    loadTasks();
     loadPomodoroStats();
     checkPushStatus();
+    checkGoogleStatus();
     loadCourses();
     loadSemesters();
-  }, [loadFromApi, loadPomodoroStats, checkPushStatus, loadCourses, loadSemesters]);
+  }, [loadTasks, loadPomodoroStats, checkPushStatus, checkGoogleStatus, loadCourses, loadSemesters]);
+
+  // ── Capacitor 生命周期：APP 从后台恢复时刷新关键状态 ──
+  useEffect(() => {
+    if (!isCapacitorNative()) return;
+
+    // 注册前台推送消息 & 通知点击监听（与注册流程解耦，只挂一次）
+    import('./capacitor/push').then((m) => m.listenToPushEvents()).catch(() => {});
+
+    // @capacitor/app 在 PWA 构建时不可用，运行时动态加载
+    let cleanup: (() => void) | undefined;
+
+    (async () => {
+      try {
+        const { App: CapApp } = await import('@capacitor/app');
+        const handler = await CapApp.addListener('appStateChange', ({ isActive }) => {
+          if (isActive) {
+            // APP 回到前台：刷新推送状态 & Google 连接状态
+            checkPushStatus();
+            checkGoogleStatus();
+            loadTasks();
+          }
+        });
+        cleanup = handler.remove;
+      } catch {
+        // Capacitor App 插件不可用，静默降级
+      }
+    })();
+
+    return () => { cleanup?.(); };
+  }, [checkPushStatus, checkGoogleStatus, loadTasks]);
 
   // 切换到课程 tab 时加载课程数据
   useEffect(() => {
     if (activeTab === 'courses') { loadCourses(); loadSemesters(); }
   }, [activeTab, loadCourses, loadSemesters]);
 
-  // 轮询检测 CURRENT_CONTEXT.md 外部变更（每 15 秒）
-  useEffect(() => {
-    const interval = setInterval(() => pollForUpdates(), 15_000);
-    return () => clearInterval(interval);
-  }, [pollForUpdates]);
-
   useEffect(() => {
     const interval = setInterval(() => tick(), 1000);
     return () => clearInterval(interval);
   }, [tick]);
 
-  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     mode: 'create' | 'edit';
@@ -220,7 +208,7 @@ export default function App() {
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
   const handleSaveItem = ({
-    id, title, content, context, status, priority, dueDate, section, subtasks, project,
+    id, title, content, context, status, priority, dueDate, section, subtasks, project, startTime, duration,
   }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
 
@@ -244,6 +232,8 @@ export default function App() {
           section: section || 'personal',
           dueDate: normalizedDueDate || undefined,
           project: project || undefined,
+          startTime: startTime || undefined,
+          estimatedMinutes: duration,
           ...(subtasks !== undefined ? { subtasks } : {}),
         });
       } else {
@@ -259,6 +249,8 @@ export default function App() {
           section: section || 'personal' as const,
           dueDate: normalizedDueDate,
           project: project || undefined,
+          startTime: startTime || undefined,
+          duration: duration || undefined,
         };
         addTask(newTask);
         setActiveTab('tasks');
@@ -317,10 +309,6 @@ export default function App() {
         <div className="px-5 pt-5 pb-0 relative z-20">
           <Header
             onAddClick={handleOpenCreate}
-            onSyncClick={() => setIsSyncModalOpen(true)}
-            syncError={syncError}
-            isSyncing={isSyncing}
-            hasLoaded={hasLoaded}
             pushEnabled={pushEnabled}
             pushSupported={pushSupported}
             onTogglePush={() => pushEnabled ? unsubscribeFromPush() : subscribeToPush()}
@@ -362,6 +350,7 @@ export default function App() {
               onAddClick={() => handleOpenCreate('spark')}
             />
           )}
+          {activeTab === 'settings' && <SettingsView />}
         </div>
 
         <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -374,7 +363,6 @@ export default function App() {
           onDelete={handleDeleteItem}
           onToggleSubtask={toggleSubtask}
         />
-        <SyncConflictModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
       </div>
     </div>
   );
