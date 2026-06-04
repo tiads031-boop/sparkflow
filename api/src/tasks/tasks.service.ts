@@ -6,7 +6,13 @@ export class TasksService {
   constructor(private prisma: PrismaService) {}
 
   findAll(userId: string, status?: string, date?: string) {
-    const where: any = { userId };
+    const where: any = {
+      userId,
+      OR: [
+        { section: null },
+        { section: { not: 'calendar' } },
+      ],
+    };
     if (status) where.status = status;
     if (date) {
       const d = new Date(date);

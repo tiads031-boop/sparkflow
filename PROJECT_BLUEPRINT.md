@@ -191,6 +191,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ## 六、更新日志
 
 ### 2026-06-04
+- ✅ **课程日程不再自动转任务**：Google Calendar 回流和 Android/local 日历导入仅在已有 `taskId` 关联时更新任务；未关联课程日程只保留为 CalendarEvent，不再自动生成普通 Task；任务查询过滤历史自动生成的 `section=calendar` 待办，避免课程表挤占任务列表。
 - ✅ **部署与 App 编译验证**：后端 `api npm run build`、前端 `web npm run build`、Android `web npm run android:build` 均已通过；debug APK 产物生成在 `web/android/app/build/outputs/apk/debug/app-debug.apk`；前后端通过推送 `master` 触发 Render/Vercel 自动部署。
 - ✅ **移动端日历/任务/课程收口修复**：Google OAuth callback 增加结构化错误回传与前端 popup/deep-link 错误提示；看板快速添加移除个人/项目选择；任务编辑页补 safe-area、卡片内滚动、三状态中文展示与独立删除按钮；设置页新增底部导航顺序调整；课程模块将“课程笔记”收敛为“课程任务”，支持标签、搜索、转化任务，并按未来课程优先/已过课程置灰排序。
 - ✅ **Google Calendar OAuth Web/App 闭环**：OAuth URL 带 `userId/platform`，PKCE verifier 加密进 state；Web popup 自动关闭，Android 通过 `sparkflow://oauth` deep link 返回；`/api/google/auth/callback` 对 Google GET 回调放行。

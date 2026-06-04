@@ -346,6 +346,7 @@ export class GoogleSyncService {
               isAllDay: mapped.isAllDay ?? localEvent.isAllDay,
               eventType: mapped.eventType ?? localEvent.eventType,
               location: mapped.location ?? localEvent.location,
+              courseId: mapped.courseId ?? localEvent.courseId,
               taskId,
               googleSyncedAt: new Date(),
               syncStatus: 'synced',
@@ -381,6 +382,7 @@ export class GoogleSyncService {
               isAllDay: mapped.isAllDay ?? localByGoogleId.isAllDay,
               eventType: mapped.eventType ?? localByGoogleId.eventType,
               location: mapped.location ?? localByGoogleId.location,
+              courseId: mapped.courseId ?? localByGoogleId.courseId,
               taskId,
               googleSyncedAt: new Date(),
               syncStatus: 'synced',
@@ -409,6 +411,7 @@ export class GoogleSyncService {
           endTime: mapped.endTime!,
           isAllDay: mapped.isAllDay ?? false,
           eventType: mapped.eventType ?? 'task',
+          courseId: mapped.courseId,
           location: mapped.location,
           taskId,
           externalSource: 'google',
@@ -472,6 +475,15 @@ export class GoogleSyncService {
     existingTaskId?: string | null,
   ): Promise<string | undefined> {
     if (!mapped.startTime) return existingTaskId ?? undefined;
+
+    const isCourseEvent =
+      mapped.eventType === 'course' ||
+      !!mapped.courseId ||
+      !!googleEvent.extendedProperties?.private?.courseId;
+
+    if (isCourseEvent && !existingTaskId) {
+      return undefined;
+    }
 
     if (existingTaskId) {
       const task = await this.prisma.task.findFirst({

@@ -123,45 +123,23 @@ export class CalendarService {
         },
       });
 
-      const task = saved.taskId
-        ? await this.prisma.task.update({
-            where: { id: saved.taskId },
-            data: {
-              title: event.title,
-              description: event.description,
-              dueDate: startTime,
-              scheduledStart: event.isAllDay ? null : startTime,
-              scheduledEnd: event.isAllDay ? null : endTime,
-              estimatedMinutes: event.isAllDay
-                ? null
-                : Math.max(15, Math.round((endTime.getTime() - startTime.getTime()) / 60000)),
-            },
-          })
-        : await this.prisma.task.create({
-            data: {
-              userId: data.userId,
-              title: event.title,
-              description: event.description,
-              status: 'todo',
-              priority: 'medium',
-              section: 'calendar',
-              dueDate: startTime,
-              scheduledStart: event.isAllDay ? null : startTime,
-              scheduledEnd: event.isAllDay ? null : endTime,
-              estimatedMinutes: event.isAllDay
-                ? null
-                : Math.max(15, Math.round((endTime.getTime() - startTime.getTime()) / 60000)),
-            },
-          });
+      if (saved.taskId) {
+        await this.prisma.task.update({
+          where: { id: saved.taskId },
+          data: {
+            title: event.title,
+            description: event.description,
+            dueDate: startTime,
+            scheduledStart: event.isAllDay ? null : startTime,
+            scheduledEnd: event.isAllDay ? null : endTime,
+            estimatedMinutes: event.isAllDay
+              ? null
+              : Math.max(15, Math.round((endTime.getTime() - startTime.getTime()) / 60000)),
+          },
+        });
+      }
 
-      const linked = saved.taskId
-        ? saved
-        : await this.prisma.calendarEvent.update({
-            where: { id: saved.id },
-            data: { taskId: task.id },
-          });
-
-      imported.push(linked);
+      imported.push(saved);
     }
 
     return { importedCount: imported.length, eventCount: imported.length, events: imported };

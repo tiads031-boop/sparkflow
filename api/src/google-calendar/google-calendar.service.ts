@@ -298,6 +298,10 @@ export class GoogleCalendarService {
         googleEvent.extendedProperties?.private?.[
           EXTENDED_PROPERTIES.EVENT_TYPE
         ] ?? 'task',
+      courseId:
+        googleEvent.extendedProperties?.private?.[
+          EXTENDED_PROPERTIES.COURSE_ID
+        ],
       location: googleEvent.location,
     };
   }
