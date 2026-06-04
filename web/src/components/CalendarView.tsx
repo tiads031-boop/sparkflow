@@ -55,6 +55,22 @@ function isSameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+function getLocalDateKey(d: Date): string {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function getScrollParent(el: HTMLElement | null): HTMLElement | null {
+  let current = el?.parentElement ?? null;
+  while (current) {
+    const { overflowY } = window.getComputedStyle(current);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && current.scrollHeight > current.clientHeight) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
 function snap(val: number, grain: number): number {
   return Math.round(val / grain) * grain;
 }
@@ -102,8 +118,8 @@ function CalendarHeader({
   const eventDays = new Set<string>();
   tasks.forEach((t) => {
     if (t.dueDate || t.startTime) {
-      const d = t.dueDate ? new Date(t.dueDate) : selectedDate;
-      eventDays.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+      const d = t.dueDate ? new Date(t.dueDate) : new Date();
+      eventDays.add(getLocalDateKey(d));
     }
   });
   calendarEventDays.forEach((key) => eventDays.add(key));
@@ -141,7 +157,7 @@ function CalendarHeader({
             const date = new Date(year, month, day);
             const isToday = isSameDay(date, today);
             const isSel = isSameDay(date, selectedDate);
-            const key = `${year}-${month}-${day}`;
+            const key = getLocalDateKey(date);
             const hasEvent = eventDays.has(key);
             return (
               <div
@@ -183,7 +199,7 @@ function CalendarHeader({
           const d = addDays(weekStart, i);
           const isToday = isSameDay(d, today);
           const isSel = isSameDay(d, selectedDate);
-          const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          const key = getLocalDateKey(d);
           const hasEvent = eventDays.has(key);
           return (
             <div
@@ -262,7 +278,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     const days = new Set<string>();
     calendarEvents.forEach((ev) => {
       const d = new Date(ev.startTime);
-      days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+      days.add(getLocalDateKey(d));
     });
     return days;
   }, [calendarEvents]);
@@ -324,16 +340,55 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   });
 
   const timelineHeight = (endH - startH) * hourH;
+  const earliestTimelineHour = useMemo(() => {
+    const taskHours = timelineTasks.map((task) => parseTime(task.startTime!));
+    const eventHours = dayCalendarEvents.map((ev) => {
+      const st = new Date(ev.startTime);
+      return st.getHours() + st.getMinutes() / 60;
+    });
+    const hours = [...taskHours, ...eventHours].filter((hour) => hour >= startH && hour <= endH);
+    return hours.length > 0 ? Math.min(...hours) : null;
+  }, [dayCalendarEvents, endH, startH, timelineTasks]);
+
+  useEffect(() => {
+    if (earliestTimelineHour === null) return;
+    const timelineEl = timelineRef.current;
+    if (!timelineEl) return;
+
+    const top = Math.max((earliestTimelineHour - startH) * hourH - hourH * 0.5, 0);
+    const id = window.requestAnimationFrame(() => {
+      const scrollParent = getScrollParent(timelineEl);
+      if (scrollParent) {
+        const targetTop =
+          scrollParent.scrollTop +
+          timelineEl.getBoundingClientRect().top -
+          scrollParent.getBoundingClientRect().top +
+          top -
+          scrollParent.clientHeight * 0.18;
+        scrollParent.scrollTo({ top: Math.max(targetTop, 0), behavior: 'smooth' });
+        return;
+      }
+
+      const pageTop = timelineEl.getBoundingClientRect().top + window.scrollY + top - 140;
+      window.scrollTo({ top: Math.max(pageTop, 0), behavior: 'smooth' });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [earliestTimelineHour, hourH, selectedDate, startH]);
 
   // 计算日历事件块颜色（提取色值，按来源给默认色）
   const getCalendarBlockMeta = (eventType?: string, color?: string) => {
     const normalizedType = (eventType || 'manual').toLowerCase();
+    const isCourse = normalizedType === 'course';
     const defaultColor =
       normalizedType.includes('google') ? '#4285f4'
       : normalizedType.includes('local') || normalizedType.includes('android') ? '#34a853'
-      : normalizedType === 'course' ? '#b0a8db'
+      : isCourse ? '#0891b2'
       : '#fbbc04';
-    const c = color || defaultColor;
+    const taskLikeCourseColors = new Set(['#cae393', '#b0a8db', '#34a853']);
+    const normalizedColor = color?.toLowerCase();
+    const c = isCourse && (!normalizedColor || taskLikeCourseColors.has(normalizedColor))
+      ? defaultColor
+      : color || defaultColor;
     const label =
       normalizedType.includes('google') ? 'Google'
       : normalizedType.includes('local') || normalizedType.includes('android') ? '本地'
@@ -919,18 +974,20 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
             const h = ((task.duration || 60) / 60) * hourH;
             const minH = Math.max(h, 36);
             const colors = getTaskColor(task.colorType);
+            const isDone = task.status === 'Done';
             const priorityLabel =
               task.priority === 'High Priority' ? 'P0' : task.priority === 'Medium' ? 'P1' : 'P2';
 
             return (
               <div
                 key={task.id}
-                className="task-block absolute left-14 right-2 rounded-[11px] px-3 py-2 cursor-grab select-none touch-none border border-black/5 overflow-hidden"
+                className="task-block absolute left-14 right-2 rounded-[11px] px-3 py-2 cursor-grab select-none touch-none border overflow-hidden"
                 style={{
                   top: `${top}px`,
                   height: `${minH}px`,
-                  background: colors.bg,
-                  color: colors.text,
+                  background: isDone ? '#f1f3f5' : colors.bg,
+                  borderColor: isDone ? '#d9dee3' : 'rgba(0,0,0,0.05)',
+                  color: isDone ? '#5f6872' : colors.text,
                 }}
                 onPointerDown={(e) => onTaskPointerDown(e, task.id, task.startTime!, task.duration || 60)}
                 onDoubleClick={() => onTaskClick?.(task)}
@@ -944,8 +1001,8 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
                 )}
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span
-                    className={`w-1.5 h-1.5 rounded-full ${task.colorType === 'dark' ? 'bg-white/60' : ''}`}
-                    style={{ background: task.colorType !== 'dark' ? '#242424' : undefined }}
+                    className={`w-1.5 h-1.5 rounded-full ${task.colorType === 'dark' && !isDone ? 'bg-white/60' : ''}`}
+                    style={{ background: isDone ? '#8b949e' : task.colorType !== 'dark' ? '#242424' : undefined }}
                   />
                   <span className="text-xs font-semibold truncate">{task.title}</span>
                 </div>
@@ -955,7 +1012,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
                   </span>
                   <span
                     className={`text-[9px] px-1.5 py-0.5 rounded-full opacity-70 ${
-                      task.colorType === 'dark' ? 'bg-white/10' : 'bg-black/5'
+                      task.colorType === 'dark' && !isDone ? 'bg-white/10' : 'bg-black/5'
                     }`}
                   >
                     {priorityLabel}

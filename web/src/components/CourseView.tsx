@@ -71,9 +71,44 @@ function parseTimeMinutes(time?: string): number {
   return (hours || 0) * 60 + (minutes || 0);
 }
 
-function getCourseWeekState(course: Course, index: number, now = new Date()) {
+function parseLocalDate(date?: string): Date | null {
+  if (!date) return null;
+  const [year, month, day] = date.slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getCourseTermState(course: Course, semesters: Array<{ id: string; startDate: string; endDate: string; weeks?: number | null }>, now = new Date()) {
+  const semester = course.semesterId ? semesters.find((s) => s.id === course.semesterId) : null;
+  if (!semester) return { isEnded: false };
+
+  const today = startOfDay(now);
+  const semesterStart = parseLocalDate(semester.startDate);
+  const semesterEnd = parseLocalDate(semester.endDate);
+  const isAfterEndDate = semesterEnd ? semesterEnd < today : false;
+
+  let isAfterCourseWeeks = false;
+  if (semesterStart) {
+    const currentWeek = Math.floor((today.getTime() - semesterStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+    if (currentWeek > 0) {
+      if (course.weeks?.length) {
+        isAfterCourseWeeks = Math.max(...course.weeks) < currentWeek;
+      } else if (semester.weeks) {
+        isAfterCourseWeeks = semester.weeks < currentWeek;
+      }
+    }
+  }
+
+  return { isEnded: isAfterEndDate || isAfterCourseWeeks };
+}
+
+function getCourseWeekState(course: Course, index: number, isEnded = false, now = new Date()) {
   if (!course.dayOfWeek) {
-    return { isPastThisWeek: false, group: 1, order: index };
+    return { isPastThisWeek: false, isEnded, group: isEnded ? 3 : 1, order: index };
   }
 
   const currentDay = now.getDay() || 7;
@@ -86,7 +121,8 @@ function getCourseWeekState(course: Course, index: number, now = new Date()) {
 
   return {
     isPastThisWeek,
-    group: isPastThisWeek ? 2 : 0,
+    isEnded,
+    group: isEnded ? 3 : (isPastThisWeek ? 2 : 0),
     order: (course.dayOfWeek - currentDay + 7) * 24 * 60 + startMinutes,
   };
 }
@@ -267,13 +303,16 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
   const hasCourses = courses.length > 0;
   const displayCourses = useMemo(
     () => courses
-      .map((course, index) => ({ course, index, state: getCourseWeekState(course, index) }))
+      .map((course, index) => {
+        const termState = getCourseTermState(course, semesters);
+        return { course, index, state: getCourseWeekState(course, index, termState.isEnded) };
+      })
       .sort((a, b) => {
         if (a.state.group !== b.state.group) return a.state.group - b.state.group;
         if (a.state.order !== b.state.order) return a.state.order - b.state.order;
         return a.index - b.index;
       }),
-    [courses],
+    [courses, semesters],
   );
 
   return (
@@ -428,7 +467,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
               <div
                 key={course.id}
                 className={`bg-white rounded-[2rem] p-4 shadow-sm flex items-center gap-3.5 cursor-pointer btn-press select-none relative overflow-hidden task-block transition-opacity ${
-                  state.isPastThisWeek ? 'opacity-55 grayscale' : ''
+                  state.isEnded ? 'opacity-55 grayscale' : ''
                 }`}
                 onClick={() => handleClick(course)}
                 onTouchStart={() => handleTouchStart(course)}
@@ -472,8 +511,13 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
                     <div className="flex items-center gap-1 mt-1 text-[11px] text-gray-400">
                       <Clock size={10} strokeWidth={2} />
                       <span>{timeStr}</span>
-                      {state.isPastThisWeek && (
+                      {state.isEnded && (
                         <span className="ml-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-400">
+                          已结课
+                        </span>
+                      )}
+                      {!state.isEnded && state.isPastThisWeek && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#cae393]/20 text-[10px] text-[#242424]">
                           已上过
                         </span>
                       )}
@@ -700,15 +744,15 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
 
       {/* ── Semester form bottom sheet ── */}
       {showSemesterForm && (
-        <div className="absolute inset-0 z-50" style={{ pointerEvents: 'none' }}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ pointerEvents: 'none' }}>
           <div
             className="absolute inset-0 bg-black/30"
             style={{ pointerEvents: 'auto' }}
             onClick={() => setShowSemesterForm(false)}
           />
           <div
-            className="absolute bottom-0 left-0 right-0 rounded-t-[2rem] px-5 pt-5 pb-8 bg-[#f4f4f6] overflow-y-auto animate-slide-up-sheet"
-            style={{ maxHeight: '85%', pointerEvents: 'auto' }}
+            className="relative w-full sm:max-w-lg rounded-t-[2rem] px-5 pt-5 bg-[#f4f4f6] overflow-y-auto animate-slide-up-sheet shadow-[0_-16px_40px_rgba(36,36,36,0.12)]"
+            style={{ maxHeight: 'min(78vh, 560px)', paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', pointerEvents: 'auto' }}
           >
             <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mb-5" />
             <h3 className="text-lg font-bold text-[#242424] mb-5">
@@ -722,7 +766,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
                   value={semesterForm.name}
                   onChange={(e) => setSemesterForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="如：大二下学期"
-                  className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-sm text-[#242424] placeholder:text-gray-300 focus:border-[#b0a8db] focus:outline-none"
+                  className="w-full h-12 px-4 rounded-2xl bg-white border border-gray-200 text-sm text-[#242424] placeholder:text-gray-300 focus:border-[#b0a8db] focus:outline-none"
                   autoFocus
                 />
               </div>
@@ -732,7 +776,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
                   type="date"
                   value={semesterForm.startDate}
                   onChange={(e) => setSemesterForm((f) => ({ ...f, startDate: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-sm text-[#242424] focus:border-[#b0a8db] focus:outline-none"
+                  className="block w-full h-12 px-4 rounded-2xl bg-white border border-gray-200 text-sm text-[#242424] focus:border-[#b0a8db] focus:outline-none appearance-none"
                 />
               </div>
               <div>
@@ -741,13 +785,13 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
                   type="date"
                   value={semesterForm.endDate}
                   onChange={(e) => setSemesterForm((f) => ({ ...f, endDate: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-sm text-[#242424] focus:border-[#b0a8db] focus:outline-none"
+                  className="block w-full h-12 px-4 rounded-2xl bg-white border border-gray-200 text-sm text-[#242424] focus:border-[#b0a8db] focus:outline-none appearance-none"
                 />
               </div>
-              <div className="flex gap-3 pt-3">
+              <div className="sticky bottom-0 -mx-5 flex gap-3 px-5 pt-3 pb-4 bg-[#f4f4f6] border-t border-black/5" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}>
                 <button
                   onClick={() => setShowSemesterForm(false)}
-                  className="flex-1 py-3 rounded-full bg-white text-[#242424] font-medium text-sm border border-gray-200"
+                  className="flex-1 h-12 rounded-full bg-white text-[#242424] font-medium text-sm border border-gray-200"
                 >
                   取消
                 </button>
@@ -758,7 +802,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
                       setShowSemesterForm(false);
                       await loadCourses();
                     }}
-                    className="py-3 px-4 rounded-full bg-red-500 text-white font-medium text-sm"
+                    className="h-12 px-4 rounded-full bg-red-500 text-white font-medium text-sm"
                   >
                     删除
                   </button>
@@ -766,7 +810,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
                 <button
                   onClick={handleSemesterSubmit}
                   disabled={!semesterForm.name.trim() || !semesterForm.startDate || !semesterForm.endDate}
-                  className="flex-1 py-3 rounded-full bg-[#242424] text-white font-medium text-sm disabled:opacity-40"
+                  className="flex-1 h-12 rounded-full bg-[#242424] text-white font-medium text-sm disabled:opacity-40"
                 >
                   {semesterForm.id ? '保存' : '创建'}
                 </button>
