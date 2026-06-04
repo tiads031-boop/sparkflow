@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ArrowLeft, Check, ArrowRight, Plus, Trash2,
   Play, Pause, RotateCcw, CheckCircle2,
+  Bell,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { Task, Subtask } from '../store/appStore';
@@ -45,6 +46,18 @@ const LAYERS = [
   { rot: 6.5, ty: 12, sc: 0.97, z: 8, op: 0.9, sh: '0 7px 24px rgba(0,0,0,0.4)' },
   { rot: 0, ty: 22, sc: 0.94, z: 7, op: 0 },
 ];
+
+const visibleStatusOptions: Array<{ value: Task['status']; label: string }> = [
+  { value: 'To do', label: '待处理' },
+  { value: 'In progress', label: '进行中' },
+  { value: 'Done', label: '已完成' },
+];
+
+function normalizeEditableStatus(value?: Task['status']): Task['status'] {
+  if (value === 'Done') return 'Done';
+  if (value === 'In progress' || value === 'In review') return 'In progress';
+  return 'To do';
+}
 
 export default function DarkFrostedModal({ config, onClose, onSave, onDelete, onToggleSubtask }: Props) {
   const isCreate = config.mode === 'create';
@@ -124,7 +137,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         }
         setTitle(config.data.title || '');
         setContent(config.data.description || config.data.text || '');
-        setStatus(config.data.status || 'To do');
+        setStatus(normalizeEditableStatus(config.data.status));
         setPriority(config.data.priority || 'Medium');
         setDueDate(localDueDate);
         setSection(config.data.section || 'personal');
@@ -235,25 +248,26 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const cardLabels = ['编辑', '专注', '子任务'];
 
   const renderEditCard = () => (
-    <div className="flex flex-col h-full" data-no-drag>
-      <span className="text-[10px] text-[#cae393] font-bold tracking-widest uppercase mb-4">Edit</span>
+    <div className="relative z-10 flex flex-col h-full min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto hide-scrollbar pr-1 pb-2">
+        <span className="text-[10px] text-[#cae393] font-bold tracking-widest uppercase mb-4 block">Edit</span>
 
-      {/* Title */}
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="bg-transparent border-b border-white/20 text-white text-lg font-bold outline-none placeholder:text-white/30 pb-2 mb-3"
-        placeholder="任务名称..."
-      />
+        {/* Title */}
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full bg-transparent border-b border-white/20 text-white text-lg font-bold outline-none placeholder:text-white/30 pb-2 mb-3"
+          placeholder="任务名称..."
+        />
 
       {/* Description */}
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        className="bg-transparent border-none text-white/80 text-sm outline-none placeholder:text-white/20 resize-none h-12 mb-2"
-        placeholder="添加描述..."
-      />
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="w-full bg-transparent border-none text-white/80 text-sm outline-none placeholder:text-white/20 resize-none h-16 mb-2"
+          placeholder="添加描述..."
+        />
 
       {/* @mention preview */}
       {hasMentionMatches && (
@@ -279,17 +293,17 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       <div className="mb-3">
         <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">状态</span>
         <div className="flex gap-1 flex-wrap">
-          {(['To do', 'In progress', 'In review', 'Done', 'Cancelled'] as Task['status'][]).map((s) => (
+          {visibleStatusOptions.map((option) => (
             <button
-              key={s}
-              onClick={() => setStatus(s)}
+              key={option.value}
+              onClick={() => setStatus(option.value)}
               className={`px-2 py-1 rounded-full text-[10px] font-medium transition-all ${
-                status === s
+                status === option.value
                   ? 'bg-[#cae393] text-[#242424]'
                   : 'bg-white/10 text-white/60 hover:bg-white/20'
               }`}
             >
-              {s}
+              {option.label}
             </button>
           ))}
         </div>
@@ -406,21 +420,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         </div>
       )}
 
-      {/* Delete */}
-      {!isCreate && (
-        <div className="mt-auto">
-          <button
-            onClick={handleDelete}
-            className={`w-full py-2 rounded-xl text-xs font-medium transition-all ${
-              showDeleteConfirm
-                ? 'bg-red-500 text-white'
-                : 'bg-red-500/20 text-red-400 hover:bg-red-500/40'
-            }`}
-          >
-            {showDeleteConfirm ? '再点一次确认删除' : '删除任务'}
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 
@@ -433,7 +433,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
     const timerOffset = timerCircumference * (1 - timerProgress);
 
     return (
-      <div className="flex flex-col items-center justify-center h-full" data-no-drag>
+      <div className="flex flex-col items-center justify-center h-full">
         <span className="text-[10px] text-[#b0a8db] font-bold tracking-widest uppercase mb-4 self-start">
           Focus Timer
         </span>
@@ -515,7 +515,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   };
 
   const renderSubtaskCard = () => (
-    <div className="flex flex-col h-full" data-no-drag>
+    <div className="flex flex-col h-full">
       <span className="text-[10px] text-[#cae393] font-bold tracking-widest uppercase mb-3">
         子任务
       </span>
@@ -641,7 +641,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         <div className="absolute inset-0 noise-bg opacity-[0.25] mix-blend-overlay pointer-events-none z-0" />
 
         {/* Top bar */}
-        <div className="relative z-20 flex justify-between items-center p-5 text-white">
+        <div className="relative z-20 flex justify-between items-center px-5 pb-5 text-white" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}>
           <button
             onClick={onClose}
             className="p-2 bg-white/10 rounded-full backdrop-blur-md border border-white/10 hover:bg-white/20 transition-colors z-50"
@@ -655,7 +655,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         </div>
 
         {/* Form */}
-        <div className="relative z-20 flex flex-col items-center justify-start pt-4 h-[calc(100%-140px)] overflow-y-auto">
+        <div className="relative z-20 flex flex-col items-center justify-start pt-4 overflow-y-auto" style={{ height: 'calc(100% - 148px - env(safe-area-inset-top, 0px))' }}>
           <div className="w-[90%] max-w-[360px] space-y-4 pb-8">
             <div>
               <span className="text-[10px] text-[#cae393] font-bold tracking-widest uppercase block mb-1.5">
@@ -705,17 +705,17 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                 <div>
                   <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">状态</span>
                   <div className="flex gap-1.5 flex-wrap">
-                    {(['To do', 'In progress', 'In review', 'Done', 'Cancelled'] as Task['status'][]).map((s) => (
+                    {visibleStatusOptions.map((option) => (
                       <button
-                        key={s}
-                        onClick={() => setStatus(s)}
+                        key={option.value}
+                        onClick={() => setStatus(option.value)}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-                          status === s
+                          status === option.value
                             ? 'bg-[#cae393] text-[#242424]'
                             : 'bg-white/10 text-white/60 hover:bg-white/20'
                         }`}
                       >
-                        {s}
+                        {option.label}
                       </button>
                     ))}
                   </div>
@@ -830,7 +830,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         </div>
 
         {/* Bottom action */}
-        <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#080808] via-[#0F0F0F]/90 to-transparent z-10">
+        <div className="absolute bottom-0 left-0 w-full px-6 pt-6 bg-gradient-to-t from-[#080808] via-[#0F0F0F]/90 to-transparent z-10" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}>
           <div
             className="flex justify-between items-center cursor-pointer group"
             onClick={handleSave}
@@ -848,36 +848,31 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         {showNotifyConfirm && (
           <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ animation: 'fade-in 0.2s ease' }}>
             <div className="absolute inset-0 bg-black/40" onClick={() => { setShowNotifyConfirm(false); doSave(); }} />
-            <div className="relative bg-[#1e1e1e] border border-white/10 rounded-[2rem] p-6 mx-6 w-full max-w-[300px] shadow-2xl" style={{ animation: 'zoom-in-95 0.25s ease' }}>
+            <div className="relative bg-white border border-gray-100 rounded-[2rem] p-6 mx-6 w-full max-w-[300px] shadow-2xl" style={{ animation: 'zoom-in-95 0.25s ease' }}>
               <div className="text-center mb-5">
-                <div className="w-12 h-12 rounded-full bg-[#cae393]/20 flex items-center justify-center mx-auto mb-3">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#cae393" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
+                <div className="w-12 h-12 rounded-full bg-[#cae393]/30 flex items-center justify-center mx-auto mb-3">
+                  <Bell size={22} className="text-[#242424]" />
                 </div>
-                <h3 className="text-sm font-bold text-white mb-1">截止前提醒</h3>
-                <p className="text-xs text-white/50 leading-relaxed">
+                <h3 className="text-sm font-bold text-[#242424] mb-1">截止前提醒</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">
                   已设置截止时间为<br />
-                  <span className="text-[#cae393] font-medium">
+                  <span className="text-[#242424] font-bold">
                     {dueDate ? new Date(dueDate).toLocaleString('zh-CN', {
                       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                     }) : ''}
                   </span>
-                  <br />
-                  是否需要截止前提醒？
                 </p>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => { setShowNotifyConfirm(false); doSave(); }}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-medium bg-white/10 text-white/60 hover:bg-white/15 transition-colors"
+                  className="flex-1 py-2.5 rounded-full text-xs font-medium bg-[#f4f4f6] text-gray-500 hover:bg-gray-100 transition-colors"
                 >
                   不需要
                 </button>
                 <button
                   onClick={() => { setShowNotifyConfirm(false); doSave(true); }}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-medium bg-[#cae393] text-[#242424] hover:bg-[#b8d481] transition-colors"
+                  className="flex-1 py-2.5 rounded-full text-xs font-bold bg-[#cae393] text-[#242424] hover:bg-[#b8d481] transition-colors"
                 >
                   需要提醒
                 </button>
@@ -895,7 +890,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       <div className="absolute inset-0 noise-bg opacity-[0.25] mix-blend-overlay pointer-events-none z-0" />
 
       {/* Top bar */}
-      <div className="relative z-20 flex justify-between items-center p-5 text-white">
+      <div className="relative z-20 flex justify-between items-center px-5 pb-4 text-white" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)' }}>
         <button
           onClick={onClose}
           className="p-2 bg-white/10 rounded-full backdrop-blur-md border border-white/10 hover:bg-white/20 transition-colors z-50"
@@ -909,9 +904,9 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       </div>
 
       {/* Center card area */}
-      <div className="relative z-20 flex flex-col items-center justify-center h-[60%] w-full">
+      <div className="relative z-20 flex flex-col items-center justify-center w-full px-1" style={{ height: 'calc(100% - 260px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))' }}>
         <div
-          className="relative w-[85%] max-w-[340px] h-full max-h-[480px] touch-none"
+          className="relative w-[88%] max-w-[360px] h-full min-h-[360px] max-h-[560px] touch-pan-y"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -922,19 +917,19 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       </div>
 
       {/* Bottom action */}
-      <div className="absolute bottom-0 left-0 w-full p-7 bg-gradient-to-t from-[#080808] via-[#0F0F0F]/90 to-transparent z-10 pb-10 pointer-events-none">
+      <div className="absolute bottom-0 left-0 w-full px-6 pt-6 bg-gradient-to-t from-[#080808] via-[#0F0F0F]/90 to-transparent z-10 pointer-events-none" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 22px)' }}>
         <div className="pointer-events-auto">
-          <h2 className="text-2xl font-bold text-white mb-2 leading-tight">
+          <h2 className="text-xl font-bold text-white mb-1.5 leading-tight">
             {cardLabels[order[0]]}
           </h2>
-          <p className="text-gray-400 text-sm mb-6 leading-relaxed max-w-[85%]">
+          <p className="text-gray-400 text-xs mb-4 leading-relaxed max-w-[85%]">
             {order[0] === 0
               ? '左右滑动切换卡片，在此编辑任务信息。'
               : order[0] === 1
                 ? '开始一个 25 分钟的专注时段。'
                 : '在此添加、勾选或删除子任务，点击保存提交。'}
           </p>
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center gap-3">
             {/* Dot indicators */}
             <div className="flex gap-2">
               {[0, 1, 2].map((i) => (
@@ -946,15 +941,30 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                 />
               ))}
             </div>
-            {/* Save button (only on edit card) */}
-            {(order[0] === 0 || order[0] === 2) && (
-              <button
-                onClick={handleSave}
-                className="w-12 h-12 rounded-full bg-[#cae393] text-[#242424] flex items-center justify-center shadow-[0_10px_20px_rgba(202,227,147,0.2)] hover:scale-105 active:scale-95 transition-transform"
-              >
-                <Check size={22} />
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {!isCreate && order[0] === 0 && (
+                <button
+                  onClick={handleDelete}
+                  className={`h-12 px-4 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+                    showDeleteConfirm
+                      ? 'bg-red-500 text-white'
+                      : 'bg-white/10 text-red-300 hover:bg-red-500/20'
+                  }`}
+                >
+                  <Trash2 size={15} />
+                  {showDeleteConfirm ? '确认删除' : '删除'}
+                </button>
+              )}
+              {/* Save button (only on edit card) */}
+              {(order[0] === 0 || order[0] === 2) && (
+                <button
+                  onClick={handleSave}
+                  className="w-12 h-12 rounded-full bg-[#cae393] text-[#242424] flex items-center justify-center shadow-[0_10px_20px_rgba(202,227,147,0.2)] hover:scale-105 active:scale-95 transition-transform"
+                >
+                  <Check size={22} />
+                </button>
+              )}
+            </div>
             {order[0] === 1 && (
               <button
                 onClick={() => {
@@ -973,36 +983,31 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       {showNotifyConfirm && (
         <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ animation: 'fade-in 0.2s ease' }}>
           <div className="absolute inset-0 bg-black/40" onClick={() => { setShowNotifyConfirm(false); doSave(); }} />
-          <div className="relative bg-[#1e1e1e] border border-white/10 rounded-[2rem] p-6 mx-6 w-full max-w-[300px] shadow-2xl" style={{ animation: 'zoom-in-95 0.25s ease' }}>
+          <div className="relative bg-white border border-gray-100 rounded-[2rem] p-6 mx-6 w-full max-w-[300px] shadow-2xl" style={{ animation: 'zoom-in-95 0.25s ease' }}>
             <div className="text-center mb-5">
-              <div className="w-12 h-12 rounded-full bg-[#cae393]/20 flex items-center justify-center mx-auto mb-3">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#cae393" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
+              <div className="w-12 h-12 rounded-full bg-[#cae393]/30 flex items-center justify-center mx-auto mb-3">
+                <Bell size={22} className="text-[#242424]" />
               </div>
-              <h3 className="text-sm font-bold text-white mb-1">截止前提醒</h3>
-              <p className="text-xs text-white/50 leading-relaxed">
+              <h3 className="text-sm font-bold text-[#242424] mb-1">截止前提醒</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">
                 已设置截止时间为<br />
-                <span className="text-[#cae393] font-medium">
+                <span className="text-[#242424] font-bold">
                   {dueDate ? new Date(dueDate).toLocaleString('zh-CN', {
                     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                   }) : ''}
                 </span>
-                <br />
-                是否需要截止前提醒？
               </p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowNotifyConfirm(false); doSave(); }}
-                className="flex-1 py-2.5 rounded-xl text-xs font-medium bg-white/10 text-white/60 hover:bg-white/15 transition-colors"
+                className="flex-1 py-2.5 rounded-full text-xs font-medium bg-[#f4f4f6] text-gray-500 hover:bg-gray-100 transition-colors"
               >
                 不需要
               </button>
               <button
                 onClick={() => { setShowNotifyConfirm(false); doSave(true); }}
-                className="flex-1 py-2.5 rounded-xl text-xs font-medium bg-[#cae393] text-[#242424] hover:bg-[#b8d481] transition-colors"
+                className="flex-1 py-2.5 rounded-full text-xs font-bold bg-[#cae393] text-[#242424] hover:bg-[#b8d481] transition-colors"
               >
                 需要提醒
               </button>

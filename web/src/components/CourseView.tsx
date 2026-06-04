@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Upload, Trash2, BookOpen, MapPin, User, Clock, Check } from 'lucide-react';
 import { useAppStore, type Course, type CourseFormData } from '../store/appStore';
 
@@ -63,6 +63,32 @@ function formatCourseTime(course: Course): string | null {
   if (!course.dayOfWeek || !course.startTime || !course.endTime) return null;
   const day = DAY_LABELS[course.dayOfWeek] || '';
   return `${day} ${course.startTime}-${course.endTime}`;
+}
+
+function parseTimeMinutes(time?: string): number {
+  if (!time) return 0;
+  const [hours, minutes] = time.split(':').map(Number);
+  return (hours || 0) * 60 + (minutes || 0);
+}
+
+function getCourseWeekState(course: Course, index: number, now = new Date()) {
+  if (!course.dayOfWeek) {
+    return { isPastThisWeek: false, group: 1, order: index };
+  }
+
+  const currentDay = now.getDay() || 7;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const endMinutes = course.endTime ? parseTimeMinutes(course.endTime) : 24 * 60 - 1;
+  const startMinutes = parseTimeMinutes(course.startTime);
+  const isPastThisWeek =
+    course.dayOfWeek < currentDay ||
+    (course.dayOfWeek === currentDay && endMinutes < currentMinutes);
+
+  return {
+    isPastThisWeek,
+    group: isPastThisWeek ? 2 : 0,
+    order: (course.dayOfWeek - currentDay + 7) * 24 * 60 + startMinutes,
+  };
 }
 
 // ════════════════════════════════════════════════════
@@ -239,6 +265,16 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
 
   // ── Render ──
   const hasCourses = courses.length > 0;
+  const displayCourses = useMemo(
+    () => courses
+      .map((course, index) => ({ course, index, state: getCourseWeekState(course, index) }))
+      .sort((a, b) => {
+        if (a.state.group !== b.state.group) return a.state.group - b.state.group;
+        if (a.state.order !== b.state.order) return a.state.order - b.state.order;
+        return a.index - b.index;
+      }),
+    [courses],
+  );
 
   return (
     <div className="animate-page-enter pb-24 relative">
@@ -384,14 +420,16 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
       {/* ── Course list ── */}
       {hasCourses && (
         <div className="space-y-2.5 stagger">
-          {courses.map((course) => {
+          {displayCourses.map(({ course, state }) => {
             const timeStr = formatCourseTime(course);
             const hasMeta = course.teacher || course.room || timeStr;
 
             return (
               <div
                 key={course.id}
-                className="bg-white rounded-[2rem] p-4 shadow-sm flex items-center gap-3.5 cursor-pointer btn-press select-none relative overflow-hidden task-block"
+                className={`bg-white rounded-[2rem] p-4 shadow-sm flex items-center gap-3.5 cursor-pointer btn-press select-none relative overflow-hidden task-block transition-opacity ${
+                  state.isPastThisWeek ? 'opacity-55 grayscale' : ''
+                }`}
                 onClick={() => handleClick(course)}
                 onTouchStart={() => handleTouchStart(course)}
                 onTouchEnd={handleTouchEnd}
@@ -434,6 +472,11 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
                     <div className="flex items-center gap-1 mt-1 text-[11px] text-gray-400">
                       <Clock size={10} strokeWidth={2} />
                       <span>{timeStr}</span>
+                      {state.isPastThisWeek && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-[10px] text-gray-400">
+                          已上过
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -448,7 +491,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
                     )}
                     {course._count.notes > 0 && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#b0a8db]/20 text-[#242424] font-medium">
-                        {course._count.notes} 笔记
+                        {course._count.notes} 课程任务
                       </span>
                     )}
                   </div>
@@ -482,7 +525,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
               <p className="text-sm text-gray-400 mt-1.5 leading-relaxed">
                 确定要删除「{deleteTarget.name}」吗？
                 <br />
-                该课程下的所有事件、任务和笔记将被一并移除。
+                该课程下的所有事件、任务和课程任务将被一并移除。
               </p>
             </div>
             <div className="flex gap-3">

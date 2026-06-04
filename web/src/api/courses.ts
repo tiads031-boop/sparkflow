@@ -74,15 +74,15 @@ export async function importIcs(
   return res.json();
 }
 
-// ── 课程笔记 ──
+// ── 课程任务（兼容既有 notes 路径） ──
 
-/** 获取课程笔记 */
+/** 获取课程任务 */
 export async function fetchCourseNotes(courseId: string, userId = DEFAULT_USER_ID): Promise<CourseNote[]> {
   const res = await apiRequest(`${BASE}/${courseId}/notes?userId=${userId}`);
   return res.json();
 }
 
-/** 创建笔记 */
+/** 创建课程任务 */
 export async function createCourseNote(
   courseId: string,
   body: string,
@@ -96,7 +96,7 @@ export async function createCourseNote(
   return res.json();
 }
 
-/** 更新笔记 */
+/** 更新课程任务 */
 export async function updateCourseNote(
   noteId: string,
   data: { body?: string; pinned?: boolean },
@@ -109,7 +109,7 @@ export async function updateCourseNote(
   return res.json();
 }
 
-/** 删除笔记 */
+/** 删除课程任务 */
 export async function deleteCourseNote(noteId: string, userId = DEFAULT_USER_ID): Promise<void> {
   await apiRequest(`${BASE}/notes/${noteId}?userId=${userId}`, { method: 'DELETE' });
 }

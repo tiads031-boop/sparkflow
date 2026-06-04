@@ -10,10 +10,27 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { GoogleAuthService } from './google-auth.service';
+import {
+  GoogleAuthService,
+  type OAuthCallbackErrorDetails,
+} from './google-auth.service';
 import { GoogleSyncService } from './google-sync.service';
 import { AuthCallbackDto } from './dto/auth-callback.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
+
+type OAuthPlatform = 'web' | 'android';
+type OAuthCallbackStatus = 'success' | 'error';
+
+interface OAuthCallbackPayload {
+  type: 'sparkflow-google-oauth';
+  status: OAuthCallbackStatus;
+  message: string;
+  errorCode?: OAuthCallbackErrorDetails['code'];
+  googleError?: string;
+  googleDescription?: string;
+  googleErrorUri?: string;
+  setupHint?: string;
+}
 
 @Controller('google')
 @UseGuards(ApiKeyGuard)
@@ -45,29 +62,48 @@ export class GoogleCalendarController {
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('error') error: string | undefined,
+    @Query('error_description') errorDescription: string | undefined,
+    @Query('error_uri') errorUri: string | undefined,
     @Res() res: Response,
   ) {
     const fallbackPlatform = this.authService.peekOAuthPlatform(state);
 
     if (error) {
-      return this.respondToOAuthCallback(res, fallbackPlatform, false, error);
+      const details = this.authService.buildCallbackErrorDetails({
+        error,
+        errorDescription,
+        errorUri,
+      });
+      return this.respondToOAuthCallback(res, fallbackPlatform, {
+        type: 'sparkflow-google-oauth',
+        status: 'error',
+        message: details.message,
+        errorCode: details.code,
+        googleError: details.googleError,
+        googleDescription: details.googleDescription,
+        googleErrorUri: details.googleErrorUri,
+        setupHint: details.setupHint,
+      });
     }
 
     try {
       const result = await this.authService.handleCallback(code, state);
-      return this.respondToOAuthCallback(
-        res,
-        result.platform,
-        true,
-        result.googleEmail,
-      );
+      return this.respondToOAuthCallback(res, result.platform, {
+        type: 'sparkflow-google-oauth',
+        status: 'success',
+        message: result.googleEmail,
+      });
     } catch (callbackError: any) {
-      return this.respondToOAuthCallback(
-        res,
-        fallbackPlatform,
-        false,
-        callbackError?.message ?? 'OAuth failed',
-      );
+      const details = this.authService.buildCallbackErrorDetails({
+        fallbackMessage: callbackError?.message ?? 'OAuth failed',
+      });
+      return this.respondToOAuthCallback(res, fallbackPlatform, {
+        type: 'sparkflow-google-oauth',
+        status: 'error',
+        message: details.message,
+        errorCode: details.code,
+        setupHint: details.setupHint,
+      });
     }
   }
 
@@ -78,7 +114,19 @@ export class GoogleCalendarController {
   @Post('auth/callback')
   @HttpCode(HttpStatus.OK)
   async handleCallback(@Body() dto: AuthCallbackDto) {
-    return this.authService.handleCallback(dto.code, dto.state);
+    if (dto.error) {
+      const details = this.authService.buildCallbackErrorDetails({
+        error: dto.error,
+        errorDescription: dto.error_description,
+        errorUri: dto.error_uri,
+      });
+      return {
+        success: false,
+        ...details,
+      };
+    }
+
+    return this.authService.handleCallback(dto.code!, dto.state!);
   }
 
   /**
@@ -124,15 +172,14 @@ export class GoogleCalendarController {
 
   private respondToOAuthCallback(
     res: Response,
-    platform: 'web' | 'android',
-    success: boolean,
-    message: string,
+    platform: OAuthPlatform,
+    payload: OAuthCallbackPayload,
   ) {
-    const status = success ? 'success' : 'error';
-    const escapedMessage = this.escapeHtml(message);
+    const success = payload.status === 'success';
+    const scriptPayload = JSON.stringify(payload).replace(/</g, '\\u003c');
 
     if (platform === 'android') {
-      const redirectUrl = `sparkflow://oauth?status=${status}`;
+      const redirectUrl = this.buildAndroidCallbackUrl(payload);
       return res.redirect(302, redirectUrl);
     }
 
@@ -146,13 +193,38 @@ export class GoogleCalendarController {
     <title>SparkFlow Google Calendar</title>
   </head>
   <body>
+    <p>${this.escapeHtml(payload.message)}</p>
+    ${
+      payload.setupHint
+        ? `<p>${this.escapeHtml(payload.setupHint)}</p>`
+        : ''
+    }
     <p>Google Calendar ${success ? 'connected' : 'connection failed'}.</p>
     <script>
-      window.opener?.postMessage({ type: 'sparkflow-google-oauth', status: '${status}', message: '${escapedMessage}' }, '*');
+      window.opener?.postMessage(${scriptPayload}, '*');
       window.close();
     </script>
   </body>
 </html>`);
+  }
+
+  private buildAndroidCallbackUrl(payload: OAuthCallbackPayload): string {
+    const params = new URLSearchParams({
+      status: payload.status,
+      message: payload.message,
+    });
+
+    if (payload.errorCode) params.set('errorCode', payload.errorCode);
+    if (payload.googleError) params.set('googleError', payload.googleError);
+    if (payload.googleDescription) {
+      params.set('googleDescription', payload.googleDescription);
+    }
+    if (payload.googleErrorUri) {
+      params.set('googleErrorUri', payload.googleErrorUri);
+    }
+    if (payload.setupHint) params.set('setupHint', payload.setupHint);
+
+    return `sparkflow://oauth?${params.toString()}`;
   }
 
   private escapeHtml(value: string): string {

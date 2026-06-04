@@ -156,7 +156,7 @@ export class CourseService {
     });
   }
 
-  // ==================== 课程笔记 ====================
+  // ==================== 课程任务（兼容既有 notes 路径） ====================
 
   async findNotes(courseId: string, userId: string) {
     return this.prisma.courseNote.findMany({
@@ -171,13 +171,13 @@ export class CourseService {
 
   async updateNote(id: string, userId: string, data: { body?: string; pinned?: boolean }) {
     const note = await this.prisma.courseNote.findFirst({ where: { id, userId } });
-    if (!note) throw new NotFoundException('CourseNote not found');
+    if (!note) throw new NotFoundException('Course task not found');
     return this.prisma.courseNote.update({ where: { id }, data });
   }
 
   async deleteNote(id: string, userId: string) {
     const note = await this.prisma.courseNote.findFirst({ where: { id, userId } });
-    if (!note) throw new NotFoundException('CourseNote not found');
+    if (!note) throw new NotFoundException('Course task not found');
     return this.prisma.courseNote.delete({ where: { id } });
   }
 

@@ -4,7 +4,7 @@ import {
   Plus, Bell, BellOff, LayoutGrid, BookOpen, Settings,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
-import type { ActiveTab, NavVisibility } from './types';
+import type { ActiveTab, NavOrder, NavVisibility } from './types';
 import DashboardView from './components/DashboardView';
 import TasksView from './components/TasksView';
 import BoardView from './components/BoardView';
@@ -39,6 +39,15 @@ type NavItem = (typeof navItems)[number];
 
 function isVisibleNavItem(tab: NavItem, navVisibility: NavVisibility): boolean {
   return tab.id === 'settings' || navVisibility[tab.id];
+}
+
+function getOrderedNavItems(navOrder: NavOrder, navVisibility: NavVisibility): NavItem[] {
+  const navMap = new Map(navItems.map((item) => [item.id, item]));
+  const orderedToggleable = navOrder
+    .map((id) => navMap.get(id))
+    .filter((item): item is NavItem => !!item && isVisibleNavItem(item, navVisibility));
+  const settingsItem = navMap.get('settings');
+  return settingsItem ? [...orderedToggleable, settingsItem] : orderedToggleable;
 }
 
 function Header({
@@ -128,6 +137,7 @@ export default function App() {
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const navVisibility = useAppStore((s) => s.navVisibility);
+  const navOrder = useAppStore((s) => s.navOrder);
   const tasks = useAppStore((s) => s.tasks);
   const sparks = useAppStore((s) => s.sparks);
   const setSparks = useAppStore((s) => s.setSparks);
@@ -154,7 +164,7 @@ export default function App() {
   const loadCourseDetail = useAppStore((s) => s.loadCourseDetail);
 
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
-  const visibleNavItems = navItems.filter((tab) => isVisibleNavItem(tab, navVisibility));
+  const visibleNavItems = getOrderedNavItems(navOrder, navVisibility);
 
   useEffect(() => {
     loadTasks();

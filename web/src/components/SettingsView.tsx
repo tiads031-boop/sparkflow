@@ -3,6 +3,8 @@ import {
   AlertCircle,
   BookOpen,
   Calendar,
+  ChevronDown,
+  ChevronUp,
   Check,
   CheckSquare,
   Download,
@@ -87,7 +89,9 @@ export default function SettingsView() {
   const clearError = useAppStore((s) => s.clearError);
   const loadTasks = useAppStore((s) => s.loadTasks);
   const navVisibility = useAppStore((s) => s.navVisibility);
+  const navOrder = useAppStore((s) => s.navOrder);
   const toggleNavVisibility = useAppStore((s) => s.toggleNavVisibility);
+  const moveNavItem = useAppStore((s) => s.moveNavItem);
 
   const [scopes, setScopes] = useState<SyncScope[]>(defaultScopes);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -95,6 +99,9 @@ export default function SettingsView() {
   const [isLocalBusy, setIsLocalBusy] = useState(false);
   const [localMessage, setLocalMessage] = useState<string | null>(null);
   const canUseSystemCalendar = isSystemCalendarAvailable();
+  const orderedNavSettings = navOrder
+    .map((key) => navSettings.find((item) => item.key === key))
+    .filter((item): item is (typeof navSettings)[number] => Boolean(item));
 
   useEffect(() => {
     if (!canUseSystemCalendar) return;
@@ -170,14 +177,16 @@ export default function SettingsView() {
         </div>
 
         <div className="space-y-2">
-          {navSettings.map((item) => {
+          {orderedNavSettings.map((item, index) => {
             const Icon = item.icon;
             const enabled = navVisibility[item.key];
+            const isFirst = index === 0;
+            const isLast = index === orderedNavSettings.length - 1;
 
             return (
               <div
                 key={item.key}
-                className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors"
+                className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors"
               >
                 <div className="w-8 h-8 rounded-full bg-[#f4f4f6] flex items-center justify-center flex-shrink-0">
                   <Icon size={15} className={enabled ? 'text-[#242424]' : 'text-gray-400'} />
@@ -185,6 +194,26 @@ export default function SettingsView() {
                 <div className="flex-1 min-w-0">
                   <span className="text-sm text-[#242424] font-medium block">{item.label}</span>
                   <span className="text-[10px] text-gray-400 block truncate">{item.description}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => moveNavItem(item.key, 'up')}
+                    disabled={isFirst}
+                    title="上移"
+                    className="w-7 h-7 rounded-full bg-white border border-gray-100 text-gray-400 flex items-center justify-center transition-colors hover:text-[#242424] hover:border-[#cae393] disabled:opacity-30 disabled:hover:text-gray-400 disabled:hover:border-gray-100"
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveNavItem(item.key, 'down')}
+                    disabled={isLast}
+                    title="下移"
+                    className="w-7 h-7 rounded-full bg-white border border-gray-100 text-gray-400 flex items-center justify-center transition-colors hover:text-[#242424] hover:border-[#cae393] disabled:opacity-30 disabled:hover:text-gray-400 disabled:hover:border-gray-100"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
                 </div>
                 <button
                   type="button"

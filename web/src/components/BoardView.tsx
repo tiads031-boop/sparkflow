@@ -27,7 +27,6 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
   const updateTask = useAppStore((s) => s.updateTask);
   const addTask = useAppStore((s) => s.addTask);
   const [quickTitle, setQuickTitle] = useState('');
-  const [quickSection, setQuickSection] = useState<'project' | 'personal'>('personal');
   const [quickFolder, setQuickFolder] = useState('');
   const [showFolderInput, setShowFolderInput] = useState(false);
   const [showTimeInput, setShowTimeInput] = useState(false);
@@ -46,6 +45,11 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
   const visibleColumns = boardFilter === 'all'
     ? columns
     : columns.filter((c) => c === boardFilter);
+  const quickSection: 'project' | 'personal' = boardFilter === 'project' ? 'project' : 'personal';
+  const quickFolderPlaceholder =
+    boardFilter === 'project'
+      ? '项目名称（可选）'
+      : '文件夹名称（可选）';
 
   const activeTasks = tasks.filter((t) => t.status !== 'Done' && t.status !== 'Cancelled');
 
@@ -229,14 +233,6 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
             placeholder="快速添加任务..."
             className="flex-1 px-4 py-2.5 rounded-full text-sm bg-white border border-gray-100 focus:outline-none focus:border-[#b0a8db] focus:ring-2 focus:ring-[#b0a8db]/20 transition-all placeholder:text-gray-300"
           />
-          <select
-            value={quickSection}
-            onChange={(e) => setQuickSection(e.target.value as 'project' | 'personal')}
-            className="px-3 py-2.5 rounded-full text-xs bg-white border border-gray-100 text-[#242424] focus:outline-none"
-          >
-            <option value="personal">个人</option>
-            <option value="project">项目</option>
-          </select>
           <button
             onClick={() => setShowFolderInput(!showFolderInput)}
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
@@ -274,7 +270,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
               value={quickFolder}
               onChange={(e) => setQuickFolder(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
-              placeholder={`${quickSection === 'project' ? '项目名称' : '文件夹名称'}（可选）`}
+              placeholder={quickFolderPlaceholder}
               className="flex-1 px-4 py-2 rounded-full text-xs bg-white border border-gray-100 focus:outline-none focus:border-[#b0a8db] transition-all placeholder:text-gray-300"
             />
           </div>

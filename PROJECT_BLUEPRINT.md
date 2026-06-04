@@ -191,6 +191,8 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ## 六、更新日志
 
 ### 2026-06-04
+- ✅ **部署与 App 编译验证**：后端 `api npm run build`、前端 `web npm run build`、Android `web npm run android:build` 均已通过；debug APK 产物生成在 `web/android/app/build/outputs/apk/debug/app-debug.apk`；前后端通过推送 `master` 触发 Render/Vercel 自动部署。
+- ✅ **移动端日历/任务/课程收口修复**：Google OAuth callback 增加结构化错误回传与前端 popup/deep-link 错误提示；看板快速添加移除个人/项目选择；任务编辑页补 safe-area、卡片内滚动、三状态中文展示与独立删除按钮；设置页新增底部导航顺序调整；课程模块将“课程笔记”收敛为“课程任务”，支持标签、搜索、转化任务，并按未来课程优先/已过课程置灰排序。
 - ✅ **Google Calendar OAuth Web/App 闭环**：OAuth URL 带 `userId/platform`，PKCE verifier 加密进 state；Web popup 自动关闭，Android 通过 `sparkflow://oauth` deep link 返回；`/api/google/auth/callback` 对 Google GET 回调放行。
 - ✅ **Google Calendar 双向同步增强**：手动/定时同步会先将 SparkFlow Task/CalendarEvent 推到 Google，再拉取 Google 事件；Google 事件落库到 CalendarEvent 并生成/更新 Task，syncToken 失效时自动 full sync。
 - ✅ **Xiaomi/Android 本地日历接入**：Settings 新增系统日历权限、近期本地事件导入、SparkFlow 日程写入系统日历；本地事件按 external id upsert，并关联 Task，Web 端明确通过 Google/ICS 间接同步。

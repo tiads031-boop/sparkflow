@@ -17,6 +17,21 @@ const REFRESH_WINDOW_MS = 5 * 60 * 1000;
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
 type OAuthPlatform = 'web' | 'android';
+type OAuthCallbackErrorCode =
+  | 'google_access_denied'
+  | 'google_oauth_denied'
+  | 'google_oauth_error'
+  | 'invalid_oauth_state'
+  | 'token_exchange_failed';
+
+export interface OAuthCallbackErrorDetails {
+  code: OAuthCallbackErrorCode;
+  message: string;
+  googleError?: string;
+  googleDescription?: string;
+  googleErrorUri?: string;
+  setupHint?: string;
+}
 
 interface OAuthStatePayload {
   userId: string;
@@ -275,6 +290,61 @@ export class GoogleAuthService {
       syncedCount,
       pendingCount,
       conflictCount,
+    };
+  }
+
+  buildCallbackErrorDetails(input: {
+    error?: string;
+    errorDescription?: string;
+    errorUri?: string;
+    fallbackMessage?: string;
+  }): OAuthCallbackErrorDetails {
+    const googleError = input.error?.trim() || undefined;
+    const googleDescription = input.errorDescription?.trim() || undefined;
+    const googleErrorUri = input.errorUri?.trim() || undefined;
+    const combined = `${googleError ?? ''} ${googleDescription ?? ''}`.toLowerCase();
+
+    if (googleError === 'access_denied') {
+      const looksLikeTestingOrUnverifiedApp =
+        combined.includes('not completed the google verification process') ||
+        combined.includes('testing') ||
+        combined.includes('test user') ||
+        combined.includes('access blocked') ||
+        combined.includes('unverified');
+
+      return {
+        code: looksLikeTestingOrUnverifiedApp
+          ? 'google_access_denied'
+          : 'google_oauth_denied',
+        message: looksLikeTestingOrUnverifiedApp
+          ? 'Google blocked this OAuth app because it is not verified or your account is not added as a test user.'
+          : 'Google authorization was denied before SparkFlow received permission.',
+        googleError,
+        googleDescription,
+        googleErrorUri,
+        setupHint:
+          'Open Google Cloud Console, add this account under OAuth consent screen test users, or publish and complete app verification. SparkFlow cannot bypass this Google restriction in code.',
+      };
+    }
+
+    if (googleError) {
+      return {
+        code: 'google_oauth_error',
+        message: googleDescription || input.fallbackMessage || googleError,
+        googleError,
+        googleDescription,
+        googleErrorUri,
+      };
+    }
+
+    const fallbackMessage = input.fallbackMessage || 'OAuth failed';
+    const isInvalidState = fallbackMessage
+      .toLowerCase()
+      .includes('invalid oauth state');
+
+    return {
+      code: isInvalidState ? 'invalid_oauth_state' : 'token_exchange_failed',
+      message: fallbackMessage,
     };
   }
 

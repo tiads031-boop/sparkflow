@@ -175,3 +175,5 @@ export type ActiveTab =
 export type ToggleableNavTab = Exclude<ActiveTab, 'settings'>;
 
 export type NavVisibility = Record<ToggleableNavTab, boolean>;
+
+export type NavOrder = ToggleableNavTab[];

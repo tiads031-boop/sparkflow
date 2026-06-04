@@ -21,6 +21,12 @@ function PomodoroStats({ todayCount, totalFocusMinutes }: { todayCount: number; 
   );
 }
 
+function getStatusLabel(status: Task['status']): string {
+  if (status === 'Done') return '已完成';
+  if (status === 'In progress' || status === 'In review') return '进行中';
+  return '待处理';
+}
+
 interface BarData {
   h1: number; // green segment height %
   h2: number; // purple segment height %
@@ -385,7 +391,7 @@ function DrillSheet({
                 <span className="flex-1 text-sm text-[#242424] truncate">
                   {task.title}
                 </span>
-                <span className="text-[10px] text-gray-400">{task.status}</span>
+                <span className="text-[10px] text-gray-400">{getStatusLabel(task.status)}</span>
               </div>
             ))
           )}
@@ -401,8 +407,8 @@ export default function DashboardView({ tasks, pomodoro }: { tasks: Task[]; pomo
   const [drillLabel, setDrillLabel] = useState<string | null>(null);
   const [drillIndex, setDrillIndex] = useState<number>(0);
 
-  const inProgress = tasks.filter((t) => t.status === 'In progress').length;
-  const inReview = tasks.filter((t) => t.status === 'In review').length;
+  const inProgress = tasks.filter((t) => t.status === 'In progress' || t.status === 'In review').length;
+  const done = tasks.filter((t) => t.status === 'Done').length;
   const todo = tasks.filter((t) => t.status === 'To do').length;
   const total = tasks.filter((t) => t.status !== 'Cancelled').length;
 
@@ -422,8 +428,8 @@ export default function DashboardView({ tasks, pomodoro }: { tasks: Task[]; pomo
             <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-xs font-bold">{inProgress}</span>
           </div>
           <div className="flex items-center justify-between px-4 py-2.5 rounded-full bg-white text-[#242424] border border-gray-100 flex-1 shadow-sm">
-            <span className="text-sm font-medium">审核中</span>
-            <span className="w-6 h-6 rounded-full bg-[#f4f4f6] flex items-center justify-center text-xs font-bold">{inReview}</span>
+            <span className="text-sm font-medium">已完成</span>
+            <span className="w-6 h-6 rounded-full bg-[#f4f4f6] flex items-center justify-center text-xs font-bold">{done}</span>
           </div>
         </div>
         <div className="flex gap-2.5">

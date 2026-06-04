@@ -1,9 +1,10 @@
 import type { StateCreator } from 'zustand';
 import type { AppState } from './index';
-import type { ActiveTab, ChartView, NavVisibility, ToggleableNavTab } from '../types';
+import type { ActiveTab, ChartView, NavOrder, NavVisibility, ToggleableNavTab } from '../types';
 import { V4 } from '../v4config';
 
 const NAV_VISIBILITY_STORAGE_KEY = 'sparkflow.navVisibility';
+const NAV_ORDER_STORAGE_KEY = 'sparkflow.navOrder';
 
 const toggleableNavTabs: ToggleableNavTab[] = [
   'dashboard',
@@ -22,6 +23,8 @@ const defaultNavVisibility: NavVisibility = {
   courses: true,
   sparks: true,
 };
+
+const defaultNavOrder: NavOrder = [...toggleableNavTabs];
 
 function readStoredNavVisibility(): NavVisibility {
   if (typeof window === 'undefined') return defaultNavVisibility;
@@ -53,6 +56,36 @@ function writeStoredNavVisibility(navVisibility: NavVisibility) {
   }
 }
 
+function readStoredNavOrder(): NavOrder {
+  if (typeof window === 'undefined') return defaultNavOrder;
+
+  try {
+    const raw = window.localStorage.getItem(NAV_ORDER_STORAGE_KEY);
+    if (!raw) return defaultNavOrder;
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return defaultNavOrder;
+
+    const storedTabs = parsed.filter((tab): tab is ToggleableNavTab =>
+      toggleableNavTabs.includes(tab as ToggleableNavTab),
+    );
+    const missingTabs = toggleableNavTabs.filter((tab) => !storedTabs.includes(tab));
+    return [...storedTabs, ...missingTabs];
+  } catch {
+    return defaultNavOrder;
+  }
+}
+
+function writeStoredNavOrder(navOrder: NavOrder) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.localStorage.setItem(NAV_ORDER_STORAGE_KEY, JSON.stringify(navOrder));
+  } catch {
+    // Ignore storage failures so the current session can still reorder navigation.
+  }
+}
+
 function isNavTabVisible(tab: ActiveTab, navVisibility: NavVisibility): boolean {
   return tab === 'settings' || navVisibility[tab as ToggleableNavTab];
 }
@@ -63,14 +96,17 @@ function getFallbackActiveTab(navVisibility: NavVisibility): ActiveTab {
 }
 
 const initialNavVisibility = readStoredNavVisibility();
+const initialNavOrder = readStoredNavOrder();
 
 export interface UISlice {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
 
   navVisibility: NavVisibility;
+  navOrder: NavOrder;
   setNavVisibility: (tab: ToggleableNavTab, visible: boolean) => void;
   toggleNavVisibility: (tab: ToggleableNavTab) => void;
+  moveNavItem: (tab: ToggleableNavTab, direction: 'up' | 'down') => void;
 
   chartView: ChartView;
   setChartView: (view: ChartView) => void;
@@ -91,6 +127,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => (
   })),
 
   navVisibility: initialNavVisibility,
+  navOrder: initialNavOrder,
   setNavVisibility: (tab, visible) => set((state) => {
     const navVisibility = { ...state.navVisibility, [tab]: visible };
     writeStoredNavVisibility(navVisibility);
@@ -112,6 +149,19 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => (
         ? state.activeTab
         : getFallbackActiveTab(navVisibility),
     };
+  }),
+  moveNavItem: (tab, direction) => set((state) => {
+    const currentIndex = state.navOrder.indexOf(tab);
+    if (currentIndex < 0) return state;
+
+    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= state.navOrder.length) return state;
+
+    const navOrder = [...state.navOrder];
+    [navOrder[currentIndex], navOrder[nextIndex]] = [navOrder[nextIndex], navOrder[currentIndex]];
+    writeStoredNavOrder(navOrder);
+
+    return { navOrder };
   }),
 
   chartView: V4.chartDefaultView as ChartView,

@@ -91,7 +91,7 @@ export class CourseController {
     return this.courseService.adjustEvent(eventId, userId, data);
   }
 
-  // ==================== 课程笔记 ====================
+  // ==================== 课程任务（兼容既有 notes 路径） ====================
 
   @Get(':id/notes')
   findNotes(@Param('id') id: string, @Query('userId') userId: string) {

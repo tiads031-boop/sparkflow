@@ -9,13 +9,17 @@ interface TasksViewProps {
 
 export default function TasksView({ tasks, onTaskClick }: TasksViewProps) {
   const [filter, setFilter] = useState('All');
-  const filters = ['All', 'In progress', 'In review', 'To do'];
+  const filters = ['All', 'In progress', 'To do', 'Done'];
 
   const displayTasks =
-    filter === 'All' ? tasks.filter((t) => t.status !== 'Cancelled') : tasks.filter((t) => t.status === filter);
+    filter === 'All'
+      ? tasks.filter((t) => t.status !== 'Cancelled')
+      : filter === 'In progress'
+        ? tasks.filter((t) => t.status === 'In progress' || t.status === 'In review')
+        : tasks.filter((t) => t.status === filter);
 
   const filterLabel = (f: string) =>
-    f === 'All' ? '全部' : f === 'In progress' ? '进行中' : f === 'In review' ? '审核中' : '待处理';
+    f === 'All' ? '全部' : f === 'In progress' ? '进行中' : f === 'Done' ? '已完成' : '待处理';
 
   return (
     <div className="animate-page-enter">

@@ -15,10 +15,9 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
       : 'bg-[#b0a8db] text-[#242424]';
 
   const statusLabel =
-    task.status === 'In progress' ? '进行中' :
-    task.status === 'In review' ? '审核中' :
+    task.status === 'In progress' || task.status === 'In review' ? '进行中' :
     task.status === 'To do' ? '待处理' :
-    task.status === 'Done' ? '已完成' : '已取消';
+    task.status === 'Done' ? '已完成' : '待处理';
 
   const priorityLabel =
     task.priority === 'High Priority' ? '高优先级' :

@@ -59,11 +59,22 @@ interface SyncStatusResponse {
   syncedCount: number;
 }
 
+interface OAuthCallbackPayload {
+  type?: string;
+  status?: 'success' | 'error';
+  message?: string;
+  errorCode?: string;
+  googleError?: string;
+  googleDescription?: string;
+  setupHint?: string;
+}
+
 // ── 模块级变量（弹出窗口引用，不放入 store state） ──
 
 let popupRef: Window | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let oauthUrlOpenCleanup: (() => void | Promise<void>) | null = null;
+let oauthMessageCleanup: (() => void) | null = null;
 
 // ── 平台检测（内联，避免原生模块 import 导致 PWA 构建失败） ──
 
@@ -101,6 +112,30 @@ function getOAuthStatus(url: string): string | null {
   }
 }
 
+function getOAuthCallbackMessage(payload: OAuthCallbackPayload): string {
+  if (payload.errorCode === 'google_access_denied') {
+    return 'Google 拒绝访问：当前 OAuth 应用尚未完成验证，或此账号未加入测试用户。请在 Google Cloud Console 添加测试用户，或发布并完成应用验证。';
+  }
+
+  return payload.setupHint || payload.message || payload.googleDescription || 'Google 授权未完成，请重试';
+}
+
+function getOAuthUrlMessage(url: string): string {
+  try {
+    const params = new URL(url).searchParams;
+    return getOAuthCallbackMessage({
+      status: params.get('status') === 'success' ? 'success' : 'error',
+      message: params.get('message') || undefined,
+      errorCode: params.get('errorCode') || undefined,
+      googleError: params.get('googleError') || undefined,
+      googleDescription: params.get('googleDescription') || undefined,
+      setupHint: params.get('setupHint') || undefined,
+    });
+  } catch {
+    return 'Google 授权未完成，请重试';
+  }
+}
+
 /** 清理 OAuth 轮询 + popup 引用 */
 function cleanupOAuthState() {
   if (pollTimer) {
@@ -110,6 +145,10 @@ function cleanupOAuthState() {
   if (oauthUrlOpenCleanup) {
     void oauthUrlOpenCleanup();
     oauthUrlOpenCleanup = null;
+  }
+  if (oauthMessageCleanup) {
+    oauthMessageCleanup();
+    oauthMessageCleanup = null;
   }
   popupRef = null;
 }
@@ -162,8 +201,9 @@ export const createGoogleSyncSlice: StateCreator<AppState, [], [], GoogleSyncSli
     try {
       const finishOAuthFlow = async (callbackUrl?: string) => {
         if (callbackUrl && getOAuthStatus(callbackUrl) !== 'success') {
+          const errorMessage = getOAuthUrlMessage(callbackUrl);
           cleanupOAuthState();
-          set({ isConnecting: false, error: 'Google 授权未完成，请重试' });
+          set({ isConnecting: false, error: errorMessage });
           return;
         }
 
@@ -188,6 +228,23 @@ export const createGoogleSyncSlice: StateCreator<AppState, [], [], GoogleSyncSli
       if (!url) {
         throw new Error('无法获取 Google 授权链接');
       }
+
+      const handleOAuthMessage = async (event: MessageEvent<OAuthCallbackPayload>) => {
+        if (event.data?.type !== 'sparkflow-google-oauth') return;
+
+        if (event.data.status === 'success') {
+          await finishOAuthFlow();
+          return;
+        }
+
+        cleanupOAuthState();
+        set({
+          isConnecting: false,
+          error: getOAuthCallbackMessage(event.data),
+        });
+      };
+      window.addEventListener('message', handleOAuthMessage);
+      oauthMessageCleanup = () => window.removeEventListener('message', handleOAuthMessage);
 
       // ── Capacitor 环境：用系统浏览器打开 + deep link 回调 ──
       if (isCapacitorNative()) {
@@ -259,6 +316,7 @@ export const createGoogleSyncSlice: StateCreator<AppState, [], [], GoogleSyncSli
       );
 
       if (!popupRef) {
+        cleanupOAuthState();
         set({
           isConnecting: false,
           error: '弹窗被浏览器拦截，请允许此站点的弹窗后重试',

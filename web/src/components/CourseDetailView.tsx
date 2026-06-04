@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User, Sparkles } from 'lucide-react';
+import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User, Sparkles, Search, Tag, ClipboardCheck } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { CourseNote } from '../types';
+import { apiRequest, DEFAULT_USER_ID } from '../api/client';
 
 // ════════════════════════════════════════════════════
 // Props
@@ -15,6 +16,49 @@ const DAY_LABELS: Record<number, string> = {
   1: '周一', 2: '周二', 3: '周三', 4: '周四',
   5: '周五', 6: '周六', 7: '周日',
 };
+
+const COURSE_TASK_STATUSES = [
+  { value: 'todo', label: '待处理' },
+  { value: 'in-progress', label: '进行中' },
+  { value: 'done', label: '已完成' },
+] as const;
+
+type CourseTaskStatus = typeof COURSE_TASK_STATUSES[number]['value'];
+type ParsedCourseTask = {
+  body: string;
+  tags: string[];
+  status: CourseTaskStatus;
+};
+
+const TASK_META_RE = /^\[course-task:(todo|in-progress|done)\]\[tags:([^\]]*)\]\s*/;
+const TASK_STATUS_LABELS: Record<string, string> = {
+  'To do': '待处理',
+  'In progress': '进行中',
+  'In review': '进行中',
+  Done: '已完成',
+};
+
+function parseCourseTaskBody(body: string): ParsedCourseTask {
+  const match = body.match(TASK_META_RE);
+  if (!match) return { body, tags: [], status: 'todo' };
+  return {
+    body: body.slice(match[0].length),
+    tags: match[2].split(',').map((tag) => tag.trim()).filter(Boolean),
+    status: match[1] as CourseTaskStatus,
+  };
+}
+
+function serializeCourseTaskBody(task: ParsedCourseTask): string {
+  const tags = task.tags.map((tag) => tag.trim()).filter(Boolean).join(',');
+  return `[course-task:${task.status}][tags:${tags}] ${task.body.trim()}`;
+}
+
+function parseTagInput(input: string): string[] {
+  return input
+    .split(/[,\s，、]+/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
 
 // ════════════════════════════════════════════════════
 // Week helpers
@@ -41,8 +85,13 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
   const addNote = useAppStore((s) => s.addNote);
   const editNote = useAppStore((s) => s.editNote);
   const removeNote = useAppStore((s) => s.removeNote);
+  const loadCourseDetail = useAppStore((s) => s.loadCourseDetail);
 
   const [noteText, setNoteText] = useState('');
+  const [noteTags, setNoteTags] = useState('');
+  const [noteStatus, setNoteStatus] = useState<CourseTaskStatus>('todo');
+  const [taskSearch, setTaskSearch] = useState('');
+  const [convertingNoteId, setConvertingNoteId] = useState<string | null>(null);
 
   // ⚠️ useMemo 必须在 early return 之前，保证 hooks 调用顺序一致
   const { thisWeekEvents, otherEvents } = useMemo(() => {
@@ -51,16 +100,26 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
     const weekRange = getWeekRange();
     const thisWeek: typeof all = [];
-    const other: typeof all = [];
+    const future: typeof all = [];
+    const past: typeof all = [];
     for (const ev of all) {
       const d = new Date(ev.startTime);
       if (d >= weekRange.monday && d <= weekRange.sunday) {
         thisWeek.push(ev);
+      } else if (d > weekRange.sunday) {
+        future.push(ev);
       } else {
-        other.push(ev);
+        past.push(ev);
       }
     }
-    return { thisWeekEvents: thisWeek, otherEvents: other.slice(0, 15) };
+    past.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+    return {
+      thisWeekEvents: thisWeek,
+      otherEvents: [
+        ...future.map((event) => ({ event, isPast: false })),
+        ...past.map((event) => ({ event, isPast: true })),
+      ].slice(0, 15),
+    };
   }, [selectedCourse]);
 
   const hasAnyEvents = thisWeekEvents.length > 0 || otherEvents.length > 0;
@@ -78,16 +137,57 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
   }
 
   const c = selectedCourse;
-  const sortedNotes = [...c.notes].sort((a, b) => {
-    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  const sortedTasks = [...c.notes]
+    .map((note) => ({ note, parsed: parseCourseTaskBody(note.body) }))
+    .filter(({ parsed }) => {
+      const query = taskSearch.trim().toLowerCase();
+      if (!query) return true;
+      return [
+        parsed.body,
+        ...parsed.tags,
+        COURSE_TASK_STATUSES.find((status) => status.value === parsed.status)?.label || '',
+      ].some((value) => value.toLowerCase().includes(query));
+    })
+    .sort((a, b) => {
+      if (a.note.pinned !== b.note.pinned) return a.note.pinned ? -1 : 1;
+      return new Date(b.note.createdAt).getTime() - new Date(a.note.createdAt).getTime();
+    });
 
   const handleAddNote = async () => {
     const text = noteText.trim();
     if (!text) return;
     setNoteText('');
-    await addNote(c.id, text);
+    setNoteTags('');
+    setNoteStatus('todo');
+    await addNote(c.id, serializeCourseTaskBody({
+      body: text,
+      tags: parseTagInput(noteTags),
+      status: noteStatus,
+    }));
+  };
+
+  const handleConvertToTask = async (note: CourseNote, parsed: ParsedCourseTask) => {
+    if (convertingNoteId) return;
+    setConvertingNoteId(note.id);
+    try {
+      await apiRequest('/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: DEFAULT_USER_ID,
+          title: parsed.body,
+          description: `来自课程任务：${c.name}`,
+          status: parsed.status,
+          priority: 'medium',
+          section: 'project',
+          project: c.name,
+          courseId: c.id,
+          tags: parsed.tags,
+        }),
+      });
+      await loadCourseDetail(c.id);
+    } finally {
+      setConvertingNoteId(null);
+    }
   };
 
   const formatEventDate = (iso: string) => {
@@ -149,7 +249,7 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
             {c._count?.tasks || c.tasks?.length || 0} 个任务
           </span>
           <span className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-medium">
-            {c._count?.notes || c.notes?.length || 0} 条笔记
+            {c._count?.notes || c.notes?.length || 0} 个课程任务
           </span>
         </div>
       </div>
@@ -215,10 +315,12 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
                 </div>
               )}
               <div className="space-y-2 max-h-64 overflow-y-auto hide-scrollbar">
-                {otherEvents.map((ev) => (
+                {otherEvents.map(({ event: ev, isPast }) => (
                   <div
                     key={ev.id}
-                    className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-[#f4f4f6]"
+                    className={`flex items-center gap-3 py-2.5 px-3 rounded-xl bg-[#f4f4f6] ${
+                      isPast ? 'opacity-55 grayscale' : ''
+                    }`}
                   >
                     <div
                       className="w-2 h-2 rounded-full flex-shrink-0"
@@ -228,6 +330,11 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
                     <span className="text-sm text-[#242424] font-medium">
                       {formatEventTime(ev.startTime)} - {formatEventTime(ev.endTime)}
                     </span>
+                    {isPast && (
+                      <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-400">
+                        已上过
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -261,47 +368,91 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
                   }}
                 />
                 <span className="flex-1 text-sm text-[#242424] truncate">{task.title}</span>
-                <span className="text-[10px] text-gray-400">{task.status}</span>
+                <span className="text-[10px] text-gray-400">{TASK_STATUS_LABELS[task.status] || '待处理'}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Notes */}
+      {/* Course tasks */}
       <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4">
-        <h3 className="text-sm font-bold text-[#242424] mb-3">课程笔记</h3>
-
-        {/* Note input */}
-        <div className="flex gap-2 mb-4">
-          <input
-            type="text"
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
-            placeholder="写下课堂笔记..."
-            className="flex-1 px-4 py-2.5 rounded-full bg-[#f4f4f6] text-sm text-[#242424] outline-none focus:ring-2 focus:ring-[#b0a8db]/30"
-          />
-          <button
-            onClick={handleAddNote}
-            disabled={!noteText.trim()}
-            className="w-10 h-10 rounded-full bg-[#242424] text-white flex items-center justify-center disabled:opacity-30 transition-opacity"
-          >
-            <Send size={16} />
-          </button>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-[#242424]">课程任务</h3>
+          <span className="text-[10px] text-gray-400">{sortedTasks.length} 条</span>
         </div>
 
-        {/* Notes list */}
-        {sortedNotes.length === 0 ? (
-          <p className="text-center text-sm text-gray-400 py-6">暂无笔记，写下课堂记录吧</p>
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-2xl bg-[#f4f4f6]">
+          <Search size={14} className="text-gray-400 flex-shrink-0" />
+          <input
+            type="text"
+            value={taskSearch}
+            onChange={(e) => setTaskSearch(e.target.value)}
+            placeholder="搜索课程任务或标签"
+            className="flex-1 bg-transparent text-sm text-[#242424] outline-none placeholder:text-gray-300"
+          />
+        </div>
+
+        <div className="space-y-2 mb-4">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddNote()}
+              placeholder="添加课程任务..."
+              className="flex-1 px-4 py-2.5 rounded-full bg-[#f4f4f6] text-sm text-[#242424] outline-none focus:ring-2 focus:ring-[#b0a8db]/30"
+            />
+            <button
+              onClick={handleAddNote}
+              disabled={!noteText.trim()}
+              className="w-10 h-10 rounded-full bg-[#242424] text-white flex items-center justify-center disabled:opacity-30 transition-opacity"
+              title="添加课程任务"
+            >
+              <Send size={16} />
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-full bg-[#f4f4f6]">
+              <Tag size={13} className="text-gray-400 flex-shrink-0" />
+              <input
+                type="text"
+                value={noteTags}
+                onChange={(e) => setNoteTags(e.target.value)}
+                placeholder="标签，用空格或逗号分隔"
+                className="min-w-0 flex-1 bg-transparent text-xs text-[#242424] outline-none placeholder:text-gray-300"
+              />
+            </div>
+            <select
+              value={noteStatus}
+              onChange={(e) => setNoteStatus(e.target.value as CourseTaskStatus)}
+              className="px-3 py-2 rounded-full bg-[#f4f4f6] text-xs text-[#242424] outline-none"
+            >
+              {COURSE_TASK_STATUSES.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {sortedTasks.length === 0 ? (
+          <p className="text-center text-sm text-gray-400 py-6">
+            {taskSearch.trim() ? '没有匹配的课程任务' : '暂无课程任务，先添加一个课堂行动项吧'}
+          </p>
         ) : (
           <div className="space-y-2">
-            {sortedNotes.map((note) => (
+            {sortedTasks.map(({ note, parsed }) => (
               <NoteCard
                 key={note.id}
                 note={note}
+                parsed={parsed}
                 onTogglePin={() => editNote(note.id, { pinned: !note.pinned })}
+                onChangeStatus={(status) => editNote(note.id, {
+                  body: serializeCourseTaskBody({ ...parsed, status }),
+                })}
                 onDelete={() => removeNote(note.id)}
+                onConvert={() => handleConvertToTask(note, parsed)}
+                isConverting={convertingNoteId === note.id}
               />
             ))}
           </div>
@@ -317,12 +468,20 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
 
 function NoteCard({
   note,
+  parsed,
   onTogglePin,
+  onChangeStatus,
   onDelete,
+  onConvert,
+  isConverting,
 }: {
   note: CourseNote;
+  parsed: ParsedCourseTask;
   onTogglePin: () => void;
+  onChangeStatus: (status: CourseTaskStatus) => void;
   onDelete: () => void;
+  onConvert: () => void;
+  isConverting: boolean;
 }) {
   const formattedTime = new Date(note.createdAt).toLocaleString('zh-CN', {
     month: 'numeric',
@@ -338,8 +497,37 @@ function NoteCard({
       }`}
     >
       <div className="flex items-start gap-3">
-        <p className="flex-1 text-sm text-[#242424] leading-relaxed">{note.body}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-[#242424] leading-relaxed">{parsed.body}</p>
+          {parsed.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {parsed.tags.map((tag) => (
+                <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-[#b0a8db]/15 text-[#242424]">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-1 flex-shrink-0">
+          <select
+            value={parsed.status}
+            onChange={(e) => onChangeStatus(e.target.value as CourseTaskStatus)}
+            className="max-w-[76px] px-2 py-1 rounded-lg bg-white text-[10px] text-gray-500 outline-none"
+            title="课程任务状态"
+          >
+            {COURSE_TASK_STATUSES.map((status) => (
+              <option key={status.value} value={status.value}>{status.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={onConvert}
+            disabled={isConverting}
+            className="p-1 rounded-lg text-gray-300 hover:text-[#242424] disabled:opacity-40 transition-colors"
+            title="转化为任务"
+          >
+            <ClipboardCheck size={14} />
+          </button>
           <button
             onClick={onTogglePin}
             className={`p-1 rounded-lg transition-colors ${
