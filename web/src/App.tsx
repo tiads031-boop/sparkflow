@@ -4,6 +4,7 @@ import {
   Plus, Bell, BellOff, LayoutGrid, BookOpen, Settings,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
+import type { ActiveTab, NavVisibility } from './types';
 import DashboardView from './components/DashboardView';
 import TasksView from './components/TasksView';
 import BoardView from './components/BoardView';
@@ -33,6 +34,12 @@ const navItems = [
   { id: 'sparks' as const, label: '灵感', icon: Zap },
   { id: 'settings' as const, label: '设置', icon: Settings },
 ];
+
+type NavItem = (typeof navItems)[number];
+
+function isVisibleNavItem(tab: NavItem, navVisibility: NavVisibility): boolean {
+  return tab.id === 'settings' || navVisibility[tab.id];
+}
 
 function Header({
   onAddClick,
@@ -83,13 +90,18 @@ function Header({
 function BottomNav({
   activeTab,
   setActiveTab,
+  items,
 }: {
-  activeTab: string;
-  setActiveTab: (tab: 'dashboard' | 'tasks' | 'board' | 'calendar' | 'courses' | 'sparks' | 'settings') => void;
+  activeTab: ActiveTab;
+  setActiveTab: (tab: ActiveTab) => void;
+  items: readonly NavItem[];
 }) {
   return (
-    <div className="fixed bottom-5 left-1/2 -translate-x-1/2 bg-[#242424] rounded-full px-1.5 py-1.5 flex items-center gap-1 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-40">
-      {navItems.map((tab) => {
+    <div
+      className="fixed left-1/2 -translate-x-1/2 bg-[#242424] rounded-full px-1.5 py-1.5 flex items-center gap-1 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-40"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)' }}
+    >
+      {items.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
         return (
@@ -115,6 +127,7 @@ function BottomNav({
 export default function App() {
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
+  const navVisibility = useAppStore((s) => s.navVisibility);
   const tasks = useAppStore((s) => s.tasks);
   const sparks = useAppStore((s) => s.sparks);
   const setSparks = useAppStore((s) => s.setSparks);
@@ -141,6 +154,7 @@ export default function App() {
   const loadCourseDetail = useAppStore((s) => s.loadCourseDetail);
 
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
+  const visibleNavItems = navItems.filter((tab) => isVisibleNavItem(tab, navVisibility));
 
   useEffect(() => {
     loadTasks();
@@ -197,6 +211,7 @@ export default function App() {
     context: 'task' | 'spark';
     data: any;
   }>({ isOpen: false, mode: 'create', context: 'task', data: null });
+  const [appMessage, setAppMessage] = useState<string | null>(null);
 
   const handleOpenCreate = (context: string) =>
     setModalConfig({ isOpen: true, mode: 'create', context: context as 'task' | 'spark', data: null });
@@ -207,7 +222,7 @@ export default function App() {
   const handleCloseModal = () =>
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
-  const handleSaveItem = ({
+  const handleSaveItem = async ({
     id, title, content, context, status, priority, dueDate, section, subtasks, project, startTime, duration,
   }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
@@ -223,7 +238,7 @@ export default function App() {
       ) as Task['colorType'];
 
       if (id) {
-        updateTask(id, {
+        await updateTask(id, {
           title: title || '未命名任务',
           description: content,
           status: status || 'To do',
@@ -252,9 +267,10 @@ export default function App() {
           startTime: startTime || undefined,
           duration: duration || undefined,
         };
-        addTask(newTask);
+        await addTask(newTask);
         setActiveTab('tasks');
       }
+      setAppMessage(null);
     } else {
       if (id) {
         const s = sparks.find((sp) => sp.id === id);
@@ -301,12 +317,13 @@ export default function App() {
         .task-block.dragging { box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 50 !important; }
         .task-block:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: box-shadow 0.2s; }
         .task-block { transition: box-shadow 0.2s, transform 0.1s; }
+        .app-safe-top { padding-top: calc(env(safe-area-inset-top, 0px) + 28px); }
       `}</style>
 
       {/* App container (removed phone frame, full-screen adaptive) */}
       <div className="w-full h-svh flex flex-col overflow-hidden sm:max-w-lg sm:mx-auto">
         {/* Header */}
-        <div className="px-5 pt-5 pb-0 relative z-20">
+        <div className="px-5 pb-0 relative z-20 app-safe-top">
           <Header
             onAddClick={handleOpenCreate}
             pushEnabled={pushEnabled}
@@ -316,7 +333,15 @@ export default function App() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto hide-scrollbar px-5 relative z-10 pb-20">
+        <div
+          className="flex-1 overflow-y-auto hide-scrollbar px-5 relative z-10"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' }}
+        >
+          {appMessage && (
+            <div className="mb-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
+              {appMessage}
+            </div>
+          )}
           {/* Course detail view (full page) */}
           {activeTab === 'courses' && viewingCourseId ? (
             <CourseDetailView onBack={() => setViewingCourseId(null)} />
@@ -353,13 +378,17 @@ export default function App() {
           {activeTab === 'settings' && <SettingsView />}
         </div>
 
-        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} items={visibleNavItems} />
 
         {/* Modals */}
         <DarkFrostedModal
           config={modalConfig}
           onClose={handleCloseModal}
-          onSave={handleSaveItem}
+          onSave={(params) => {
+            handleSaveItem(params).catch((err: any) => {
+              setAppMessage(err.message || '保存失败，请稍后重试');
+            });
+          }}
           onDelete={handleDeleteItem}
           onToggleSubtask={toggleSubtask}
         />

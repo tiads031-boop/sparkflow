@@ -47,8 +47,10 @@ export class GoogleCalendarController {
     @Query('error') error: string | undefined,
     @Res() res: Response,
   ) {
+    const fallbackPlatform = this.authService.peekOAuthPlatform(state);
+
     if (error) {
-      return this.respondToOAuthCallback(res, 'web', false, error);
+      return this.respondToOAuthCallback(res, fallbackPlatform, false, error);
     }
 
     try {
@@ -62,7 +64,7 @@ export class GoogleCalendarController {
     } catch (callbackError: any) {
       return this.respondToOAuthCallback(
         res,
-        'web',
+        fallbackPlatform,
         false,
         callbackError?.message ?? 'OAuth failed',
       );

@@ -1,19 +1,25 @@
 import { useEffect, useState } from 'react';
 import {
-  Settings,
-  Link,
-  Unlink,
-  RefreshCw,
-  Check,
   AlertCircle,
-  Loader2,
+  BookOpen,
   Calendar,
-  Smartphone,
+  Check,
+  CheckSquare,
   Download,
-  Upload,
+  Home,
+  LayoutGrid,
+  Link,
+  Loader2,
+  RefreshCw,
+  Settings,
   ShieldCheck,
+  Smartphone,
+  Unlink,
+  Upload,
+  Zap,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
+import type { ToggleableNavTab } from '../types';
 import {
   checkCalendarPermission,
   exportTasksToSystemCalendar,
@@ -22,12 +28,10 @@ import {
   requestCalendarPermission,
 } from '../capacitor/calendar';
 
-/** 相对时间格式化 */
 function relativeTime(isoStr: string | null): string {
   if (!isoStr) return '从未同步';
-  const now = Date.now();
-  const then = new Date(isoStr).getTime();
-  const diffMs = now - then;
+
+  const diffMs = Date.now() - new Date(isoStr).getTime();
   if (diffMs < 0) return '刚刚';
   const sec = Math.floor(diffMs / 1000);
   if (sec < 60) return `${sec} 秒前`;
@@ -40,7 +44,6 @@ function relativeTime(isoStr: string | null): string {
   return new Date(isoStr).toLocaleDateString('zh-CN');
 }
 
-/** 同步范围选项（UI only，后端实际过滤逻辑后续实现） */
 interface SyncScope {
   key: string;
   label: string;
@@ -52,7 +55,21 @@ const defaultScopes: SyncScope[] = [
   { key: 'tasks', label: '任务事件', description: '有开始时间和截止日期的任务', enabled: true },
   { key: 'courses', label: '课程事件', description: '课程表中安排的课程时间', enabled: true },
   { key: 'manual', label: '手动日程', description: '日历中手动创建的日程', enabled: true },
-  { key: 'sparks', label: '灵感', description: '灵感卡片（通常不同步）', enabled: false },
+  { key: 'sparks', label: '灵感', description: '灵感卡片通常不同步', enabled: false },
+];
+
+const navSettings: Array<{
+  key: ToggleableNavTab;
+  label: string;
+  description: string;
+  icon: typeof Home;
+}> = [
+  { key: 'dashboard', label: '仪表盘', description: '概览和统计图表', icon: Home },
+  { key: 'tasks', label: '任务', description: '待办列表', icon: CheckSquare },
+  { key: 'board', label: '看板', description: '项目和个人看板', icon: LayoutGrid },
+  { key: 'calendar', label: '日历', description: '日程和时间线', icon: Calendar },
+  { key: 'courses', label: '课程', description: '课表和课程管理', icon: BookOpen },
+  { key: 'sparks', label: '灵感', description: '灵感卡片', icon: Zap },
 ];
 
 export default function SettingsView() {
@@ -69,6 +86,8 @@ export default function SettingsView() {
   const syncNow = useAppStore((s) => s.syncNow);
   const clearError = useAppStore((s) => s.clearError);
   const loadTasks = useAppStore((s) => s.loadTasks);
+  const navVisibility = useAppStore((s) => s.navVisibility);
+  const toggleNavVisibility = useAppStore((s) => s.toggleNavVisibility);
 
   const [scopes, setScopes] = useState<SyncScope[]>(defaultScopes);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -83,9 +102,9 @@ export default function SettingsView() {
   }, [canUseSystemCalendar]);
 
   const toggleScope = (key: string) => {
-    setScopes((prev) =>
-      prev.map((s) => (s.key === key ? { ...s, enabled: !s.enabled } : s)),
-    );
+    setScopes((prev) => prev.map((scope) => (
+      scope.key === key ? { ...scope, enabled: !scope.enabled } : scope
+    )));
   };
 
   const handleSyncNow = async () => {
@@ -142,6 +161,51 @@ export default function SettingsView() {
       <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4 overflow-hidden">
         <div className="flex items-center gap-2.5 mb-4">
           <div className="w-8 h-8 rounded-full bg-[#242424] flex items-center justify-center">
+            <LayoutGrid size={16} className="text-[#cae393]" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-[#242424]">底部导航</h2>
+            <p className="text-[10px] text-gray-400">设置入口会始终保留</p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {navSettings.map((item) => {
+            const Icon = item.icon;
+            const enabled = navVisibility[item.key];
+
+            return (
+              <div
+                key={item.key}
+                className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#f4f4f6] flex items-center justify-center flex-shrink-0">
+                  <Icon size={15} className={enabled ? 'text-[#242424]' : 'text-gray-400'} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-[#242424] font-medium block">{item.label}</span>
+                  <span className="text-[10px] text-gray-400 block truncate">{item.description}</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enabled}
+                  onClick={() => toggleNavVisibility(item.key)}
+                  className={`w-11 h-6 rounded-full p-1 flex items-center transition-colors active:scale-95 ${
+                    enabled ? 'bg-[#cae393] justify-end' : 'bg-[#e5e2f3] justify-start'
+                  }`}
+                >
+                  <span className="w-4 h-4 rounded-full bg-white shadow-sm" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4 overflow-hidden">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-full bg-[#242424] flex items-center justify-center">
             <Calendar size={16} className="text-[#cae393]" />
           </div>
           <h2 className="text-sm font-bold text-[#242424]">Google Calendar</h2>
@@ -151,16 +215,13 @@ export default function SettingsView() {
           <div className="mb-4 p-3 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-2">
             <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
             <p className="flex-1 text-xs text-red-700">{error}</p>
-            <button
-              onClick={clearError}
-              className="text-xs text-red-400 hover:text-red-600 flex-shrink-0"
-            >
+            <button onClick={clearError} className="text-xs text-red-400 hover:text-red-600">
               关闭
             </button>
           </div>
         )}
 
-        {!isConnected && (
+        {!isConnected ? (
           <>
             <div className="text-center py-6">
               <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-[#f4f4f6] flex items-center justify-center">
@@ -190,9 +251,7 @@ export default function SettingsView() {
               )}
             </button>
           </>
-        )}
-
-        {isConnected && (
+        ) : (
           <>
             <div className="bg-[#f4f4f6] rounded-2xl p-4 mb-4 space-y-2">
               <div className="flex items-center gap-2">

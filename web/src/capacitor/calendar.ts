@@ -68,7 +68,7 @@ function normalizeSystemEvent(event: any): NormalizedLocalCalendarEvent | null {
   }
 
   return {
-    externalId: String(event.id),
+    externalId: `${event.calendarId ?? 'default'}:${event.id}`,
     title: String(event.title),
     startTime: new Date(startDate).toISOString(),
     endTime: new Date(endDate).toISOString(),

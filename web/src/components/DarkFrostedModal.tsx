@@ -34,7 +34,7 @@ export interface SaveParams {
 interface Props {
   config: ModalConfig;
   onClose: () => void;
-  onSave: (params: SaveParams) => void;
+  onSave: (params: SaveParams) => void | Promise<void>;
   onDelete: (id: string, context: string) => void;
   onToggleSubtask?: (taskId: string, subtaskId: string) => void;
 }

@@ -169,14 +169,20 @@ export const createTaskSlice: StateCreator<AppState, [], [], TaskSlice> = (set, 
       userId: DEFAULT_USER_ID,
     };
 
-    const res = await apiRequest('/tasks', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    try {
+      const res = await apiRequest('/tasks', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
 
-    const created: ApiTask = await res.json();
-    const frontTask = fromApiTask(created);
-    set((state) => ({ tasks: [frontTask, ...state.tasks] }));
+      const created: ApiTask = await res.json();
+      const frontTask = fromApiTask(created);
+      set((state) => ({ tasks: [frontTask, ...state.tasks], taskError: null }));
+    } catch (err: any) {
+      const message = err.message || '添加任务失败';
+      set({ taskError: message });
+      throw new Error(message);
+    }
   },
 
   // ── 更新 ──

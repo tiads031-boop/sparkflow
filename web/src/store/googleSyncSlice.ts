@@ -63,6 +63,7 @@ interface SyncStatusResponse {
 
 let popupRef: Window | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let oauthUrlOpenCleanup: (() => void | Promise<void>) | null = null;
 
 // ── 平台检测（内联，避免原生模块 import 导致 PWA 构建失败） ──
 
@@ -105,6 +106,10 @@ function cleanupOAuthState() {
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;
+  }
+  if (oauthUrlOpenCleanup) {
+    void oauthUrlOpenCleanup();
+    oauthUrlOpenCleanup = null;
   }
   popupRef = null;
 }
@@ -201,9 +206,9 @@ export const createGoogleSyncSlice: StateCreator<AppState, [], [], GoogleSyncSli
               if (!isSparkFlowOAuthCallback(event.url)) return;
               // deep link 回调到达 → 关闭浏览器 → 检查连接状态 → 同步
               await Browser.close().catch(() => {});
-              handler.remove();
               await finishOAuthFlow(event.url);
             });
+            oauthUrlOpenCleanup = () => handler.remove();
           } catch {
             // @capacitor/app 不可用，走轮询降级
           }

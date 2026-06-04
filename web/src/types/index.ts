@@ -171,3 +171,7 @@ export type ActiveTab =
   | 'sparks'
   | 'courses'
   | 'settings';
+
+export type ToggleableNavTab = Exclude<ActiveTab, 'settings'>;
+
+export type NavVisibility = Record<ToggleableNavTab, boolean>;

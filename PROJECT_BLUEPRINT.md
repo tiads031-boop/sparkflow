@@ -195,6 +195,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 - ✅ **Google Calendar 双向同步增强**：手动/定时同步会先将 SparkFlow Task/CalendarEvent 推到 Google，再拉取 Google 事件；Google 事件落库到 CalendarEvent 并生成/更新 Task，syncToken 失效时自动 full sync。
 - ✅ **Xiaomi/Android 本地日历接入**：Settings 新增系统日历权限、近期本地事件导入、SparkFlow 日程写入系统日历；本地事件按 external id upsert，并关联 Task，Web 端明确通过 Google/ICS 间接同步。
 - ✅ **日历视图适配**：CalendarView 展示 Google/local/manual/course 等非课程日程，修复 CalendarService 查询 where/时间 overlap，避免已关联 Task 的日历事件重复渲染。
+- ✅ **App 端同步与移动适配收口**：验证 Render 已放行 `https://localhost` / `capacitor://localhost`；补齐 Android OAuth 失败 deep link 与 listener 清理、本地日历 external id 命名空间、待办添加错误提示、顶部/底部 safe-area 适配，并在设置页加入底部导航显示开关。
 
 ### 2026-06-01
 - ✅ **删除 CURRENT_CONTEXT 同步架构**：移除 context-bridge 模块 + syncSlice + Task.contextMdHash，改纯 REST CRUD；数据流简化为 PWA ↔ REST ↔ Supabase

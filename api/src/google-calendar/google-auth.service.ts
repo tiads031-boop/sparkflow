@@ -278,6 +278,16 @@ export class GoogleAuthService {
     };
   }
 
+  peekOAuthPlatform(state?: string): OAuthPlatform {
+    if (!state) return 'web';
+
+    try {
+      return this.decodeOAuthState(state).platform;
+    } catch {
+      return 'web';
+    }
+  }
+
   private generateCodeVerifier(): string {
     return crypto.randomBytes(32).toString('base64url').replace(/=/g, '');
   }
