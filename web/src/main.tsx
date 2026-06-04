@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import ErrorBoundary from './ErrorBoundary.tsx'
+import AuthGate from './components/AuthGate.tsx'
 
 // Register Service Worker for Web Push + offline cache
 if ('serviceWorker' in navigator) {
@@ -22,7 +23,9 @@ window.addEventListener('unhandledrejection', (e) => {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <AuthGate>
+        <App />
+      </AuthGate>
     </ErrorBoundary>
   </StrictMode>,
 )

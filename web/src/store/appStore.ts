@@ -12,6 +12,13 @@ export { taskColors, sparkColors } from './constants';
 
 // 类型重导出（保持 import type 兼容）
 export type {
+  AuthSlice,
+  SparkFlowProfession,
+  SparkFlowProfile,
+  SparkFlowStatusNeed,
+} from './index';
+
+export type {
   Task,
   Subtask,
   Spark,

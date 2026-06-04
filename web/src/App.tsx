@@ -15,6 +15,7 @@ import CourseDetailView from './components/CourseDetailView';
 import SettingsView from './components/SettingsView';
 import { importIcs } from './api/courses';
 import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
+import { normalizeTaskSection } from './utils/taskSections';
 
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
@@ -254,7 +255,7 @@ export default function App() {
           status: status || 'To do',
           priority: priority || 'Medium',
           colorType,
-          section: section || 'personal',
+          section: normalizeTaskSection(section),
           dueDate: normalizedDueDate || undefined,
           project: project || undefined,
           startTime: startTime || undefined,
@@ -271,7 +272,7 @@ export default function App() {
           colorType,
           comments: 0,
           subtasks: content ? [{ id: String(Date.now() + 1), title: content, completed: false }] : [],
-          section: section || 'personal' as const,
+          section: normalizeTaskSection(section),
           dueDate: normalizedDueDate,
           project: project || undefined,
           startTime: startTime || undefined,

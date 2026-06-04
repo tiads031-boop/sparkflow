@@ -6,7 +6,16 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { Task, Subtask } from '../store/appStore';
+import type { TaskSection } from '../types';
 import { resolveMentions } from '../utils/mentionUtils';
+import {
+  getTaskSectionLabel,
+  getTaskSectionPlaceholder,
+  getTaskSectionShortLabel,
+  normalizeTaskSection,
+  presetTaskSections,
+  readCustomTaskSections,
+} from '../utils/taskSections';
 
 interface ModalConfig {
   isOpen: boolean;
@@ -23,7 +32,7 @@ export interface SaveParams {
   status?: Task['status'];
   priority?: Task['priority'];
   dueDate?: string;
-  section?: 'project' | 'personal';
+  section?: TaskSection;
   subtasks?: Subtask[];
   project?: string;
   /** 开始时间 "HH:MM" */
@@ -59,6 +68,23 @@ function normalizeEditableStatus(value?: Task['status']): Task['status'] {
   return 'To do';
 }
 
+function getDefaultSectionForProfile(
+  profession: string,
+  statusNeed: string,
+): TaskSection {
+  if (profession === 'student' || statusNeed === 'study-focus') return 'study';
+  if (profession === 'work' || statusNeed === 'internship-work') return 'work';
+  if (
+    profession === 'developer' ||
+    profession === 'research' ||
+    statusNeed === 'dev-research' ||
+    statusNeed === 'project-shipping'
+  ) {
+    return 'project';
+  }
+  return 'personal';
+}
+
 export default function DarkFrostedModal({ config, onClose, onSave, onDelete, onToggleSubtask }: Props) {
   const isCreate = config.mode === 'create';
   const isTask = config.context === 'task';
@@ -69,7 +95,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const [status, setStatus] = useState<Task['status']>('To do');
   const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [dueDate, setDueDate] = useState('');
-  const [section, setSection] = useState<'project' | 'personal'>('personal');
+  const [section, setSection] = useState<TaskSection>('personal');
   const [folder, setFolder] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -100,6 +126,24 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const stopPomodoroStore = useAppStore((s) => s.stopPomodoro);
   const completePomodoroStore = useAppStore((s) => s.completePomodoro);
   const tasks = useAppStore((s) => s.tasks);
+  const profession = useAppStore((s) => s.profession);
+  const statusNeed = useAppStore((s) => s.statusNeed);
+  const [customSections, setCustomSections] = useState<TaskSection[]>(() => readCustomTaskSections());
+  const sectionOptions = useMemo(
+    () => [
+      ...presetTaskSections.map((item) => ({
+        value: item.key,
+        label: item.label,
+        shortLabel: item.shortLabel,
+      })),
+      ...customSections.map((value) => ({
+        value,
+        label: getTaskSectionLabel(value),
+        shortLabel: getTaskSectionShortLabel(value),
+      })),
+    ],
+    [customSections],
+  );
 
   const contentMentions = useMemo(() => {
     if (!content) return { projectMentions: [] as string[], taskMentions: [] as { id: string; title: string }[] };
@@ -112,13 +156,14 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
 
   useEffect(() => {
     if (config.isOpen) {
+      setCustomSections(readCustomTaskSections());
       if (isCreate) {
         setTitle('');
         setContent('');
         setStatus('To do');
         setPriority('Medium');
         setDueDate('');
-        setSection('personal');
+        setSection(getDefaultSectionForProfile(profession, statusNeed));
         setFolder('');
         setHasDueDate(false);
         setStartTime('');
@@ -140,7 +185,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setStatus(normalizeEditableStatus(config.data.status));
         setPriority(config.data.priority || 'Medium');
         setDueDate(localDueDate);
-        setSection(config.data.section || 'personal');
+        setSection(normalizeTaskSection(config.data.section));
         setFolder(config.data.project || '');
         setSubtasks(config.data.subtasks || []);
         setHasDueDate(hasExistingDueDate);
@@ -152,7 +197,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       setShowDeleteConfirm(false);
       setShowNotifyConfirm(false);
     }
-  }, [config.isOpen, isCreate, config.data]);
+  }, [config.isOpen, isCreate, config.data, profession, statusNeed]);
 
   if (!config.isOpen) return null;
 
@@ -335,17 +380,17 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         <div className="flex-1">
           <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">分类</span>
           <div className="flex gap-1 mb-2">
-            {(['project', 'personal'] as const).map((c) => (
+            {sectionOptions.map((option) => (
               <button
-                key={c}
-                onClick={() => setSection(c)}
+                key={option.value}
+                onClick={() => setSection(option.value)}
                 className={`px-2 py-1 rounded-full text-[10px] font-medium transition-all ${
-                  section === c
+                  section === option.value
                     ? 'bg-white/20 text-white'
                     : 'bg-white/10 text-white/60 hover:bg-white/20'
                 }`}
               >
-                {c === 'project' ? '项目' : '个人'}
+                {option.shortLabel}
               </button>
             ))}
           </div>
@@ -353,7 +398,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
             type="text"
             value={folder}
             onChange={(e) => setFolder(e.target.value)}
-            placeholder={section === 'project' ? '项目名称（可选）' : '文件夹名称（可选）'}
+            placeholder={getTaskSectionPlaceholder(section)}
             className="w-full bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50 placeholder:text-white/20 transition-all"
           />
         </div>
@@ -744,17 +789,17 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                 <div>
                   <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">分类</span>
                   <div className="flex gap-1.5 mb-2">
-                    {(['project', 'personal'] as const).map((c) => (
+                    {sectionOptions.map((option) => (
                       <button
-                        key={c}
-                        onClick={() => setSection(c)}
+                        key={option.value}
+                        onClick={() => setSection(option.value)}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
-                          section === c
+                          section === option.value
                             ? 'bg-white/20 text-white'
                             : 'bg-white/10 text-white/60 hover:bg-white/20'
                         }`}
                       >
-                        {c === 'project' ? '项目待办' : '个人待办'}
+                        {option.label}
                       </button>
                     ))}
                   </div>
@@ -762,7 +807,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                     type="text"
                     value={folder}
                     onChange={(e) => setFolder(e.target.value)}
-                    placeholder={section === 'project' ? '项目名称（可选）' : '文件夹名称（可选）'}
+                    placeholder={getTaskSectionPlaceholder(section)}
                     className="w-full bg-white/10 text-white text-[11px] px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50 placeholder:text-white/20 transition-all"
                   />
                 </div>

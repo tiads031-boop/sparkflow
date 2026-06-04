@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   BookOpen,
@@ -8,20 +8,31 @@ import {
   Check,
   CheckSquare,
   Download,
+  FolderPlus,
   Home,
   LayoutGrid,
   Link,
   Loader2,
+  Plus,
   RefreshCw,
   Settings,
   ShieldCheck,
   Smartphone,
+  Trash2,
+  User,
+  LogOut,
   Unlink,
   Upload,
   Zap,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { ToggleableNavTab } from '../types';
+import { exportSparkflowData, readSparkflowImportFile } from '../utils/dataPortability';
+import {
+  presetTaskSections,
+  readCustomTaskSections,
+  writeCustomTaskSections,
+} from '../utils/taskSections';
 import {
   checkCalendarPermission,
   exportTasksToSystemCalendar,
@@ -76,6 +87,11 @@ const navSettings: Array<{
 
 export default function SettingsView() {
   const tasks = useAppStore((s) => s.tasks);
+  const sparks = useAppStore((s) => s.sparks);
+  const events = useAppStore((s) => s.events);
+  const setSparks = useAppStore((s) => s.setSparks);
+  const setEvents = useAppStore((s) => s.setEvents);
+  const addTask = useAppStore((s) => s.addTask);
   const isConnected = useAppStore((s) => s.isConnected);
   const googleEmail = useAppStore((s) => s.googleEmail);
   const lastSyncAt = useAppStore((s) => s.lastSyncAt);
@@ -92,12 +108,21 @@ export default function SettingsView() {
   const navOrder = useAppStore((s) => s.navOrder);
   const toggleNavVisibility = useAppStore((s) => s.toggleNavVisibility);
   const moveNavItem = useAppStore((s) => s.moveNavItem);
+  const displayName = useAppStore((s) => s.displayName);
+  const profession = useAppStore((s) => s.profession);
+  const statusNeed = useAppStore((s) => s.statusNeed);
+  const logout = useAppStore((s) => s.logout);
 
   const [scopes, setScopes] = useState<SyncScope[]>(defaultScopes);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [hasLocalPermission, setHasLocalPermission] = useState(false);
   const [isLocalBusy, setIsLocalBusy] = useState(false);
   const [localMessage, setLocalMessage] = useState<string | null>(null);
+  const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [customTaskSections, setCustomTaskSections] = useState<string[]>(() => readCustomTaskSections());
+  const [newTaskSection, setNewTaskSection] = useState('');
+  const importInputRef = useRef<HTMLInputElement>(null);
   const canUseSystemCalendar = isSystemCalendarAvailable();
   const orderedNavSettings = navOrder
     .map((key) => navSettings.find((item) => item.key === key))
@@ -107,6 +132,10 @@ export default function SettingsView() {
     if (!canUseSystemCalendar) return;
     checkCalendarPermission().then(setHasLocalPermission).catch(() => setHasLocalPermission(false));
   }, [canUseSystemCalendar]);
+
+  useEffect(() => {
+    writeCustomTaskSections(customTaskSections);
+  }, [customTaskSections]);
 
   const toggleScope = (key: string) => {
     setScopes((prev) => prev.map((scope) => (
@@ -161,9 +190,125 @@ export default function SettingsView() {
     }
   };
 
+  const handleExportData = () => {
+    try {
+      exportSparkflowData({
+        tasks,
+        sparks,
+        events,
+        profile: {
+          displayName,
+          profession,
+          statusNeed,
+        },
+        preferences: {
+          navVisibility,
+          navOrder,
+          customTaskSections,
+        },
+      });
+      setMigrationMessage(`已导出 ${tasks.length} 个任务、${sparks.length} 条灵感、${events.length} 个日程`);
+    } catch (err: any) {
+      setMigrationMessage(err.message || '导出失败，请稍后再试');
+    }
+  };
+
+  const handleImportData = async (file: File | null) => {
+    if (!file) return;
+    setIsImporting(true);
+    setMigrationMessage(null);
+    try {
+      const imported = await readSparkflowImportFile(file);
+      let persistedTasks = 0;
+      for (const task of imported.tasks) {
+        await addTask({
+          ...task,
+          id: `${Date.now()}-${persistedTasks}`,
+        });
+        persistedTasks += 1;
+      }
+      if (imported.tasks.length > 0) {
+        await loadTasks();
+      }
+      setSparks(imported.sparks);
+      if (imported.events.length > 0) {
+        setEvents(imported.events);
+      }
+      if (imported.preferences?.customTaskSections) {
+        setCustomTaskSections(imported.preferences.customTaskSections);
+      }
+      setMigrationMessage(
+        `已写入 ${persistedTasks} 个任务、导入 ${imported.sparks.length} 条灵感${
+          imported.events.length > 0 ? `、${imported.events.length} 个日程` : ''
+        }。`,
+      );
+    } catch (err: any) {
+      setMigrationMessage(err.message || '导入失败，请检查 JSON 文件');
+    } finally {
+      setIsImporting(false);
+      if (importInputRef.current) {
+        importInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleAddTaskSection = () => {
+    const name = newTaskSection.trim();
+    if (!name) return;
+    const reserved = presetTaskSections.some((section) => section.label === name || section.key === name);
+    const duplicated = customTaskSections.some((section) => section.toLowerCase() === name.toLowerCase());
+    if (reserved || duplicated) {
+      setMigrationMessage('该分组已存在');
+      return;
+    }
+    setCustomTaskSections((prev) => [...prev, name]);
+    setNewTaskSection('');
+  };
+
+  const handleDeleteTaskSection = (name: string) => {
+    setCustomTaskSections((prev) => prev.filter((section) => section !== name));
+  };
+
   return (
     <div className="animate-page-enter pb-24">
       <h1 className="text-xl font-bold mb-5 text-[#242424]">设置</h1>
+
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4 overflow-hidden">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-full bg-[#242424] flex items-center justify-center">
+            <User size={16} className="text-[#cae393]" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-[#242424]">账户</h2>
+            <p className="text-[10px] text-gray-400">当前登录与初始化偏好</p>
+          </div>
+        </div>
+
+        <div className="bg-[#f4f4f6] rounded-2xl p-4 mb-3 space-y-1">
+          <p className="text-sm font-bold text-[#242424]">{displayName || 'Fish'}</p>
+          <p className="text-xs text-gray-500">
+            {profession === 'student' ? '学生' :
+              profession === 'work' ? '工作 / 实习' :
+              profession === 'developer' ? '开发' :
+              profession === 'research' ? '科研' :
+              profession === 'creator' ? '创作' : '其他'}
+            {' · '}
+            {statusNeed === 'study-focus' ? '学习专注' :
+              statusNeed === 'internship-work' ? '工作推进' :
+              statusNeed === 'dev-research' ? '开发 / 科研' :
+              statusNeed === 'project-shipping' ? '项目交付' : '生活平衡'}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={logout}
+          className="w-full py-2.5 rounded-full bg-[#f4f4f6] text-gray-600 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-[0.98]"
+        >
+          <LogOut size={14} />
+          退出登录
+        </button>
+      </div>
 
       <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4 overflow-hidden">
         <div className="flex items-center gap-2.5 mb-4">
@@ -230,6 +375,122 @@ export default function SettingsView() {
             );
           })}
         </div>
+      </div>
+
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4 overflow-hidden">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-full bg-[#242424] flex items-center justify-center">
+            <Upload size={16} className="text-[#cae393]" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-[#242424]">数据迁移</h2>
+            <p className="text-[10px] text-gray-400">导出或导入 SparkFlow JSON 备份</p>
+          </div>
+        </div>
+
+        {migrationMessage && (
+          <div className="mb-4 text-xs px-4 py-2 rounded-xl bg-[#cae393]/30 text-[#242424] leading-relaxed">
+            {migrationMessage}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-2">
+          <button
+            type="button"
+            onClick={handleExportData}
+            className="py-2.5 rounded-full bg-[#242424] text-[#cae393] text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98]"
+          >
+            <Download size={14} />
+            导出 JSON
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => handleImportData(event.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            disabled={isImporting}
+            className="py-2.5 rounded-full bg-[#f4f4f6] text-gray-600 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-60"
+          >
+            {isImporting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+            导入 JSON
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4 overflow-hidden">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-8 h-8 rounded-full bg-[#b0a8db]/20 flex items-center justify-center">
+            <FolderPlus size={16} className="text-[#b0a8db]" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-[#242424]">待办分组</h2>
+            <p className="text-[10px] text-gray-400">自定义分组仅保存偏好，不删除任务</p>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <h3 className="text-xs font-bold text-[#242424] mb-2">预设分组</h3>
+          <div className="flex flex-wrap gap-2">
+            {presetTaskSections.map((section) => (
+              <span
+                key={section.key}
+                className="px-3 py-1.5 rounded-full bg-[#f4f4f6] text-xs font-medium text-gray-500"
+              >
+                {section.shortLabel}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex gap-2 mb-3">
+          <input
+            type="text"
+            value={newTaskSection}
+            onChange={(event) => setNewTaskSection(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && handleAddTaskSection()}
+            placeholder="添加自定义分组"
+            className="flex-1 px-4 py-2.5 rounded-full text-sm bg-[#f4f4f6] border border-transparent focus:outline-none focus:border-[#b0a8db] focus:ring-2 focus:ring-[#b0a8db]/20 transition-all placeholder:text-gray-300"
+          />
+          <button
+            type="button"
+            onClick={handleAddTaskSection}
+            disabled={!newTaskSection.trim()}
+            className="w-10 h-10 rounded-full bg-[#242424] text-white flex items-center justify-center active:scale-95 transition-all disabled:opacity-30"
+            title="添加分组"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+
+        {customTaskSections.length > 0 ? (
+          <div className="space-y-2">
+            {customTaskSections.map((section) => (
+              <div
+                key={section}
+                className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-[#f4f4f6]"
+              >
+                <span className="text-sm font-medium text-[#242424] truncate">{section}</span>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteTaskSection(section)}
+                  className="w-8 h-8 rounded-full bg-white text-gray-400 hover:text-red-500 transition-colors flex items-center justify-center flex-shrink-0"
+                  title="删除分组偏好"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400 bg-[#f4f4f6] rounded-2xl p-4">
+            暂无自定义分组。
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4 overflow-hidden">

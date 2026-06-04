@@ -15,6 +15,9 @@ export interface Subtask {
   completed: boolean;
 }
 
+export type PresetTaskSection = 'project' | 'personal' | 'work' | 'study';
+export type TaskSection = PresetTaskSection | (string & {});
+
 export interface Task {
   id: string;
   title: string;
@@ -28,8 +31,8 @@ export interface Task {
   dueDate?: string;
   estimatedMinutes?: number;
 
-  /** 看板分区：项目待办 / 个人待办 */
-  section?: 'project' | 'personal';
+  /** 看板分区：项目待办 / 个人待办 / 工作待办 / 学业待办，并兼容自定义分组 */
+  section?: TaskSection;
   /** 文件夹 / 项目名称 */
   project?: string;
   /** V4 Calendar: 开始时间 "HH:MM" */

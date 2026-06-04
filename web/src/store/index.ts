@@ -16,6 +16,7 @@ import { createDataSlice, type DataSlice } from './dataSlice';
 import { createCourseSlice, type CourseSlice } from './courseSlice';
 import { createSemesterSlice, type SemesterSlice } from './semesterSlice';
 import { createGoogleSyncSlice, type GoogleSyncSlice } from './googleSyncSlice';
+import { createAuthSlice, type AuthSlice } from './authSlice';
 
 // ── AppState = 所有 slice 的并集 ──
 export type AppState = TaskSlice &
@@ -25,7 +26,8 @@ export type AppState = TaskSlice &
   DataSlice &
   CourseSlice &
   SemesterSlice &
-  GoogleSyncSlice;
+  GoogleSyncSlice &
+  AuthSlice;
 
 // ── 组合 store ──
 export const useAppStore = create<AppState>()((...args) => ({
@@ -37,6 +39,7 @@ export const useAppStore = create<AppState>()((...args) => ({
   ...createCourseSlice(...args),
   ...createSemesterSlice(...args),
   ...createGoogleSyncSlice(...args),
+  ...createAuthSlice(...args),
 }));
 
 // ── Re-export constants (保持外部兼容) ──
@@ -52,3 +55,10 @@ export type {
   ChartView,
   ActiveTab,
 } from '../types';
+
+export type {
+  AuthSlice,
+  SparkFlowProfession,
+  SparkFlowProfile,
+  SparkFlowStatusNeed,
+} from './authSlice';

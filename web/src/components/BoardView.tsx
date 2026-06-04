@@ -1,7 +1,16 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { Task } from '../store/appStore';
+import type { PresetTaskSection, TaskSection } from '../types';
 import { useAppStore } from '../store/appStore';
 import { resolveMentions } from '../utils/mentionUtils';
+import {
+  getTaskSectionPlaceholder,
+  getTaskSectionShortLabel,
+  isPresetTaskSection,
+  normalizeTaskSection,
+  presetTaskSections,
+  readCustomTaskSections,
+} from '../utils/taskSections';
 import {
   GripVertical, Plus, ChevronDown, ChevronRight,
   FolderPlus, X, Tag, Clock,
@@ -12,10 +21,26 @@ interface BoardViewProps {
   onTaskClick: (task: Task) => void;
 }
 
-const columnMeta: Record<string, { title: string; color: string; bg: string }> = {
-  project: { title: '项目待办', color: '#b0a8db', bg: 'bg-[#b0a8db]/10' },
-  personal: { title: '个人待办', color: '#cae393', bg: 'bg-[#cae393]/10' },
+const columnMeta: Record<PresetTaskSection, { title: string; shortTitle: string; color: string; bg: string; folderPlaceholder: string; folderLabel: string }> = {
+  project: { title: '项目待办', shortTitle: '项目', color: '#b0a8db', bg: 'bg-[#b0a8db]/10', folderPlaceholder: '项目名称（可选）', folderLabel: '项目' },
+  personal: { title: '个人待办', shortTitle: '个人', color: '#cae393', bg: 'bg-[#cae393]/10', folderPlaceholder: '文件夹名称（可选）', folderLabel: '文件夹' },
+  work: { title: '工作待办', shortTitle: '工作', color: '#242424', bg: 'bg-[#242424]/5', folderPlaceholder: '工作场景/团队（可选）', folderLabel: '工作场景' },
+  study: { title: '学业待办', shortTitle: '学业', color: '#d9b95f', bg: 'bg-[#d9b95f]/10', folderPlaceholder: '课程/学业模块（可选）', folderLabel: '学业模块' },
 };
+
+type BoardFilter = 'all' | PresetTaskSection;
+
+function getColumnMeta(section: TaskSection) {
+  if (isPresetTaskSection(section)) return columnMeta[section];
+  return {
+    title: section,
+    shortTitle: getTaskSectionShortLabel(section),
+    color: '#9ca3af',
+    bg: 'bg-gray-200/40',
+    folderPlaceholder: getTaskSectionPlaceholder(section),
+    folderLabel: '分组',
+  };
+}
 
 const priorityBadge = (p: Task['priority']) => {
   if (p === 'High Priority') return { label: 'P0', bg: 'bg-red-500/90', text: 'text-white' };
@@ -35,23 +60,29 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [newFolderCol, setNewFolderCol] = useState<'project' | 'personal' | null>(null);
+  const [newFolderCol, setNewFolderCol] = useState<TaskSection | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const folderInputRef = useRef<HTMLInputElement>(null);
   const hasAutoCollapsed = useRef<boolean>(false);
-  const [boardFilter, setBoardFilter] = useState<'all' | 'personal' | 'project'>('all');
+  const [boardFilter, setBoardFilter] = useState<BoardFilter | TaskSection>('all');
+  const [storedCustomSections] = useState<string[]>(() => readCustomTaskSections());
 
-  const columns = ['project', 'personal'] as const;
+  const activeTasks = tasks.filter((t) => t.status !== 'Done' && t.status !== 'Cancelled');
+  const customSections = useMemo(() => {
+    const sections = new Set<TaskSection>();
+    storedCustomSections.forEach((section) => sections.add(section));
+    for (const task of activeTasks) {
+      const section = normalizeTaskSection(task.section);
+      if (!isPresetTaskSection(section)) sections.add(section);
+    }
+    return Array.from(sections).sort((a, b) => a.localeCompare(b));
+  }, [activeTasks, storedCustomSections]);
+  const columns: TaskSection[] = [...presetTaskSections.map((section) => section.key), ...customSections];
   const visibleColumns = boardFilter === 'all'
     ? columns
     : columns.filter((c) => c === boardFilter);
-  const quickSection: 'project' | 'personal' = boardFilter === 'project' ? 'project' : 'personal';
-  const quickFolderPlaceholder =
-    boardFilter === 'project'
-      ? '项目名称（可选）'
-      : '文件夹名称（可选）';
-
-  const activeTasks = tasks.filter((t) => t.status !== 'Done' && t.status !== 'Cancelled');
+  const quickSection: TaskSection = boardFilter === 'all' ? 'personal' : boardFilter;
+  const quickFolderPlaceholder = getColumnMeta(quickSection).folderPlaceholder;
 
   useEffect(() => {
     if (newFolderCol && folderInputRef.current) {
@@ -94,7 +125,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
     setDragTaskId(taskId);
   };
 
-  const handleDrop = (section: 'project' | 'personal') => {
+  const handleDrop = (section: TaskSection) => {
     if (dragTaskId) {
       updateTask(dragTaskId, { section });
     }
@@ -126,7 +157,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
     setShowTimeInput(false);
   };
 
-  const handleCreateFolder = (section: 'project' | 'personal') => {
+  const handleCreateFolder = (section: TaskSection) => {
     if (!newFolderName.trim()) {
       setNewFolderCol(null);
       return;
@@ -205,8 +236,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
       <div className="flex items-center gap-2 mb-4">
         {([
           { key: 'all', label: '全部' },
-          { key: 'personal', label: '个人' },
-          { key: 'project', label: '项目' },
+          ...columns.map((key) => ({ key, label: getColumnMeta(key).shortTitle })),
         ] as const).map(({ key, label }) => (
           <button
             key={key}
@@ -301,10 +331,13 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
       </div>
 
       {/* Columns — dynamic grid: 2 cols for all, 1 col for single filter */}
-      <div className={`grid gap-3 ${visibleColumns.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+      <div className={`grid gap-3 ${visibleColumns.length === 1 ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
         {visibleColumns.map((col) => {
-          const colTasks = activeTasks.filter((t) => (t.section || 'personal') === col);
-          const meta = columnMeta[col];
+          const colTasks = activeTasks.filter((t) => {
+            const section = normalizeTaskSection(t.section);
+            return section === col;
+          });
+          const meta = getColumnMeta(col);
           const folderGroups = groupByFolder(colTasks);
           const sortedGroups = Array.from(folderGroups.entries()).sort((a, b) => {
             if (a[0] === '其他') return 1;
@@ -320,7 +353,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
               onDrop={() => handleDrop(col)}
               className={`rounded-2xl p-3 min-h-[200px] transition-all ${
                 dragOverCol === col
-                  ? `ring-2 ${col === 'project' ? 'ring-[#b0a8db] bg-[#b0a8db]/5' : 'ring-[#cae393] bg-[#cae393]/5'}`
+                  ? 'ring-2 bg-white/70'
                   : meta.bg
               }`}
             >
@@ -353,7 +386,7 @@ export default function BoardView({ tasks, onTaskClick }: BoardViewProps) {
                       if (e.key === 'Enter') handleCreateFolder(col);
                       if (e.key === 'Escape') setNewFolderCol(null);
                     }}
-                    placeholder={`新建${col === 'project' ? '项目' : '文件夹'}名称...`}
+                    placeholder={`新建${meta.folderLabel}名称...`}
                     className="flex-1 px-3 py-1.5 rounded-lg text-xs bg-white border border-gray-100 focus:outline-none focus:border-[#b0a8db] transition-all placeholder:text-gray-300"
                   />
                   <button
