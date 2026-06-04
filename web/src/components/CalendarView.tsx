@@ -35,6 +35,21 @@ interface DragState {
   origDuration: number;
   el: HTMLElement | null;
   pointerId: number;
+  hasMoved: boolean;
+}
+
+type CalendarTask = Task & {
+  repeatRule?: string;
+  repeatStartDate?: string;
+  repeatEndDate?: string;
+  isRepeatInstance?: boolean;
+};
+
+interface CalendarPreviewItem {
+  id: string;
+  title: string;
+  type: 'task' | 'course' | 'google' | 'local' | 'calendar';
+  color: string;
 }
 
 // ==================== 工具函数 ====================
@@ -75,6 +90,17 @@ function snap(val: number, grain: number): number {
   return Math.round(val / grain) * grain;
 }
 
+function clamp(val: number, min: number, max: number): number {
+  return Math.max(min, Math.min(val, max));
+}
+
+function formatTimeFromHour(hour: number): string {
+  const safeHour = clamp(hour, 0, 24);
+  const h = Math.floor(safeHour);
+  const m = Math.round((safeHour - h) * 60);
+  return `${pad(h)}:${pad(m)}`;
+}
+
 function getMonday(d: Date): Date {
   const date = new Date(d);
   const day = date.getDay() || 7;
@@ -89,6 +115,77 @@ function addDays(d: Date, n: number): Date {
   return r;
 }
 
+function startOfDay(d: Date): Date {
+  const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
+  return r;
+}
+
+function getCalendarFetchRange(d: Date, expanded: boolean): { start: Date; end: Date } {
+  if (!expanded) {
+    const start = getMonday(d);
+    return { start, end: addDays(start, 7) };
+  }
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 1);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  return { start, end };
+}
+
+function taskRepeatsOnDate(task: CalendarTask, date: Date): boolean {
+  const rule = task.repeatRule?.toLowerCase();
+  if (!rule) return false;
+
+  const startSource = task.repeatStartDate || task.dueDate;
+  if (!startSource) return false;
+
+  const target = startOfDay(date);
+  const start = startOfDay(new Date(startSource));
+  const end = task.repeatEndDate ? startOfDay(new Date(task.repeatEndDate)) : null;
+  if (target < start || (end && target > end)) return false;
+
+  if (rule === 'daily') return true;
+  if (rule === 'weekly') return target.getDay() === start.getDay();
+  if (rule === 'monthly') return target.getDate() === start.getDate();
+  return false;
+}
+
+function taskOccursOnDate(task: CalendarTask, date: Date): boolean {
+  if (task.status === 'Cancelled') return false;
+  const taskDate = task.dueDate ? new Date(task.dueDate) : null;
+  if (taskDate && isSameDay(taskDate, date)) return true;
+  if (!taskDate && task.startTime && isSameDay(date, new Date())) return true;
+  return taskRepeatsOnDate(task, date);
+}
+
+function getTaskPreviewColor(colorType: Task['colorType']): string {
+  if (colorType === 'dark') return '#242424';
+  if (colorType === 'green') return '#8fbd41';
+  return '#b0a8db';
+}
+
+function getEventPreviewMeta(eventType?: string, color?: string): { type: CalendarPreviewItem['type']; color: string } {
+  const normalizedType = (eventType || 'calendar').toLowerCase();
+  if (normalizedType === 'course') return { type: 'course', color: color || '#0891b2' };
+  if (normalizedType.includes('google')) return { type: 'google', color: color || '#4285f4' };
+  if (normalizedType.includes('local') || normalizedType.includes('android')) return { type: 'local', color: color || '#34a853' };
+  return { type: 'calendar', color: color || '#fbbc04' };
+}
+
+function buildScheduledRange(date: Date, startTime: string, duration: number): { scheduledStart: string; scheduledEnd: string } {
+  const [hours, minutes] = startTime.split(':').map(Number);
+  const start = new Date(date);
+  start.setHours(hours || 0, minutes || 0, 0, 0);
+  const end = new Date(start.getTime() + duration * 60_000);
+  return {
+    scheduledStart: start.toISOString(),
+    scheduledEnd: end.toISOString(),
+  };
+}
+
 // ==================== 日历头 ====================
 
 function CalendarHeader({
@@ -100,6 +197,7 @@ function CalendarHeader({
   onChangeWeek,
   tasks,
   calendarEventDays,
+  calendarDayPreviewItems,
 }: {
   selectedDate: Date;
   expanded: boolean;
@@ -107,8 +205,9 @@ function CalendarHeader({
   onToggleExpand: () => void;
   onChangeMonth: (dir: number) => void;
   onChangeWeek: (dir: number) => void;
-  tasks: Task[];
+  tasks: CalendarTask[];
   calendarEventDays: Set<string>;
+  calendarDayPreviewItems: Map<string, CalendarPreviewItem[]>;
 }) {
   const today = new Date();
   const monthLabel = selectedDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
@@ -117,12 +216,13 @@ function CalendarHeader({
   // 有日程的日期集合（任务 + 日历事件合并）
   const eventDays = new Set<string>();
   tasks.forEach((t) => {
-    if (t.dueDate || t.startTime) {
+    if (t.dueDate || t.startTime || t.repeatRule) {
       const d = t.dueDate ? new Date(t.dueDate) : new Date();
       eventDays.add(getLocalDateKey(d));
     }
   });
   calendarEventDays.forEach((key) => eventDays.add(key));
+  calendarDayPreviewItems.forEach((_items, key) => eventDays.add(key));
 
   if (expanded) {
     // 月历网格
@@ -135,7 +235,7 @@ function CalendarHeader({
     for (let i = 1; i <= daysInMonth; i++) grid.push(i);
 
     return (
-      <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-5 transition-all">
+      <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-5 transition-[max-height,opacity,transform] duration-300 ease-out overflow-hidden">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-[#242424]">{monthLabel}</h3>
           <div className="flex items-center gap-1">
@@ -151,7 +251,7 @@ function CalendarHeader({
             <span key={d} className="text-center text-[10px] text-gray-400 font-medium py-1">{d}</span>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1.5">
           {grid.map((day, i) => {
             if (day === null) return <div key={`e-${i}`} className="aspect-square" />;
             const date = new Date(year, month, day);
@@ -159,19 +259,36 @@ function CalendarHeader({
             const isSel = isSameDay(date, selectedDate);
             const key = getLocalDateKey(date);
             const hasEvent = eventDays.has(key);
+            const previews = (calendarDayPreviewItems.get(key) || []).slice(0, 2);
             return (
               <div
                 key={key}
                 onClick={() => onSelectDate(date)}
-                className={`aspect-square rounded-full flex items-center justify-center text-xs relative cursor-pointer ${
+                className={`min-h-[58px] rounded-2xl p-1.5 flex flex-col items-center text-xs relative cursor-pointer transition-[background,transform,opacity] duration-200 ${
                   isToday && !isSel ? 'font-bold' : ''
                 } ${
                   isSel ? 'text-white bg-[#b0a8db]' : day ? 'text-[#242424] hover:bg-gray-50' : ''
                 }`}
               >
-                {day}
-                {hasEvent && !isSel && (
-                  <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-[#cae393]" />
+                <span className="leading-4">{day}</span>
+                <div className="mt-1 flex w-full flex-col gap-0.5 overflow-hidden">
+                  {previews.map((item) => (
+                    <span
+                      key={item.id}
+                      className={`block h-[14px] rounded-md px-1 text-[8px] leading-[14px] truncate ${
+                        isSel ? 'bg-white/20 text-white' : 'bg-gray-50 text-[#242424]'
+                      }`}
+                      style={{
+                        borderLeft: `2px solid ${item.color}`,
+                      }}
+                      title={item.title}
+                    >
+                      {item.title}
+                    </span>
+                  ))}
+                </div>
+                {hasEvent && previews.length === 0 && !isSel && (
+                  <span className="absolute bottom-1 w-1 h-1 rounded-full bg-[#cae393]" />
                 )}
               </div>
             );
@@ -183,7 +300,7 @@ function CalendarHeader({
 
   // 收缩：单行周历
   return (
-    <div className="bg-white rounded-[2rem] p-4 shadow-sm mb-5 transition-all">
+    <div className="bg-white rounded-[2rem] p-4 shadow-sm mb-5 transition-[max-height,opacity,transform] duration-300 ease-out overflow-hidden">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-[#242424]">{monthLabel}</h3>
         <div className="flex items-center gap-1">
@@ -259,19 +376,20 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   // 同步 creatingGhost 到 ref
   creatingGhostRef.current = creatingGhost;
 
+  const calendarTasks = useMemo(() => tasks as CalendarTask[], [tasks]);
+
   // 日历事件（课程 / Google / 本地 / 手动）
   const [calendarEvents, setCalendarEvents] = useState<CalendarApiEvent[]>([]);
 
   // 拉取日历事件（选中日期所在周）
   useEffect(() => {
-    const weekStart = getMonday(selectedDate);
-    const weekEnd = addDays(weekStart, 7);
-    const startStr = weekStart.toISOString();
-    const endStr = weekEnd.toISOString();
+    const { start, end } = getCalendarFetchRange(selectedDate, headerExpanded);
+    const startStr = start.toISOString();
+    const endStr = end.toISOString();
     fetchCalendarEvents(startStr, endStr).then((events) => {
       setCalendarEvents(events.filter((event) => !event.taskId));
     });
-  }, [selectedDate, lastGoogleSyncAt]);
+  }, [selectedDate, headerExpanded, lastGoogleSyncAt]);
 
   // 日历事件日期集合（用于日历绿点）
   const calendarEventDays = useMemo(() => {
@@ -318,15 +436,24 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   }, [inlineCreating]);
 
   // 获取选中日期的任务（含时间线任务）
-  const dayTasks = tasks.filter((t) => {
-    if (t.status === 'Cancelled') return false;
+  const dayTasks = useMemo(() => {
+    return calendarTasks.flatMap((t) => {
+    if (t.status === 'Cancelled') return [];
     // 如果任务有 startTime，用 dueDate 或 selectedDate 匹配
     const taskDate = t.dueDate ? new Date(t.dueDate) : null;
-    if (taskDate && isSameDay(taskDate, selectedDate)) return true;
+    if (taskDate && isSameDay(taskDate, selectedDate)) return [t];
     // 无 dueDate 但有 startTime，假设是今天
-    if (!taskDate && t.startTime && isSameDay(selectedDate, new Date())) return true;
-    return false;
-  });
+    if (!taskDate && t.startTime && isSameDay(selectedDate, new Date())) return [t];
+    if (taskRepeatsOnDate(t, selectedDate)) {
+      return [{
+        ...t,
+        dueDate: selectedDate.toISOString(),
+        isRepeatInstance: true,
+      }];
+    }
+    return [];
+    });
+  }, [calendarTasks, selectedDate]);
 
   // 有时间安排的任务（按 startTime 排序）
   const timelineTasks = dayTasks
@@ -338,6 +465,45 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     const evDate = new Date(ev.startTime);
     return isSameDay(evDate, selectedDate);
   });
+
+  const calendarDayPreviewItems = useMemo(() => {
+    const preview = new Map<string, CalendarPreviewItem[]>();
+    const { start, end } = getCalendarFetchRange(selectedDate, headerExpanded);
+
+    const addPreview = (key: string, item: CalendarPreviewItem) => {
+      const list = preview.get(key) || [];
+      if (list.length >= 3) return;
+      list.push(item);
+      preview.set(key, list);
+    };
+
+    for (let d = new Date(start); d < end; d = addDays(d, 1)) {
+      const key = getLocalDateKey(d);
+      calendarTasks.forEach((task) => {
+        if (!taskOccursOnDate(task, d)) return;
+        addPreview(key, {
+          id: `task-${task.id}-${key}`,
+          title: task.title,
+          type: 'task',
+          color: getTaskPreviewColor(task.colorType),
+        });
+      });
+    }
+
+    calendarEvents.forEach((ev) => {
+      const date = new Date(ev.startTime);
+      const key = getLocalDateKey(date);
+      const meta = getEventPreviewMeta(ev.eventType, ev.color);
+      addPreview(key, {
+        id: `event-${ev.id}`,
+        title: ev.title,
+        type: meta.type,
+        color: meta.color,
+      });
+    });
+
+    return preview;
+  }, [calendarTasks, calendarEvents, headerExpanded, selectedDate]);
 
   const timelineHeight = (endH - startH) * hourH;
   const earliestTimelineHour = useMemo(() => {
@@ -431,8 +597,9 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     if ((e.target as HTMLElement).closest('.resize-handle')) return;
     e.preventDefault();
     const el = e.currentTarget as HTMLElement;
-    el.classList.add('dragging');
-    el.setPointerCapture(e.pointerId);
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch { /* pointer capture is best-effort */ }
     dragRef.current = {
       type: 'move',
       taskId,
@@ -443,13 +610,18 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       origDuration: duration,
       el,
       pointerId: e.pointerId,
+      hasMoved: false,
     };
 
     const onMove = (ev: PointerEvent) => {
       const drag = dragRef.current;
       if (!drag || drag.type !== 'move' || !drag.el) return;
       const dy = ev.clientY - drag.startY;
-      drag.el.style.top = `${drag.origTop + dy}px`;
+      if (!drag.hasMoved && Math.abs(dy) < 6) return;
+      drag.hasMoved = true;
+      drag.el.classList.add('dragging');
+      const maxTop = Math.max(timelineHeight - (drag.origDuration / 60) * hourH, 0);
+      drag.el.style.top = `${clamp(drag.origTop + dy, 0, maxTop)}px`;
     };
 
     const onUp = (ev: PointerEvent) => {
@@ -457,35 +629,49 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       if (!drag || !drag.el) return;
       const el2 = drag.el;
       el2.classList.remove('dragging');
-      el2.releasePointerCapture(ev.pointerId);
+      try {
+        if (el2.hasPointerCapture(ev.pointerId)) el2.releasePointerCapture(ev.pointerId);
+      } catch { /* pointer may already be released */ }
       el2.onpointermove = null;
       el2.onpointerup = null;
 
-      const rawTop = parseFloat(el2.style.top);
+      if (!drag.hasMoved) {
+        el2.style.top = `${drag.origTop}px`;
+        dragRef.current = null;
+        return;
+      }
+
+      const maxTop = Math.max(timelineHeight - (drag.origDuration / 60) * hourH, 0);
+      const rawTop = clamp(parseFloat(el2.style.top || `${drag.origTop}`), 0, maxTop);
       const rawHour = rawTop / hourH + startH;
-      const snappedH = snap(rawHour, V4.snapMinutes / 60);
+      const maxStartH = endH - drag.origDuration / 60;
+      const snappedH = clamp(snap(rawHour, V4.snapMinutes / 60), startH, Math.max(startH, maxStartH));
       const newTop = (snappedH - startH) * hourH;
       el2.style.top = `${newTop}px`;
 
-      const h = Math.floor(snappedH);
-      const m = Math.round((snappedH - h) * 60);
-      const newStart = `${pad(h)}:${pad(m)}`;
-      updateTask(drag.taskId, { startTime: newStart });
+      const newStart = formatTimeFromHour(snappedH);
+      if (newStart !== drag.origStart) {
+        updateTask(drag.taskId, {
+          startTime: newStart,
+          ...buildScheduledRange(selectedDate, newStart, drag.origDuration),
+        });
+      }
 
       dragRef.current = null;
     };
 
     el.onpointermove = onMove as any;
     el.onpointerup = onUp as any;
-  }, [hourH, startH, updateTask]);
+  }, [endH, hourH, selectedDate, startH, timelineHeight, updateTask]);
 
   const onResizePointerDown = useCallback((e: React.PointerEvent, taskId: string, startTime: string, duration: number) => {
     e.stopPropagation();
     e.preventDefault();
     const el = (e.currentTarget as HTMLElement).closest('.task-block') as HTMLElement;
     if (!el) return;
-    el.classList.add('dragging');
-    el.setPointerCapture(e.pointerId);
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch { /* pointer capture is best-effort */ }
     dragRef.current = {
       type: 'resize',
       taskId,
@@ -496,13 +682,18 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       origDuration: duration,
       el,
       pointerId: e.pointerId,
+      hasMoved: false,
     };
 
     const onMove = (ev: PointerEvent) => {
       const drag = dragRef.current;
       if (!drag || drag.type !== 'resize' || !drag.el) return;
       const dy = ev.clientY - drag.startY;
-      drag.el.style.height = `${Math.max(drag.origHeight + dy, 36)}px`;
+      if (!drag.hasMoved && Math.abs(dy) < 6) return;
+      drag.hasMoved = true;
+      drag.el.classList.add('dragging');
+      const maxHeight = Math.max(timelineHeight - drag.origTop, 36);
+      drag.el.style.height = `${clamp(drag.origHeight + dy, 36, maxHeight)}px`;
     };
 
     const onUp = (ev: PointerEvent) => {
@@ -510,23 +701,37 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       if (!drag || !drag.el) return;
       const el2 = drag.el;
       el2.classList.remove('dragging');
-      el2.releasePointerCapture(ev.pointerId);
+      try {
+        if (el2.hasPointerCapture(ev.pointerId)) el2.releasePointerCapture(ev.pointerId);
+      } catch { /* pointer may already be released */ }
       el2.onpointermove = null;
       el2.onpointerup = null;
 
-      const rawH = parseFloat(el2.style.height);
+      if (!drag.hasMoved) {
+        el2.style.height = `${drag.origHeight}px`;
+        dragRef.current = null;
+        return;
+      }
+
+      const maxDuration = Math.max(((timelineHeight - drag.origTop) / hourH) * 60, V4.snapMinutes);
+      const rawH = clamp(parseFloat(el2.style.height || `${drag.origHeight}`), 36, timelineHeight - drag.origTop);
       const rawDuration = (rawH / hourH) * 60;
-      const snappedDur = Math.max(snap(rawDuration, V4.snapMinutes), 15);
+      const snappedDur = clamp(Math.max(snap(rawDuration, V4.snapMinutes), V4.snapMinutes), V4.snapMinutes, maxDuration);
       el2.style.height = `${(snappedDur / 60) * hourH}px`;
 
-      updateTask(drag.taskId, { duration: snappedDur });
+      if (snappedDur !== drag.origDuration) {
+        updateTask(drag.taskId, {
+          duration: snappedDur,
+          ...buildScheduledRange(selectedDate, drag.origStart, snappedDur),
+        });
+      }
 
       dragRef.current = null;
     };
 
     el.onpointermove = onMove as any;
     el.onpointerup = onUp as any;
-  }, [hourH, updateTask]);
+  }, [hourH, selectedDate, timelineHeight, updateTask]);
 
   // ==================== 长按创建 ====================
 
@@ -570,6 +775,9 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     longPressPos.current = { x: e.clientX, y: e.clientY };
     longPressPointerId.current = e.pointerId;
     longPressRect.current = rect;
+    try {
+      timelineRef.current?.setPointerCapture(e.pointerId);
+    } catch { /* pointer capture is best-effort */ }
 
     // 清除之前的 timer
     if (longPressTimer.current) {
@@ -583,7 +791,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       // 计算磁吸后的开始时间
       const relativeY = longPressPos.current.y - longPressRect.current.top;
       const rawHour = relativeY / hourH + startH;
-      const snappedH = snap(rawHour, V4.snapMinutes / 60);
+      const snappedH = clamp(snap(rawHour, V4.snapMinutes / 60), startH, endH - V4.snapMinutes / 60);
       const snappedTop = (snappedH - startH) * hourH;
       const defaultDurMin = V4.snapMinutes;
       const defaultHeight = (defaultDurMin / 60) * hourH;
@@ -617,7 +825,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
 
         const pressR = initialPos.y - initialRect.top;
         const startRaw = pressR / hourH + startH;
-        const snappedStartH = snap(startRaw, V4.snapMinutes / 60);
+        const snappedStartH = clamp(snap(startRaw, V4.snapMinutes / 60), startH, endH - V4.snapMinutes / 60);
         const startTop = (snappedStartH - startH) * hourH;
 
         const relativeY = ev.clientY - currentRect.top;
@@ -662,42 +870,74 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     }, 500);
   }, [hourH, startH, endH, cleanupNativeListeners]);
 
+  const buildTimelineGhost = useCallback((clientY: number, forceDefaultDuration = false) => {
+    const startPos = longPressPos.current;
+    const currentRect = timelineRef.current?.getBoundingClientRect();
+    if (!startPos || !currentRect) return null;
+
+    const startY = clamp(startPos.y - currentRect.top, 0, timelineHeight);
+    const endY = clamp(clientY - currentRect.top, 0, timelineHeight);
+    const minTop = Math.min(startY, endY);
+    const maxTop = Math.max(startY, endY);
+    const snappedStartH = clamp(snap(minTop / hourH + startH, V4.snapMinutes / 60), startH, endH - V4.snapMinutes / 60);
+    const startTop = (snappedStartH - startH) * hourH;
+    const rawDuration = forceDefaultDuration
+      ? V4.snapMinutes
+      : ((Math.max(maxTop, startTop + (V4.snapMinutes / 60) * hourH) - startTop) / hourH) * 60;
+    const maxDuration = Math.max(((timelineHeight - startTop) / hourH) * 60, V4.snapMinutes);
+    const snappedDur = clamp(Math.max(snap(rawDuration, V4.snapMinutes), V4.snapMinutes), V4.snapMinutes, maxDuration);
+
+    return {
+      startTime: formatTimeFromHour(snappedStartH),
+      duration: snappedDur,
+      top: startTop,
+      height: (snappedDur / 60) * hourH,
+    };
+  }, [endH, hourH, startH, timelineHeight]);
+
   // React 合成事件 handler：仅用于 pre-ghost 阶段的滚动检测
   // ghost 阶段由原生 document listener 接管（更可靠，不依赖 pointer capture）
   const handleTimelinePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!longPressPos.current || isLongPressing.current) return;
+    if (!longPressPos.current) return;
 
     const dx = Math.abs(e.clientX - longPressPos.current.x);
     const dy = Math.abs(e.clientY - longPressPos.current.y);
 
     // 长按未激活时移动超过阈值 → 取消（判定为滚动）
-    if (dx > 10 || dy > 10) {
+    if (dx > 6 || dy > 6) {
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
       }
-      longPressPos.current = null;
-      longPressPointerId.current = null;
-      longPressRect.current = null;
+      e.preventDefault();
+      isLongPressing.current = true;
+      const ghost = buildTimelineGhost(e.clientY);
+      if (ghost) setCreatingGhost(ghost);
     }
-  }, []);
+  }, [buildTimelineGhost]);
 
   const handleTimelinePointerUp = useCallback((e: React.PointerEvent) => {
     // 仅在未进入 ghost 模式时处理（即短按取消）
-    if (isLongPressing.current) return;
-
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
+    const ghost = creatingGhostRef.current || (isLongPressing.current ? buildTimelineGhost(e.clientY) : null);
+    if (ghost) {
+      setInlineCreating(ghost);
+      setInlineTitle('');
+      setCreatingGhost(null);
+    }
+    isLongPressing.current = false;
     longPressPos.current = null;
     longPressPointerId.current = null;
     longPressRect.current = null;
 
     try {
-      timelineRef.current?.releasePointerCapture(e.pointerId);
+      const el = timelineRef.current;
+      if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
     } catch { /* pointer may already be released */ }
-  }, []);
+  }, [buildTimelineGhost]);
 
   const confirmInlineCreate = useCallback(() => {
     if (!inlineCreating || !inlineTitle.trim()) {
@@ -716,6 +956,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       subtasks: [],
       startTime: inlineCreating.startTime,
       duration: inlineCreating.duration,
+      ...buildScheduledRange(selectedDate, inlineCreating.startTime, inlineCreating.duration),
       dueDate: selectedDate.toISOString(),
       section: 'personal',
     };
@@ -759,6 +1000,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
     updateTask(schedulingTaskId, {
       startTime: scheduleStartTime,
       duration: scheduleDuration,
+      ...buildScheduledRange(selectedDate, scheduleStartTime, scheduleDuration),
     });
     setSchedulingTaskId(null);
   }, [schedulingTaskId, scheduleStartTime, scheduleDuration, updateTask]);
@@ -799,9 +1041,8 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       );
 
       // 刷新日历事件
-      const weekStart = getMonday(selectedDate);
-      const weekEnd = addDays(weekStart, 7);
-      const events = await fetchCalendarEvents(weekStart.toISOString(), weekEnd.toISOString());
+      const { start, end } = getCalendarFetchRange(selectedDate, headerExpanded);
+      const events = await fetchCalendarEvents(start.toISOString(), end.toISOString());
       setCalendarEvents(events.filter((ev) => !ev.taskId));
     } catch (err: any) {
       setImportResult(`❌ ${err.message || '导入失败'}`);
@@ -810,7 +1051,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
       // 清空 input 以便重复选择同一文件
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [selectedDate]);
+  }, [selectedDate, headerExpanded]);
 
   const formatDate = (d: Date) => `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 
@@ -848,8 +1089,9 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
         onToggleExpand={handleToggleExpand}
         onChangeMonth={handleChangeMonth}
         onChangeWeek={handleChangeWeek}
-        tasks={tasks}
+        tasks={calendarTasks}
         calendarEventDays={calendarEventDays}
+        calendarDayPreviewItems={calendarDayPreviewItems}
       />
 
       {/* 时间线卡片 */}
@@ -858,7 +1100,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
           <h3 className="text-sm font-bold text-[#242424]">
             {formatDate(selectedDate)} · {dayTasks.length} 项任务 · {dayCalendarEvents.length} 日程
           </h3>
-          <span className="text-[10px] text-gray-400">长按空区创建 · 拖拽调整时间</span>
+          <span className="text-[10px] text-gray-400">拖动空区创建 · 拖拽调整时间</span>
         </div>
 
         <div

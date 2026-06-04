@@ -94,7 +94,13 @@ function sanitizeTask(value: unknown): Task | null {
     section: asString(value.section),
     project: asString(value.project),
     startTime: asString(value.startTime),
+    scheduledStart: asString(value.scheduledStart),
+    scheduledEnd: asString(value.scheduledEnd),
     duration: asNumber(value.duration),
+    reminderAt: asString(value.reminderAt),
+    repeatRule: asString(value.repeatRule),
+    repeatStartDate: asString(value.repeatStartDate),
+    repeatEndDate: asString(value.repeatEndDate),
   };
 }
 

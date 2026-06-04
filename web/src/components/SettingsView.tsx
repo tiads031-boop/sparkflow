@@ -13,6 +13,7 @@ import {
   LayoutGrid,
   Link,
   Loader2,
+  Lock,
   Plus,
   RefreshCw,
   Settings,
@@ -26,6 +27,10 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
+import type {
+  SparkFlowProfession,
+  SparkFlowStatusNeed,
+} from '../store/appStore';
 import type { ToggleableNavTab } from '../types';
 import { exportSparkflowData, readSparkflowImportFile } from '../utils/dataPortability';
 import {
@@ -85,6 +90,16 @@ const navSettings: Array<{
   { key: 'sparks', label: '灵感', description: '灵感卡片', icon: Zap },
 ];
 
+const professionLabels: Record<SparkFlowProfession, string> = {
+  student: '学生', work: '工作 / 实习', developer: '开发',
+  research: '科研', creator: '创作', other: '其他',
+};
+const statusLabels: Record<SparkFlowStatusNeed, string> = {
+  'study-focus': '学习专注', 'internship-work': '工作推进',
+  'dev-research': '开发 / 科研', 'project-shipping': '项目交付',
+  'life-balance': '生活平衡',
+};
+
 export default function SettingsView() {
   const tasks = useAppStore((s) => s.tasks);
   const sparks = useAppStore((s) => s.sparks);
@@ -109,8 +124,9 @@ export default function SettingsView() {
   const toggleNavVisibility = useAppStore((s) => s.toggleNavVisibility);
   const moveNavItem = useAppStore((s) => s.moveNavItem);
   const displayName = useAppStore((s) => s.displayName);
-  const profession = useAppStore((s) => s.profession);
-  const statusNeed = useAppStore((s) => s.statusNeed);
+  const professions = useAppStore((s) => s.professions);
+  const statusNeeds = useAppStore((s) => s.statusNeeds);
+  const changePassword = useAppStore((s) => s.changePassword);
   const logout = useAppStore((s) => s.logout);
 
   const [scopes, setScopes] = useState<SyncScope[]>(defaultScopes);
@@ -122,6 +138,13 @@ export default function SettingsView() {
   const [isImporting, setIsImporting] = useState(false);
   const [customTaskSections, setCustomTaskSections] = useState<string[]>(() => readCustomTaskSections());
   const [newTaskSection, setNewTaskSection] = useState('');
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const canUseSystemCalendar = isSystemCalendarAvailable();
   const orderedNavSettings = navOrder
@@ -198,8 +221,8 @@ export default function SettingsView() {
         events,
         profile: {
           displayName,
-          profession,
-          statusNeed,
+          professions,
+          statusNeeds,
         },
         preferences: {
           navVisibility,
@@ -269,6 +292,39 @@ export default function SettingsView() {
     setCustomTaskSections((prev) => prev.filter((section) => section !== name));
   };
 
+  const handleChangePassword = async () => {
+    setPasswordMessage(null);
+    setPasswordError(null);
+
+    if (newPassword.length < 6) {
+      setPasswordError('新密码至少需要 6 个字符');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('两次输入的新密码不一致');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const success = await changePassword(oldPassword, newPassword);
+      if (success) {
+        setPasswordMessage('密码已修改');
+        setShowChangePassword(false);
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setPasswordMessage(null), 3000);
+      } else {
+        setPasswordError('旧密码不正确');
+      }
+    } catch {
+      setPasswordError('修改失败，请稍后再试');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   return (
     <div className="animate-page-enter pb-24">
       <h1 className="text-xl font-bold mb-5 text-[#242424]">设置</h1>
@@ -287,18 +343,92 @@ export default function SettingsView() {
         <div className="bg-[#f4f4f6] rounded-2xl p-4 mb-3 space-y-1">
           <p className="text-sm font-bold text-[#242424]">{displayName || 'Fish'}</p>
           <p className="text-xs text-gray-500">
-            {profession === 'student' ? '学生' :
-              profession === 'work' ? '工作 / 实习' :
-              profession === 'developer' ? '开发' :
-              profession === 'research' ? '科研' :
-              profession === 'creator' ? '创作' : '其他'}
+            {professions.map(p => professionLabels[p]).join('、')}
             {' · '}
-            {statusNeed === 'study-focus' ? '学习专注' :
-              statusNeed === 'internship-work' ? '工作推进' :
-              statusNeed === 'dev-research' ? '开发 / 科研' :
-              statusNeed === 'project-shipping' ? '项目交付' : '生活平衡'}
+            {statusNeeds.map(s => statusLabels[s]).join('、')}
           </p>
         </div>
+
+        {passwordMessage && (
+          <div className="mb-3 text-xs px-4 py-2 rounded-xl bg-[#cae393]/30 text-[#242424]">
+            {passwordMessage}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => {
+            setShowChangePassword(!showChangePassword);
+            setPasswordMessage(null);
+            setPasswordError(null);
+            setOldPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+          }}
+          className="w-full py-2.5 rounded-full bg-[#f4f4f6] text-gray-600 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-[0.98]"
+        >
+          <Lock size={14} />
+          修改密码
+        </button>
+
+        {showChangePassword && (
+          <div className="space-y-2.5 mt-3 p-3 rounded-2xl bg-[#f4f4f6]/50">
+            <input
+              type="password"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              placeholder="当前密码"
+              className="w-full px-4 py-2.5 rounded-full bg-[#f4f4f6] text-sm text-[#242424] border border-transparent focus:outline-none focus:border-[#cae393] focus:ring-2 focus:ring-[#cae393]/20 transition-all placeholder:text-gray-300"
+            />
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="新密码（至少 6 位）"
+              className="w-full px-4 py-2.5 rounded-full bg-[#f4f4f6] text-sm text-[#242424] border border-transparent focus:outline-none focus:border-[#cae393] focus:ring-2 focus:ring-[#cae393]/20 transition-all placeholder:text-gray-300"
+            />
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="确认新密码"
+              className="w-full px-4 py-2.5 rounded-full bg-[#f4f4f6] text-sm text-[#242424] border border-transparent focus:outline-none focus:border-[#cae393] focus:ring-2 focus:ring-[#cae393]/20 transition-all placeholder:text-gray-300"
+            />
+
+            {passwordError && (
+              <div className="text-xs px-4 py-2 rounded-xl bg-red-50 text-red-600">
+                {passwordError}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+                className="flex-1 py-2.5 rounded-full bg-[#242424] text-[#cae393] text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] disabled:opacity-60"
+              >
+                {isChangingPassword ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Check size={14} />
+                )}
+                确认修改
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowChangePassword(false);
+                  setPasswordMessage(null);
+                  setPasswordError(null);
+                }}
+                className="flex-1 py-2.5 rounded-full bg-[#f4f4f6] text-gray-500 text-sm font-medium flex items-center justify-center gap-1.5 active:scale-[0.98]"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        )}
 
         <button
           type="button"

@@ -5,7 +5,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import type { Task, Subtask } from '../store/appStore';
+import type { Task, Subtask, SparkFlowProfession, SparkFlowStatusNeed } from '../store/appStore';
 import type { TaskSection } from '../types';
 import { resolveMentions } from '../utils/mentionUtils';
 import {
@@ -37,6 +37,11 @@ export interface SaveParams {
   project?: string;
   /** 开始时间 "HH:MM" */
   startTime?: string;
+  scheduledStart?: string;
+  reminderAt?: string;
+  repeatRule?: string;
+  repeatStartDate?: string;
+  repeatEndDate?: string;
   /** 持续时长 (分钟) */
   duration?: number;
 }
@@ -56,6 +61,15 @@ const LAYERS = [
   { rot: 0, ty: 22, sc: 0.94, z: 7, op: 0 },
 ];
 
+type RepeatRule = 'none' | 'daily' | 'weekly' | 'monthly';
+
+const repeatOptions: Array<{ value: RepeatRule; label: string }> = [
+  { value: 'none', label: 'None' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
+
 const visibleStatusOptions: Array<{ value: Task['status']; label: string }> = [
   { value: 'To do', label: '待处理' },
   { value: 'In progress', label: '进行中' },
@@ -68,17 +82,49 @@ function normalizeEditableStatus(value?: Task['status']): Task['status'] {
   return 'To do';
 }
 
+function toLocalDateTimeInput(value?: string): string {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function toDateInput(value?: string): string {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function combineDateAndTime(dateTimeValue?: string, timeValue?: string): string {
+  if (dateTimeValue) return dateTimeValue;
+  return timeValue || '';
+}
+
+function getTimePart(value: string): string | undefined {
+  if (!value) return undefined;
+  const time = value.includes('T') ? value.split('T')[1] : value;
+  return time?.slice(0, 5) || undefined;
+}
+
+function legacyStartToDateTime(start?: string, due?: string): string {
+  if (!start) return '';
+  const base = due ? toDateInput(due) : toDateInput(new Date().toISOString());
+  return base ? `${base}T${start.slice(0, 5)}` : '';
+}
+
 function getDefaultSectionForProfile(
-  profession: string,
-  statusNeed: string,
+  professions: SparkFlowProfession[],
+  statusNeeds: SparkFlowStatusNeed[],
 ): TaskSection {
-  if (profession === 'student' || statusNeed === 'study-focus') return 'study';
-  if (profession === 'work' || statusNeed === 'internship-work') return 'work';
+  if (professions.includes('student') || statusNeeds.includes('study-focus')) return 'study';
+  if (professions.includes('work') || statusNeeds.includes('internship-work')) return 'work';
   if (
-    profession === 'developer' ||
-    profession === 'research' ||
-    statusNeed === 'dev-research' ||
-    statusNeed === 'project-shipping'
+    professions.includes('developer') ||
+    professions.includes('research') ||
+    statusNeeds.includes('dev-research') ||
+    statusNeeds.includes('project-shipping')
   ) {
     return 'project';
   }
@@ -105,6 +151,11 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
 
   // ---- time & duration ----
   const [startTime, setStartTime] = useState('');
+  const [scheduledStart, setScheduledStart] = useState('');
+  const [reminderAt, setReminderAt] = useState('');
+  const [repeatRule, setRepeatRule] = useState<RepeatRule>('none');
+  const [repeatStartDate, setRepeatStartDate] = useState('');
+  const [repeatEndDate, setRepeatEndDate] = useState('');
   const [duration, setDuration] = useState<number | undefined>(undefined);
 
   // ---- deadline toggle & notification confirm ----
@@ -126,8 +177,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const stopPomodoroStore = useAppStore((s) => s.stopPomodoro);
   const completePomodoroStore = useAppStore((s) => s.completePomodoro);
   const tasks = useAppStore((s) => s.tasks);
-  const profession = useAppStore((s) => s.profession);
-  const statusNeed = useAppStore((s) => s.statusNeed);
+  const professions = useAppStore((s) => s.professions);
+  const statusNeeds = useAppStore((s) => s.statusNeeds);
   const [customSections, setCustomSections] = useState<TaskSection[]>(() => readCustomTaskSections());
   const sectionOptions = useMemo(
     () => [
@@ -163,23 +214,21 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setStatus('To do');
         setPriority('Medium');
         setDueDate('');
-        setSection(getDefaultSectionForProfile(profession, statusNeed));
+        setSection(getDefaultSectionForProfile(professions, statusNeeds));
         setFolder('');
         setHasDueDate(false);
         setStartTime('');
+        setScheduledStart('');
+        setReminderAt('');
+        setRepeatRule('none');
+        setRepeatStartDate('');
+        setRepeatEndDate('');
         setDuration(undefined);
       } else if (config.data) {
         const hasExistingDueDate = !!config.data.dueDate;
         // 将 UTC ISO 字符串还原为本地时间格式供 datetime-local 输入框使用
-        let localDueDate = '';
-        if (config.data.dueDate) {
-          const d = new Date(config.data.dueDate);
-          localDueDate = d.getFullYear() + '-' +
-            String(d.getMonth() + 1).padStart(2, '0') + '-' +
-            String(d.getDate()).padStart(2, '0') + 'T' +
-            String(d.getHours()).padStart(2, '0') + ':' +
-            String(d.getMinutes()).padStart(2, '0');
-        }
+        const localDueDate = toLocalDateTimeInput(config.data.dueDate);
+        const localScheduledStart = toLocalDateTimeInput(config.data.scheduledStart);
         setTitle(config.data.title || '');
         setContent(config.data.description || config.data.text || '');
         setStatus(normalizeEditableStatus(config.data.status));
@@ -190,6 +239,11 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setSubtasks(config.data.subtasks || []);
         setHasDueDate(hasExistingDueDate);
         setStartTime(config.data.startTime || '');
+        setScheduledStart(localScheduledStart || legacyStartToDateTime(config.data.startTime, config.data.dueDate));
+        setReminderAt(toLocalDateTimeInput(config.data.reminderAt));
+        setRepeatRule((config.data.repeatRule as RepeatRule) || 'none');
+        setRepeatStartDate(toDateInput(config.data.repeatStartDate));
+        setRepeatEndDate(toDateInput(config.data.repeatEndDate));
         setDuration(config.data.duration || undefined);
       }
       setOrder([0, 1, 2]);
@@ -197,12 +251,13 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       setShowDeleteConfirm(false);
       setShowNotifyConfirm(false);
     }
-  }, [config.isOpen, isCreate, config.data, profession, statusNeed]);
+  }, [config.isOpen, isCreate, config.data, professions, statusNeeds]);
 
   if (!config.isOpen) return null;
 
   const doSave = (_notifyBeforeDeadline = false) => {
     if (!title.trim() && !content.trim()) return onClose();
+    const resolvedStart = isTask ? combineDateAndTime(scheduledStart, startTime) : '';
     const saveParams: SaveParams = {
       id: isCreate ? undefined : config.data?.id,
       title,
@@ -214,7 +269,12 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       section: isTask ? section : undefined,
       project: isTask ? (folder || undefined) : undefined,
       subtasks: isTask && !isCreate ? subtasks : undefined,
-      startTime: isTask ? (startTime || undefined) : undefined,
+      startTime: isTask ? getTimePart(resolvedStart) : undefined,
+      scheduledStart: isTask ? (scheduledStart || undefined) : undefined,
+      reminderAt: isTask ? (reminderAt || undefined) : undefined,
+      repeatRule: isTask && repeatRule !== 'none' ? repeatRule : undefined,
+      repeatStartDate: isTask && repeatRule !== 'none' ? (repeatStartDate || undefined) : undefined,
+      repeatEndDate: isTask && repeatRule !== 'none' ? (repeatEndDate || undefined) : undefined,
       duration: isTask ? duration : undefined,
     };
     onSave(saveParams);
@@ -230,6 +290,190 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
     }
     doSave();
   };
+
+  const renderTaskScheduleFields = (variant: 'compact' | 'full') => {
+    const inputClass = variant === 'compact'
+      ? 'bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50 w-full'
+      : 'bg-white/10 text-white text-xs px-3 py-1.5 rounded-xl outline-none border border-white/10 focus:border-[#cae393]/50 w-full';
+    const labelClass = 'text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5';
+    const buttonText = variant === 'compact' ? 'text-[10px]' : 'text-[11px]';
+    const repeatActive = repeatRule !== 'none';
+
+    return (
+      <div className={variant === 'compact' ? 'mb-4 space-y-4' : 'space-y-4'}>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase">Due</span>
+            <button
+              onClick={() => {
+                setHasDueDate((prev) => {
+                  if (prev) setDueDate('');
+                  return !prev;
+                });
+              }}
+              className={`relative w-9 h-5 rounded-full transition-colors ${
+                hasDueDate ? 'bg-[#cae393]' : 'bg-white/15'
+              }`}
+            >
+              <div
+                className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                  hasDueDate ? 'left-[18px]' : 'left-0.5'
+                }`}
+              />
+            </button>
+          </div>
+          {hasDueDate ? (
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 animate-in fade-in">
+              <div>
+                <span className={labelClass}>Deadline</span>
+                <input
+                  type="datetime-local"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <span className={labelClass}>Reminder</span>
+                <input
+                  type="datetime-local"
+                  value={reminderAt}
+                  onChange={(e) => setReminderAt(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="text-[10px] text-white/20 italic mb-2">No deadline</p>
+              <span className={labelClass}>Reminder</span>
+              <input
+                type="datetime-local"
+                value={reminderAt}
+                onChange={(e) => setReminderAt(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          )}
+        </div>
+
+        <div>
+          <span className={labelClass}>Start</span>
+          <input
+            type="datetime-local"
+            value={scheduledStart}
+            onChange={(e) => {
+              setScheduledStart(e.target.value);
+              setStartTime(getTimePart(e.target.value) || '');
+            }}
+            className={`${inputClass} mb-2`}
+          />
+          <span className={labelClass}>Duration</span>
+          <div className="flex gap-1.5 flex-wrap">
+            {[30, 60, 90, 120].map((d) => (
+              <button
+                key={d}
+                onClick={() => setDuration(duration === d ? undefined : d)}
+                className={`px-2.5 py-1 rounded-full ${buttonText} font-medium transition-all whitespace-nowrap ${
+                  duration === d
+                    ? 'bg-[#cae393] text-[#242424]'
+                    : 'bg-white/10 text-white/60 hover:bg-white/20'
+                }`}
+              >
+                {d >= 60 ? `${d / 60}h` : `${d}m`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <span className={labelClass}>Repeat</span>
+          <div className="grid grid-cols-2 min-[360px]:grid-cols-4 gap-1.5">
+            {repeatOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setRepeatRule(option.value)}
+                className={`px-2 py-1 rounded-full ${buttonText} font-medium transition-all whitespace-nowrap ${
+                  repeatRule === option.value
+                    ? 'bg-[#b0a8db] text-[#242424]'
+                    : 'bg-white/10 text-white/60 hover:bg-white/20'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {repeatActive && (
+            <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-2 mt-2 animate-in fade-in">
+              <div>
+                <span className={labelClass}>From</span>
+                <input
+                  type="date"
+                  value={repeatStartDate}
+                  onChange={(e) => setRepeatStartDate(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <span className={labelClass}>To</span>
+                <input
+                  type="date"
+                  value={repeatEndDate}
+                  onChange={(e) => setRepeatEndDate(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderReminderConfirm = () => (
+    <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ animation: 'fade-in 0.2s ease' }}>
+      <div className="absolute inset-0 bg-black/40" onClick={() => { setShowNotifyConfirm(false); doSave(); }} />
+      <div className="relative bg-white border border-gray-100 rounded-[2rem] p-6 mx-6 w-full max-w-[320px] shadow-2xl" style={{ animation: 'zoom-in-95 0.25s ease' }}>
+        <div className="text-center mb-5">
+          <div className="w-12 h-12 rounded-full bg-[#cae393]/30 flex items-center justify-center mx-auto mb-3">
+            <Bell size={22} className="text-[#242424]" />
+          </div>
+          <h3 className="text-sm font-bold text-[#242424] mb-1">截止前提醒</h3>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            已设置截止时间为<br />
+            <span className="text-[#242424] font-bold">
+              {dueDate ? new Date(dueDate).toLocaleString('zh-CN', {
+                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+              }) : ''}
+            </span>
+          </p>
+        </div>
+        <label className="block mb-5">
+          <span className="text-[11px] font-medium text-gray-500 block mb-1.5">提醒时间</span>
+          <input
+            type="datetime-local"
+            value={reminderAt}
+            onChange={(e) => setReminderAt(e.target.value)}
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-[#242424] outline-none focus:border-[#cae393]"
+          />
+        </label>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setReminderAt(''); setShowNotifyConfirm(false); doSave(); }}
+            className="flex-1 py-2.5 rounded-full text-xs font-medium bg-[#f4f4f6] text-gray-500 hover:bg-gray-100 transition-colors whitespace-nowrap"
+          >
+            不提醒
+          </button>
+          <button
+            onClick={() => { setShowNotifyConfirm(false); doSave(true); }}
+            className="flex-1 py-2.5 rounded-full text-xs font-bold bg-[#cae393] text-[#242424] hover:bg-[#b8d481] transition-colors whitespace-nowrap"
+          >
+            保存提醒
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const handleDelete = () => {
     if (!showDeleteConfirm) {
@@ -405,7 +649,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       </div>
 
       {/* Deadline toggle */}
-      <div className="mb-4">
+      {isTask && renderTaskScheduleFields('compact')}
+      <div className="hidden">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase">
             截止时间
@@ -437,7 +682,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       </div>
 
       {/* Time & Duration */}
-      {isTask && (
+      {false && isTask && (
         <div className="mb-4">
           <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">开始时间</span>
           <input
@@ -812,7 +1057,9 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                   />
                 </div>
 
-                <div>
+                {renderTaskScheduleFields('full')}
+
+                {false && <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase">
                       截止时间
@@ -841,10 +1088,10 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                   {!hasDueDate && (
                     <p className="text-[10px] text-white/20 italic">不设置截止时间</p>
                   )}
-                </div>
+                </div>}
 
                 {/* Time & Duration */}
-                <div>
+                {false && <div>
                   <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">开始时间</span>
                   <input
                     type="time"
@@ -868,7 +1115,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                       </button>
                     ))}
                   </div>
-                </div>
+                </div>}
               </>
             )}
           </div>
@@ -890,7 +1137,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         </div>
 
         {/* Notification confirmation overlay (create mode) */}
-        {showNotifyConfirm && (
+        {showNotifyConfirm && renderReminderConfirm()}
+        {false && showNotifyConfirm && (
           <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ animation: 'fade-in 0.2s ease' }}>
             <div className="absolute inset-0 bg-black/40" onClick={() => { setShowNotifyConfirm(false); doSave(); }} />
             <div className="relative bg-white border border-gray-100 rounded-[2rem] p-6 mx-6 w-full max-w-[300px] shadow-2xl" style={{ animation: 'zoom-in-95 0.25s ease' }}>
@@ -1025,7 +1273,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       </div>
 
       {/* Notification confirmation overlay (edit mode) */}
-      {showNotifyConfirm && (
+      {showNotifyConfirm && renderReminderConfirm()}
+      {false && showNotifyConfirm && (
         <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ animation: 'fade-in 0.2s ease' }}>
           <div className="absolute inset-0 bg-black/40" onClick={() => { setShowNotifyConfirm(false); doSave(); }} />
           <div className="relative bg-white border border-gray-100 rounded-[2rem] p-6 mx-6 w-full max-w-[300px] shadow-2xl" style={{ animation: 'zoom-in-95 0.25s ease' }}>

@@ -84,6 +84,10 @@ model Task {
   project         String?
   notes           Json?     @default("[]")
   dueDate         DateTime?
+  reminderAt      DateTime?
+  repeatRule      String?
+  repeatStartDate DateTime?
+  repeatEndDate   DateTime?
 
   id              String    @id @default(uuid())
   userId          String

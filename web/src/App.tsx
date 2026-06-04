@@ -42,6 +42,14 @@ function isVisibleNavItem(tab: NavItem, navVisibility: NavVisibility): boolean {
   return tab.id === 'settings' || navVisibility[tab.id];
 }
 
+function localDateBoundaryToIso(value: string | undefined, boundary: 'start' | 'end'): string | undefined {
+  if (!value) return undefined;
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return undefined;
+  const date = new Date(year, month - 1, day, boundary === 'start' ? 0 : 23, boundary === 'start' ? 0 : 59, boundary === 'start' ? 0 : 59, boundary === 'start' ? 0 : 999);
+  return date.toISOString();
+}
+
 function getOrderedNavItems(navOrder: NavOrder, navVisibility: NavVisibility): NavItem[] {
   const navMap = new Map(navItems.map((item) => [item.id, item]));
   const orderedToggleable = navOrder
@@ -234,13 +242,18 @@ export default function App() {
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
   const handleSaveItem = async ({
-    id, title, content, context, status, priority, dueDate, section, subtasks, project, startTime, duration,
+    id, title, content, context, status, priority, dueDate, section, subtasks, project, startTime,
+    scheduledStart, reminderAt, repeatRule, repeatStartDate, repeatEndDate, duration,
   }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
 
     // 将 datetime-local 格式的本地时间转为 UTC ISO 字符串，
     // 避免服务器时区（UTC）误解读导致 8 小时偏移
     const normalizedDueDate = dueDate ? new Date(dueDate).toISOString() : undefined;
+    const normalizedScheduledStart = scheduledStart ? new Date(scheduledStart).toISOString() : undefined;
+    const normalizedReminderAt = reminderAt ? new Date(reminderAt).toISOString() : undefined;
+    const normalizedRepeatStartDate = localDateBoundaryToIso(repeatStartDate, 'start');
+    const normalizedRepeatEndDate = localDateBoundaryToIso(repeatEndDate, 'end');
 
     if (context === 'task') {
       const colorType = (
@@ -259,9 +272,14 @@ export default function App() {
           dueDate: normalizedDueDate || undefined,
           project: project || undefined,
           startTime: startTime || undefined,
+          scheduledStart: normalizedScheduledStart,
+          reminderAt: normalizedReminderAt,
+          repeatRule: repeatRule || undefined,
+          repeatStartDate: normalizedRepeatStartDate,
+          repeatEndDate: normalizedRepeatEndDate,
           estimatedMinutes: duration,
           ...(subtasks !== undefined ? { subtasks } : {}),
-        });
+        } as Partial<Task>);
       } else {
         const newTask = {
           id: String(Date.now()),
@@ -276,8 +294,13 @@ export default function App() {
           dueDate: normalizedDueDate,
           project: project || undefined,
           startTime: startTime || undefined,
+          scheduledStart: normalizedScheduledStart,
+          reminderAt: normalizedReminderAt,
+          repeatRule: repeatRule || undefined,
+          repeatStartDate: normalizedRepeatStartDate,
+          repeatEndDate: normalizedRepeatEndDate,
           duration: duration || undefined,
-        };
+        } as Task;
         await addTask(newTask);
         setActiveTab('tasks');
       }

@@ -37,8 +37,18 @@ export interface Task {
   project?: string;
   /** V4 Calendar: 开始时间 "HH:MM" */
   startTime?: string;
+  /** 任务安排到时间线的完整本地/ISO 日期时间 */
+  scheduledStart?: string;
+  /** 任务安排结束的完整 ISO 日期时间 */
+  scheduledEnd?: string;
   /** V4 Calendar: 持续时长 (分钟) */
   duration?: number;
+  /** 独立提醒时间，可早于/晚于截止时间 */
+  reminderAt?: string;
+  /** 重复规则：daily / weekly / monthly */
+  repeatRule?: 'daily' | 'weekly' | 'monthly' | string;
+  repeatStartDate?: string;
+  repeatEndDate?: string;
 }
 
 // ════════════════════════════════════════════════════

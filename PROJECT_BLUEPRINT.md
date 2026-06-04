@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-06-04 | **当前 Phase**: Phase 9～10
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-06-04 | **当前 Phase**: Phase 9～11
 
 ---
 
@@ -50,6 +50,8 @@
 | 39 | 账户与初始化门禁 | 前端单用户登录 + onboarding profile，固定账号 fish031 / 000000 | 当前仍是 MVP 单用户，先用前端门禁承载职业、状态、导航偏好 |
 | 40 | 待办分组扩展 | Task.section 保持字符串，前端预设 project/personal/work/study 并支持自定义分组偏好 | 不迁移数据库，兼容旧任务和未来用户自定义分组 |
 | 41 | 数据迁移 | 设置页 JSON 导出/导入；任务导入走现有 REST create 写入后端，灵感/偏好走前端状态与 localStorage | 满足备份迁移且不新增批量 API，避免破坏现有 CRUD |
+| 42 | 注册与密码管理 | 前端注册表单 + localStorage 用户表 + SHA-256 密码哈希；内置账户 fish031 保留；设置页可修改密码 | 多用户 MVP，密码不存明文，不依赖后端 |
+| 43 | 问候页多选 | profession 和 statusNeed 从单选升级为数组多选，至少保留 1 项 | 用户的身份和状态往往是复合的，多选更真实 |
 
 ---
 
@@ -124,6 +126,7 @@ Supabase PostgreSQL (唯一数据源)
 |---|---|---|
 | 09 — Course 模块深化（课程详情页、笔记看板、事件追踪） | 🚧 部分实施中 | [phase09-course-module.md](docs/plans/phase09-course-module.md) |
 | 10 — 待办功能收束（VAPID 部署、拖入时间线、事件类型扩展等） | ⬜ | [phase10-pending-features.md](docs/plans/phase10-pending-features.md) |
+| 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
 
 ---
 
@@ -194,7 +197,8 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ## 六、更新日志
 
 ### 2026-06-04
-- ✅ **账户登录、初始化问候与数据迁移落地**：前端新增固定账号登录门禁（fish031 / 000000）和初始问候配置，收集职业、当前状态、导航页需求并写入 Zustand/localStorage；任务分组扩展为项目/个人/工作/学业四个预设板块，同时支持设置页自定义分组；设置页新增 JSON 导出/导入，任务导入通过现有 REST 创建写入后端，偏好和灵感保留前端迁移；`web npm run build`、`api npm run build` 均通过。
+- ✅ **日历时间线与重复/提醒闭环**：CalendarView 增加拖拽阈值、边界 clamp 与 pointer capture 安全释放，空白时间线支持直接拖动生成任务时间段；展开月历按月拉取事件并显示任务/课程/本地/Google 标签预览，绿点数据改为任务与日程预览统一驱动；Task 增加 `reminderAt/repeatRule/repeatStartDate/repeatEndDate` 字段，编辑弹层支持独立提醒时间、完整开始日期时间和 daily/weekly/monthly 重复范围；Android/local 日历导入改为创建/更新关联 Task 并回写 CalendarEvent.taskId，使导入日程可按任务编辑；`web npm run build`、`api npm run build` 通过。
+- ✅ **账户注册、密码管理与问候页多选**：新增注册表单（用户名+密码+确认密码），用户数据 SHA-256 哈希存储在 localStorage sparkflow.users；内置账户 fish031 保留，默认密码不再显示在登录页；设置页新增修改密码功能；问候页职业/身份和状态需求从单选升级为数组多选，至少保留 1 项；更新 DarkFrostedModal 兼容数组类型；`web npm run build` 通过。
 - ✅ **课程表与日历体验收口**：课程列表灰态改为仅在课程/学期结课后触发，本周已上过课程只保留轻提示；新建/编辑学期底部弹层改为 safe-area 友好的视口 sheet；CalendarView 中课程事件改用独立蓝青色系、已完成任务在时间线置灰，并在选中有日程日期时自动定位到当天第一条时间线内容，避免导入课表后绿点存在但首屏停留在 00:00 造成误解。
 - ✅ **课程日程不再自动转任务**：Google Calendar 回流和 Android/local 日历导入仅在已有 `taskId` 关联时更新任务；未关联课程日程只保留为 CalendarEvent，不再自动生成普通 Task；任务查询过滤历史自动生成的 `section=calendar` 待办，避免课程表挤占任务列表。
 - ✅ **部署与 App 编译验证**：后端 `api npm run build`、前端 `web npm run build`、Android `web npm run android:build` 均已通过；debug APK 产物生成在 `web/android/app/build/outputs/apk/debug/app-debug.apk`；前后端通过推送 `master` 触发 Render/Vercel 自动部署。
@@ -272,6 +276,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | 2026-05-28 | **截止时间时区偏移 8 小时** | toISOString 转换 |
 | 2026-05-28 | **时间线长按创建不响应** | ref 即时存 pointerId + try-catch setPointerCapture |
 | 2026-05-28 | **ghost 拖拽无法调时长** | 弃用 setPointerCapture，注册原生 document 监听 |
+| 2026-06-04 | **时间线轻触误触拖拽、绿点按周拉取不稳定、本地日历只读** | 拖拽增加 6px 阈值和 clamp；展开月历按月拉取并显示预览标签；本地导入创建/更新关联 Task |
 
 ---
 
@@ -295,11 +300,12 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | 子阶段 | 内容 | 状态 |
 |---|---|---|
 | 10.1 | VAPID 密钥部署（编码完成，待环境变量） | 🚧 |
-| 10.2 | 截止任务拖入时间线 | ⬜ |
+| 10.2 | 截止任务拖入时间线 | ✅ |
 | 10.3 | md 协议扩展 @start @duration | ⬜ |
 | 10.4 | CalendarEvent eventType 扩展 | ⬜ |
 | 10.5 | 灵感转化流程 | ⬜ |
 | 10.6 | 多用户 / 正式 OAuth | ⬜ |
+| 10.7 | 任务独立提醒 + 重复任务 + 月历任务预览 | ✅ |
 
 > 详细方案：[docs/plans/phase10-pending-features.md](docs/plans/phase10-pending-features.md)
 
@@ -312,6 +318,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | [docs/plans/INDEX.md](docs/plans/INDEX.md) | 所有实施方案索引 |
 | [docs/plans/phase09-course-module.md](docs/plans/phase09-course-module.md) | Phase 09：Course 模块深化方案 |
 | [docs/plans/phase10-pending-features.md](docs/plans/phase10-pending-features.md) | Phase 10：待办功能收束方案 |
+| [docs/plans/phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) | Phase 11：账户注册、密码管理与问候页多选 |
 | [docs/archive/](docs/archive/) | 已完成方案 + 设计决策（只读） |
 | [docs/prototypes/](docs/prototypes/) | 交互原型（v2/v3/v4/course-detail） |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | 部署手册（Supabase/Render/Vercel） |

@@ -18,6 +18,37 @@ interface ImportLocalCalendarEventDto {
 export class CalendarService {
   constructor(private prisma: PrismaService) {}
 
+  private getEstimatedMinutes(startTime: Date, endTime: Date, isAllDay?: boolean) {
+    if (isAllDay) return null;
+    return Math.max(15, Math.round((endTime.getTime() - startTime.getTime()) / 60000));
+  }
+
+  private taskDataFromLocalEvent(
+    userId: string,
+    event: ImportLocalCalendarEventDto,
+    startTime: Date,
+    endTime: Date,
+    includeDefaults = false,
+  ) {
+    const isAllDay = event.isAllDay ?? false;
+    const taskData: Record<string, any> = {
+      title: event.title,
+      dueDate: startTime,
+      scheduledStart: isAllDay ? null : startTime,
+      scheduledEnd: isAllDay ? null : endTime,
+      estimatedMinutes: this.getEstimatedMinutes(startTime, endTime, isAllDay),
+    };
+
+    if (includeDefaults) {
+      taskData.userId = userId;
+      taskData.section = 'personal';
+      taskData.status = 'todo';
+      taskData.priority = 'medium';
+    }
+    if (event.description !== undefined) taskData.description = event.description;
+    return taskData;
+  }
+
   findAll(userId: string, start: string, end: string, semesterId?: string) {
     const where: any = {
       userId,
@@ -84,10 +115,23 @@ export class CalendarService {
   }) {
     const externalSource = data.source ?? data.platform ?? 'android-local';
     const imported = [];
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
 
     for (const event of data.events) {
+      if (!event.externalEventId || !event.title || !event.startTime || !event.endTime) {
+        skipped += 1;
+        continue;
+      }
+
       const startTime = new Date(event.startTime);
       const endTime = new Date(event.endTime);
+      if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
+        skipped += 1;
+        continue;
+      }
+
       const saved = await this.prisma.calendarEvent.upsert({
         where: {
           userId_externalSource_externalEventId: {
@@ -123,25 +167,35 @@ export class CalendarService {
         },
       });
 
+      let linkedEvent = saved;
+      const taskData = this.taskDataFromLocalEvent(data.userId, event, startTime, endTime);
       if (saved.taskId) {
         await this.prisma.task.update({
           where: { id: saved.taskId },
-          data: {
-            title: event.title,
-            description: event.description,
-            dueDate: startTime,
-            scheduledStart: event.isAllDay ? null : startTime,
-            scheduledEnd: event.isAllDay ? null : endTime,
-            estimatedMinutes: event.isAllDay
-              ? null
-              : Math.max(15, Math.round((endTime.getTime() - startTime.getTime()) / 60000)),
-          },
+          data: taskData,
         });
+        updated += 1;
+      } else {
+        const task = await this.prisma.task.create({
+          data: this.taskDataFromLocalEvent(data.userId, event, startTime, endTime, true) as any,
+        });
+        linkedEvent = await this.prisma.calendarEvent.update({
+          where: { id: saved.id },
+          data: { taskId: task.id },
+        });
+        created += 1;
       }
 
-      imported.push(saved);
+      imported.push(linkedEvent);
     }
 
-    return { importedCount: imported.length, eventCount: imported.length, events: imported };
+    return {
+      importedCount: imported.length,
+      eventCount: imported.length,
+      events: imported,
+      created,
+      updated,
+      skipped,
+    };
   }
 }

@@ -26,6 +26,11 @@ interface ApiTask {
   dueDate?: string | null;
   estimatedMinutes?: number | null;
   scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  reminderAt?: string | null;
+  repeatRule?: string | null;
+  repeatStartDate?: string | null;
+  repeatEndDate?: string | null;
   tags?: string[];
 }
 
@@ -94,9 +99,21 @@ function fromApiTask(api: ApiTask): Task {
     subtasks,
     dueDate: api.dueDate || undefined,
     estimatedMinutes: api.estimatedMinutes || undefined,
+    scheduledStart: api.scheduledStart || undefined,
+    scheduledEnd: api.scheduledEnd || undefined,
     startTime,
     duration,
+    reminderAt: api.reminderAt || undefined,
+    repeatRule: api.repeatRule || undefined,
+    repeatStartDate: api.repeatStartDate || undefined,
+    repeatEndDate: api.repeatEndDate || undefined,
   };
+}
+
+function normalizeDateLike(value: string | null | undefined): string | null | undefined {
+  if (value === null) return null;
+  if (value === undefined || value === '') return undefined;
+  return new Date(value).toISOString();
 }
 
 function toApiPayload(task: Partial<Task> & { title?: string }): Record<string, unknown> {
@@ -111,13 +128,23 @@ function toApiPayload(task: Partial<Task> & { title?: string }): Record<string, 
   if (task.dueDate !== undefined) payload.dueDate = task.dueDate;
   if (task.estimatedMinutes !== undefined) payload.estimatedMinutes = task.estimatedMinutes;
   else if ((task as any).duration !== undefined) payload.estimatedMinutes = (task as any).duration;
-  if (task.startTime !== undefined) {
-    // Convert HH:MM to ISO datetime, using dueDate's date or today
-    const datePart = task.dueDate ? new Date(task.dueDate) : new Date();
-    const [h, m] = task.startTime.split(':').map(Number);
-    datePart.setHours(h || 0, m || 0, 0, 0);
-    payload.scheduledStart = datePart.toISOString();
+  if (task.scheduledStart !== undefined) payload.scheduledStart = normalizeDateLike(task.scheduledStart);
+  if (task.scheduledEnd !== undefined) payload.scheduledEnd = normalizeDateLike(task.scheduledEnd);
+  if (task.startTime !== undefined && task.scheduledStart === undefined) {
+    if (task.startTime) {
+      // Convert HH:MM to ISO datetime, using dueDate's date or today.
+      const datePart = task.dueDate ? new Date(task.dueDate) : new Date();
+      const [h, m] = task.startTime.split(':').map(Number);
+      datePart.setHours(h || 0, m || 0, 0, 0);
+      payload.scheduledStart = datePart.toISOString();
+    } else {
+      payload.scheduledStart = null;
+    }
   }
+  if (task.reminderAt !== undefined) payload.reminderAt = normalizeDateLike(task.reminderAt);
+  if (task.repeatRule !== undefined) payload.repeatRule = task.repeatRule || null;
+  if (task.repeatStartDate !== undefined) payload.repeatStartDate = normalizeDateLike(task.repeatStartDate);
+  if (task.repeatEndDate !== undefined) payload.repeatEndDate = normalizeDateLike(task.repeatEndDate);
   if (task.subtasks !== undefined) {
     payload.notes = task.subtasks.map((s) => ({ text: s.title, completed: s.completed }));
   }
