@@ -220,7 +220,7 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
         return false;
       }
       if (!data.session || !data.user) {
-        set({ registrationError: '确认邮件已发送，请完成验证后登录', isRegistering: false });
+        set({ registrationError: '确认邮件已发送，请完成验证后再返回登录', isRegistering: true });
         return false;
       }
       applyUser(data.user);
