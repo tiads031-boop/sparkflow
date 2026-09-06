@@ -1,5 +1,5 @@
 /* SparkFlow Service Worker — Web Push + 离线缓存 */
-const CACHE_NAME = 'sparkflow-v1';
+const CACHE_NAME = 'sparkflow-v2';
 
 /* ========== Push 事件 ========== */
 self.addEventListener('push', (event) => {
@@ -64,9 +64,26 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // 只缓存 GET 请求，跳过 API 请求
+  // 只缓存同源 GET 请求，跳过 API 请求和第三方资源。
   if (event.request.method !== 'GET') return;
+  if (new URL(event.request.url).origin !== self.location.origin) return;
   if (event.request.url.includes('/api/')) return;
+
+  // 页面导航始终先取最新部署，离线时再退回缓存。
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request)),
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cached) => {

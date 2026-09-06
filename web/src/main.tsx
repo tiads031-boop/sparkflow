@@ -7,8 +7,16 @@ import AuthGate from './components/AuthGate.tsx'
 
 // Register Service Worker for Web Push + offline cache
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch((err) => {
-    console.warn('[SW] registration failed:', err.message);
+  navigator.serviceWorker.register('/sw.js')
+    .then((registration) => registration.update())
+    .catch((err) => {
+      console.warn('[SW] registration failed:', err.message);
+    });
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (sessionStorage.getItem('sparkflow.sw-reloaded') === '1') return;
+    sessionStorage.setItem('sparkflow.sw-reloaded', '1');
+    window.location.reload();
   });
 }
 
