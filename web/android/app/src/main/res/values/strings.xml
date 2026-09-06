@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sparkflow</string>
+    <string name="title_activity_main">Sparkflow</string>
+    <string name="package_name">work.mindd.sparkflow</string>
+    <string name="custom_url_scheme">work.mindd.sparkflow</string>
+</resources>

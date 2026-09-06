@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Sparkflow 通知图标: 火花/闪电剪影, 纯白, 透明背景 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M9,2 L21,11 L15,11 L22,22 L12,14 L18,14 L9,2 Z" />
+
+</vector>
