@@ -14,6 +14,8 @@ import { PushModule } from './push/push.module';
 import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 import { CommonModule } from './common/common.module';
 import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 
 @Module({
   imports: [
@@ -31,7 +33,9 @@ import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
     PushModule,
     GoogleCalendarModule,
   ],
+  controllers: [AppController],
   providers: [
+    AppService,
     {
       provide: APP_GUARD,
       useClass: SupabaseAuthGuard,
