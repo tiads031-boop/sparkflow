@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as ical from 'node-ical';
+import { parseCourseBackup } from './course-backup';
 
 interface CourseCreateData {
   userId: string;
@@ -45,6 +46,34 @@ interface NoteData {
 export class CourseService {
   constructor(private prisma: PrismaService) {}
 
+  async exportSchedule(userId: string, semesterId?: string) {
+    const courses = await this.prisma.course.findMany({
+      where: { userId, ...(semesterId ? { semesterId } : {}) },
+      include: { events: { orderBy: { startTime: 'asc' } } },
+    });
+    const semesters = await this.prisma.semester.findMany({ where: { userId, ...(semesterId ? { id: semesterId } : {}) } });
+    return { format: 'sparkflow-courses', version: 1, exportedAt: new Date().toISOString(), semesters, courses };
+  }
+
+  async importSchedule(userId: string, value: unknown) {
+    const backup = parseCourseBackup(value);
+    return this.prisma.$transaction(async tx => {
+      const ids = new Map<string, string>();
+      for (const s of backup.semesters) {
+        const created = await tx.semester.create({ data: { userId, name: s.name, startDate: new Date(s.startDate), endDate: new Date(s.endDate), isActive: false } });
+        ids.set(s.id, created.id);
+      }
+      let eventCount = 0;
+      for (const c of backup.courses) {
+        const { events, semesterId, ...data } = c;
+        const course = await tx.course.create({ data: { ...data, userId, semesterId: semesterId ? ids.get(semesterId) : null } });
+        if (events.length) await tx.calendarEvent.createMany({ data: events.map(e => ({ ...e, userId, courseId: course.id, eventType: 'course', color: course.color, startTime: new Date(e.startTime), endTime: new Date(e.endTime) })) });
+        eventCount += events.length;
+      }
+      return { courseCount: backup.courses.length, eventCount };
+    }, { timeout: 30000 });
+  }
+
   // ==================== Course CRUD ====================
 
   async findAll(userId: string, semesterId?: string) {
@@ -73,6 +102,7 @@ export class CourseService {
   }
 
   async create(data: CourseCreateData) {
+    await this.assertOwnedSemester(data.semesterId, data.userId);
     const course = await this.prisma.course.create({
       data: {
         userId: data.userId,
@@ -103,9 +133,10 @@ export class CourseService {
     if (!existing) throw new NotFoundException('Course not found');
 
     const { regenerate, ...courseData } = data;
+    await this.assertOwnedSemester(courseData.semesterId, userId);
 
     const updated = await this.prisma.course.update({
-      where: { id },
+      where: { id, userId },
       data: courseData,
     });
 
@@ -119,7 +150,7 @@ export class CourseService {
 
   async remove(id: string, userId: string) {
     await this.prisma.course.findFirstOrThrow({ where: { id, userId } });
-    return this.prisma.course.delete({ where: { id } });
+    return this.prisma.course.delete({ where: { id, userId } });
   }
 
   // ==================== 课程实例 (CalendarEvent) ====================
@@ -127,7 +158,7 @@ export class CourseService {
   async findEvents(courseId: string, userId: string) {
     await this.prisma.course.findFirstOrThrow({ where: { id: courseId, userId } });
     return this.prisma.calendarEvent.findMany({
-      where: { courseId },
+      where: { courseId, userId },
       orderBy: { startTime: 'asc' },
     });
   }
@@ -146,12 +177,14 @@ export class CourseService {
     });
     if (!event) throw new NotFoundException('CalendarEvent not found');
 
-    const updateData: any = { ...data, isOverride: true };
+    const { room, ...eventData } = data;
+    const updateData: any = { ...eventData, isOverride: true };
+    if (room !== undefined) updateData.location = room;
     if (data.startTime) updateData.startTime = new Date(data.startTime);
     if (data.endTime) updateData.endTime = new Date(data.endTime);
 
     return this.prisma.calendarEvent.update({
-      where: { id: eventId },
+      where: { id: eventId, userId },
       data: updateData,
     });
   }
@@ -166,22 +199,30 @@ export class CourseService {
   }
 
   async createNote(data: NoteData) {
+    const course = await this.prisma.course.findFirst({ where: { id: data.courseId, userId: data.userId }, select: { id: true } });
+    if (!course) throw new NotFoundException('Course not found');
     return this.prisma.courseNote.create({ data });
   }
 
   async updateNote(id: string, userId: string, data: { body?: string; pinned?: boolean }) {
     const note = await this.prisma.courseNote.findFirst({ where: { id, userId } });
     if (!note) throw new NotFoundException('Course task not found');
-    return this.prisma.courseNote.update({ where: { id }, data });
+    return this.prisma.courseNote.update({ where: { id, userId }, data });
   }
 
   async deleteNote(id: string, userId: string) {
     const note = await this.prisma.courseNote.findFirst({ where: { id, userId } });
     if (!note) throw new NotFoundException('Course task not found');
-    return this.prisma.courseNote.delete({ where: { id } });
+    return this.prisma.courseNote.delete({ where: { id, userId } });
   }
 
   // ==================== 内部方法 ====================
+
+  private async assertOwnedSemester(semesterId: string | undefined, userId: string) {
+    if (!semesterId) return;
+    const semester = await this.prisma.semester.findFirst({ where: { id: semesterId, userId }, select: { id: true } });
+    if (!semester) throw new NotFoundException('Semester not found');
+  }
 
   /**
    * 根据 Course 规则模板生成所有 CalendarEvent 实例
@@ -199,9 +240,19 @@ export class CourseService {
       course.room,
     );
 
+    const semester = await this.prisma.semester.findFirst({ where: {
+      userId: course.userId,
+      ...(course.semesterId ? { id: course.semesterId } : { isActive: true }),
+    } });
+    const semesterLastDay = semester ? new Date(semester.endDate) : null;
+    semesterLastDay?.setHours(23, 59, 59, 999);
+    const boundedInstances = semester && semesterLastDay
+      ? instances.filter(inst => inst.start >= semester.startDate && inst.end <= semesterLastDay)
+      : instances;
+
     // 批量创建
     await this.prisma.calendarEvent.createMany({
-      data: instances.map((inst) => ({
+      data: boundedInstances.map((inst) => ({
         userId: course.userId,
         courseId: course.id,
         title: course.name,
@@ -209,6 +260,7 @@ export class CourseService {
         startTime: inst.start,
         endTime: inst.end,
         color: course.color,
+        location: course.room || course.location,
         isOverride: false,
       })),
     });

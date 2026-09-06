@@ -1,0 +1,21 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>课程集成验收夹具</title></head><body style="max-width:390px;margin:auto"><div id="root"></div><script type="module">
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import Panel from '/src/components/CourseIntegrationsPanel.tsx';
+import Theme from '/src/components/CourseTheme.tsx';
+import { useCoursePreferences } from '/src/store/coursePreferences.ts';
+import '/src/index.css';
+const realFetch = window.fetch.bind(window);
+window.fetch = (input, init) => {
+  if (String(input).includes('/api/')) return Promise.resolve(new Response(JSON.stringify({ defaultUrl: 'https://dav.example.com/course/', configured: true }), { headers: { 'Content-Type': 'application/json' } }));
+  return realFetch(input, init);
+};
+function Fixture() {
+  const [preview, setPreview] = React.useState(null);
+  return React.createElement(Theme, null,
+    React.createElement('button', { id: 'test-theme', onClick: () => useCoursePreferences.getState().setPreferences({ theme: 'dark' }) }, '测试深色'),
+    React.createElement(Panel, { onPreview: setPreview }),
+    React.createElement('output', { id: 'preview' }, preview ? JSON.stringify(preview) : ''));
+}
+createRoot(document.getElementById('root')).render(React.createElement(Fixture));
+</script></body></html>

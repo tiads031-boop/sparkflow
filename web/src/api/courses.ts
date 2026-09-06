@@ -7,6 +7,16 @@
 
 import { apiRequest, DEFAULT_USER_ID } from './client';
 import type { Course, CourseDetail, CourseNote, CourseFormData, CalendarEvent } from '../types';
+import type { ScheduleBackup } from '../utils/courseSchedule';
+
+export async function fetchScheduleBackup(semesterId?: string | null): Promise<ScheduleBackup> {
+  const query = new URLSearchParams({ userId: DEFAULT_USER_ID });
+  if (semesterId) query.set('semesterId', semesterId);
+  return (await apiRequest(`/courses/backup?${query}`)).json();
+}
+export async function importScheduleBackup(backup: unknown): Promise<{ courseCount: number; eventCount: number }> {
+  return (await apiRequest(`/courses/import-json?userId=${encodeURIComponent(DEFAULT_USER_ID)}`, { method: 'POST', body: JSON.stringify(backup) })).json();
+}
 
 const BASE = '/courses';
 
@@ -57,11 +67,12 @@ export async function deleteCourse(id: string, userId = DEFAULT_USER_ID): Promis
 export async function importIcs(
   file: File,
   userId = DEFAULT_USER_ID,
-  options?: { semesterStart?: string; semesterEnd?: string; excludeCourses?: string[] },
+  options?: { semesterId?: string; semesterStart?: string; semesterEnd?: string; excludeCourses?: string[] },
 ): Promise<{ created: string[]; updated: string[]; eventCount: number }> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('userId', userId);
+  if (options?.semesterId) formData.append('semesterId', options.semesterId);
   if (options?.semesterStart) formData.append('semesterStart', options.semesterStart);
   if (options?.semesterEnd) formData.append('semesterEnd', options.semesterEnd);
   if (options?.excludeCourses?.length) {

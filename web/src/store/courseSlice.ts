@@ -58,7 +58,7 @@ export const createCourseSlice: StateCreator<AppState, [], [], CourseSlice> = (s
       const semesterId = get().activeSemesterId;
       const courses = await fetchCourses(DEFAULT_USER_ID, semesterId, controller.signal);
       clearTimeout(timeoutId);
-      set({ courses, isCoursesLoading: false });
+      if (get().activeSemesterId === semesterId) set({ courses, isCoursesLoading: false });
     } catch (err: any) {
       clearTimeout(timeoutId);
       const message = err.name === 'AbortError'

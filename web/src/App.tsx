@@ -11,6 +11,9 @@ import BoardView from './components/BoardView';
 import CalendarView from './components/CalendarView';
 import SparksView from './components/SparksView';
 import CourseView from './components/CourseView';
+import CourseTheme from './components/CourseTheme';
+import CourseReminderRuntime from './components/CourseReminderRuntime';
+import CourseIntegrationsRuntime from './components/CourseIntegrationsRuntime';
 import CourseDetailView from './components/CourseDetailView';
 import SettingsView from './components/SettingsView';
 import { importIcs } from './api/courses';
@@ -376,14 +379,17 @@ export default function App() {
               {appMessage}
             </div>
           )}
+          <CourseReminderRuntime />
+          <CourseIntegrationsRuntime />
           {/* Course detail view (full page) */}
           {activeTab === 'courses' && viewingCourseId ? (
-            <CourseDetailView onBack={() => setViewingCourseId(null)} />
+            <CourseTheme><CourseDetailView onBack={() => setViewingCourseId(null)} /></CourseTheme>
           ) : activeTab === 'dashboard' && <DashboardView tasks={tasks} pomodoro={pomodoro} />}
           {activeTab === 'tasks' && <TasksView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'board' && <BoardView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'calendar' && <CalendarView onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'courses' && !viewingCourseId && (
+            <CourseTheme>
             <CourseView
               onCourseClick={(courseId) => {
                 loadCourseDetail(courseId);
@@ -392,7 +398,7 @@ export default function App() {
               onAddClick={() => {}}
               onImportClick={async (file) => {
                 try {
-                  const result = await importIcs(file);
+                  const result = await importIcs(file, undefined, { semesterId: useAppStore.getState().activeSemesterId || undefined });
                   alert(`导入完成：新增 ${result.created.length} 门，更新 ${result.updated.length} 门，共 ${result.eventCount} 次课`);
                   loadCourses();
                 } catch (err: any) {
@@ -400,6 +406,7 @@ export default function App() {
                 }
               }}
             />
+            </CourseTheme>
           )}
           {activeTab === 'sparks' && (
             <SparksView

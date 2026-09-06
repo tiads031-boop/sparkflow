@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Delete, Body } from '@nestjs/common';
 import { PushService } from './push.service';
+import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 
 @Controller('push')
 export class PushController {
@@ -20,9 +21,10 @@ export class PushController {
    */
   @Post('subscribe')
   subscribe(
+    @CurrentUserId() userId: string,
     @Body()
     data: {
-      userId: string;
+      userId?: string;
       subscription: {
         endpoint: string;
         channel?: 'web' | 'fcm';
@@ -30,7 +32,7 @@ export class PushController {
       };
     },
   ) {
-    return this.pushService.subscribe(data.userId, data.subscription);
+    return this.pushService.subscribe(userId, data.subscription);
   }
 
   /**
@@ -41,20 +43,21 @@ export class PushController {
    */
   @Delete('unsubscribe')
   unsubscribe(
+    @CurrentUserId() userId: string,
     @Body()
     data: {
-      userId: string;
+      userId?: string;
       endpoint?: string;
       channel?: string;
     },
   ) {
-    return this.pushService.unsubscribe(data.userId, data.endpoint, data.channel);
+    return this.pushService.unsubscribe(userId, data.endpoint, data.channel);
   }
 
   /** 诊断：手动触发一次推送测试（双通道） */
   @Post('test')
-  async testPush(@Body() data: { userId?: string }) {
-    const result = await this.pushService.sendTestNotification(data.userId);
+  async testPush(@CurrentUserId() userId: string) {
+    const result = await this.pushService.sendTestNotification(userId);
     return result;
   }
 }

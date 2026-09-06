@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -57,14 +57,14 @@ export class TasksService {
     });
   }
 
-  findOne(id: string) {
-    return this.prisma.task.findUnique({
-      where: { id },
+  findOne(id: string, userId: string) {
+    return this.prisma.task.findFirst({
+      where: { id, userId },
       include: { pomodoroSessions: true, inspiration: true },
     });
   }
 
-  create(data: {
+  async create(data: {
     userId: string;
     title: string;
     description?: string;
@@ -85,19 +85,28 @@ export class TasksService {
     inspirationId?: string;
     courseId?: string | null;
   }) {
+    if (data.courseId) {
+      const course = await this.prisma.course.findFirst({ where: { id: data.courseId, userId: data.userId }, select: { id: true } });
+      if (!course) throw new NotFoundException('Course not found');
+    }
+    if (data.inspirationId) {
+      const inspiration = await this.prisma.inspiration.findFirst({ where: { id: data.inspirationId, userId: data.userId }, select: { id: true } });
+      if (!inspiration) throw new NotFoundException('Inspiration not found');
+    }
     return this.prisma.task.create({
       data: this.normalizeTaskDates(data),
     });
   }
 
-  update(id: string, data: Record<string, any>) {
+  update(id: string, userId: string, data: Record<string, any>) {
+    const { userId: _ignoredUserId, ...safeData } = data;
     return this.prisma.task.update({
-      where: { id },
-      data: this.normalizeTaskDates(data),
+      where: { id, userId },
+      data: this.normalizeTaskDates(safeData),
     });
   }
 
-  remove(id: string) {
-    return this.prisma.task.delete({ where: { id } });
+  remove(id: string, userId: string) {
+    return this.prisma.task.delete({ where: { id, userId } });
   }
 }

@@ -18,6 +18,7 @@ export interface SemesterSlice {
   semesters: Semester[];
   activeSemesterId: string | null;
   isSemestersLoading: boolean;
+  hasLoadedSemesters: boolean;
 
   // ── 操作 ──
   loadSemesters: () => Promise<void>;
@@ -31,15 +32,20 @@ export const createSemesterSlice: StateCreator<AppState, [], [], SemesterSlice> 
   semesters: [],
   activeSemesterId: null,
   isSemestersLoading: false,
+  hasLoadedSemesters: false,
 
   loadSemesters: async () => {
     set({ isSemestersLoading: true });
     try {
       const semesters = await fetchSemesters();
       const active = semesters.find((s) => s.isActive);
+      const previous = get();
       set({
         semesters,
-        activeSemesterId: active?.id || null,
+        activeSemesterId: previous.hasLoadedSemesters
+          ? (semesters.some(s => s.id === previous.activeSemesterId) ? previous.activeSemesterId : null)
+          : active?.id || null,
+        hasLoadedSemesters: true,
         isSemestersLoading: false,
       });
     } catch {

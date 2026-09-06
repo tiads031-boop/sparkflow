@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -50,25 +50,29 @@ export class PomodoroService {
     };
   }
 
-  create(data: {
+  async create(data: {
     userId: string;
     taskId?: string;
     duration?: number;
     notes?: string;
   }) {
+    if (data.taskId) {
+      const task = await this.prisma.task.findFirst({ where: { id: data.taskId, userId: data.userId }, select: { id: true } });
+      if (!task) throw new NotFoundException('Task not found');
+    }
     return this.prisma.pomodoroSession.create({ data });
   }
 
-  complete(id: string) {
+  complete(id: string, userId: string) {
     return this.prisma.pomodoroSession.update({
-      where: { id },
+      where: { id, userId },
       data: { endedAt: new Date(), status: 'completed' },
     });
   }
 
-  interrupt(id: string) {
+  interrupt(id: string, userId: string) {
     return this.prisma.pomodoroSession.update({
-      where: { id },
+      where: { id, userId },
       data: { endedAt: new Date(), status: 'interrupted' },
     });
   }

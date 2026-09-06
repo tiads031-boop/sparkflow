@@ -6,15 +6,15 @@
  *
  * 设计决策（蓝图 #12, #11）：
  * - API 地址由 VITE_API_BASE_URL 环境变量驱动
- * - 认证使用 X-API-Key header
- * - 未配置 API_KEY 时自动跳过（本地开发零摩擦）
+ * - 认证使用 Supabase access token，后端从令牌中确定用户身份
  * - Capacitor 环境（APK）没有 Vite proxy，自动使用 VITE_API_BASE_URL 直连
  */
 
-const RAW_API_BASE = (import.meta.env.VITE_API_BASE_URL || '') as string;
-const API_KEY = (import.meta.env.VITE_API_KEY || '') as string;
+import { getAccessToken } from './supabase';
 
-/** 默认用户 ID，单用户工具使用固定值 */
+const RAW_API_BASE = (import.meta.env.VITE_API_BASE_URL || '') as string;
+
+/** 兼容旧调用参数；服务端会忽略该值并使用令牌中的用户 ID。 */
 export const DEFAULT_USER_ID = (import.meta.env.VITE_DEFAULT_USER_ID || 'default') as string;
 
 const API_BASE = RAW_API_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
@@ -65,7 +65,7 @@ interface ApiOptions extends RequestOptions {
 /**
  * 统一 API 请求方法
  *
- * 自动拼接 API_BASE 前缀 + X-API-Key header。
+ * 自动拼接 API_BASE 前缀并附带 Supabase Bearer token。
  * 非 409 状态的错误响应会抛出 Error。
  * 409 留给调用方自行处理（冲突 diff）。
  * body 为 FormData 时不默认设置 Content-Type，让浏览器自动处理 boundary。
@@ -79,7 +79,8 @@ export async function apiRequest(path: string, options?: RequestOptions): Promis
     ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
     ...((options?.headers as Record<string, string>) || {}),
   };
-  if (API_KEY) headers['X-API-Key'] = API_KEY;
+  const accessToken = await getAccessToken();
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   const res = await fetch(url, { ...options, headers });
 

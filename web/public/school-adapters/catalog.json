@@ -1,0 +1,1652 @@
+[
+  {
+    "id": "jisu_external",
+    "school": "吉林外国语大学",
+    "name": "吉林外国语大学 · 外网",
+    "url": "http://36.48.94.159:10000/jwglxt",
+    "description": "正方表格/列表解析，登录后打开个人课表并查询学期；导入后确认节次时间。待学校实测。",
+    "maintainer": "星河欲转",
+    "scriptId": "jisu"
+  },
+  {
+    "id": "jisu_campus",
+    "school": "吉林外国语大学",
+    "name": "吉林外国语大学 · 校园网",
+    "url": "http://192.168.2.46/jwglxt",
+    "description": "需要连接校园网；登录后打开个人课表并查询学期。待学校实测。",
+    "maintainer": "星河欲转",
+    "scriptId": "jisu"
+  },
+  {
+    "id": "zhengfang_jiaowu_zhengfang_01",
+    "school": "正方教务-通用教务",
+    "name": "正方教务html通用获取",
+    "url": "",
+    "description": "输入教务网址，登录，切换到个人课表页面点击执行导入",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "chaoxing_jiaowu_chaoxing",
+    "school": "超星教务系统-通用教务",
+    "name": "超星教务系统",
+    "url": "",
+    "description": "超星教务系统理论通用，输入教务网址，登录后点击执行导入\n支持导入开学日期和节次时间",
+    "maintainer": "b1n23"
+  },
+  {
+    "id": "qingguo_jiaowu_qingguo_01",
+    "school": "青果教务-通用教务",
+    "name": "青果教务html通用获取",
+    "url": "",
+    "description": "输入教务网址，登录，切换到个人课表页面点击执行导入",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "urp_jiaowu_urp_01",
+    "school": "URP教务-通用教务",
+    "name": "URP教务通用获取",
+    "url": "",
+    "description": "输入教务网址，登录，切换到个人课表页面点击执行导入",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "BBGU_BBGU_01",
+    "school": "北部湾大学",
+    "name": "北部湾大学教务系统",
+    "url": "https://zhjw.bbgu.edu.cn/workspace/home",
+    "description": "北部湾大学智慧教务系统课表导入，登录统一身份认证平台后直接点击导入即可",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "BUPT_BUPT_01",
+    "school": "北京邮电大学",
+    "name": "北京邮电大学本科教务",
+    "url": "https://jwgl.bupt.edu.cn/jsxsd/",
+    "description": "适配北京邮电大学本科教务管理系统，登录后导入个人课表",
+    "maintainer": "cstkn"
+  },
+  {
+    "id": "CQU_CQU",
+    "school": "重庆大学",
+    "name": "重庆大学教务",
+    "url": "https://my.cqu.edu.cn/",
+    "description": "适配重庆大学智慧教务系统",
+    "maintainer": "茵符草"
+  },
+  {
+    "id": "CQJTU_CQJTU",
+    "school": "重庆交通大学",
+    "name": "重庆交通大学教务",
+    "url": "https://jwgln.cqjtu.edu.cn/jsxsd/sso.jsp",
+    "description": "适配重庆交通大学教务系统",
+    "maintainer": "烛谛"
+  },
+  {
+    "id": "CQCST_CQCST_01",
+    "school": "重庆城市科技学院",
+    "name": "重庆城市科技学院强智适配",
+    "url": "http://jw.cqcst.edu.cn/cqdxcskjxy_jsxsd/",
+    "description": "登录后需要点击进入教务系统才可以导入，重庆城市科技学院强智适配，",
+    "maintainer": "Mutx163"
+  },
+  {
+    "id": "CQUT_CQUT",
+    "school": "重庆理工大学",
+    "name": "重庆理工大学教务",
+    "url": "https://timetable-cfc.cqut.edu.cn/",
+    "description": "适配重庆理工大学教务系统",
+    "maintainer": "Dawn Drizzle"
+  },
+  {
+    "id": "CUST_CUST_01",
+    "school": "长春理工大学",
+    "name": "长春理工大学教务系统",
+    "url": "https://mysso.cust.edu.cn/cas/login?service=https://jwgl.cust.edu.cn/welcome",
+    "description": "",
+    "maintainer": "itdong"
+  },
+  {
+    "id": "CUIT_CUIT_01",
+    "school": "成都信息工程大学",
+    "name": "成都信息工程大学本科实践教学平台",
+    "url": "https://ywtb.cuit.edu.cn/",
+    "description": "登录（外网用户把二维码发到另一台设备），进入「本科实践教学（管理）平台」进行导入",
+    "maintainer": "igugyj(Pfolg)"
+  },
+  {
+    "id": "CUIT_CUIT_02",
+    "school": "成都信息工程大学",
+    "name": "成都信息工程大学教务管理系统",
+    "url": "https://jwc.cuit.edu.cn/",
+    "description": "登录教务导入",
+    "maintainer": "igugyj(Pfolg)"
+  },
+  {
+    "id": "SHZQ_SHZQ_01",
+    "school": "上海中侨职业技术大学",
+    "name": "上海中侨职业技术大学教务系统",
+    "url": "https://cas.shzq.edu.cn/cas/login?service=https://jw.shzq.edu.cn/sso/ddlogin",
+    "description": "上海中侨大学,正方教务适配",
+    "maintainer": "Kredenk"
+  },
+  {
+    "id": "HNZY_HNZY_01",
+    "school": "河南职业技术学院",
+    "name": "河南职业技术学院课表",
+    "url": "https://one.hnzj.edu.cn/common-service/kcb-pc/personage/personage",
+    "description": "",
+    "maintainer": "一颗"
+  },
+  {
+    "id": "JYVTC_JYVTC_01",
+    "school": "济源职业技术学院",
+    "name": "济源职业技术学院教务系统",
+    "url": "https://jwgl.jyvtc.edu.cn/jyvtcjw/",
+    "description": "济源职业技术学院适配教务,添加双季作息,非本校开发者适配如果有误建议提交issue",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "YNUFE_YNUFE_01",
+    "school": "云南财经大学",
+    "name": "云南财经大学本科教务系统",
+    "url": "https://xjwis.ynufe.edu.cn/jsxsd/",
+    "description": "由于学校已于 2026 年上半年启用 aTrust 验证，登录教务系统之前必须使用云财小程序内登记的手机号完成短信验证，完成验证后再使用教务系统账号登录，若无法完成验证请确认是否在小程序登记了正确的手机号码或者向教务处反馈，对此不便开发者表示无能为力。登录教务系统后直接按下面的“执行导入”即可。",
+    "maintainer": "AxelPLN"
+  },
+  {
+    "id": "HNSF_HNSF_01",
+    "school": "河南师范大学",
+    "name": "河南师范大学适配教务",
+    "url": "https://jwc.htu.edu.cn/",
+    "description": "河南师范大学适配教务,添加双季作息,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "HNSF_HNSF_02",
+    "school": "河南师范大学",
+    "name": "河南师范大学适配教务",
+    "url": "https://jwc.htu.edu.cn/",
+    "description": "该作者没有添加说明",
+    "maintainer": "一颗"
+  },
+  {
+    "id": "HIST_HIST_01",
+    "school": "河南科技学院",
+    "name": "河南科技学院适配教务",
+    "url": "http://jwgl.hist.edu.cn/cas/login.action",
+    "description": "河南科技学院(青果/KINGOSOFT教务)课表导入,自动按所选学年学期获取教务公布作息,失败回退内置备用作息",
+    "maintainer": "zixij644-elaborate"
+  },
+  {
+    "id": "HNNU_HNNU_01",
+    "school": "淮南师范学院",
+    "name": "淮南师范学院库表图门户",
+    "url": "https://xxmh.hnnu.edu.cn/zhxy/",
+    "description": "适配淮南师范学院库表图融合门户，登入后直接执行导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "TARU_TARU_01",
+    "school": "塔里木大学",
+    "name": "塔里木大学正方教务",
+    "url": "https://auth.taru.edu.cn/cas/login?service=https%3A%2F%2Fhall.taru.edu.cn%2FserviceHall",
+    "description": "登录后需要进入查看课表的页面，才可以点击导入 \n\n塔里木大学适配教务,添加双季作息,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "MMPT_MMPT",
+    "school": "茂名职业技术学院",
+    "name": "茂名职业技术学院课表",
+    "url": "https://jwc.mmpt.edu.cn/xtgl/login_slogin.html",
+    "description": "如果导入失败，请前往适配器仓库提交 issue 或 PR 以更新适配器。",
+    "maintainer": "一颗"
+  },
+  {
+    "id": "SWJTU_SWJTU_01",
+    "school": "西南交通大学",
+    "name": "西南交通大学扬华学堂",
+    "url": "https://yhxt.swjtu.edu.cn/study/teach/course/stu-course-list",
+    "description": "登录西南交通大学扬华学堂后，直接点击底栏“执行导入”即可完成导入",
+    "maintainer": "Weedy233"
+  },
+  {
+    "id": "SXGCXY_SXGCXY_01",
+    "school": "山西工程职业学院",
+    "name": "山西工程职业学院超星教务适配",
+    "url": "https://sxevc.jw.chaoxing.com/admin/login",
+    "description": "山西工程职业学院适配教务,支持唐槐校区、龙潭校区作息时间,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "XAWL_XAWL_01",
+    "school": "西安文理学院",
+    "name": "西安文理学院正方教务",
+    "url": "http://jwgl.xawl.edu.cn/jwglxt/",
+    "description": "西安文理学院正方教务,添加双季作息,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "HNVCC_HNVCC_01",
+    "school": "湖南商务职业技术学院",
+    "name": "湖南商务职业技术学院强智适配",
+    "url": "http://jwxt.hnvcc.edu.cn/",
+    "description": "湖南商务职业技术学院强智适配,添加双季作息,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "IMUT_IMUT_01",
+    "school": "内蒙古工业大学",
+    "name": "内蒙古工业大学教务处适配",
+    "url": "http://jw.imut.edu.cn/academic/login/imut/loginIds6Valid.jsp",
+    "description": "内蒙古工业大学教务处适配，采用新版统一身份认证登录页面",
+    "maintainer": "wuko233"
+  },
+  {
+    "id": "KSU_KSU_01",
+    "school": "喀什大学",
+    "name": "喀什大学正方教务",
+    "url": "https://cas.ksu.edu.cn/cas/login?service=https://jwnet.ksu.edu.cn/sso/ddlogin",
+    "description": "喀什大学适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "WHCB_WHCB_1",
+    "school": "武汉船舶职业技术学院",
+    "name": "武汉船舶职业技术学院",
+    "url": "http://jw.wspc.edu.cn/jwapp/sys/wdkb/*default/index.do?EMAP_LANG=zh#/xskcb",
+    "description": "适配武汉船舶职业技术学院，学校网站很烂，课程表可能会加载一段时间，多等会",
+    "maintainer": "一丝不旺"
+  },
+  {
+    "id": "CTGU_CTGU",
+    "school": "三峡大学",
+    "name": "三峡大学教务",
+    "url": "http://jwxt.ctgu.edu.cn/jwapp/sys/yjsrzfwapp/dbLogin/main.do",
+    "description": "点击统一身份认证登录,\n由于存在作用域问题,登录后需要点击课程表跳转课表页面才能让一键导入课表使用,\n非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "JXUST_JXUST",
+    "school": "江西理工大学",
+    "name": "江西理工大学强智教务",
+    "url": "https://authserver.jxust.edu.cn/authserver/login?service=https://jw.jxust.edu.cn/jsxsd/",
+    "description": "江西理工大学强智教务适配\n非本校开发者适配,如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "GZST_GZST",
+    "school": "广州松田职业学院",
+    "name": "广州松田职业学院教务",
+    "url": "https://jw.educationgroup.cn/gzstzyxy_jsxsd/",
+    "description": "广州松田职业学院强智适配,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "FJCPC_FJCPC",
+    "school": "福建船政交通职业学院",
+    "name": "福建船政交通职业学院教务",
+    "url": "https://webvpn.fjcpc.edu.cn/",
+    "description": "点击本校师生统一身份验证进行登录，登录后点击新教务系统在点击教务管理\n 已使用自动获取开学日期，免去手动设置 \n福建船政交通职业学院教务适配,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "FAFU_FAFU_01",
+    "school": "福建农林大学",
+    "name": "福建农林大学教务系统",
+    "url": "http://jwgl.fafu.edu.cn/",
+    "description": "基于正方教务 HTML 课表网格解析，登录后在个人课表查询页面点击执行导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "FOSU_FOSU_01",
+    "school": "佛山大学",
+    "name": "佛山大学强智教务系统",
+    "url": "https://100.fosu.edu.cn/",
+    "description": "佛山大学强智教务系统适配，支持课程表导入，需要校园网访问",
+    "maintainer": "e7g"
+  },
+  {
+    "id": "SDDFVC_SDDFVC",
+    "school": "山东药品食品职业学院",
+    "name": "山东药品食品职业学院教务",
+    "url": "http://cas.sddfvc.edu.cn/login?type=usernamepassword&service=http%3A%2F%2Ffazhan.sddfvc.edu.cn%2Fjs%2Ffzzx%2Flogin",
+    "description": "山东药品食品职业学院教务适配,非本校开发者适配如果有误建议提交issues \n\n贵校网页经常变化参数我们需要本校的有兴趣的同学来主动维护适配的代码",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "SDLIVC_SDLIVC",
+    "school": "山东轻工职业学院",
+    "name": "山东轻工职业学院教务",
+    "url": "https://crp.sdlivc.cn/xsgl/xs/login/login.aspx",
+    "description": "山东轻工职业学院教务适配",
+    "maintainer": "赛博丁真"
+  },
+  {
+    "id": "CQCIVC_CQCIVC",
+    "school": "重庆化工职业学院",
+    "name": "重庆化工职业学院正方教务",
+    "url": "http://dc.cqcivc.cn/cas/login?service=http://jwxt.cqcivc.edu.cn/sso/zllogin",
+    "description": "重庆化工职业学院适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "NEU_NEU_1",
+    "school": "东北大学",
+    "name": "东北大学金智教育教务适配",
+    "url": "http://jwxt.neu.edu.cn/",
+    "description": "网页仅在校园网/连接校内vpn环境下可访问",
+    "maintainer": "Vera-zero"
+  },
+  {
+    "id": "NJNU_NJNU",
+    "school": "南京师范大学",
+    "name": "南京师范大学金智教务",
+    "url": "https://authserver.nnu.edu.cn/authserver/login?service=https://hsnnu.nnu.edu.cn/login",
+    "description": "南京师范大学金智教务适配",
+    "maintainer": "aryunm"
+  },
+  {
+    "id": "NJUPT_NJUPT_01",
+    "school": "南京邮电大学",
+    "name": "南京邮电大学正方教务",
+    "url": "https://i.njupt.edu.cn/",
+    "description": "南京邮电大学正方教务 V9 课表导入。请先登录智慧校园并进入教务系统课表页面，再点击导入；脚本将通过 API 获取学年学期、课程、开学日期及学校作息时间。",
+    "maintainer": "kemi-20"
+  },
+  {
+    "id": "XMCU_XMCU_01",
+    "school": "厦门城市职业学院",
+    "name": "厦门城市职业学院青果教务",
+    "url": "https://eone-443.webvpn.xmcu.edu.cn/",
+    "description": "输入账号密码登录，进入融合信息门户，在应用中心找到教务系统并进入，在左侧找到教学安排，点击后即可看到学生个人课表。\n厦门城市职业学院适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "XZIT_XZIT_01",
+    "school": "徐州工程学院",
+    "name": "徐州工程学院教务系统",
+    "url": "http://jwglxt.xzit.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "徐州工程学院正方教务系统适配，登录选择个人课表页面导入即可。",
+    "maintainer": "盐泡"
+  },
+  {
+    "id": "HBLGXY_HBLGXY_01",
+    "school": "淮北理工学院",
+    "name": "淮北理工学院强智适配",
+    "url": "https://a.hblgxy.edu.cn:5111/jsxsd/",
+    "description": "淮北理工学院强智适配，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "XJIE_XJIE_01",
+    "school": "新疆工程学院",
+    "name": "新疆工程学院强智适配",
+    "url": "https://authserver.xjie.edu.cn/authserver/login?service=https%3A%2F%2Fjwxt.xjie.edu.cn%2Fjsxsd%2F",
+    "description": "新疆工程学院强智适配，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "GDPU_GDPU_01",
+    "school": "广东药科大学",
+    "name": "广东药科大学正方教务",
+    "url": "https://webvpn.gdpu.edu.cn/https/77726476706e69737468656265737421f3f652d220347845300d8db9d6562d/lyuapServer/login?service=https%3A%2F%2Fjwsys.gdpu.edu.cn%2Fsso%2Flyiotlogin",
+    "description": "广东药科大学适配教务,支持多校区时间,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "GDUT_GDUT_01",
+    "school": "广东工业大学",
+    "name": "广东工业大学教务",
+    "url": "https://authserver.gdut.edu.cn/authserver/login?service=https%3A%2F%2Fjxfw.gdut.edu.cn%2Fnew%2FssoLogin",
+    "description": "广东工业大学教务系统课程导入适配。本校开发者适配，如有问题请提交issues。",
+    "maintainer": "forer4433"
+  },
+  {
+    "id": "HNUST_HNUST_01",
+    "school": "湖南科技大学",
+    "name": "湖南科技大学适配教务",
+    "url": "https://kdjw.hnust.edu.cn/",
+    "description": "湖南科技大学适配教务,请使用企业微信登录",
+    "maintainer": "dezige131"
+  },
+  {
+    "id": "HUSE_HUSE",
+    "school": "湖南科技学院",
+    "name": "湖南科技学院",
+    "url": "http://jw.huse.cn/jsxsd",
+    "description": "湖南科技学院适配教务,如有错误请联系作者QQ:2865467965",
+    "maintainer": "KevinZ"
+  },
+  {
+    "id": "HUST_HUST_01",
+    "school": "华中科技大学",
+    "name": "华中科技大学 HUB 系统",
+    "url": "http://mhub.hust.edu.cn",
+    "description": "登录华中科技大学 HUB 系统后执行导入，可在近 6 年的春季、秋季学期之间切换。课程导入后请根据学校校历设置准确的开学日期。",
+    "maintainer": "Lucas04-nhr"
+  },
+  {
+    "id": "JSNU_JSNU_01",
+    "school": "江苏师范大学",
+    "name": "江苏师范大学适配教务",
+    "url": "https://i.jsnu.edu.cn/home",
+    "description": "江苏师范大学适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "dezige131"
+  },
+  {
+    "id": "JXFU_JXFU_01",
+    "school": "江西飞行学院",
+    "name": "江西飞行学院适配教务",
+    "url": "https://jwxt.jxfu.edu.cn/",
+    "description": "江西飞行学院适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "dezige131"
+  },
+  {
+    "id": "NEAU_NEAU_01",
+    "school": "东北农业大学",
+    "name": "东北农业大学适配教务",
+    "url": "https://webvpn.neau.edu.cn/",
+    "description": "东北农业大学适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "dezige131"
+  },
+  {
+    "id": "SUDA_SUDA_01",
+    "school": "苏州大学",
+    "name": "苏州大学教务系统",
+    "url": "http://xk.suda.edu.cn/",
+    "description": "苏州大学教务系统适配，网页仅在校园网/连接校内VPN环境下可访问",
+    "maintainer": "BernardYan2357"
+  },
+  {
+    "id": "CQRK_CQRK_01",
+    "school": "重庆人文科技学院",
+    "name": "重庆人文科技学院强智适配",
+    "url": "https://https-auth-cqrk-edu-cn-443.webvpn.cqrk.edu.cn:8480/cas/login?service=http%3A%2F%2Fportal.cqrk.edu.cn&rewrite=1",
+    "description": "登录后需要点击进入教务系统才可以导入\n重庆人文科技学院强智适配，适配双季作息，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "WBU_WBU_01",
+    "school": "武汉商学院",
+    "name": "武汉商学院-超星教务系统",
+    "url": "https://webvpn.wbu.edu.cn/",
+    "description": "武汉商学院教务系统课表导入适配",
+    "maintainer": "Foraes"
+  },
+  {
+    "id": "WBU_WBU_02",
+    "school": "武汉商学院",
+    "name": "武汉商学院-校园网访问",
+    "url": "https://jwxt.wbu.edu.cn/",
+    "description": "武汉商学院教务系统课表导入适配",
+    "maintainer": "HJWqa"
+  },
+  {
+    "id": "WBU_WBU_03",
+    "school": "武汉商学院",
+    "name": "武汉商学院-WebVPN访问",
+    "url": "https://webvpn.wbu.edu.cn/",
+    "description": "武汉商学院教务系统课表导入适配",
+    "maintainer": "HJWqa"
+  },
+  {
+    "id": "NENU_NENU_01",
+    "school": "东北师范大学",
+    "name": "东北师范大学适配教务",
+    "url": "https://bkjx.nenu.edu.cn/",
+    "description": "东北师范大学适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "dezige131"
+  },
+  {
+    "id": "HAUT_HAUT_01",
+    "school": "河南工业大学",
+    "name": "河南工业大学正方教务",
+    "url": "https://jwglxt.haut.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "河南工业大学适配教务，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "AHSZU_AHSZU_01",
+    "school": "宿州学院",
+    "name": "宿州学院青果教务",
+    "url": "http://211.86.128.194/suzxyjw/cas/login.action",
+    "description": "宿州学院青果教务适配,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "XAUT_XAUT_01",
+    "school": "西安理工大学",
+    "name": "西安理工大学适配教务",
+    "url": "http://jwgl.xaut.edu.cn/",
+    "description": "西安理工大学适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "dezige131"
+  },
+  {
+    "id": "HUAT_HUAT",
+    "school": "湖北汽车工业学院",
+    "name": "湖北汽车工业学院",
+    "url": "https://cas.huat.edu.cn/authserver/login?service=http%3A%2F%2Fneweas.huat.edu.cn%2Flogin",
+    "description": "湖北汽车工业学院适配教务",
+    "maintainer": "老考滤一下"
+  },
+  {
+    "id": "CUP_CUP_01",
+    "school": "中国石油大学(北京)",
+    "name": "中国石油大学(北京)本科教务系统",
+    "url": "https://bk.cup.edu.cn/student/",
+    "description": "点击统一身份认证登录",
+    "maintainer": "larryyan"
+  },
+  {
+    "id": "CUP_CUP_02",
+    "school": "中国石油大学(北京)",
+    "name": "中国石油大学(北京)研究生教务系统",
+    "url": "https://gmis.cup.edu.cn/gmis/student/default/index",
+    "description": "点击统一身份认证登录\n打开(培养管理=>学生课表查询)页面。\n包含克拉玛依校区",
+    "maintainer": "larryyan"
+  },
+  {
+    "id": "ZHKU_ZHKU_00",
+    "school": "仲恺农业工程学院",
+    "name": "强智教务 - 学期理论课表",
+    "url": "https://edu-admin.zhku.edu.cn/",
+    "description": "登录教务系统后在左侧找到“培养管理”->“我的课表”->“学期理论课表”，选择学期后点击右下角“执行导入”即可。\n学期理论课表默认为当前学期，若导入本学期课表则无需修改。\n目前仅支持导入“学期理论课表”内任意学期的课表，暂不支持导入其它类型的课表。",
+    "maintainer": "lc6464"
+  },
+  {
+    "id": "GXDLXY_GXDLXY_01",
+    "school": "广西电力职业技术学院",
+    "name": "广西电力职业技术学院强智教务",
+    "url": "https://jw.gxdlxy.com/jsxsd/framework/xsMain.jsp",
+    "description": "广西电力职业技术学院强智教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "YANGTZEU_YU_01",
+    "school": "长江大学",
+    "name": "长江大学教务系统适配",
+    "url": "https://cas-yangtzeu-edu-cn.atrust.yangtzeu.edu.cn/authserver/login?service=https%3A%2F%2Fatrust.yangtzeu.edu.cn%3A4443%2Fpassport%2Fv1%2Fauth%2Fcas%3FsfDomain%3DCAS",
+    "description": "适配长江大学教务系统（树维）导入，进入教务系统后页面空白只有⌈我的账户⌋⌈返回首页⌋⌈退出⌋字样，此时点击执行导入即可",
+    "maintainer": "Jursin"
+  },
+  {
+    "id": "CAPU_CAPU",
+    "school": "成都航空职业技术大学",
+    "name": "成都航空职业技术大学金智新教务",
+    "url": "https://jwxt.cap.edu.cn/jwapp/sys/homeapp/home/index.html?av=&contextPath=/jwapp#/",
+    "description": "更新:您登录后直接点击导入即可食用,无需进入课表界面。有任何问题请通过GitHub/QQ联系开发者。",
+    "maintainer": "Xuan-Xuann"
+  },
+  {
+    "id": "GSMC_GSMC_01",
+    "school": "甘肃医学院",
+    "name": "甘肃医学院正方教务",
+    "url": "https://jw.gsmc.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "甘肃医学院适配教务，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "TCU_TCU_01",
+    "school": "天津城建大学",
+    "name": "天津城建大学URP教务",
+    "url": "https://authserver.tcu.edu.cn/authserver/login?service=https%3A%2F%2Fjwxs.tcu.edu.cn%2Flogin",
+    "description": "天津城建大学URP教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "TUST_TUST_01",
+    "school": "天津科技大学",
+    "name": "天津科技大学URP教务",
+    "url": "https://id.tust.edu.cn/authserver/login?service=http://jwxtxs.tust.edu.cn:46110/j_spring_cas_security_check",
+    "description": "天津科技大学使用 URP 教务系统，该适配器对其进行适配",
+    "maintainer": "oneepointer"
+  },
+  {
+    "id": "SCUT_SCUT_01",
+    "school": "华南理工大学",
+    "name": "华南理工大学webvpn适配教务",
+    "url": "https://xsjw2018-jw.webvpn.scut.edu.cn/",
+    "description": "华南理工大学适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "dezige131"
+  },
+  {
+    "id": "SCUT_SCUT_02",
+    "school": "华南理工大学",
+    "name": "华南理工大学内网适配教务",
+    "url": "http://xsjw2018.jw.scut.edu.cn/",
+    "description": "华南理工大学适配教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "dezige131"
+  },
+  {
+    "id": "HYNU_HYNU_01",
+    "school": "衡阳师范学院",
+    "name": "衡阳师范学院强智适配",
+    "url": "https://hysfjw.hynu.edu.cn/jsxsd/",
+    "description": "衡阳师范学院强智适配,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "JNU_JNU_01",
+    "school": "暨南大学",
+    "name": "暨南大学金智教务系统",
+    "url": "https://jw.jnu.edu.cn",
+    "description": "登录教务系统后进入我的课表界面。自动导入上课时间段仅适用于珠海校区，其它校区可自行配置",
+    "maintainer": "White-Dew-Boy"
+  },
+  {
+    "id": "HQU_HQU",
+    "school": "华侨大学",
+    "name": "华侨大学教务",
+    "url": "https://atrust.hqu.edu.cn/portal/?redirectid=0.6668972084789097#/login",
+    "description": "适配华侨大学。登录成功后选择个人课表查询，进入后等待加载完毕即可导入。",
+    "maintainer": "Xuan-Xuann"
+  },
+  {
+    "id": "UJN_UJN_01",
+    "school": "济南大学",
+    "name": "济南大学教务系统",
+    "url": "https://sso.ujn.edu.cn/tpass/login?service=http%3A%2F%2Fjwgl.ujn.edu.cn%2Fsso%2Fdriotlogin",
+    "description": "济南大学教务系统适配，支持班级课表和个人课表的导入，通过统一认证登录",
+    "maintainer": "Moyu"
+  },
+  {
+    "id": "JNMC_JNMC_01",
+    "school": "济宁医学院",
+    "name": "济宁医学院教务",
+    "url": "http://210.44.16.13/",
+    "description": "济宁医学院乘方教务适配，请先登录教务系统后再执行导入",
+    "maintainer": "yukoimi"
+  },
+  {
+    "id": "HBGUHX_HBGUHX",
+    "school": "河北地质大学华信学院",
+    "name": "河北地质大学华信学院强智教务",
+    "url": "http://61.182.88.214:8090",
+    "description": "河北地质大学华信学院强智教务,本校25届开发者适配如果有误请联系4831884790@qq.com",
+    "maintainer": "未来之乡"
+  },
+  {
+    "id": "YXHMC_YXHMC",
+    "school": "成都银杏酒店管理学院",
+    "name": "成都银杏酒店管理学院教务",
+    "url": "http://zfjw.gingkoc.edu.cn/xtgl/login_slogin.html",
+    "description": "适配成都银杏酒店管理学院智慧教务系统。使用须知：请先登录再进入个人课表查询界面，然后按照流程即可导入当前课表。请注意！暂不适配调课补课，请及时关注教务系统按时修改",
+    "maintainer": "Xuan-Xuann"
+  },
+  {
+    "id": "HNIU_HNIU_01",
+    "school": "湖南信息职业技术学院",
+    "name": "湖南信息职业技术学院强智适配",
+    "url": "https://authserver.hniu.cn/authserver/login?service=https%3A%2F%2Fehall.hniu.cn%3A443%2Flogin%3Fservice%3Dhttps%3A%2F%2Fehall.hniu.cn%2Fnew%2Findex.html%3Fbrowser%3Dno%25EF%25BC%2589#StudentAffairsA",
+    "description": "湖南信息职业技术学院强智适配，登录后需要点击进入教务系统才可以点开始导入，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "HUEL_HUEL_01",
+    "school": "河南财经政法大学",
+    "name": "河南财经政法大学",
+    "url": "https://xk.huel.edu.cn",
+    "description": "河南财经政法大学适配教务",
+    "maintainer": "Mercury"
+  },
+  {
+    "id": "GLMU_GLMU_01",
+    "school": "桂林医科大学",
+    "name": "桂林医科大学教务",
+    "url": "https://ejwc.glmc.edu.cn/",
+    "description": "桂林医科大学教务,本校开发者适配，如果有误请加入QQ频道：pd12631377",
+    "maintainer": "xhh李"
+  },
+  {
+    "id": "GXMU_GXMU_01",
+    "school": "广西医科大学",
+    "name": "广西医科大学智慧教务系统",
+    "url": "https://cas.gxmu.edu.cn/lyuapServer/login",
+    "description": "广西医科大学智慧教务系统课表导入，登录门户站点以后，进入教务系统，直接点击导入即可",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "NJFU_NJFU_01",
+    "school": "南京林业大学",
+    "name": "南京林业大学",
+    "url": "https://jwxt.njfu.edu.cn/sso.jsp",
+    "description": "南京林业大学适配教务",
+    "maintainer": "Mercury"
+  },
+  {
+    "id": "GUIT_GUIT_01",
+    "school": "桂林信息科技学院",
+    "name": "桂林信息科技学院",
+    "url": "https://172-16-18-132.webvpn.guit.edu.cn",
+    "description": "桂林信息科技学院适配教务",
+    "maintainer": "Mercury"
+  },
+  {
+    "id": "DLMU_DLMU_01",
+    "school": "大连海事大学",
+    "name": "大连海事大学教务",
+    "url": "http://jw.xpaas.dlmu.edu.cn/eams",
+    "description": "大连海事大学适配教务，可能与`海大在线`中课程不一致",
+    "maintainer": "whynusn"
+  },
+  {
+    "id": "HIIT_HIIT_01",
+    "school": "河南信息科技学院",
+    "name": "河南信息科技学院",
+    "url": "http://39.164.230.243:9527/#/authserver/login?redirect_uri=aHR0cDovLzM5LjE2NC4yMzAuMjQzOjkxL2VhbXMvbG9naW4uYWN0aW9u",
+    "description": "河南信息科技学院适配教务。登陆后点击导入即可，无视界面异常显示问题。",
+    "maintainer": "Mercury"
+  },
+  {
+    "id": "NEUQ_NEUQ",
+    "school": "东北大学秦皇岛分校",
+    "name": "东北大学秦皇岛分校树维教务",
+    "url": "https://jwxt.neuq.edu.cn",
+    "description": "适用于东北大学秦皇岛分校教务系统的适配器，由非本校开发者开发，如有问题请提交issue。",
+    "maintainer": "aryunm"
+  },
+  {
+    "id": "UJS_UJS_01",
+    "school": "江苏大学",
+    "name": "江苏大学教务系统",
+    "url": "https://jwxt.ujs.edu.cn/sso/jziotlogin",
+    "description": "江苏大学教务系统适配，仅支持个人课表的导入，通过统一认证登录  ver.2",
+    "maintainer": "洛初 Github@gongfuture"
+  },
+  {
+    "id": "CQUET_CQUET_01",
+    "school": "重庆电子科技职业大学",
+    "name": "强智",
+    "url": "https://cquet.edu.cn/",
+    "description": "",
+    "maintainer": "Mutx666"
+  },
+  {
+    "id": "YIBINU_YIBINU_01",
+    "school": "宜宾学院",
+    "name": "宜宾学院教务系统适配",
+    "url": "https://authserver.yibinu.edu.cn/authserver/login?service=https://ehall.yibinu.edu.cn:443/login?service=https://ehall.yibinu.edu.cn/new/index.html",
+    "description": "适配宜宾学院教务，登录智慧校园后就可以执行导入，由于网站限制，需要执行2次导入才能导入包含理论和实验的完整课表，所以请仔细阅读操作提醒！！",
+    "maintainer": "空灵"
+  },
+  {
+    "id": "DLU_DLU_01",
+    "school": "大连大学",
+    "name": "大连大学教务系统",
+    "url": "https://webvpn.dlu.edu.cn/login",
+    "description": "大连大学正方教务系统课表导入",
+    "maintainer": "platinumyrh"
+  },
+  {
+    "id": "HBMU_HBMU_01",
+    "school": "湖北医药学院",
+    "name": "湖北医药学院教务",
+    "url": "https://jw.hbmu.edu.cn/",
+    "description": "湖北医药学院教务,由桂医开发者适配，如果有误请加入QQ频道：pd12631377",
+    "maintainer": "xhh李"
+  },
+  {
+    "id": "TONGJI_TONGJI_01",
+    "school": "同济大学",
+    "name": "同济大学 1 系统",
+    "url": "https://1.tongji.edu.cn/",
+    "description": "同济大学教学信息管理一体化系统（1 系统）适配。无需进入课表页面，统一认证登录完成进入 1 系统后即可提取",
+    "maintainer": "Linho1219"
+  },
+  {
+    "id": "SDNU_SDNU",
+    "school": "山东师范大学",
+    "name": "山东师范大学教务系统",
+    "url": "http://jwxt.sdnu.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "山东师范大学教务系统适配",
+    "maintainer": "LiquoriceHy"
+  },
+  {
+    "id": "CUPK_CUPK_01",
+    "school": "中国石油大学（北京）克拉玛依校区",
+    "name": "中国石油大学(北京)克拉玛依校区本科教务系统",
+    "url": "https://eams.cupk.edu.cn/student/",
+    "description": "登录后直接导入既可，无需进入课表页面，注意登录密码不是融合门户密码，初始密码为个人完整身份证号",
+    "maintainer": "ARK-VALLEY"
+  },
+  {
+    "id": "NBUT_NBUT_01",
+    "school": "宁波工程学院",
+    "name": "宁波工程学院教务系统适配",
+    "url": "http://jwxt.nbut.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "先登录到教务网站，登录成功后执行导入操作",
+    "maintainer": "xiekeqing"
+  },
+  {
+    "id": "HUAYU_HUAYU_01",
+    "school": "山东华宇工学院",
+    "name": "山东华宇工学院正方教务",
+    "url": "http://jwgl.huayu.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "适配山东华宇工学院正方教务系统",
+    "maintainer": "Noxiouskoala1"
+  },
+  {
+    "id": "TSU_TSU_01",
+    "school": "泰山学院",
+    "name": "泰山学院青果教务",
+    "url": "http://jwxt.tsu.edu.cn",
+    "description": "泰山学院青果教务系统课表适配，登陆后点击左侧【教学安排】，再点击【执行导入】即可，导入后不要忘记设置本学期的开学日期",
+    "maintainer": "素绫理"
+  },
+  {
+    "id": "GDIPU_GDIPU_01",
+    "school": "广东轻工职业技术大学",
+    "name": "广东轻工职业技术大学教务",
+    "url": "https://jw.gdipu.edu.cn",
+    "description": "广东轻工职业技术大学（南海北区）适配教务,适配如果有误建议提交issues",
+    "maintainer": "LittleArray"
+  },
+  {
+    "id": "SCUEC_SCUEC",
+    "school": "中南民族大学",
+    "name": "中南民族大学教务系统",
+    "url": "https://webvpn.scuec.edu.cn/",
+    "description": "中南民族大学课程表导入适配 \n\n如果有适配问题请提issue",
+    "maintainer": "Zellon0w0"
+  },
+  {
+    "id": "UZZ_UZZ_01",
+    "school": "枣庄学院",
+    "name": "枣庄学院正方教务",
+    "url": "https://iam.uzz.edu.cn/esc-sso/login/page",
+    "description": "枣庄学院方正教务系统课表适配，登陆后点击【正方教务管理系统】，再点击【个人课表查询】，最后点击【执行导入】即可，导入后不要忘记设置本学期的开学日期",
+    "maintainer": "素绫理"
+  },
+  {
+    "id": "CMC_CMC_01",
+    "school": "成都医学院",
+    "name": "成都医学院教务",
+    "url": "https://jwweb.cmc.edu.cn/",
+    "description": "成都医学院乘方教务适配，请先登录教务系统后再执行导入",
+    "maintainer": "linlinli000"
+  },
+  {
+    "id": "SDIPCT_SDIPCT",
+    "school": "山东石油化工学院",
+    "name": "山东石油化工学院教务",
+    "url": "https://webvpn.sdipct.edu.cn/https/77726476706e69737468656265737421fae0598869236c596e0b9de29d51367bd943/",
+    "description": "山东石油化工学院教务适配,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "GDUST_GDUST",
+    "school": "广东科技学院",
+    "name": "广东科技学院正方教务",
+    "url": "https://webvpn.gdust.edu.cn/https/77726476706e69737468656265737421f3f652d220347d436a468ca88d1b203b/cas/?service=https%3A%2F%2Fwebvpn.gdust.edu.cn%2Flogin%3Fcas_login%3Dtrue",
+    "description": "广东科技学院适配教务,登录后需要进入教务系统才可以点击导入,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "UPC_UPC",
+    "school": "中国石油大学(华东)",
+    "name": "中国石油大学(华东)教务适配",
+    "url": "https://webvpn.upc.edu.cn/users/sign_in",
+    "description": "中国石油大学(华东)强智教务适配,webvpn入口,登录后需要进入教务系统页面才可以点击导入,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "TJAU_TJAU",
+    "school": "天津农学院",
+    "name": "天津农学院树维教务",
+    "url": "http://jwxt.tjau.edu.cn/eams/homeExt.action",
+    "description": "天津农学院树维教务适配，登录后直接点击导入,无视可能出现的显示异常,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "CCIT_CCIT",
+    "school": "长春工程学院",
+    "name": "长春工程学院强智教务",
+    "url": "https://webvpn.ccit.edu.cn/auth/login",
+    "description": "长春工程学院强智教务适配，webvpn入口，请进入教务系统页面再点击导入，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "IMNC_IMNC_01",
+    "school": "呼和浩特民族学院",
+    "name": "通过 WebVPN 登录",
+    "url": "https://webvpn.imnc.edu.cn",
+    "description": "无需校园网，使用 WebVPN 登录，登录后依次点击【教务管理系统】-【本学期课表】，在“本学期课程安排”页面点击【执行导入】。",
+    "maintainer": "浮笙-WindDrift"
+  },
+  {
+    "id": "IMNC_IMNC_02",
+    "school": "呼和浩特民族学院",
+    "name": "已连接校园网？",
+    "url": "http://211.82.176.48/academic/login/imnc/loginIds6.jsp",
+    "description": "需要校园网，适用于上方无法登录的情况，登录后依次点击【教务管理系统】-【本学期课表】，在“本学期课程安排”页面点击【执行导入】。",
+    "maintainer": "浮笙-WindDrift"
+  },
+  {
+    "id": "NCUT_NCUT_01",
+    "school": "北方工业大学",
+    "name": "北方工业大学-教务系统",
+    "url": "https://jwxtbk.ncut.edu.cn/jsxsd/",
+    "description": "适配北方工业大学本科教务管理系统课表导入 请在导入时将'我的课表'后的'第x周'改为全部周次",
+    "maintainer": "EnderHCO3"
+  },
+  {
+    "id": "JXNU_JXNU",
+    "school": "江西师范大学",
+    "name": "江西师大教务系统",
+    "url": "https://jwc.jxnu.edu.cn/",
+    "description": "本校学生适配，登录教务在线后，点击导入",
+    "maintainer": "glxgo"
+  },
+  {
+    "id": "STCNCHU_STCNCHU",
+    "school": "南昌航空大学科技学院",
+    "name": "南昌航空大学科技学院强智教务",
+    "url": "http://qzjwxt.stcnchu.edu.cn:800/jsxsd/",
+    "description": "南昌航空大学科技学院强智教务，需要内网或者vpn，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "CFEC_CFEC_01",
+    "school": "重庆财经学院",
+    "name": "重庆财经学院正方教务",
+    "url": "http://jwmis.cfec.edu.cn/jwglxt/kbcx/xskbcx_cxXskbcxIndex.html?gnmkdm=N2151&layout=default",
+    "description": "重庆财经学院正方教务适配器，非本校开发者适配，如果有误建议提交issues",
+    "maintainer": "glxgo"
+  },
+  {
+    "id": "AHZYYGZ_AHZYYGZ_01",
+    "school": "安徽中医药高等专科学校",
+    "name": "安徽中医药高等专科学校",
+    "url": "https://authserver.ahzyygz.edu.cn/authserver/login?service=http://jwxt.ahzyygz.edu.cn/ahzyygzjw/caslogin",
+    "description": "安徽中医药高等专科学校青果教务适配器，非本校开发者适配，如果有误建议提交issues",
+    "maintainer": "glxgo"
+  },
+  {
+    "id": "XATU_XATU_01",
+    "school": "西安工业大学",
+    "name": "西安工业大学",
+    "url": "http://jwgl2018.xatu.edu.cn",
+    "description": "树维教务系统适配",
+    "maintainer": "晨熯"
+  },
+  {
+    "id": "NWPU_NWPU_01",
+    "school": "西北工业大学",
+    "name": "西北工业大学",
+    "url": "https://ecampus.nwpu.edu.cn/",
+    "description": "西北工业大学本科教务系统适配，请先登录翱翔门户，手动点击进入翱翔教务后执行脚本自动获取课程信息",
+    "maintainer": "zengzoxiong"
+  },
+  {
+    "id": "NJTECH_NJTECH",
+    "school": "南京工业大学",
+    "name": "南京工业大学正方教务",
+    "url": "https://jwgl.njtech.edu.cn/xtgl/login_slogin.html",
+    "description": "南京工业大学正方教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "NUIST_NUIST_01",
+    "school": "南京信息工程大学",
+    "name": "南京信息工程大学教务课表",
+    "url": "https://jwxt.nuist.edu.cn/",
+    "description": "南京信息工程大学金智教务系统课表适配",
+    "maintainer": "wild0408"
+  },
+  {
+    "id": "CAUC_CAUC",
+    "school": "中国民航大学",
+    "name": "中国民航大学正方教务",
+    "url": "https://http-jwgl-cauc-edu-cn-80.webvpn.cauc.edu.cn/xtgl/login_slogin.html",
+    "description": "中国民航大学正方教务，webvpn入口，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "DLUTCI_DLUTCI_01",
+    "school": "大连工程学院",
+    "name": "大连工程学院教务系统",
+    "url": "https://jw.dlutci.edu.cn",
+    "description": "大连工程学院教务系统课表导入，登录到应用管理平台后直接点击导入即可",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "DZU_DZU_01",
+    "school": "德州学院",
+    "name": "德州学院正方教务",
+    "url": "http://211.64.47.165/jwglxt/xtgl/login_slogin.html",
+    "description": "登录后在任意页面点击执行导入，自动读取学年学期与开学日期，并写入德州学院作息时间",
+    "maintainer": "yvmu"
+  },
+  {
+    "id": "ECJTU_ECJTU_01",
+    "school": "华东交通大学",
+    "name": "华东交通大学教务系统",
+    "url": "https://jwxt.ecjtu.edu.cn/index.action",
+    "description": "华东交通大学教务,登录后需要进入教务系统才可以点击导入,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "glxgo"
+  },
+  {
+    "id": "WENHUA_WENHUA_01",
+    "school": "文华学院",
+    "name": "文华学院正方教务",
+    "url": "https://jw1.hustwenhua.net/jwglxt/xtgl/login_slogin.html",
+    "description": "文华学院教务,登录后需要进入教务系统才可以点击导入,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "glxgo"
+  },
+  {
+    "id": "XYAFU_XYAFU_01",
+    "school": "信阳农林学院",
+    "name": "信阳农林学院青果教务",
+    "url": "https://sso.xyafu.edu.cn/sso/login?service=https%3A%2F%2Fjwgl.xyafu.edu.cn%2Fcaslogin",
+    "description": "信阳农林学院教务,登录后需要进入教务系统才可以点击导入,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "glxgo"
+  },
+  {
+    "id": "XJZFU_XJZFU_01",
+    "school": "新疆政法学院",
+    "name": "新疆政法学院新教务系统",
+    "url": "https://jwxt.xjzfu.edu.cn/jwapp/sys/homeapp/home/index.html",
+    "description": "适配新疆政法学院金智教务系统 2026.07.20",
+    "maintainer": "jesse-s4"
+  },
+  {
+    "id": "ZJUT_ZJUT_01",
+    "school": "浙江工业大学",
+    "name": "浙江工业大学正方教务",
+    "url": "http://www.gdjw.zjut.edu.cn/jwglxt/xtgl/login_slogin.html?kickout=1",
+    "description": "浙江工业大学教务,登录后需要进入教务系统才可以点击导入,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "glxgo"
+  },
+  {
+    "id": "HFNU_HFNU_01",
+    "school": "合肥师范学院",
+    "name": "合肥师范学院树维教务",
+    "url": "https://jw.hfnu.edu.cn/eams/loginExt.action",
+    "description": "合肥师范学院树维教务，支持双校区作息，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "ZUA_ZUA_01",
+    "school": "郑州航空工业管理学院",
+    "name": "郑州航空工业管理学院教务系统",
+    "url": "http://jwglxt.zua.edu.cn/eams/loginExt.action",
+    "description": "郑州航空工业管理学院树维 EAMS 教务课表导入。请在右上角切换为电脑版后登录教务；若页面显示异常，请手动刷新。登录成功后即可执行导入，无需进入“我的课表”等具体课程页面。支持自动同步学期日期与学校标准作息。",
+    "maintainer": "xBefore"
+  },
+  {
+    "id": "JHZYEDU_JHZYEDU_01",
+    "school": "江西航空职业技术学院",
+    "name": "正方教务-江西航空职业技术学院",
+    "url": "https://jw.jhzyedu.cn/xtgl/login_slogin.html?ydType=0",
+    "description": "江西航空职业技术学院正方教务V9.0 API导入。登录教务系统后即可一键导入，自动获取课表及作息时间。",
+    "maintainer": "JN"
+  },
+  {
+    "id": "QQHRIT_QQHRIT",
+    "school": "齐齐哈尔工程学院",
+    "name": "齐齐哈尔工程学院正方教务",
+    "url": "http://tysf.qqhrit.com:20261/cas/login",
+    "description": "齐齐哈尔工程学院正方教务，进入教务系统再点击导入，已添加特殊时间方案，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "IMU_IMU_01",
+    "school": "内蒙古大学",
+    "name": "内蒙古大学URP教务",
+    "url": "https://jwxt.imu.edu.cn/login",
+    "description": "内蒙古大学URP教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "QQHRU_QQHRU",
+    "school": "齐齐哈尔大学",
+    "name": "齐齐哈尔大学URP教务",
+    "url": "https://webvpn.qqhru.edu.cn/users/sign_in",
+    "description": "齐齐哈尔大学URP教务，登录后只需要进入教务系统就可以点击导入了，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "SICNU_SICNU_01",
+    "school": "四川师范大学",
+    "name": "四川师范大学教务系统",
+    "url": "http://202.115.194.60/",
+    "description": "支持狮子山校区和成龙校区，自动识别学期和课程时间，另可从大学生通进入教务系统(https://zhxg.sicnu.edu.cn/edu/admin/)",
+    "maintainer": "llingqing"
+  },
+  {
+    "id": "GZTRC_GZTRC",
+    "school": "铜仁学院",
+    "name": "铜仁学院联奕教务（新版教务）",
+    "url": "https://gztrc.edu.cn:17232/",
+    "description": "由于教务系统未适配手机端，须在右上角选择\"切换到电脑模式\"，然后点击\"刷新\"，正常登录后点击下方\"执行导入\"按钮进行导入。",
+    "maintainer": "Daoguan-king"
+  },
+  {
+    "id": "GZTRC_GZTRC_OLD",
+    "school": "铜仁学院",
+    "name": "铜仁学院移动教务（旧版教务）",
+    "url": "https://gztrc.edu.cn:17230/yjw/pages/login/login.html",
+    "description": "此教务系统适配手机端，请在教务系统中正常登录并进入主页后，点击教务系统下方\"快捷查询->课程表\"页面后再电击\"执行导入\"按钮进行导入。由于学校太懒，校历数据未配置，导入后需在软件中手动设置开学日期。",
+    "maintainer": "Daoguan-king"
+  },
+  {
+    "id": "GZU_GZU",
+    "school": "贵州大学",
+    "name": "贵州大学正方教务",
+    "url": "https://zhjw.gzu.edu.cn/jwglxt/xtgl/",
+    "description": "贵州大学需要登录学校VPN，登录后需要进入教务系统“个人课表查询”页面再点击导入，最后特别致谢24级农学波波的帮助，没有他我VPN登录不了，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "Daoguan-king"
+  },
+  {
+    "id": "ZCMU_ZCMU",
+    "school": "浙江中医药大学",
+    "name": "浙江中医药大学正方教务",
+    "url": "https://jwmk.zcmu.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "登录浙江中医药大学教务系统后需要进入“信息查询”的“个人课表查询”页面再点击导入。\n滨文校区和富春校区两个校区的时间安排不一致，请在导入课程表前选择对应的校区。\n这是通过滨文校区的教务数据开发的，不确定富春校区是否支持。\n特别感谢滨文校区生命科学学院杰哥的帮助，他在我的软磨硬泡下提供了学号和密码。\n非本校开发者适配如果有误建议提交issues",
+    "maintainer": "Daoguan-king"
+  },
+  {
+    "id": "QAU_QAU_01",
+    "school": "青岛农业大学",
+    "name": "青岛农业大学综合教务管理系统（强智科技）",
+    "url": "http://jwglxt.qau.edu.cn/",
+    "description": "适用于青岛农业大学(仅限青岛校区、平度校区和蓝谷校区)的本科生个人课表导入",
+    "maintainer": "ReGoMark"
+  },
+  {
+    "id": "HUNNU_HUNNU",
+    "school": "湖南师范大学",
+    "name": "湖南师范大学教务",
+    "url": "https://jwglnew.hunnu.edu.cn/eams/courseTableForStd.action",
+    "description": "适配湖南师范大学教务系统，登录后进入课表页面(homeExt.action)，点击导入即可使用",
+    "maintainer": "EarOfWheat"
+  },
+  {
+    "id": "WHUT_WHUT_01",
+    "school": "武汉理工大学",
+    "name": "武汉理工大学金智教务",
+    "url": "https://jwxt.whut.edu.cn/",
+    "description": "武汉理工大学金智教务,支持自动获取开学日期,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "CJLU_CJLU",
+    "school": "中国计量大学",
+    "name": "中国计量大学正方教务",
+    "url": "https://jwxt.cjlu.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "中国计量大学正方教务系统课表导入，登录后执行导入。",
+    "maintainer": "ying-ck"
+  },
+  {
+    "id": "CZIMT_CZIMT_01",
+    "school": "常州机电职业技术学院",
+    "name": "常州机电职业技术学院-正方教务",
+    "url": "https://webapp.czimt.edu.cn",
+    "description": "常州机电职业技术学院教务系统适配，采用新版Webapp(校内通)入口，统一身份认证后进入教务系统执行导入。",
+    "maintainer": "ShallowY"
+  },
+  {
+    "id": "GSCMXY_GSCMXY_01",
+    "school": "甘肃财贸职业学院",
+    "name": "甘肃财贸职业学院-金智教务",
+    "url": "https://jwxt.gscmxy.edu.cn/",
+    "description": "甘肃财贸职业学院教务系统适配，统一身份认证后执行导入。",
+    "maintainer": "ShallowY"
+  },
+  {
+    "id": "QUT_QUT",
+    "school": "青岛理工大学",
+    "name": "青岛理工大学教务",
+    "url": "https://jxgl.qut.edu.cn/jwglxt/xtgl/index_initMenu.html",
+    "description": "适配青岛理工大学正方教务系统",
+    "maintainer": "LucasAndrew0120"
+  },
+  {
+    "id": "CSUFT_CSUFT_QZ_01",
+    "school": "中南林业科技大学",
+    "name": "中南林业科技大学（强智教务）",
+    "url": "https://webvpn.csuft.edu.cn/",
+    "description": "中南林业科技大学强智教务系统课表导入",
+    "maintainer": "jinnianliuxing"
+  },
+  {
+    "id": "JLU_JLU_01",
+    "school": "吉林大学",
+    "name": "吉林大学（新）教务管理系统",
+    "url": "https://vpn.jlu.edu.cn/login",
+    "description": "在网页版VPN系统登录后，打开(新)教务管理系统，定位到我的课表页面，点击导出按钮即可导出课表数据。",
+    "maintainer": "Leimeng52mc"
+  },
+  {
+    "id": "USTC_USTC",
+    "school": "中国科学技术大学",
+    "name": "中国科学技术大学本科教务",
+    "url": "https://id.ustc.edu.cn/cas/login?service=https%3A%2F%2Fjw.ustc.edu.cn%2Fucas-sso%2Flogin",
+    "description": "中国科学技术大学本科教务系统适配，登录后进入课表查询页面，等待课表加载完成后点击导入",
+    "maintainer": "Enthusjast"
+  },
+  {
+    "id": "UESTC_UESTC_01",
+    "school": "电子科技大学",
+    "name": "电子科技大学 EAMS 教务系统",
+    "url": "https://eams.uestc.edu.cn/eams",
+    "description": "登录 eams.uestc.edu.cn 后，在弹出的学期列表中选择对应学期即可自动导入。支持单双周、连周、自定义时间段。",
+    "maintainer": "CorunLing"
+  },
+  {
+    "id": "SDJTU_SDJTU",
+    "school": "山东交通学院",
+    "name": "山东交通学院教务",
+    "url": "https://wwebvpn.sdjtu.edu.cn",
+    "description": "适配山东交通学院教务系统，登录成功后进入教务系统，找到“学期理论课表”，在“学年学期”下拉框内选择要导入的学期课表，之后点击“执行导入”按钮即可。\n学期理论课表默认为当前学期，若导入本学期课表则无需修改。\n目前仅支持导入“学期理论课表”内任意学期的课表，暂不支持导入其它类型的课表。",
+    "maintainer": "WuL0ong"
+  },
+  {
+    "id": "GDOU_GDOU_01",
+    "school": "广东海洋大学",
+    "name": "广东海洋大学教务",
+    "url": "https://jw.gdou.edu.cn/",
+    "description": "广东海洋大学教务适配，如有误请提交 issues",
+    "maintainer": "Mccurtain"
+  },
+  {
+    "id": "GDOU_GDOUYJ_01",
+    "school": "广东海洋大学",
+    "name": "广东海洋大学阳江校区教务",
+    "url": "https://jw.gdou.edu.cn/",
+    "description": "广东海洋大学阳江校区教务适配，使用阳江校区教学楼错峰作息时间，如有误请提交issues",
+    "maintainer": "Yihe-ng"
+  },
+  {
+    "id": "GDIT_GDIT_01",
+    "school": "广东科学技术职业学院",
+    "name": "广东科学技术职业学院教务",
+    "url": "https://ids.gdit.edu.cn/authserver/login?service=https://wbdt.gdit.edu.cn/shiro-cas",
+    "description": "广东科学技术职业学院网上办事大厅课程表导入适配。登录后进入课程表页面即可导入。",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "GUC_GUC",
+    "school": "吉利学院",
+    "name": "吉利学院",
+    "url": "https://jw.guc.edu.cn/yethan/UserAction?setAction=userLogin",
+    "description": "吉利学院（Geely University of China）YETHAN以专教务系统，登录含图片验证码，需在页面内手动登录后导入",
+    "maintainer": "Selffox"
+  },
+  {
+    "id": "NIIT_NIIT",
+    "school": "南京工业职业技术大学",
+    "name": "南京工业职业技术大学教务",
+    "url": "https://jwxt.niit.edu.cn/",
+    "description": "点击统一身份认证登录,登录后直接点击导入即可",
+    "maintainer": "nifs1729"
+  },
+  {
+    "id": "HHTC_HHTC_01",
+    "school": "怀化学院",
+    "name": "怀化学院强智教务",
+    "url": "https://jwmis.hhtc.edu.cn/",
+    "description": "怀化学院强智教务，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "CWXU_CWXU_01",
+    "school": "无锡学院",
+    "name": "无锡学院教务系统",
+    "url": "https://jwgl.cwxu.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "无锡学院正方教务系统适配，登录后选择学年和学期即可通过教务接口导入课表。",
+    "maintainer": "ewiro"
+  },
+  {
+    "id": "HLJU_HLJU",
+    "school": "黑龙江大学",
+    "name": "黑龙江大学研究生教育综合管理系统",
+    "url": "https://yjsglxt.hlju.edu.cn/",
+    "description": "黑龙江大学研究生教育综合管理信息系统课表适配。登录教务系统并查询当前学期课表后即可导入。",
+    "maintainer": "lixu-030506"
+  },
+  {
+    "id": "SHUFEZJ_SHUFEZJ",
+    "school": "上海财经大学浙江学院",
+    "name": "上海财经大学浙江学院正方教务",
+    "url": "https://jwxt.shufe-zj.edu.cn/kbcx/xskbcx_cxXskbcxIndex.html?gnmkdm=N2151&layout=default",
+    "description": "上海财经大学浙江学院正方教务，通过CAS统一身份认证登录后，进入个人课表查询页面即可点击导入。非本校开发者适配如果有误建议提交issues",
+    "maintainer": "ZnonEn"
+  },
+  {
+    "id": "YZU_YZU_01",
+    "school": "扬州大学",
+    "name": "扬州大学URP教务",
+    "url": "https://webvpn.yzu.edu.cn/login",
+    "description": "扬州大学URP教务适配,通过网瑞达WebVPN访问,登录后需进入PC端教务系统「选课管理」页面,选择历年学期课表,再点击导入.",
+    "maintainer": "Thanatos"
+  },
+  {
+    "id": "XUST_XUST_01",
+    "school": "西安科技大学",
+    "name": "西安科技大学正方教务",
+    "url": "http://jwsso.xust.edu.cn/frontend/center_portal/home/index.html#/",
+    "description": "西安科技大学正方教务，已适配西区差异时间，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "JSTC_JSTC_01",
+    "school": "江苏旅游职业学院",
+    "name": "江苏旅游职业学院教务",
+    "url": "https://authserver.jstc.edu.cn/authserver/login?service=https%3A%2F%2Fjwxt.jstc.edu.cn%2Fstudent%2Fsso%2Flogin",
+    "description": "江苏旅游职业学院教务，进入教务系统页面即可开始导入，支持自动获取开学日期，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "GPNU_GPNU_01",
+    "school": "广东技术师范大学",
+    "name": "广师大教务管理系统",
+    "url": "https://jwglxt.gpnu.edu.cn/sso/lyiotlogin",
+    "description": "适配教务管理系统，登录后导入个人课表。如有bug请提交issues。泥鸡又赢了！",
+    "maintainer": "moondish"
+  },
+  {
+    "id": "SYIST_SYIST_01",
+    "school": "沈阳科技学院",
+    "name": "沈阳科技学院金智教务",
+    "url": "http://jwxt.syist.edu.cn:30334/jwapp/sys/emaphome/portal/index.do",
+    "description": "沈阳科技学院金智教务，支持自动获取开学日期，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "QDHHC_QDHHC",
+    "school": "青岛黄海学院",
+    "name": "青岛黄海学院正方教务",
+    "url": "http://jwxt.qdhhc.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "青岛黄海学院正方教务,非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "NTU_NTU",
+    "school": "南通大学",
+    "name": "南通大学正方教务",
+    "url": "https://tdjw.ntu.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "南通大学正方教务V9适配。",
+    "maintainer": "MX703"
+  },
+  {
+    "id": "USTL_USTL",
+    "school": "辽宁科技大学",
+    "name": "辽宁科技大学综合教务管理系统",
+    "url": "https://ustl.jw.chaoxing.com/admin/login",
+    "description": "辽宁科技大学适配教务, 登陆后点击【信息查询】, 再点击【我的课表】, 最后点击【执行导入】即可,本校毕业生适配, 如果有误建议提交issues",
+    "maintainer": "Cure"
+  },
+  {
+    "id": "LUT_LUT",
+    "school": "兰州理工大学",
+    "name": "兰州理工大学教务系统",
+    "url": "https://jwxt.lut.edu.cn/",
+    "description": "兰州理工大学教务适配, 登录后点击【我的课表】，获取课程",
+    "maintainer": "Colton"
+  },
+  {
+    "id": "LZU_LZU_01",
+    "school": "兰州大学",
+    "name": "兰州大学本科生教务",
+    "url": "http://jwk.lzu.edu.cn/academic/common/security/login.jsp",
+    "description": "兰州大学本科生教务。登录后在【学生课表】(网格/列表视图均可)点击执行导入，自带兰大作息时间",
+    "maintainer": "yalerove"
+  },
+  {
+    "id": "SYSU_SYSU",
+    "school": "中山大学",
+    "name": "中山大学",
+    "url": "https://jwxt.sysu.edu.cn/",
+    "description": "中山大学NetID版本教务系统课程表导入,注：先点击右上角切换为电脑模式再登陆，登陆后可直接导入。",
+    "maintainer": "JXCZ"
+  },
+  {
+    "id": "SYSU_SYSU_01",
+    "school": "中山大学",
+    "name": "中山大学研究生教务课表导入",
+    "url": "https://cms.sysu.edu.cn/",
+    "description": "中山大学研究生教务(cms.sysu.edu.cn)",
+    "maintainer": "JR2714"
+  },
+  {
+    "id": "SXDZKJ_SXDZKJ",
+    "school": "山西电子科技学院",
+    "name": "山西电子科技学院青果教务",
+    "url": "https://sso.sxdzkj.edu.cn/sso-auth/#/login?service=https://jwxt.sxdzkj.edu.cn/caslogin",
+    "description": "山西电子科技学院青果教务系统适配，登录教务系统后进入课表查询页面进行导入",
+    "maintainer": "REnss3536"
+  },
+  {
+    "id": "ZZVCAE_zzvcae_01",
+    "school": "郑州汽车工程职业学院",
+    "name": "郑州汽车工程职业学院",
+    "url": "https://cas.zzvcae.edu.cn/cas/login",
+    "description": "郑州汽车工程职业学院树维 EAMS 教务课表一键导入。本教务禁止从 jw.zzvcae.edu.cn 直接登录，请先在统一身份认证（CAS）页面登录，随后在【服务大厅】→【学生课表查询】打开过课表页面后，点击执行导入。自动同步课程、作息与学期日期（学期日期获取失败时会提示手动输入开学日期）。",
+    "maintainer": "Gr11nJ"
+  },
+  {
+    "id": "LNU_LNU_01",
+    "school": "辽宁大学",
+    "name": "辽宁大学URP教务",
+    "url": "http://jwstudent.lnu.edu.cn/",
+    "description": "辽宁大学URP教务适配",
+    "maintainer": "739C1AE2"
+  },
+  {
+    "id": "HNIE_hnie_01",
+    "school": "湖南工程学院",
+    "name": "湖南工程学院",
+    "url": "http://jwcmis.hnie.edu.cn",
+    "description": "湖南工程学院适配教务。",
+    "maintainer": "Mercury"
+  },
+  {
+    "id": "CQIE_CQIE_01",
+    "school": "重庆工程学院",
+    "name": "重庆工程学院教务",
+    "url": "https://i.cqie.edu.cn/",
+    "description": "适配重庆工程学院新教务系统，登录门户后进入教务系统页面执行导入",
+    "maintainer": "haha12358"
+  },
+  {
+    "id": "AUFE_AUFE_01",
+    "school": "安徽财经大学",
+    "name": "安徽财经大学校内入口",
+    "url": "http://all.aufe.edu.cn",
+    "description": "安徽财经大学urp教务适配，进入教务系统后点击开始导入，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "AUFE_AUFE_02",
+    "school": "安徽财经大学",
+    "name": "安徽财经大学Webvpn入口",
+    "url": "http://vpn.aufe.edu.cn",
+    "description": "安徽财经大学urp教务适配，进入教务系统后点击开始导入，非本校开发者适配如果有误建议提交issues",
+    "maintainer": "星河欲转"
+  },
+  {
+    "id": "GZMTU_GZMTU_01",
+    "school": "广州航海学院",
+    "name": "广州航海学院本科教务",
+    "url": "http://jwx.gzmtu.edu.cn/jwglxt/kbcx/xskbcx_cxXskbcxIndex.html?gnmkdm=N2151&layout=default",
+    "description": "适用于广州航海学院本科教务系统一键导入",
+    "maintainer": "weiwei221206"
+  },
+  {
+    "id": "SWU_SWU_01",
+    "school": "西南大学",
+    "name": "西南大学教务",
+    "url": "https://i.swu.edu.cn/",
+    "description": "基于正方新一代教务接口取数。请从办事大厅(i.swu.edu.cn)登录后进入教务系统课表查询页面，再执行导入脚本；脚本会自动套用西南大学节次时间。",
+    "maintainer": "小漫君"
+  },
+  {
+    "id": "ZZU_ZZU_01",
+    "school": "郑州大学",
+    "name": "郑州大学",
+    "url": "https://cas.s.zzu.edu.cn/cas/a/login?service=https%3A%2F%2Fjwxt.zzu.edu.cn%2Fstudent%2Fsso%2Flogin",
+    "description": "登录之后向右下角滑,点击课表.课表出现后点击右下角导入即可.",
+    "maintainer": "LilyCarry"
+  },
+  {
+    "id": "CCZU_CCZU",
+    "school": "常州大学",
+    "name": "常州大学教务管理信息系统",
+    "url": "https://zmvpn.cczu.edu.cn/http/webvpndc2d086cb5b297c15e661687e73c1549/web_jxrw/cx_kb_xsgrkb.aspx",
+    "description": "常州大学自研.NET ASPX教务系统，需通过VPN访问，进入课表页面后点击导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "FIT_FIT",
+    "school": "福州理工学院",
+    "name": "福州理工学院正方教务",
+    "url": "http://oaa.fitedu.net/jwglxt/xtgl/login_slogin.html",
+    "description": "福州理工学院正方教务V9，进入教务系统后直接点击导入即可",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "GXCME_GXCME",
+    "school": "广西机电职业技术学院",
+    "name": "广西机电职业技术学院正方教务",
+    "url": "https://sso.gxcme.edu.cn/login?service=https://nportal.gxcme.edu.cn/login",
+    "description": "广西机电职业技术学院正方教务V9（Mobile版API），进入课表页面后点击导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "HAUST_HAUST",
+    "school": "河南科技大学",
+    "name": "河南科技大学树维教务",
+    "url": "https://vpn.haust.edu.cn",
+    "description": "河南科技大学新版树维教务，需通过VPN访问，登录后进入课表页面点击导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "HRBEU_HRBEU",
+    "school": "哈尔滨工程大学",
+    "name": "哈尔滨工程大学教务系统",
+    "url": "https://jwgl.hrbeu.edu.cn/jwapp/sys/emaphome/portal/index.do",
+    "description": "哈尔滨工程大学金智教务(EMAP)适配，需校园网或WebVPN访问。登录后，切换到课表页面，点击导入即可。",
+    "maintainer": "penguinway"
+  },
+  {
+    "id": "HRBEU_HRBEU_YJS",
+    "school": "哈尔滨工程大学",
+    "name": "哈尔滨工程大学研究生系统",
+    "url": "https://yjs.hrbeu.edu.cn/",
+    "description": "哈尔滨工程大学研究生教育管理系统适配。登录后进入课表查询页面，等待课表加载完成后点击导入。",
+    "maintainer": "penguinway"
+  },
+  {
+    "id": "HIT_HIT",
+    "school": "哈尔滨工业大学",
+    "name": "哈尔滨工业大学研究生系统",
+    "url": "http://yjsgl-hit-edu-cn.ivpn.hit.edu.cn:1080/xs/index",
+    "description": "哈尔滨工业大学研究生教育管理系统，需通过VPN访问，登录后点击导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "HUEB_HUEB",
+    "school": "河北经贸大学",
+    "name": "河北经贸大学正方教务",
+    "url": "https://202-206-194-100.vpn.hueb.edu.cn:8118/jwglxt/xtgl/login_slogin.html",
+    "description": "河北经贸大学正方教务V9，需通过VPN访问，进入教务系统后点击导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "LCUDCC_LCUDCC",
+    "school": "聊城大学东昌学院",
+    "name": "聊城大学东昌学院正方教务",
+    "url": "https://jw.lcudcc.edu.cn/jwglxt/xtgl/login_slogin.html",
+    "description": "聊城大学东昌学院正方教务V9，进入教务系统后点击导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "LYU_LYU",
+    "school": "临沂大学",
+    "name": "临沂大学正方教务",
+    "url": "https://sdp.lyu.edu.cn/https/webvpn3146b55e2aeee09087ebc4ebe6dbd770/jwglxt/xtgl/login_slogin.html",
+    "description": "临沂大学正方教务V9，需通过webvpn访问，登录后进入课表页面点击导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "SHXY_SHXY",
+    "school": "绥化学院",
+    "name": "绥化学院乘方教务",
+    "url": "http://jwgl.shxy.edu.cn/",
+    "description": "绥化学院乘方教务系统，进入教务系统后点击导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "SMXY_SMXY",
+    "school": "三明学院",
+    "name": "三明学院正方教务",
+    "url": "https://one.fjsmu.edu.cn/tp_up/view?m=up",
+    "description": "三明学院正方教务V9，通过CAS统一身份认证登录后进入教务系统执行导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "THDM_THDM_01",
+    "school": "南昌科技职业大学",
+    "name": "南昌科技职业大学教务系统",
+    "url": "http://jw.tellhowedu.com:19995/",
+    "description": "联奕科技教务系统（南昌科技职业大学）",
+    "maintainer": "HOLLOWDREAM"
+  },
+  {
+    "id": "XJTU_XJTU_01",
+    "school": "西安交通大学",
+    "name": "西安交通大学-本科教务",
+    "url": "https://ehall.xjtu.edu.cn",
+    "description": "适配西安交通大学教务系统(wdkb)本科课表导入",
+    "maintainer": "SDPD"
+  },
+  {
+    "id": "QHNU_QHNU_01",
+    "school": "青海师范大学",
+    "name": "青海师范大学研究生课表导入",
+    "url": "http://one.qhnu.edu.cn/default/portal/index.jsp",
+    "description": "完成统一身份认证并进入研究生教务系统后执行导入，在弹窗中选择目标学期。",
+    "maintainer": "shixiaogaoya"
+  },
+  {
+    "id": "WUST_WUST_01",
+    "school": "武汉科技大学",
+    "name": "武汉科技大学教务系统",
+    "url": "https://bkjx.wust.edu.cn/jsxsd/framework/xsMain.jsp",
+    "description": "用于武汉科技大学教务系统的课程表导入",
+    "maintainer": "xsddszrc"
+  },
+  {
+    "id": "NYNU_NYNU_01",
+    "school": "南阳师范学院",
+    "name": "南阳师范学院教务系统",
+    "url": "https://vpn.nynu.edu.cn/",
+    "description": "南阳师范学院青果教务系统课表导入，需先登录学校VPN并通过统一身份认证进入教务系统后执行导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "NCHU_NCHU_01",
+    "school": "南昌航空大学",
+    "name": "南昌航空大学教务系统",
+    "url": "http://jwc-publish2.jwc.nchu.edu.cn/",
+    "description": "南昌航空大学强智教务系统课表导入（需要校园网访问），进入课表查询界面以后，先点击查询所有全部周，再执行导入",
+    "maintainer": "Haooz"
+  },
+  {
+    "id": "HPU_HPU_01",
+    "school": "河南理工大学",
+    "name": "河南理工大学教务系统",
+    "url": "https://zhjw.hpu.edu.cn/eams/login.action",
+    "description": "河南理工大学树维教务系统(eams架构)，统一身份认证CAS登录\n导入后请在App中设置本学期开学日期",
+    "maintainer": "ca1q1an"
+  },
+  {
+    "id": "CQEPC_CQEPC_01",
+    "school": "重庆航天职业技术学院",
+    "name": "重庆航天职业技术学院教务",
+    "url": "http://jw.cqepc.cn/",
+    "description": "重庆航天职业技术学院教务，请登录",
+    "maintainer": "yang01"
+  }
+]

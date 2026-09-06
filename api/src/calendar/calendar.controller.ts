@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, Param, Query, Patch, Delete } from '@nestjs/common';
 import { CalendarService } from './calendar.service';
+import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 
 @Controller('calendar')
 export class CalendarController {
@@ -7,7 +8,7 @@ export class CalendarController {
 
   @Get()
   findAll(
-    @Query('userId') userId: string,
+    @CurrentUserId() userId: string,
     @Query('start') start: string,
     @Query('end') end: string,
     @Query('semesterId') semesterId?: string,
@@ -16,8 +17,8 @@ export class CalendarController {
   }
 
   @Post()
-  create(@Body() data: {
-    userId: string;
+  create(@CurrentUserId() userId: string, @Body() data: {
+    userId?: string;
     title: string;
     startTime: string;
     endTime: string;
@@ -30,12 +31,12 @@ export class CalendarController {
     externalEventId?: string;
     sourceCalendarTitle?: string;
   }) {
-    return this.calendarService.create(data);
+    return this.calendarService.create({ ...data, userId });
   }
 
   @Post('import-local')
-  importLocal(@Body() data: {
-    userId: string;
+  importLocal(@CurrentUserId() userId: string, @Body() data: {
+    userId?: string;
     platform?: string;
     source?: string;
     events: Array<{
@@ -51,16 +52,16 @@ export class CalendarController {
       color?: string;
     }>;
   }) {
-    return this.calendarService.importLocal(data);
+    return this.calendarService.importLocal({ ...data, userId });
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() data: Record<string, any>) {
-    return this.calendarService.update(id, data);
+  update(@Param('id') id: string, @CurrentUserId() userId: string, @Body() data: Record<string, any>) {
+    return this.calendarService.update(id, userId, data);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.calendarService.remove(id);
+  remove(@Param('id') id: string, @CurrentUserId() userId: string) {
+    return this.calendarService.remove(id, userId);
   }
 }

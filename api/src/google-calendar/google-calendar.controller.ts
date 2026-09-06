@@ -4,7 +4,6 @@ import {
   Post,
   Body,
   Query,
-  UseGuards,
   HttpCode,
   HttpStatus,
   Res,
@@ -16,7 +15,8 @@ import {
 } from './google-auth.service';
 import { GoogleSyncService } from './google-sync.service';
 import { AuthCallbackDto } from './dto/auth-callback.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
+import { Public } from '../common/decorators/public.decorator';
 
 type OAuthPlatform = 'web' | 'android';
 type OAuthCallbackStatus = 'success' | 'error';
@@ -33,7 +33,6 @@ interface OAuthCallbackPayload {
 }
 
 @Controller('google')
-@UseGuards(ApiKeyGuard)
 export class GoogleCalendarController {
   constructor(
     private readonly authService: GoogleAuthService,
@@ -46,7 +45,7 @@ export class GoogleCalendarController {
    */
   @Get('auth/url')
   async getAuthUrl(
-    @Query('userId') userId: string,
+    @CurrentUserId() userId: string,
     @Query('platform') platform: 'web' | 'android' = 'web',
   ) {
     return this.authService.generateAuthUrl(userId, platform);
@@ -58,6 +57,7 @@ export class GoogleCalendarController {
    * ApiKeyGuard bypasses this route because Google cannot send X-API-Key.
    */
   @Get('auth/callback')
+  @Public()
   async handleRedirectCallback(
     @Query('code') code: string,
     @Query('state') state: string,
@@ -113,6 +113,7 @@ export class GoogleCalendarController {
    */
   @Post('auth/callback')
   @HttpCode(HttpStatus.OK)
+  @Public()
   async handleCallback(@Body() dto: AuthCallbackDto) {
     if (dto.error) {
       const details = this.authService.buildCallbackErrorDetails({
@@ -134,7 +135,7 @@ export class GoogleCalendarController {
    * Returns the Google Calendar connection status and sync stats.
    */
   @Get('status')
-  async getStatus(@Query('userId') userId: string) {
+  async getStatus(@CurrentUserId() userId: string) {
     return this.authService.getStatus(userId);
   }
 
@@ -144,7 +145,7 @@ export class GoogleCalendarController {
    */
   @Post('disconnect')
   @HttpCode(HttpStatus.OK)
-  async disconnect(@Body('userId') userId: string) {
+  async disconnect(@CurrentUserId() userId: string) {
     await this.authService.disconnect(userId);
     return { message: 'Disconnected' };
   }
@@ -155,7 +156,7 @@ export class GoogleCalendarController {
    */
   @Post('sync')
   @HttpCode(HttpStatus.OK)
-  async manualSync(@Body('userId') userId: string) {
+  async manualSync(@CurrentUserId() userId: string) {
     return this.syncService.manualSync(userId);
   }
 

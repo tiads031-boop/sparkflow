@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
   BookOpen,
   Briefcase,
@@ -67,6 +67,8 @@ const navigationOptions: Array<{
 
 export default function AuthGate({ children }: AuthGateProps) {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+  const authReady = useAppStore((s) => s.authReady);
+  const initializeAuth = useAppStore((s) => s.initializeAuth);
   const loginError = useAppStore((s) => s.loginError);
   const hasCompletedOnboarding = useAppStore((s) => s.hasCompletedOnboarding);
   const login = useAppStore((s) => s.login);
@@ -75,6 +77,8 @@ export default function AuthGate({ children }: AuthGateProps) {
   const registrationError = useAppStore((s) => s.registrationError);
   const setRegistering = useAppStore((s) => s.setRegistering);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+
+  useEffect(() => { void initializeAuth(); }, [initializeAuth]);
 
   // ── 登录表单状态 ──
   const [username, setUsername] = useState('');
@@ -102,6 +106,10 @@ export default function AuthGate({ children }: AuthGateProps) {
     () => displayName.trim().length > 0 && navigationNeeds.length > 0,
     [displayName, navigationNeeds],
   );
+
+  if (!authReady) {
+    return <div className="min-h-svh bg-[#f4f4f6] flex items-center justify-center text-sm font-bold text-[#242424]">正在验证登录状态…</div>;
+  }
 
   if (isAuthenticated && hasCompletedOnboarding) {
     return <>{children}</>;
@@ -195,18 +203,19 @@ export default function AuthGate({ children }: AuthGateProps) {
             <form onSubmit={handleRegister} className="bg-white rounded-[2rem] p-5 shadow-sm">
               <div className="mb-5">
                 <h1 className="text-xl font-black text-[#242424]">创建账号</h1>
-                <p className="text-xs text-gray-400 mt-1">注册后数据仅保存在你的设备上。</p>
+                <p className="text-xs text-gray-400 mt-1">使用 Supabase 安全登录，云端数据按账号隔离。</p>
               </div>
 
               <div className="space-y-3">
                 <label className="block">
-                  <span className="text-xs font-bold text-[#242424]">账号</span>
+                  <span className="text-xs font-bold text-[#242424]">邮箱</span>
                   <input
                     value={regUsername}
                     onChange={(event) => setRegUsername(event.target.value)}
                     className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm text-[#242424] outline-none ring-2 ring-transparent focus:ring-[#cae393]"
-                    autoComplete="username"
-                    placeholder="2-20 个字符，字母/数字/下划线"
+                    autoComplete="email"
+                    inputMode="email"
+                    placeholder="name@example.com"
                   />
                 </label>
                 <label className="block">
@@ -271,13 +280,14 @@ export default function AuthGate({ children }: AuthGateProps) {
 
               <div className="space-y-3">
                 <label className="block">
-                  <span className="text-xs font-bold text-[#242424]">账号</span>
+                  <span className="text-xs font-bold text-[#242424]">邮箱</span>
                   <input
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
                     className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm text-[#242424] outline-none ring-2 ring-transparent focus:ring-[#cae393]"
-                    autoComplete="username"
-                    placeholder="fish031"
+                    autoComplete="email"
+                    inputMode="email"
+                    placeholder="name@example.com"
                   />
                 </label>
                 <label className="block">

@@ -12,6 +12,13 @@ interface CourseDetailViewProps {
   onBack: () => void;
 }
 
+function readableCourseColor(hex: string) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return '#242424';
+  const rgb = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722 > 0.179 ? '#161616' : '#ffffff';
+}
+
 const DAY_LABELS: Record<number, string> = {
   1: '周一', 2: '周二', 3: '周三', 4: '周四',
   5: '周五', 6: '周六', 7: '周日',
@@ -212,8 +219,8 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
 
       {/* Hero Card */}
       <div
-        className="rounded-[2rem] p-6 mb-5 shadow-sm"
-        style={{ backgroundColor: c.color || '#b0a8db' }}
+        className="course-hero rounded-[2rem] p-6 mb-5 shadow-sm"
+        style={{ backgroundColor: c.color || '#b0a8db', color: readableCourseColor(c.color || '#b0a8db') }}
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">

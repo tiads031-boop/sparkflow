@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ApiKeyGuard } from './guards/api-key.guard';
+import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [ConfigModule],
-  providers: [ApiKeyGuard],
-  exports: [ApiKeyGuard],
+  imports: [ConfigModule, PrismaModule],
+  providers: [SupabaseAuthGuard],
+  exports: [SupabaseAuthGuard],
 })
 export class CommonModule {}

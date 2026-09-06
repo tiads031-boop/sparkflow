@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface ImportLocalCalendarEventDto {
@@ -70,7 +70,7 @@ export class CalendarService {
     });
   }
 
-  create(data: {
+  async create(data: {
     userId: string;
     title: string;
     startTime: string;
@@ -84,6 +84,10 @@ export class CalendarService {
     externalEventId?: string;
     sourceCalendarTitle?: string;
   }) {
+    if (data.taskId) {
+      const task = await this.prisma.task.findFirst({ where: { id: data.taskId, userId: data.userId }, select: { id: true } });
+      if (!task) throw new NotFoundException('Task not found');
+    }
     return this.prisma.calendarEvent.create({
       data: {
         ...data,
@@ -93,18 +97,18 @@ export class CalendarService {
     });
   }
 
-  update(id: string, data: Record<string, any>) {
-    const updateData = { ...data };
+  update(id: string, userId: string, data: Record<string, any>) {
+    const { userId: _ignoredUserId, ...updateData } = data;
     if (data.startTime) updateData.startTime = new Date(data.startTime);
     if (data.endTime) updateData.endTime = new Date(data.endTime);
     return this.prisma.calendarEvent.update({
-      where: { id },
+      where: { id, userId },
       data: updateData,
     });
   }
 
-  remove(id: string) {
-    return this.prisma.calendarEvent.delete({ where: { id } });
+  remove(id: string, userId: string) {
+    return this.prisma.calendarEvent.delete({ where: { id, userId } });
   }
 
   async importLocal(data: {

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Upload, Trash2, BookOpen, MapPin, User, Clock, Check } from 'lucide-react';
 import { useAppStore, type Course, type CourseFormData } from '../store/appStore';
+import CourseSchedulePanel from './CourseSchedulePanel';
 
 // ════════════════════════════════════════════════════
 // Props
@@ -150,6 +151,8 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<CourseFormData>({ ...EMPTY_FORM });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [weekText, setWeekText] = useState('1-16');
 
   // ── Delete state ──
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
@@ -173,6 +176,8 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
   // ── Handlers: Form ──
   const openForm = useCallback(() => {
     setFormData({ ...EMPTY_FORM });
+    setFormError('');
+    setWeekText('1-16');
     setShowForm(true);
   }, []);
 
@@ -188,7 +193,22 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
   const handleSubmit = useCallback(async () => {
     if (!formData.name.trim()) return;
     setIsSubmitting(true);
+    setFormError('');
     try {
+      let weeks: number[] | undefined;
+      if (formData.dayOfWeek || formData.startTime || formData.endTime) {
+        if (!activeSemesterId) throw new Error('请先选择或创建学期，再设置上课时间');
+        if (!formData.dayOfWeek || !formData.startTime || !formData.endTime || formData.endTime <= formData.startTime) throw new Error('请填写完整的星期和起止时间，结束时间须晚于开始时间');
+        const values: number[] = [];
+        for (const part of weekText.split(/[,，]/)) {
+          const match = part.trim().match(/^(\d+)(?:-(\d+))?$/);
+          if (!match) throw new Error('周次格式示例：1-16 或 1,3,5-8');
+          const start = Number(match[1]), end = Number(match[2] || match[1]);
+          if (start < 1 || end > 60 || start > end) throw new Error('周次须为 1 至 60 的有效范围');
+          for (let w = start; w <= end; w++) values.push(w);
+        }
+        weeks = [...new Set(values)].sort((a, b) => a - b);
+      }
       const data: CourseFormData = {
         name: formData.name.trim(),
         teacher: formData.teacher?.trim() || undefined,
@@ -198,15 +218,16 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
         startTime: formData.startTime || undefined,
         endTime: formData.endTime || undefined,
         semesterId: activeSemesterId || undefined,
+        weeks,
       };
       await addCourse(data);
       closeForm();
-    } catch {
-      // error handled by store
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : '创建失败，请重试');
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, addCourse, closeForm]);
+  }, [formData, addCourse, closeForm, activeSemesterId, weekText]);
 
   // ── Handlers: Long press → delete ──
   const handleTouchStart = useCallback((course: Course) => {
@@ -351,7 +372,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
       </div>
 
       {/* ── 学期筛选 Pill 栏 ── */}
-      {semesters.length > 0 && (
+      {(
         <div className="flex items-center gap-2 mb-4 overflow-x-auto hide-scrollbar -mx-1 px-1">
           {/* 全部 */}
           <button
@@ -390,6 +411,8 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
           </button>
         </div>
       )}
+
+      <CourseSchedulePanel onCourseClick={onCourseClick} />
 
       {/* ── Error banner ── */}
       {coursesError && (
@@ -678,6 +701,10 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
                 </div>
               </div>
 
+              <label className="block text-xs font-medium text-gray-500">上课周次（可填写单双周，如 1,3,5）
+                <input value={weekText} onChange={e => setWeekText(e.target.value)} placeholder="1-16 或 1,3,5-8" className="mt-2 w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-sm" />
+              </label>
+              {formError && <p role="alert" className="text-sm text-red-500">{formError}</p>}
               {/* Color picker */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">

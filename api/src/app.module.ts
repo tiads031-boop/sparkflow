@@ -13,7 +13,7 @@ import { SemesterModule } from './semester/semester.module';
 import { PushModule } from './push/push.module';
 import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 import { CommonModule } from './common/common.module';
-import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
 
 @Module({
   imports: [
@@ -34,7 +34,7 @@ import { ApiKeyGuard } from './common/guards/api-key.guard';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ApiKeyGuard,
+      useClass: SupabaseAuthGuard,
     },
   ],
 })

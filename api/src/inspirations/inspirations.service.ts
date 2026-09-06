@@ -12,8 +12,8 @@ export class InspirationsService {
     });
   }
 
-  findOne(id: string) {
-    return this.prisma.inspiration.findUnique({ where: { id } });
+  findOne(id: string, userId: string) {
+    return this.prisma.inspiration.findFirst({ where: { id, userId } });
   }
 
   create(data: {
@@ -30,9 +30,9 @@ export class InspirationsService {
     return this.prisma.inspiration.create({ data });
   }
 
-  updateStatus(id: string, status: string) {
+  updateStatus(id: string, userId: string, status: string) {
     return this.prisma.inspiration.update({
-      where: { id },
+      where: { id, userId },
       data: { status },
     });
   }

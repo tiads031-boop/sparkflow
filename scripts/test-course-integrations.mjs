@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import ts from '../web/node_modules/typescript/lib/typescript.js';
+const moduleUrl = (path, replacements = {}) => {
+  let js = ts.transpile(readFileSync(new URL(path, import.meta.url), 'utf8'), { target: ts.ScriptTarget.ES2023, module: ts.ModuleKind.ESNext });
+  for (const [from, to] of Object.entries(replacements)) js = js.replaceAll(from, to);
+  return 'data:text/javascript;base64,' + Buffer.from(js).toString('base64');
+};
+const scheduleUrl = moduleUrl('../web/src/utils/courseSchedule.ts');
+const { schoolBackup } = await import(moduleUrl('../web/src/utils/schoolImport.ts'));
+const { automationWindows, chinaDay } = await import(moduleUrl('../web/src/utils/courseAutomation.ts', { './courseSchedule': scheduleUrl }));
+const data = { courses: [{ name: '综合英语', day: 1, weeks: [1, 3, 5], startSection: 1, endSection: 2, position: 'A101' }] };
+const backup = schoolBackup(data, '秋季', '2026-09-07', '2026-10-01', '1 08:00-08:45\n2 08:55-09:40');
+assert.equal(backup.courses[0].events.length, 2, 'out-of-term weeks excluded');
+assert.equal(backup.courses[0].events[0].startTime, '2026-09-07T00:00:00.000Z', 'Beijing time is stable regardless of device timezone');
+assert.throws(() => schoolBackup(data, '秋季', '2026-09-07', '2026-10-01', ''), /缺少有效时间/);
+assert.throws(() => schoolBackup({ courses: [{ ...data.courses[0], weeks: [0] }] }, '秋季', '2026-09-07', '2026-10-01', ''), /周次无效/);
+const e = (start, end) => ({ startTime: start, endTime: end });
+const entries = [e('2026-09-07T00:00:00Z', '2026-09-07T01:00:00Z'), e('2026-09-07T00:45:00Z', '2026-09-07T02:00:00Z'), e('2026-09-07T02:00:00Z', '2026-09-07T03:00:00Z'), e('2026-10-01T00:00:00Z', '2026-10-01T01:00:00Z')];
+assert.deepEqual(automationWindows(entries, [], ['2026-10-01']), [{ start: Date.parse(entries[0].startTime), end: Date.parse(entries[2].endTime) }]);
+assert.equal(chinaDay('2026-09-30T17:00:00Z'), '2026-10-01');
+console.log('PASS: school weeks, required time slots, China timezone, semester bounds, overlapping/adjacent lessons, holidays');

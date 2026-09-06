@@ -58,7 +58,8 @@
 ```
 DATABASE_URL=postgresql://postgres:xxx@db.xxxxxx.supabase.co:5432/postgres
 PORT=3001
-API_KEY=设一个强密码（如 32 位随机字符串）
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
 CORS_ORIGIN=https://sparkflow-web.vercel.app
 CONTEXT_MD_PATH=/data/CURRENT_CONTEXT.md
 ```
@@ -91,7 +92,8 @@ CONTEXT_MD_PATH=/data/CURRENT_CONTEXT.md
 
 ```
 VITE_API_BASE_URL=https://sparkflow-api.onrender.com/api
-VITE_API_KEY=你在 Render 上设的 API_KEY
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
 ```
 
 > 把 `sparkflow-api.onrender.com` 替换成 Render 给你的真实域名。
@@ -126,7 +128,8 @@ VITE_API_KEY=你在 Render 上设的 API_KEY
 |---|---|---|
 | `DATABASE_URL` | `postgresql://...` | Supabase 连接串 |
 | `PORT` | `3001` | 服务端口 |
-| `API_KEY` | `sk_live_xxxxxxxx` | 前后端通信密钥 |
+| `SUPABASE_URL` | `https://...supabase.co` | Supabase Auth 项目地址 |
+| `SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` | 用于校验用户会话的公开应用密钥 |
 | `CORS_ORIGIN` | `https://...vercel.app` | 前端域名，逗号分隔多域名 |
 | `CONTEXT_MD_PATH` | `/data/CURRENT_CONTEXT.md` | 持久化磁盘挂载路径 |
 | `VAPID_PUBLIC_KEY` | `BCl...` | Web Push VAPID 公钥 |
@@ -138,7 +141,8 @@ VITE_API_KEY=你在 Render 上设的 API_KEY
 | Key | 示例值 | 说明 |
 |---|---|---|
 | `VITE_API_BASE_URL` | `https://...onrender.com/api` | 后端 API 地址 |
-| `VITE_API_KEY` | `sk_live_xxxxxxxx` | 与后端 `API_KEY` 一致 |
+| `VITE_SUPABASE_URL` | `https://...supabase.co` | Supabase Auth 项目地址 |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` | 浏览器端公开应用密钥 |
 
 > 本地开发时 `VITE_API_BASE_URL` 留空，走 Vite proxy。
 
@@ -160,7 +164,7 @@ VITE_API_KEY=你在 Render 上设的 API_KEY
 |---|---|---|
 | Render 休眠 | 15 分钟无请求后休眠，首次请求延迟 30 秒 | 用 UptimeRobot 每 5 分钟 ping 一次 `/api/health` |
 | Supabase 暂停 | 7 天无活动后项目暂停 | 定期登录 Supabase 面板 |
-| 单用户 | API Key 是唯一认证手段 | 不分享域名和 Key |
+| 邮件发送 | Supabase 默认邮件服务有配额和收件人限制 | 正式开放注册前配置自定义 SMTP |
 
 ---
 
@@ -169,7 +173,7 @@ VITE_API_KEY=你在 Render 上设的 API_KEY
 **Q: 前端显示"同步异常"**
 - 检查浏览器 Network 面板，确认请求 URL 是否正确
 - 检查 Render logs，确认后端是否报错
-- 确认前后端 `API_KEY` 一致
+- 确认前后端使用同一 Supabase 项目及 publishable key
 - 确认 `CORS_ORIGIN` 包含 Vercel 域名
 
 **Q: 添加任务后刷新丢失**

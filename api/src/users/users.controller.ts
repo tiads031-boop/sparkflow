@@ -1,22 +1,13 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { UsersService } from './users.service';
+import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
-  }
-
-  @Post()
-  create(@Body() data: { wechatId?: string; nickname?: string }) {
-    return this.usersService.create(data);
+  findCurrent(@CurrentUserId() userId: string) {
+    return this.usersService.findOne(userId);
   }
 }

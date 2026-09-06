@@ -90,7 +90,7 @@ export class SemesterService {
     }
 
     return this.prisma.semester.update({
-      where: { id },
+      where: { id, userId },
       data: updateData,
     });
   }
@@ -99,7 +99,7 @@ export class SemesterService {
     await this.prisma.semester.findFirstOrThrow({
       where: { id, userId },
     });
-    return this.prisma.semester.delete({ where: { id } });
+    return this.prisma.semester.delete({ where: { id, userId } });
   }
 
   // ==================== 工具方法 ====================

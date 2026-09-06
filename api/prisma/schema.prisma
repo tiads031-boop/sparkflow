@@ -165,6 +165,7 @@ model CalendarEvent {
   @@index([userId])
   @@index([startTime])
   @@index([courseId])
+  @@index([taskId], map: "calendar_events_task_id_idx")
   @@unique([userId, externalSource, externalEventId])
   @@map("calendar_events")
 }
@@ -215,6 +216,7 @@ model Course {
 
   @@index([userId])
   @@index([userId, semesterId])
+  @@index([semesterId], map: "courses_semester_id_idx")
   @@map("courses")
 }
 

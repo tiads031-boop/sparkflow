@@ -1,0 +1,30 @@
+ALTER TABLE public._prisma_migrations ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public._prisma_migrations FROM anon, authenticated;
+
+DROP POLICY IF EXISTS deny_direct_client_access ON public._prisma_migrations;
+CREATE POLICY deny_direct_client_access ON public._prisma_migrations AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.users;
+CREATE POLICY deny_direct_client_access ON public.users AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.inspirations;
+CREATE POLICY deny_direct_client_access ON public.inspirations AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.tasks;
+CREATE POLICY deny_direct_client_access ON public.tasks AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.pomodoro_sessions;
+CREATE POLICY deny_direct_client_access ON public.pomodoro_sessions AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.calendar_events;
+CREATE POLICY deny_direct_client_access ON public.calendar_events AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.ai_conversations;
+CREATE POLICY deny_direct_client_access ON public.ai_conversations AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.push_subscriptions;
+CREATE POLICY deny_direct_client_access ON public.push_subscriptions AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.courses;
+CREATE POLICY deny_direct_client_access ON public.courses AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.course_notes;
+CREATE POLICY deny_direct_client_access ON public.course_notes AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.semesters;
+CREATE POLICY deny_direct_client_access ON public.semesters AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS deny_direct_client_access ON public.google_tokens;
+CREATE POLICY deny_direct_client_access ON public.google_tokens AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+
+CREATE INDEX IF NOT EXISTS calendar_events_task_id_idx ON public.calendar_events ("taskId");
+CREATE INDEX IF NOT EXISTS courses_semester_id_idx ON public.courses ("semesterId");
