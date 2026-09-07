@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-06-04 | **当前 Phase**: Phase 9～11
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-07 | **当前 Phase**: Phase 9～11
 
 ---
 
@@ -52,6 +52,7 @@
 | 41 | 数据迁移 | 设置页 JSON 导出/导入；任务导入走现有 REST create 写入后端，灵感/偏好走前端状态与 localStorage | 满足备份迁移且不新增批量 API，避免破坏现有 CRUD |
 | 42 | 注册与密码管理 | 前端注册表单 + localStorage 用户表 + SHA-256 密码哈希；内置账户 fish031 保留；设置页可修改密码 | 多用户 MVP，密码不存明文，不依赖后端 |
 | 43 | 问候页多选 | profession 和 statusNeed 从单选升级为数组多选，至少保留 1 项 | 用户的身份和状态往往是复合的，多选更真实 |
+| 44 | Supabase 注册确认流程 | 注册请求锁、当前来源回跳、确认链接错误解析 | 避免重复提交触发邮箱唯一约束，并兼容本地/线上验证回调 |
 
 ---
 
@@ -199,6 +200,9 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ### 2026-06-04
 - ✅ **日历时间线与重复/提醒闭环**：CalendarView 增加拖拽阈值、边界 clamp 与 pointer capture 安全释放，空白时间线支持直接拖动生成任务时间段；展开月历按月拉取事件并显示任务/课程/本地/Google 标签预览，绿点数据改为任务与日程预览统一驱动；Task 增加 `reminderAt/repeatRule/repeatStartDate/repeatEndDate` 字段，编辑弹层支持独立提醒时间、完整开始日期时间和 daily/weekly/monthly 重复范围；Android/local 日历导入改为创建/更新关联 Task 并回写 CalendarEvent.taskId，使导入日程可按任务编辑；`web npm run build`、`api npm run build` 通过。
 - ✅ **账户注册、密码管理与问候页多选**：新增注册表单（用户名+密码+确认密码），用户数据 SHA-256 哈希存储在 localStorage sparkflow.users；内置账户 fish031 保留，默认密码不再显示在登录页；设置页新增修改密码功能；问候页职业/身份和状态需求从单选升级为数组多选，至少保留 1 项；更新 DarkFrostedModal 兼容数组类型；`web npm run build` 通过。
+
+### 2026-09-07
+- ✅ **Supabase 注册流程修复**：注册按钮增加请求锁与 loading 状态，确认邮件已发送后阻止同邮箱重复提交；注册请求使用当前站点作为 `emailRedirectTo`，避免跳转到失效的 `localhost:3000`；解析 `otp_expired`/无效回调并清理错误 URL；补充数据库错误、邮件限流、网络失败和重试提示；新增 `scripts/test-auth-registration.mjs` 回归测试；`web npm run build` 通过。
 - ✅ **课程表与日历体验收口**：课程列表灰态改为仅在课程/学期结课后触发，本周已上过课程只保留轻提示；新建/编辑学期底部弹层改为 safe-area 友好的视口 sheet；CalendarView 中课程事件改用独立蓝青色系、已完成任务在时间线置灰，并在选中有日程日期时自动定位到当天第一条时间线内容，避免导入课表后绿点存在但首屏停留在 00:00 造成误解。
 - ✅ **课程日程不再自动转任务**：Google Calendar 回流和 Android/local 日历导入仅在已有 `taskId` 关联时更新任务；未关联课程日程只保留为 CalendarEvent，不再自动生成普通 Task；任务查询过滤历史自动生成的 `section=calendar` 待办，避免课程表挤占任务列表。
 - ✅ **部署与 App 编译验证**：后端 `api npm run build`、前端 `web npm run build`、Android `web npm run android:build` 均已通过；debug APK 产物生成在 `web/android/app/build/outputs/apk/debug/app-debug.apk`；前后端通过推送 `master` 触发 Render/Vercel 自动部署。
@@ -277,6 +281,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | 2026-05-28 | **时间线长按创建不响应** | ref 即时存 pointerId + try-catch setPointerCapture |
 | 2026-05-28 | **ghost 拖拽无法调时长** | 弃用 setPointerCapture，注册原生 document 监听 |
 | 2026-06-04 | **时间线轻触误触拖拽、绿点按周拉取不稳定、本地日历只读** | 拖拽增加 6px 阈值和 clamp；展开月历按月拉取并显示预览标签；本地导入创建/更新关联 Task |
+| 2026-09-07 | **注册显示 Database error saving new user** | 根因是重复注册请求触发 Supabase `users_email_partial_key` 唯一约束；增加前端请求锁、确认邮件状态保护和结构化错误提示，并修正验证回跳地址 |
 
 ---
 

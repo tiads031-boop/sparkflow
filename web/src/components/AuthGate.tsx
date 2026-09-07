@@ -75,6 +75,7 @@ export default function AuthGate({ children }: AuthGateProps) {
   const register = useAppStore((s) => s.register);
   const isRegistering = useAppStore((s) => s.isRegistering);
   const registrationError = useAppStore((s) => s.registrationError);
+  const registrationPending = useAppStore((s) => s.registrationPending);
   const setRegistering = useAppStore((s) => s.setRegistering);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
 
@@ -250,14 +251,17 @@ export default function AuthGate({ children }: AuthGateProps) {
 
               <button
                 type="submit"
-                className="mt-5 w-full rounded-full bg-[#242424] text-[#cae393] py-3 text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                disabled={registrationPending}
+                aria-busy={registrationPending}
+                className="mt-5 w-full rounded-full bg-[#242424] text-[#cae393] py-3 text-sm font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 disabled:cursor-wait"
               >
                 <UserPlus size={16} />
-                注册
+                {registrationPending ? '正在注册…' : '注册'}
               </button>
 
               <button
                 type="button"
+                disabled={registrationPending}
                 onClick={() => {
                   setRegistering(false);
                   setRegLocalError('');
