@@ -11,7 +11,7 @@ SparkFlow 是一个面向个人学习与工作管理的任务、日历和灵感�
 
 ## 环境要求
 
-- Node.js 20 或更高版本
+- Node.js 22 或更高版本
 - npm
 - PostgreSQL（运行 API 服务时需要）
 
@@ -73,4 +73,3 @@ npm run cap:open
 ## 配置说明
 
 环境变量模板位于 `web/.env.example` 和 `api/.env.example`。请勿提交包含数据库密码、API 密钥或 OAuth 凭据的 `.env` 文件。
-

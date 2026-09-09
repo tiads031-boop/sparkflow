@@ -8,6 +8,7 @@
 
 | 文件名 | Phase | 简述 | 状态 |
 |---|---|---|---|
+| [p0-phase12-execution.md](p0-phase12-execution.md) | P0/12 | 生产基线、CI、四步导入与幂等发布的执行总计划 | 🚧 实施中 |
 | [phase09-course-module.md](phase09-course-module.md) | 09 | Course 模块：课表、笔记看板、事件追踪 | 🚧 部分实施中 |
 | [phase10-pending-features.md](phase10-pending-features.md) | 10 | 待办功能收束：VAPID 部署、截止拖入时间线、事件类型扩展等 | ⬜ |
 | [phase11-auth-registration-onboarding.md](phase11-auth-registration-onboarding.md) | 11 | 账户注册、密码管理与问候页多选 | ✅ |

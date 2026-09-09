@@ -19,4 +19,14 @@ describe('AppController', () => {
       expect(appController.getHello()).toBe('Hello World!');
     });
   });
+
+  describe('health', () => {
+    it('should return a healthy service response', () => {
+      expect(appController.getHealth()).toEqual({
+        status: 'ok',
+        service: 'sparkflow-api',
+        timestamp: expect.any(String),
+      });
+    });
+  });
 });
