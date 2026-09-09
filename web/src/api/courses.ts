@@ -9,10 +9,10 @@ import { apiRequest, DEFAULT_USER_ID } from './client';
 import type { Course, CourseDetail, CourseNote, CourseFormData, CalendarEvent } from '../types';
 import type { ScheduleBackup } from '../utils/courseSchedule';
 
-export async function fetchScheduleBackup(semesterId?: string | null): Promise<ScheduleBackup> {
+export async function fetchScheduleBackup(semesterId?: string | null, signal?: AbortSignal): Promise<ScheduleBackup> {
   const query = new URLSearchParams({ userId: DEFAULT_USER_ID });
   if (semesterId) query.set('semesterId', semesterId);
-  return (await apiRequest(`/courses/backup?${query}`)).json();
+  return (await apiRequest(`/courses/backup?${query}`, { signal })).json();
 }
 export async function importScheduleBackup(backup: unknown): Promise<{ courseCount: number; eventCount: number }> {
   return (await apiRequest(`/courses/import-json?userId=${encodeURIComponent(DEFAULT_USER_ID)}`, { method: 'POST', body: JSON.stringify(backup) })).json();

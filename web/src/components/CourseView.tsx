@@ -414,6 +414,10 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
 
       <CourseSchedulePanel onCourseClick={onCourseClick} />
 
+      {isCoursesLoading && hasCourses && (
+        <p role="status" className="mb-3 text-xs text-gray-400">正在刷新课程，当前仍显示上次数据…</p>
+      )}
+
       {/* ── Error banner ── */}
       {coursesError && (
         <div className="mb-4 px-4 py-3 rounded-2xl bg-red-50 border border-red-100 text-red-500 text-sm flex items-center gap-2">
@@ -448,7 +452,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
       )}
 
       {/* ── Empty state ── */}
-      {!isCoursesLoading && !hasCourses && (
+      {!isCoursesLoading && !coursesError && !hasCourses && (
         <div className="text-center py-16 px-4">
           <div className="w-20 h-20 mx-auto mb-5 rounded-full bg-[#b0a8db]/15 flex items-center justify-center">
             <BookOpen size={32} className="text-[#b0a8db]" strokeWidth={1.5} />

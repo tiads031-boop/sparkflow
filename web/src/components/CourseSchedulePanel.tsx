@@ -9,7 +9,7 @@ import { requestCourseNotifications } from './CourseReminderRuntime';
 import CourseIntegrationsPanel from './CourseIntegrationsPanel';
 
 export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: (id: string) => void }) {
-  const { backup, error, refresh } = useCourseSchedule();
+  const { backup, error, status, refresh } = useCourseSchedule();
   const semesterId = useAppStore(s => s.activeSemesterId);
   const prefs = useCoursePreferences();
   const [settings, setSettings] = useState(false);
@@ -78,7 +78,9 @@ export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: 
       <div className="course-tools">{prefs.skippedDates.map(d => <button key={d} aria-label={`移除免提醒日期 ${d}`} onClick={() => prefs.setPreferences({ skippedDates: prefs.skippedDates.filter(x => x !== d) })}>{d} ×</button>)}</div>
       <p>{Capacitor.isNativePlatform() ? '本机预排最近 60 次提醒，打开应用后自动补充；送达受系统通知与电池设置影响。' : '浏览器提醒需要保持应用运行；关闭页面后请使用导出的 ICS 添加到系统日历。'} 免提醒日期可用于假期，课程仍保留在课表中。</p>
     </section>}
-    {!backup ? <p role="status">{error ? '课程概览暂不可用' : '正在加载课程概览…'}</p> : groups.map(group => <section className="course-widget" key={group.label}>
+    {backup && status === 'refreshing' && <p role="status">正在刷新课程概览，当前仍显示上次数据…</p>}
+    {backup && error && <p role="status">课程概览刷新失败，已保留上次数据：{error}</p>}
+    {!backup ? <p role="status">{error ? `课程概览暂不可用：${error}` : '正在加载课程概览…'}</p> : groups.map(group => <section className="course-widget" key={group.label}>
       <h2>{group.label}</h2>
       {!group.entries.length && <p>{group.label === '下一节课程' ? '暂无后续排课' : '当天没有课程，好好安排自己的时间'}</p>}
       {group.entries.map(e => <button className="course-widget-row" key={e.id} onClick={() => onCourseClick(e.course.id)}>
