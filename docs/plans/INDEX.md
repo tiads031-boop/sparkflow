@@ -11,6 +11,7 @@
 | [phase09-course-module.md](phase09-course-module.md) | 09 | Course 模块：课表、笔记看板、事件追踪 | 🚧 部分实施中 |
 | [phase10-pending-features.md](phase10-pending-features.md) | 10 | 待办功能收束：VAPID 部署、截止拖入时间线、事件类型扩展等 | ⬜ |
 | [phase11-auth-registration-onboarding.md](phase11-auth-registration-onboarding.md) | 11 | 账户注册、密码管理与问候页多选 | ✅ |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 12 | 课程页入口收敛、教务导入向导、作息编辑与部署验收 | ⬜ 方案完成，待实施 |
 
 ## 归档方案
 
