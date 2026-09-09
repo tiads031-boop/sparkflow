@@ -28,6 +28,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run build
+      - run: npm test
       - name: Report existing lint debt
         continue-on-error: true
         run: npm run lint

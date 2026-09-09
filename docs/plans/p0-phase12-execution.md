@@ -2,17 +2,17 @@
 
 > 更新日期：2026-09-09  
 > 目标版本：v0.9 Beta  
-> 当前基线：GitHub `master` 为 `c1f77a1`；Render 生产后端为 `4fd670d`。
+> 当前基线：GitHub `master` 与 Render 生产后端均为 `552f3caa`；Vercel 主生产项目为 `sparkflow031`。
 
 ## 1. 当前结论
 
 | 领域 | 已确认状态 | 直接动作 |
 |---|---|---|
-| GitHub | `master` 最新为 Phase 12 方案文档；暂无 CI workflow | 建立最小 CI，所有功能分支先过构建和测试 |
-| Render | `sparkflow` 服务在线，自动部署 `master`，但生产落后 2 个提交；冷启动约 30 秒 | 修复健康接口、升级 Node 22、部署后检查日志与 200 响应 |
+| GitHub | `master` 已建立 Web 与 API CI | 所有功能分支先过构建和测试 |
+| Render | `sparkflow` 服务已自动部署 `552f3caa`；`/api/health` 返回 200 | 保持部署后日志与健康检查 |
 | Supabase | `sparkflow-db` 健康，Postgres 17；业务表均启用 RLS | 暂不改数据；启用泄露密码保护并核验 RLS 策略内容 |
-| Vercel | 已知候选地址包括 `fish-life.cc.cd` 与 `sparkflow031.vercel.app`，当前连接无法列出项目 | 确认唯一生产项目、alias 与 Git commit，淘汰旧入口 |
-| 课程导入 | 方案完成，业务实现未开始 | 在 P0 通过后按四步向导拆分实施 |
+| Vercel | `sparkflow031` 是主生产项目并指向 `fish-life.cc.cd`；仍有两个重复项目检查 | 恢复团队 scope 后归档重复项目 |
+| 课程导入 | 已进入 M1，实现状态契约与时间归一化 | 完成导入纯函数和四步向导 |
 
 ## 2. 实施原则
 
@@ -32,7 +32,7 @@
 - [x] 新增真正的公开 `GET /api/health`。
 - [ ] 确认 Vercel 唯一生产项目、域名、Root Directory=`web` 和部署 commit。
 - [ ] 将 Render `CORS_ORIGIN` 精确设置为唯一生产域名、预览域名策略及 Capacitor 来源。
-- [ ] 部署 `master`，确认 Render commit 与 GitHub 一致。
+- [x] 部署 `master`，确认 Render commit 与 GitHub 一致。
 - [ ] 以真实账号回归 Auth、学期、课程列表、课表概览和任务接口。
 
 验收：生产前后端各只有一个明确入口；`/api/health` 返回 200；CI 绿灯；课程失败态不再被显示为空数据。
@@ -127,6 +127,5 @@ feature/* → Pull Request → CI → Preview → 验收 → master → Producti
 
 ## 7. 当前阻塞项
 
-1. Vercel 插件尚未返回可访问的 team/project，需要重新授权或选择正确团队后才能确认三套 deployment 的归属。
-2. GitHub 连接当前只有读取权限，完成的代码需在获得写权限后推送并触发 Preview/CI。
-3. Supabase 泄露密码保护需要在 Auth 设置中启用；这是控制台配置，不应通过数据库 SQL 假装完成。
+1. Vercel 主生产部署已确认，但插件缺少 `sparkflow031` 团队 scope，尚不能读取失败日志或归档两个重复项目。
+2. Supabase 泄露密码保护需要在 Auth 设置中启用；这是控制台配置，不应通过数据库 SQL 假装完成。

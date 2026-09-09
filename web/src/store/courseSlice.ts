@@ -24,6 +24,7 @@ export interface CourseSlice {
   courses: Course[];
   selectedCourse: CourseDetail | null;
   isCoursesLoading: boolean;
+  coursesStatus: 'idle' | 'loading' | 'success' | 'error' | 'refreshing';
   coursesError: string | null;
 
   // ── 列表操作 ──
@@ -42,29 +43,44 @@ export interface CourseSlice {
   removeNote: (noteId: string) => Promise<void>;
 }
 
+let activeCourseRequest: AbortController | null = null;
+let courseRequestSequence = 0;
+
 export const createCourseSlice: StateCreator<AppState, [], [], CourseSlice> = (set, get) => ({
   courses: [],
   selectedCourse: null,
   isCoursesLoading: false,
+  coursesStatus: 'idle',
   coursesError: null,
 
   // ── 列表 ──
 
   loadCourses: async () => {
-    set({ isCoursesLoading: true, coursesError: null });
+    activeCourseRequest?.abort();
     const controller = new AbortController();
+    activeCourseRequest = controller;
+    const requestSequence = ++courseRequestSequence;
+    const semesterId = get().activeSemesterId;
+    set({
+      isCoursesLoading: true,
+      coursesStatus: get().courses.length ? 'refreshing' : 'loading',
+      coursesError: null,
+    });
     const timeoutId = setTimeout(() => controller.abort(), 15_000);
     try {
-      const semesterId = get().activeSemesterId;
       const courses = await fetchCourses(DEFAULT_USER_ID, semesterId, controller.signal);
-      clearTimeout(timeoutId);
-      if (get().activeSemesterId === semesterId) set({ courses, isCoursesLoading: false });
-    } catch (err: any) {
-      clearTimeout(timeoutId);
-      const message = err.name === 'AbortError'
+      if (requestSequence === courseRequestSequence && get().activeSemesterId === semesterId) {
+        set({ courses, isCoursesLoading: false, coursesStatus: 'success' });
+      }
+    } catch (err: unknown) {
+      if (requestSequence !== courseRequestSequence) return;
+      const message = err instanceof DOMException && err.name === 'AbortError'
         ? '加载课程超时，请检查网络后重试'
-        : (err.message || '加载课程失败');
-      set({ coursesError: message, isCoursesLoading: false });
+        : (err instanceof Error ? err.message : '加载课程失败');
+      set({ coursesError: message, isCoursesLoading: false, coursesStatus: 'error' });
+    } finally {
+      clearTimeout(timeoutId);
+      if (requestSequence === courseRequestSequence) activeCourseRequest = null;
     }
   },
 
@@ -99,8 +115,8 @@ export const createCourseSlice: StateCreator<AppState, [], [], CourseSlice> = (s
     try {
       const detail = await fetchCourseDetail(id);
       set({ selectedCourse: detail });
-    } catch (err: any) {
-      set({ coursesError: err.message || '加载课程详情失败' });
+    } catch (err: unknown) {
+      set({ coursesError: err instanceof Error ? err.message : '加载课程详情失败' });
     }
   },
 
