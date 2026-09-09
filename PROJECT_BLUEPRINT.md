@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-07 | **当前 Phase**: Phase 9～11
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-09 | **当前 Phase**: Phase 9～13
 
 ---
 
@@ -53,6 +53,7 @@
 | 42 | 注册与密码管理 | 前端注册表单 + localStorage 用户表 + SHA-256 密码哈希；内置账户 fish031 保留；设置页可修改密码 | 多用户 MVP，密码不存明文，不依赖后端 |
 | 43 | 问候页多选 | profession 和 statusNeed 从单选升级为数组多选，至少保留 1 项 | 用户的身份和状态往往是复合的，多选更真实 |
 | 44 | Supabase 注册确认流程 | 注册请求锁、当前来源回跳、确认链接错误解析 | 避免重复提交触发邮箱唯一约束，并兼容本地/线上验证回调 |
+| 45 | Local Codex Bridge 接入边界 | 新增独立本机 Gateway；React 只调用固定 HTTP projection，现有 Render API/Supabase 不进入 Codex 控制链路 | native Codex 保持唯一执行事实源，并隔离本机控制面与云端业务面 |
 
 ---
 
@@ -128,6 +129,8 @@ Supabase PostgreSQL (唯一数据源)
 | 09 — Course 模块深化（课程详情页、笔记看板、事件追踪） | 🚧 部分实施中 | [phase09-course-module.md](docs/plans/phase09-course-module.md) |
 | 10 — 待办功能收束（VAPID 部署、拖入时间线、事件类型扩展等） | ⬜ | [phase10-pending-features.md](docs/plans/phase10-pending-features.md) |
 | 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
+| 12 — 课程页与教务导入体验改进 | ⬜ 方案完成，待实施 | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
+| 13 — Local Codex Bridge 本机监督接入 | ⬜ 方案完成，待实施 | [phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) |
 
 ---
 
@@ -282,6 +285,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | 2026-05-28 | **ghost 拖拽无法调时长** | 弃用 setPointerCapture，注册原生 document 监听 |
 | 2026-06-04 | **时间线轻触误触拖拽、绿点按周拉取不稳定、本地日历只读** | 拖拽增加 6px 阈值和 clamp；展开月历按月拉取并显示预览标签；本地导入创建/更新关联 Task |
 | 2026-09-07 | **注册显示 Database error saving new user** | 根因是重复注册请求触发 Supabase `users_email_partial_key` 唯一约束；增加前端请求锁、确认邮件状态保护和结构化错误提示，并修正验证回跳地址 |
+| 2026-09-09 | **Local Codex Bridge 接入方案** | 采用仅监听 loopback 的独立 Gateway 和固定 8-tool projection；云端 API、Supabase、Vercel 与 Android 不进入本机控制链路 |
 
 ---
 
@@ -318,6 +322,14 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 
 ## 九、文档导航
 
+### Local Codex Bridge 本机监督接入（方案，待实施）
+
+- SparkFlow React 前端通过 same-origin 本机 Gateway 监督 native Codex；Gateway 不进入现有 NestJS/Render/Supabase 数据链路。
+- 固定投影 Bridge 当前 8 个工具，明确 accepted、terminal、pending request 与 `UNKNOWN / possibly accepted` 的不同语义。
+- Vercel 与 Android 保持普通应用模式，不探测桌面 localhost；native Codex 仍是 thread、turn 与执行状态的唯一事实源。
+- 当前仅完成实施方案，未新增 Gateway、前端控制页或数据库改动。
+- 详细方案：[Phase 13：Local Codex Bridge 本机监督接入](docs/plans/phase13-local-codex-bridge.md)。
+
 ### 课程导入体验改进（方案，待实施）
 
 - 课程页收拢为导入、创建和更多入口；WebDAV 移至设置 → 数据管理，保留其仅备份课表的能力边界。
@@ -332,6 +344,8 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | [docs/plans/phase09-course-module.md](docs/plans/phase09-course-module.md) | Phase 09：Course 模块深化方案 |
 | [docs/plans/phase10-pending-features.md](docs/plans/phase10-pending-features.md) | Phase 10：待办功能收束方案 |
 | [docs/plans/phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) | Phase 11：账户注册、密码管理与问候页多选 |
+| [docs/plans/phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) | Phase 12：课程页与教务导入体验改进 |
+| [docs/plans/phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) | Phase 13：Local Codex Bridge 本机监督接入 |
 | [docs/archive/](docs/archive/) | 已完成方案 + 设计决策（只读） |
 | [docs/prototypes/](docs/prototypes/) | 交互原型（v2/v3/v4/course-detail） |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | 部署手册（Supabase/Render/Vercel） |
