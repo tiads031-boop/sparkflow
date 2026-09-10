@@ -9,9 +9,11 @@ import {
   FileJson,
   LoaderCircle,
   Plus,
+  Save,
   School,
   Trash2,
   Upload,
+  WandSparkles,
   X,
 } from 'lucide-react';
 import { SchoolImport } from '../api/courseNative';
@@ -27,6 +29,12 @@ import {
   summarizeSchoolImport,
   type SchoolImportData,
 } from '../utils/schoolImport';
+import {
+  generateCourseTimeSlots,
+  loadCourseTimeTemplates,
+  saveCourseTimeTemplates,
+  type CourseTimeTemplate,
+} from '../utils/courseTimeTemplates';
 
 interface CourseImportWizardProps {
   open: boolean;
@@ -90,11 +98,21 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
   const [bookmark, setBookmark] = useState('');
   const [semester, setSemester] = useState({ name: '', start: '', end: '' });
   const [slots, setSlots] = useState<TimeSlotRow[]>([]);
+  const [templates, setTemplates] = useState<CourseTimeTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateName, setTemplateName] = useState('');
+  const [generatedSlots, setGeneratedSlots] = useState<TimeSlotRow[] | null>(null);
+  const [generator, setGenerator] = useState({
+    firstStart: '08:00', lessonMinutes: '45', breakMinutes: '10', sectionCount: '10',
+    longBreakAfter: '4', longBreakMinutes: '90',
+  });
+  const [generatorError, setGeneratorError] = useState('');
   const [preview, setPreview] = useState<ScheduleBackup | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
+  const generatorPanel = useRef<HTMLDivElement>(null);
   const android = Capacitor.getPlatform() === 'android';
   const adapter = catalog.find(item => item.id === adapterId);
   const normalizedUrl = url.trim();
@@ -132,8 +150,10 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
         if (!mounted) return;
         setCatalog(items);
         setCatalogError('');
-        setAdapterId(current => current || items[0]?.id || '');
+        const initialAdapterId = items[0]?.id || '';
+        setAdapterId(current => current || initialAdapterId);
         setUrl(current => current || items[0]?.url || '');
+        setTemplates(loadCourseTimeTemplates(initialAdapterId));
       })
       .catch(error => {
         if (mounted) setCatalogError(error instanceof Error ? error.message : '学校目录加载失败');
@@ -164,6 +184,10 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
 
   const chooseAdapter = (item: Adapter) => {
     setAdapterId(item.id);
+    setTemplates(loadCourseTimeTemplates(item.id));
+    setSelectedTemplateId('');
+    setTemplateName('');
+    setGeneratedSlots(null);
     setUrl(item.url || '');
     setShowAddressEditor(!item.url);
     setSchoolData(null);
@@ -179,6 +203,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     }
     setSchoolData(data);
     setSlots(importedRows(data));
+    setGeneratedSlots(null);
     const start = data.config?.semesterStartDate;
     setSemester(current => ({
       ...current,
@@ -239,6 +264,77 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     setPreview(null);
   };
 
+  const replaceSlots = (next: readonly { number: number; startTime: string; endTime: string }[]) => {
+    setSlots(next.map(slot => ({ number: slot.number, start: slot.startTime, end: slot.endTime })));
+    setGeneratedSlots(null);
+    setPreview(null);
+  };
+
+  const saveTemplate = () => {
+    const name = templateName.trim();
+    if (!name) throw new Error('请填写模板名称');
+    const normalized = serializeTimeSlots(slots.map(row => ({ number: row.number, startTime: row.start, endTime: row.end })))
+      .split('\n').map(line => {
+        const [number, range] = line.split(' ');
+        const [startTime, endTime] = range.split('-');
+        return { number: Number(number), startTime, endTime };
+      });
+    if (!normalized.length) throw new Error('请先填写至少一个有效节次');
+    const next = [...templates, { id: crypto.randomUUID(), name, slots: normalized }];
+    saveCourseTimeTemplates(adapterId, next);
+    setTemplates(next);
+    setSelectedTemplateId(next.at(-1)?.id || '');
+    setTemplateName('');
+    setMessage(`已为 ${adapter?.school || '当前学校'} 保存模板“${name}”`);
+  };
+
+  const deleteTemplate = () => {
+    const selected = templates.find(template => template.id === selectedTemplateId);
+    if (!selected) throw new Error('请先选择要删除的模板');
+    const next = templates.filter(template => template.id !== selected.id);
+    saveCourseTimeTemplates(adapterId, next);
+    setTemplates(next);
+    setSelectedTemplateId('');
+    setMessage(`已删除模板“${selected.name}”`);
+  };
+
+  const applyTemplate = () => {
+    const selected = templates.find(template => template.id === selectedTemplateId);
+    if (!selected) throw new Error('请先选择作息模板');
+    replaceSlots(selected.slots);
+    setMessage(`已将“${selected.name}”应用到节次表，请核对后再预览导入`);
+  };
+
+  const generateSlots = () => {
+    setGeneratorError('');
+    setGeneratedSlots(null);
+    setMessage('');
+    try {
+      const next = generateCourseTimeSlots({
+        firstStart: generator.firstStart,
+        lessonMinutes: Number(generator.lessonMinutes),
+        breakMinutes: Number(generator.breakMinutes),
+        sectionCount: Number(generator.sectionCount),
+        longBreakAfter: generator.longBreakAfter ? Number(generator.longBreakAfter) : undefined,
+        longBreakMinutes: generator.longBreakAfter ? Number(generator.longBreakMinutes) : undefined,
+      }).map(slot => ({ number: slot.number, start: slot.startTime, end: slot.endTime }));
+      setGeneratedSlots(next);
+      setMessage('已生成作息预览；确认无误后点击“应用到节次表”');
+    } catch (error) {
+      setGeneratorError(error instanceof Error ? error.message : String(error));
+      requestAnimationFrame(() => {
+        const firstInput = generatorPanel.current?.querySelector<HTMLInputElement>('input');
+        const invalidInput = generatorPanel.current?.querySelector<HTMLInputElement>('input:invalid');
+        (invalidInput || firstInput)?.focus();
+      });
+    }
+  };
+
+  const updateGenerator = (field: keyof typeof generator, value: string) => {
+    setGenerator(current => ({ ...current, [field]: value }));
+    setGeneratorError('');
+  };
+
   const buildPreview = () => {
     if (!schoolData) throw new Error('请先读取教务课表');
     const nextPreview = schoolBackup(
@@ -262,6 +358,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     setBookmark('');
     setSemester({ name: adapter ? `${adapter.school} · 新学期` : '', start: '', end: '' });
     setSlots([]);
+    setGeneratedSlots(null);
     setPreview(null);
     setMessage('');
     if (fileInput.current) fileInput.current.value = '';
@@ -407,6 +504,45 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
           </div>
           <div className="course-import-card">
             <strong>节次作息</strong>
+            <p>教务文件内的作息已优先载入。模板仅显示当前学校保存的内容，并且需要手动应用。</p>
+            <div className="course-time-template-controls">
+              <label>当前学校模板
+                <select value={selectedTemplateId} onChange={event => setSelectedTemplateId(event.target.value)}>
+                  <option value="">{templates.length ? '选择模板' : '尚无已保存模板'}</option>
+                  {templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}
+                </select>
+              </label>
+              <div className="course-time-actions">
+                <button type="button" disabled={busy || !selectedTemplateId} onClick={() => void run(async () => applyTemplate())}>应用模板</button>
+                <button type="button" disabled={busy || !selectedTemplateId} onClick={() => void run(async () => deleteTemplate())}><Trash2 aria-hidden="true" /> 删除</button>
+              </div>
+              <label>保存当前节次为新模板
+                <input value={templateName} maxLength={40} onChange={event => setTemplateName(event.target.value)} placeholder="例如：冬季作息" />
+              </label>
+              <button type="button" disabled={busy || !templateName.trim() || !slots.length} onClick={() => void run(async () => saveTemplate())}><Save aria-hidden="true" /> 保存模板</button>
+            </div>
+
+            <div className="course-time-generator" ref={generatorPanel}>
+              <strong>批量生成作息</strong>
+              <div className="course-import-grid">
+                <label>首节开始<input required type="time" value={generator.firstStart} aria-describedby={generatorError ? 'course-time-generator-error' : undefined} onChange={event => updateGenerator('firstStart', event.target.value)} /></label>
+                <label>每节时长（分钟）<input required type="number" min="1" max="240" value={generator.lessonMinutes} aria-describedby={generatorError ? 'course-time-generator-error' : undefined} onChange={event => updateGenerator('lessonMinutes', event.target.value)} /></label>
+                <label>普通课间（分钟）<input required type="number" min="0" max="240" value={generator.breakMinutes} aria-describedby={generatorError ? 'course-time-generator-error' : undefined} onChange={event => updateGenerator('breakMinutes', event.target.value)} /></label>
+                <label>节数<input required type="number" min="1" max="30" value={generator.sectionCount} aria-describedby={generatorError ? 'course-time-generator-error' : undefined} onChange={event => updateGenerator('sectionCount', event.target.value)} /></label>
+                <label>大课间在第几节后<input type="number" min="1" max="29" value={generator.longBreakAfter} aria-describedby={generatorError ? 'course-time-generator-error' : undefined} onChange={event => updateGenerator('longBreakAfter', event.target.value)} placeholder="留空则不设置" /></label>
+                <label>大课间时长（分钟）<input required={Boolean(generator.longBreakAfter)} type="number" min="0" max="720" value={generator.longBreakMinutes} disabled={!generator.longBreakAfter} aria-describedby={generatorError ? 'course-time-generator-error' : undefined} onChange={event => updateGenerator('longBreakMinutes', event.target.value)} /></label>
+              </div>
+              <button type="button" disabled={busy} onClick={generateSlots}><WandSparkles aria-hidden="true" /> 生成预览</button>
+              {generatorError && <p id="course-time-generator-error" role="alert">{generatorError}</p>}
+              {generatedSlots && <div className="course-time-generated-preview" role="region" aria-label="批量生成作息预览">
+                <p>{generatedSlots.map(slot => `${slot.number} ${slot.start}–${slot.end}`).join('　')}</p>
+                <button type="button" disabled={busy} onClick={() => {
+                  replaceSlots(generatedSlots.map(slot => ({ number: slot.number, startTime: slot.start, endTime: slot.end })));
+                  setGeneratedSlots(null);
+                  setMessage('已应用生成结果，请继续逐行核对或调整');
+                }}>应用到节次表</button>
+              </div>}
+            </div>
             <div className="course-import-grid" role="table" aria-label="节次作息表">
               {slots.map((row, index) => <div key={`${index}-${row.number}`} role="row">
                 <label>节次<input aria-label={`第 ${index + 1} 行节次`} type="number" min="1" max="30" value={row.number || ''} onChange={event => updateSlot(index, 'number', event.target.value)} /></label>

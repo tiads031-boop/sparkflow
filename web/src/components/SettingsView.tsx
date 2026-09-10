@@ -45,6 +45,7 @@ import {
   isSystemCalendarAvailable,
   requestCalendarPermission,
 } from '../capacitor/calendar';
+import CourseWebDavBackup from './CourseWebDavBackup';
 
 function relativeTime(isoStr: string | null): string {
   if (!isoStr) return '从未同步';
@@ -60,6 +61,10 @@ function relativeTime(isoStr: string | null): string {
   const day = Math.floor(hour / 24);
   if (day < 30) return `${day} 天前`;
   return new Date(isoStr).toLocaleDateString('zh-CN');
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 interface SyncScope {
@@ -192,8 +197,8 @@ export default function SettingsView() {
       const count = result.eventCount ?? result.importedCount ?? result.imported ?? result.created ?? 0;
       setHasLocalPermission(true);
       setLocalMessage(`已导入近期本地日历事件：${count} 个`);
-    } catch (err: any) {
-      setLocalMessage(err.message || '导入本地日历失败');
+    } catch (error: unknown) {
+      setLocalMessage(errorMessage(error, '导入本地日历失败'));
     } finally {
       setIsLocalBusy(false);
     }
@@ -206,8 +211,8 @@ export default function SettingsView() {
       const result = await exportTasksToSystemCalendar(tasks);
       setHasLocalPermission(true);
       setLocalMessage(`已写入系统日历：${result.created} 个，失败 ${result.failed} 个`);
-    } catch (err: any) {
-      setLocalMessage(err.message || '写入系统日历失败');
+    } catch (error: unknown) {
+      setLocalMessage(errorMessage(error, '写入系统日历失败'));
     } finally {
       setIsLocalBusy(false);
     }
@@ -231,8 +236,8 @@ export default function SettingsView() {
         },
       });
       setMigrationMessage(`已导出 ${tasks.length} 个任务、${sparks.length} 条灵感、${events.length} 个日程`);
-    } catch (err: any) {
-      setMigrationMessage(err.message || '导出失败，请稍后再试');
+    } catch (error: unknown) {
+      setMigrationMessage(errorMessage(error, '导出失败，请稍后再试'));
     }
   };
 
@@ -265,8 +270,8 @@ export default function SettingsView() {
           imported.events.length > 0 ? `、${imported.events.length} 个日程` : ''
         }。`,
       );
-    } catch (err: any) {
-      setMigrationMessage(err.message || '导入失败，请检查 JSON 文件');
+    } catch (error: unknown) {
+      setMigrationMessage(errorMessage(error, '导入失败，请检查 JSON 文件'));
     } finally {
       setIsImporting(false);
       if (importInputRef.current) {
@@ -513,8 +518,8 @@ export default function SettingsView() {
             <Upload size={16} className="text-[#cae393]" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-[#242424]">数据迁移</h2>
-            <p className="text-[10px] text-gray-400">导出或导入 SparkFlow JSON 备份</p>
+            <h2 className="text-sm font-bold text-[#242424]">数据管理</h2>
+            <p className="text-[10px] text-gray-400">管理完整数据与课表专用备份</p>
           </div>
         </div>
 
@@ -523,6 +528,11 @@ export default function SettingsView() {
             {migrationMessage}
           </div>
         )}
+
+        <div className="mb-3">
+          <h3 className="text-xs font-bold text-[#242424] mb-1">SparkFlow JSON 备份</h3>
+          <p className="text-[10px] text-gray-400">导出或导入任务、灵感、日程与偏好。</p>
+        </div>
 
         <div className="grid grid-cols-1 gap-2">
           <button
@@ -550,6 +560,8 @@ export default function SettingsView() {
             导入 JSON
           </button>
         </div>
+
+        <CourseWebDavBackup />
       </div>
 
       <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4 overflow-hidden">

@@ -41,7 +41,7 @@ export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: 
       <button disabled={busy} onClick={() => input.current?.click()}>恢复 JSON</button>
       <button disabled={busy} onClick={() => void run(async () => { const data = await fetchScheduleBackup(semesterId); if (!occurrences(data).length) throw new Error('当前范围没有已排课实例，无法导出日历'); downloadSchedule(scheduleIcs(data), 'ics'); setMessage('已导出 ICS 日历'); })}>导出 ICS</button>
       <button aria-expanded={settings} onClick={() => setSettings(!settings)}>显示与提醒</button>
-      <button aria-expanded={integrations} onClick={() => setIntegrations(!integrations)}>高级同步</button>
+      <button aria-expanded={integrations} onClick={() => setIntegrations(!integrations)}>课表自动化</button>
       <input ref={input} hidden type="file" accept=".json,application/json" onChange={e => {
         const file = e.target.files?.[0]; e.target.value = '';
         if (file) void run(async () => {
