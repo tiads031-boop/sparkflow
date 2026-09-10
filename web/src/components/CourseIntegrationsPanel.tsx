@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { CourseAutomation, type AutomationStatus } from '../api/courseNative';
-import { davStatus, readDav, writeDav, type DavConfig, type DavRemote } from '../api/courseIntegrations';
 import { useCoursePreferences } from '../store/coursePreferences';
 import { refreshAutomaticHolidays, useIntegrationStatus } from './CourseIntegrationsRuntime';
 
 export default function CourseIntegrationsPanel() {
   const prefs = useCoursePreferences(), status = useIntegrationStatus();
-  const [dav, setDav] = useState<DavConfig>({ url: '', username: '', password: '' });
-  const [remote, setRemote] = useState<DavRemote | null>(null);
   const [nativeStatus, setNativeStatus] = useState<AutomationStatus | null>(null);
   const [busy, setBusy] = useState(false), [message, setMessage] = useState('');
   const android = Capacitor.getPlatform() === 'android';
@@ -18,23 +15,11 @@ export default function CourseIntegrationsPanel() {
   };
   useEffect(() => {
     let mounted = true;
-    davStatus().then(data => { if (mounted) setDav(d => ({ ...d, url: data.defaultUrl })); }).catch(() => {});
     const refresh = () => { if (android) CourseAutomation.status().then(s => { if (mounted) setNativeStatus(s); }).catch(e => { if (mounted) setMessage(`请更新 Android 应用：${e.message}`); }); };
     refresh(); document.addEventListener('visibilitychange', refresh);
     return () => { mounted = false; document.removeEventListener('visibilitychange', refresh); };
   }, [android]);
   return <div className="course-integrations">
-    <section className="course-settings" aria-label="课表 WebDAV 备份">
-      <strong>课表 WebDAV 备份</strong>
-      <p>使用已存在的目录。服务器需配置 WEBDAV_ALLOWED_ORIGINS；账号可临时填写或由服务器提供。表单密码不存入浏览器。</p>
-      {(['url', 'username', 'password'] as const).map(key => <label key={key}>{({ url: '目录地址', username: '用户名', password: '密码 / 应用密码' })[key]}<input type={key === 'password' ? 'password' : 'text'} autoComplete="off" value={dav[key]} onChange={e => { setDav(d => ({ ...d, [key]: e.target.value })); setRemote(null); }} /></label>)}
-      <div className="course-tools">
-        <button disabled={busy} onClick={() => void run(async () => { const result = await readDav(dav); setRemote(result); setMessage(result.exists ? '已读取远端备份' : '远端尚无备份，可以上传'); })}>检查远端</button>
-        <button disabled={busy || !remote || (remote.exists && (!remote.etag || remote.etag.startsWith('W/')))} onClick={() => void run(async () => { await writeDav(dav, remote?.etag); setRemote(null); setMessage('全部课表已上传；下次操作请重新检查远端'); })}>{remote?.exists ? '用全部课表覆盖远端' : '上传全部课表'}</button>
-      </div>
-      {remote?.exists && (!remote.etag || remote.etag.startsWith('W/')) && <p>远端未提供强 ETag，已禁用覆盖；可换用新的空目录备份。</p>}
-      <p>恢复将新增副本；远端内容变化时拒绝覆盖，请重新检查再决定。</p>
-    </section>
     <section className="course-settings" aria-label="自动假期与上课模式">
       <strong>自动节假日与上课模式</strong>
       <label><input type="checkbox" checked={prefs.autoHolidays} onChange={e => prefs.setPreferences({ autoHolidays: e.target.checked })} />自动跳过中国法定休息日的提醒和上课模式</label>

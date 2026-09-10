@@ -1,8 +1,8 @@
 # SparkFlow P0 + Phase 12 实施方案
 
-> 更新日期：2026-09-09  
+> 更新日期：2026-09-10
 > 目标版本：v0.9 Beta  
-> 当前基线：GitHub `master` 为 `d3b06f7f`；Render 生产后端为 `552f3caa`；Vercel 主生产项目为 `sparkflow031`。
+> 当前基线：GitHub `master` 为 `426a9d9`（含 PR #4）；Render 生产后端为 `552f3caa`；Vercel 主生产项目为 `sparkflow031`。
 
 ## 1. 当前结论
 
@@ -12,7 +12,7 @@
 | Render | `sparkflow` 服务已自动部署 `552f3caa`；`/api/health` 返回 200 | 保持部署后日志与健康检查 |
 | Supabase | `sparkflow-db` 健康，Postgres 17；业务表均启用 RLS | 暂不改数据；启用泄露密码保护并核验 RLS 策略内容 |
 | Vercel | `sparkflow031` 是主生产项目并指向 `fish-life.cc.cd`；仍有两个重复项目检查 | 恢复团队 scope 后归档重复项目 |
-| 课程导入 | M2.1 四步导入主路径已实现，待 CI/Preview | 验证主路径；继续实现模板、批量生成、去重与幂等 |
+| 课程导入 | M2.1 已合并且 CI/主 Vercel Preview 通过；M2.2 已实现，待 PR/CI | 验收真实 Web/Android 与 360px 交互；继续已有学期、冲突检测与幂等 |
 
 ## 2. 实施原则
 
@@ -47,19 +47,21 @@
 
 验收：空数据与加载失败可区分；快速切换学期不会串数据；时间解析边界用例全部通过。
 
-### M2：四步导入向导（实施中，M2.1 已实现待 CI/Preview）
+### M2：四步导入向导（实施中，M2.1 已合并；M2.2 待 PR/CI）
 
 - [x] 四步向导骨架与独立预览步骤。
 - [x] 学校搜索、适配提示、地址编辑与可点击教务网址。
 - [x] Web 书签/文件、Android 原生获取及跨平台 JSON 降级。
 - [x] 新学期信息、结构化作息增删/复制、字段校验与预览摘要。
-- [x] WebDAV 从旧教务区剥离，但当前仍在课程页“高级同步”。
-- [ ] 通过 Web CI 与 Vercel Preview，并完成 360px 窄屏验收。
-- [ ] 完成已有学期选择、作息模板、批量/分段生成。
+- [x] M2.1 已随 PR #4 合并，GitHub CI 与主 Vercel Preview 通过。
+- [x] 将仅课表范围的 WebDAV 迁移到“设置 → 数据管理”，保留强 ETag 与弱 ETag 禁止覆盖保护；课程页“高级同步”收敛为“课表自动化”，保留节假日与 Android 上课模式。
+- [x] 新增按学校 adapter id 隔离的本机作息模板，支持保存、应用、删除与损坏数据容错。
+- [x] 新增批量作息生成：首节开始、每节时长、普通间隔、节数和单个大课间覆盖；生成结果先预览再应用。
+- [ ] 完成 360px 窄屏浏览器交互验收，并用真实学校数据分别跑通 Web 与 Android 导入路径。
+- [ ] 完成已有学期选择与上午/下午/晚间分段生成。
 - [ ] 完成重复/冲突检测与明确的重复处理策略。
-- [ ] 将 WebDAV 移到“设置 → 数据管理”，提醒和 Android 上课模式移到“课表设置”。
 
-M2.1 的确认操作仍调用现有新增副本接口；在 M3 服务端幂等完成前，不保证重复提交去重。详细清单见 [phase12-course-import-experience.md](phase12-course-import-experience.md)。
+M2.2 已在本地通过 13 项 Web 测试、构建、ESLint 与 diff check，当前待 PR/CI。导入确认仍调用现有新增副本接口；在 M3 服务端幂等完成前，不保证重复提交去重。详细清单见 [phase12-course-import-experience.md](phase12-course-import-experience.md)。
 
 验收：Web 与 Android 各跑通一条真实导入；点击预览立即换页；360px 宽度无横向溢出。
 

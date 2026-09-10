@@ -49,10 +49,10 @@
 .course-import-body > :first-child { margin-top:0; }
 .course-import-body > :last-child { margin-bottom:0; }
 .course-import-body label { display:grid; min-width:0; gap:6px; color:var(--course-text); font-size:12px; font-weight:600; line-height:1.35; }
-.course-import-body :is(input:not([type="file"]),textarea) { display:block; width:100%; min-width:0; max-width:100%; padding:10px 12px; border:1px solid var(--course-border); border-radius:12px; outline:0; background:var(--course-surface); color:var(--course-text); font:inherit; font-size:14px; font-weight:400; line-height:1.4; }
+.course-import-body :is(input:not([type="file"]),select,textarea) { display:block; width:100%; min-width:0; max-width:100%; padding:10px 12px; border:1px solid var(--course-border); border-radius:12px; outline:0; background:var(--course-surface); color:var(--course-text); font:inherit; font-size:14px; font-weight:400; line-height:1.4; }
 .course-import-body textarea { resize:vertical; overflow-wrap:anywhere; }
 .course-import-body :is(input,textarea)::placeholder { color:var(--course-muted); opacity:.8; }
-.course-import-body :is(input,textarea):focus-visible { border-color:#8b80ca; box-shadow:0 0 0 3px rgba(176,168,219,.3); }
+.course-import-body :is(input,select,textarea):focus-visible { border-color:#8b80ca; box-shadow:0 0 0 3px rgba(176,168,219,.3); }
 .course-import-body > label + .course-import-grid { margin-top:14px; }
 .course-import-body p { max-width:100%; margin:10px 0 0; color:var(--course-muted); font-size:13px; line-height:1.55; overflow-wrap:anywhere; }
 .course-import-body [role="status"] { padding:9px 11px; border:1px solid var(--course-border); border-radius:10px; background:var(--course-surface); color:var(--course-text); }
@@ -80,6 +80,15 @@ button.course-import-card[aria-pressed="true"] { border-color:#7164b5; box-shado
 .course-import-grid [role="row"] label { gap:4px; font-size:10px; }
 .course-import-grid [role="row"] input { min-height:36px; padding:7px 5px; font-size:12px; }
 .course-import-grid [role="row"] button { width:36px; min-width:0; min-height:36px; margin:0; padding:0; }
+.course-time-template-controls { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; min-width:0; padding:12px; border:1px solid var(--course-border); border-radius:12px; background:var(--course-bg); }
+.course-time-template-controls > * { min-width:0; margin:0; }
+.course-time-actions { display:flex; flex-wrap:wrap; gap:8px; min-width:0; }
+.course-time-actions button { flex:1 1 110px; margin:0; }
+.course-time-generator { min-width:0; margin-top:12px; padding:12px; border:1px solid var(--course-border); border-radius:12px; background:var(--course-bg); }
+.course-time-generator > strong { display:block; font-size:13px; }
+.course-time-generator > .course-import-grid { margin-top:10px; }
+.course-time-generated-preview { min-width:0; margin-top:10px; padding:10px; border:1px dashed #8b80ca; border-radius:10px; background:var(--course-surface); }
+.course-time-generated-preview p { max-height:96px; margin:0; overflow:auto; font-variant-numeric:tabular-nums; }
 .course-import-body button:disabled,.course-import-header button:disabled { opacity:.45; cursor:not-allowed; }
 .course-import-body button:focus-visible,.course-import-header button:focus-visible,.course-import-body a:focus-visible { outline:3px solid rgba(176,168,219,.45); outline-offset:2px; }
 .course-import-footer { position:sticky; bottom:0; z-index:3; display:grid; flex:none; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:10px; min-width:0; padding:12px calc(16px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left)); border-top:1px solid var(--course-border); background:var(--course-surface); }
@@ -92,6 +101,8 @@ button.course-import-card[aria-pressed="true"] { border-color:#7164b5; box-shado
 @media (min-width:480px) {
   .course-import-card > .course-import-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .course-import-card > .course-import-grid > span { grid-column:auto; }
+  .course-time-template-controls { grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:end; }
+  .course-time-generator > .course-import-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 
 @media (min-width:640px) {
