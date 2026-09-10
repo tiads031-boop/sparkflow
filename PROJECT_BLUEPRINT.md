@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-09 | **当前 Phase**: Phase 9～13
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-09 | **当前 Phase**: Phase 12（M1 已完成，M2 待实施）
 
 ---
 
@@ -54,6 +54,9 @@
 | 43 | 问候页多选 | profession 和 statusNeed 从单选升级为数组多选，至少保留 1 项 | 用户的身份和状态往往是复合的，多选更真实 |
 | 44 | Supabase 注册确认流程 | 注册请求锁、当前来源回跳、确认链接错误解析 | 避免重复提交触发邮箱唯一约束，并兼容本地/线上验证回调 |
 | 45 | Local Codex Bridge 接入边界 | 新增独立本机 Gateway；React 只调用固定 HTTP projection，现有 Render API/Supabase 不进入 Codex 控制链路 | native Codex 保持唯一执行事实源，并隔离本机控制面与云端业务面 |
+| 46 | 生产发布基线 | GitHub PR + Web/API CI；Render 提供公开 `/api/health`；Node.js 统一为 22 | 让构建、部署与生产健康状态可重复验证 |
+| 47 | 课程加载状态契约 | `idle/loading/success/error/refreshing`；取消旧请求并保留刷新前缓存 | 区分空数据与故障，避免快速切换学期时旧响应覆盖新状态 |
+| 48 | 教务时间输入契约 | 接受单/双位小时、中文冒号及常见连接符，统一归一化为 `HH:mm` | 兼容真实学校课表输入，同时保持 API 与数据库格式稳定 |
 
 ---
 
@@ -77,7 +80,7 @@ sparkflow/
 ├── web/                  ← React 前端（PWA + Capacitor APK）
 │   ├── src/
 │   │   ├── components/      ← BoardView, TaskCard, CalendarView, SparksView ...
-│   │   ├── stores/          ← Zustand stores（taskSlice, uiSlice, googleSyncSlice ...）
+│   │   ├── store/           ← Zustand slices（taskSlice, courseSlice, courseSchedule ...）
 │   │   ├── hooks/           ← useBoard, useTasks, usePush
 │   │   └── service-worker/  ← Web Push handling
 │   ├── public/manifest.json ← PWA manifest
@@ -96,7 +99,7 @@ sparkflow/
 ```
 sparkflow-web (PWA / APK)
        │
-       │ REST API (JSON) — 直接 CRUD Tasks、CalendarEvents
+       │ REST API (JSON) + Supabase Bearer Token
        ▼
 sparkflow-api (NestJS)
        │
@@ -129,7 +132,7 @@ Supabase PostgreSQL (唯一数据源)
 | 09 — Course 模块深化（课程详情页、笔记看板、事件追踪） | 🚧 部分实施中 | [phase09-course-module.md](docs/plans/phase09-course-module.md) |
 | 10 — 待办功能收束（VAPID 部署、拖入时间线、事件类型扩展等） | ⬜ | [phase10-pending-features.md](docs/plans/phase10-pending-features.md) |
 | 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
-| 12 — 课程页与教务导入体验改进 | ⬜ 方案完成，待实施 | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
+| 12 — 课程页与教务导入体验改进 | 🚧 M1 基础已完成，M2 待实施 | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
 | 13 — Local Codex Bridge 本机监督接入 | ⬜ 方案完成，待实施 | [phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) |
 
 ---
@@ -149,7 +152,7 @@ Supabase PostgreSQL (唯一数据源)
 | 推送 | Web Push API + FCM | PWA 推送 + Android 原生推送 |
 | 日历同步 | Google Calendar API（OAuth 2.0 + PKCE） | 双向同步，Android 系统日历借道 |
 | 认证 (Google) | Authorization Code + PKCE，后端代理 | Refresh Token 仅存后端 |
-| 认证 (API) | X-API-Key Header Guard | MVP 单用户 |
+| 认证 (API) | Supabase access token + `SupabaseAuthGuard` | 服务端校验 Bearer token，并以令牌 subject 隔离用户数据 |
 | 部署 | Render (API) + Vercel (Web) | 免费层，零运维 |
 
 ### 关键依赖
@@ -180,6 +183,7 @@ npm test                   # 运行测试
 cd web
 npm run dev                # 启动 Vite dev server
 npm run build              # TypeScript 检查 + Vite 生产构建
+npm test                   # 运行 Node 原生 Web 单元测试
 npm run preview            # 预览生产构建
 
 # === Android APK 构建 ===
@@ -199,6 +203,11 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ---
 
 ## 六、更新日志
+
+### 2026-09-09
+- ✅ **P0 生产基线**：新增公开 `GET /api/health`、Node.js 22 与 Prisma 自动生成配置；建立 Web build/test 与 API build/test CI；Render 已部署后端提交 `552f3caa` 并通过健康检查。
+- ✅ **Phase 12 M1 导入基础**：课程列表与课表概览统一为五态加载契约，旧请求可取消且过期学期响应被隔离；刷新失败保留缓存并显示非阻断提示；教务时间接受 `8:00`、中文冒号及常见连接符并统一为 `HH:mm`；新增 4 个 Web 边界测试。
+- 🚧 **部署治理**：已确认 `sparkflow031` 为主 Vercel 项目并指向 `fish-life.cc.cd`；两个重复项目与持续 pending 检查仍待恢复团队 scope 后清理。
 
 ### 2026-06-04
 - ✅ **日历时间线与重复/提醒闭环**：CalendarView 增加拖拽阈值、边界 clamp 与 pointer capture 安全释放，空白时间线支持直接拖动生成任务时间段；展开月历按月拉取事件并显示任务/课程/本地/Google 标签预览，绿点数据改为任务与日程预览统一驱动；Task 增加 `reminderAt/repeatRule/repeatStartDate/repeatEndDate` 字段，编辑弹层支持独立提醒时间、完整开始日期时间和 daily/weekly/monthly 重复范围；Android/local 日历导入改为创建/更新关联 Task 并回写 CalendarEvent.taskId，使导入日程可按任务编辑；`web npm run build`、`api npm run build` 通过。
@@ -286,6 +295,10 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | 2026-06-04 | **时间线轻触误触拖拽、绿点按周拉取不稳定、本地日历只读** | 拖拽增加 6px 阈值和 clamp；展开月历按月拉取并显示预览标签；本地导入创建/更新关联 Task |
 | 2026-09-07 | **注册显示 Database error saving new user** | 根因是重复注册请求触发 Supabase `users_email_partial_key` 唯一约束；增加前端请求锁、确认邮件状态保护和结构化错误提示，并修正验证回跳地址 |
 | 2026-09-09 | **Local Codex Bridge 接入方案** | 采用仅监听 loopback 的独立 Gateway 和固定 8-tool projection；云端 API、Supabase、Vercel 与 Android 不进入本机控制链路 |
+| 2026-09-09 | **课程加载失败被误显示为空数据** | 建立五态加载契约；刷新失败保留缓存，过期请求不能更新当前学期状态 |
+| 2026-09-09 | **教务作息仅接受两位小时和半角连接符** | 输入先归一化，兼容单/双位小时、中文冒号及 `-—～至` 等连接符，内部保持 `HH:mm` |
+| 2026-09-09 | **Vercel 重复项目与检查持续 pending** | 主生产项目已确认；待重新授权 `sparkflow031` 团队 scope 后读取日志并归档重复项目，状态 🚧 |
+| 2026-09-09 | **Supabase 泄露密码保护未启用** | 数据表 RLS 已启用；Auth 控制台配置仍待开启，状态 ⬜ |
 
 ---
 
@@ -318,6 +331,18 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 
 > 详细方案：[docs/plans/phase10-pending-features.md](docs/plans/phase10-pending-features.md)
 
+### Phase 12：课程导入体验
+
+| 子阶段 | 内容 | 状态 |
+|---|---|---|
+| 12.0 | 生产基线、健康检查与 CI | ✅ |
+| 12.1 | 加载状态契约、过期请求隔离、时间归一化 | ✅ |
+| 12.2 | 四步导入向导与结构化作息编辑 | ⬜ |
+| 12.3 | 幂等导入 API、重复策略与事务测试 | ⬜ |
+| 12.4 | Web/Android Beta 验收与发布 | ⬜ |
+
+> 执行总计划：[docs/plans/p0-phase12-execution.md](docs/plans/p0-phase12-execution.md)；体验方案：[docs/plans/phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md)
+
 ---
 
 ## 九、文档导航
@@ -330,12 +355,12 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 - 当前仅完成实施方案，未新增 Gateway、前端控制页或数据库改动。
 - 详细方案：[Phase 13：Local Codex Bridge 本机监督接入](docs/plans/phase13-local-codex-bridge.md)。
 
-### 课程导入体验改进（方案，待实施）
+### 课程导入体验改进（M1 已完成，M2 待实施）
 
 - 课程页收拢为导入、创建和更多入口；WebDAV 移至设置 → 数据管理，保留其仅备份课表的能力边界。
 - 教务导入改为选择学校、获取课表、确认学期与作息、预览导入四步；Web 补可点击学校入口，作息改为时间选择器、模板与分段生成。
-- 已核查：当前仅接受两位小时；预览出现在表单上方，错误位于长面板底部；课程列表和概览加载状态分离。线上超时根因尚待日志与请求验证。
-- 后续需验证生产部署、请求状态、导入去重与幂等；当前仅更新方案，未修改业务代码或发布。
+- 已完成：五态加载契约、旧请求取消与学期响应隔离、缓存刷新失败提示，以及时间输入归一化和边界测试。
+- 后续：实现四步向导、结构化作息、预览切换、重复检测与幂等提交；真实账号和 Android 路径仍需发布前验收。
 - 详细方案：[Phase 12：课程页与教务导入体验改进](docs/plans/phase12-course-import-experience.md)。
 
 | 文档 | 说明 |

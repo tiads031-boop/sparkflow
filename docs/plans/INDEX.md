@@ -12,7 +12,7 @@
 | [phase09-course-module.md](phase09-course-module.md) | 09 | Course 模块：课表、笔记看板、事件追踪 | 🚧 部分实施中 |
 | [phase10-pending-features.md](phase10-pending-features.md) | 10 | 待办功能收束：VAPID 部署、截止拖入时间线、事件类型扩展等 | ⬜ |
 | [phase11-auth-registration-onboarding.md](phase11-auth-registration-onboarding.md) | 11 | 账户注册、密码管理与问候页多选 | ✅ |
-| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 12 | 课程页入口收敛、教务导入向导、作息编辑与部署验收 | ⬜ 方案完成，待实施 |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 12 | 课程页入口收敛、教务导入向导、作息编辑与部署验收 | 🚧 M1 已完成，M2 待实施 |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 | 本机 Local Codex Bridge Gateway、监督控制、故障对账与验收 | ⬜ 方案完成，待实施 |
 
 ## 归档方案
@@ -24,7 +24,6 @@
 | [../archive/2026-05-29-improvement-plan.md](../archive/2026-05-29-improvement-plan.md) | — | 2026-05-29 改进方案（设计决策） |
 | [../archive/2026-05-29-p0-execution-plan.md](../archive/2026-05-29-p0-execution-plan.md) | — | 2026-05-29 P0 执行计划（设计决策） |
 | [../archive/2026-05-29-post-md-transition-audit.md](../archive/2026-05-29-post-md-transition-audit.md) | — | 2026-05-29 去 md 后审计（设计决策） |
-| [../archive/2026-05-29-sync-fix-3-deep-dive.md](../archive/2026-05-29-sync-fix-3-deep-dive.md) | — | 同步修复深入分析 |
 
 ---
 
