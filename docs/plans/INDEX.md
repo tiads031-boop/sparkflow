@@ -8,11 +8,11 @@
 
 | 文件名 | Phase | 简述 | 状态 |
 |---|---|---|---|
-| [p0-phase12-execution.md](p0-phase12-execution.md) | P0/12 | 生产基线、CI、四步导入与幂等发布的执行总计划 | 🚧 实施中 |
+| [p0-phase12-execution.md](p0-phase12-execution.md) | P0/12 | 生产基线、CI、四步导入与幂等发布的执行总计划 | 🚧 M2.1 已实现，待 CI/Preview |
 | [phase09-course-module.md](phase09-course-module.md) | 09 | Course 模块：课表、笔记看板、事件追踪 | 🚧 部分实施中 |
 | [phase10-pending-features.md](phase10-pending-features.md) | 10 | 待办功能收束：VAPID 部署、截止拖入时间线、事件类型扩展等 | ⬜ |
 | [phase11-auth-registration-onboarding.md](phase11-auth-registration-onboarding.md) | 11 | 账户注册、密码管理与问候页多选 | ✅ |
-| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 12 | 课程页入口收敛、教务导入向导、作息编辑与部署验收 | 🚧 M1 已完成，M2 待实施 |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 12 | 课程页入口收敛、教务导入向导、作息编辑与部署验收 | 🚧 M2.1 已实现，待 CI/Preview |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 | 本机 Local Codex Bridge Gateway、监督控制、故障对账与验收 | ⬜ 方案完成，待实施 |
 
 ## 归档方案
