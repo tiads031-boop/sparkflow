@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-09 | **当前 Phase**: Phase 12（M1 已完成，M2 待实施）
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-09 | **当前 Phase**: Phase 12（M2.1 已实现，待 CI/Preview）
 
 ---
 
@@ -57,6 +57,7 @@
 | 46 | 生产发布基线 | GitHub PR + Web/API CI；Render 提供公开 `/api/health`；Node.js 统一为 22 | 让构建、部署与生产健康状态可重复验证 |
 | 47 | 课程加载状态契约 | `idle/loading/success/error/refreshing`；取消旧请求并保留刷新前缓存 | 区分空数据与故障，避免快速切换学期时旧响应覆盖新状态 |
 | 48 | 教务时间输入契约 | 接受单/双位小时、中文冒号及常见连接符，统一归一化为 `HH:mm` | 兼容真实学校课表输入，同时保持 API 与数据库格式稳定 |
+| 49 | Phase 12 M2 分批交付 | M2.1 先交付四步导入向导与本地预览；模板、批量生成、重复检测及服务端幂等继续留在后续批次 | 先验证跨平台导入主路径，同时避免把现有“新增副本”接口误表述为安全合并能力 |
 
 ---
 
@@ -132,7 +133,7 @@ Supabase PostgreSQL (唯一数据源)
 | 09 — Course 模块深化（课程详情页、笔记看板、事件追踪） | 🚧 部分实施中 | [phase09-course-module.md](docs/plans/phase09-course-module.md) |
 | 10 — 待办功能收束（VAPID 部署、拖入时间线、事件类型扩展等） | ⬜ | [phase10-pending-features.md](docs/plans/phase10-pending-features.md) |
 | 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
-| 12 — 课程页与教务导入体验改进 | 🚧 M1 基础已完成，M2 待实施 | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
+| 12 — 课程页与教务导入体验改进 | 🚧 M2.1 已实现，待 CI/Preview | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
 | 13 — Local Codex Bridge 本机监督接入 | ⬜ 方案完成，待实施 | [phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) |
 
 ---
@@ -207,6 +208,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ### 2026-09-09
 - ✅ **P0 生产基线**：新增公开 `GET /api/health`、Node.js 22 与 Prisma 自动生成配置；建立 Web build/test 与 API build/test CI；Render 已部署后端提交 `552f3caa` 并通过健康检查。
 - ✅ **Phase 12 M1 导入基础**：课程列表与课表概览统一为五态加载契约，旧请求可取消且过期学期响应被隔离；刷新失败保留缓存并显示非阻断提示；教务时间接受 `8:00`、中文冒号及常见连接符并统一为 `HH:mm`；新增 4 个 Web 边界测试。
+- 🚧 **Phase 12 M2.1 导入主路径**：已实现选择学校、获取课表、确认学期与结构化作息、预览确认四步向导，补齐 Web 学校外链、Web 书签/文件与 Android 原生获取、JSON 降级路径；当前待 CI 与 Preview 验证，WebDAV 仍位于课程“高级同步”，模板、批量生成、重复检测及幂等提交尚未实现。
 - 🚧 **部署治理**：已确认 `sparkflow031` 为主 Vercel 项目并指向 `fish-life.cc.cd`；两个重复项目与持续 pending 检查仍待恢复团队 scope 后清理。
 
 ### 2026-06-04
@@ -337,7 +339,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 |---|---|---|
 | 12.0 | 生产基线、健康检查与 CI | ✅ |
 | 12.1 | 加载状态契约、过期请求隔离、时间归一化 | ✅ |
-| 12.2 | 四步导入向导与结构化作息编辑 | ⬜ |
+| 12.2 | 四步导入向导与结构化作息编辑 | 🚧 M2.1 已实现，待 CI/Preview |
 | 12.3 | 幂等导入 API、重复策略与事务测试 | ⬜ |
 | 12.4 | Web/Android Beta 验收与发布 | ⬜ |
 
@@ -355,12 +357,11 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 - 当前仅完成实施方案，未新增 Gateway、前端控制页或数据库改动。
 - 详细方案：[Phase 13：Local Codex Bridge 本机监督接入](docs/plans/phase13-local-codex-bridge.md)。
 
-### 课程导入体验改进（M1 已完成，M2 待实施）
+### 课程导入体验改进（M2.1 已实现，待 CI/Preview）
 
-- 课程页收拢为导入、创建和更多入口；WebDAV 移至设置 → 数据管理，保留其仅备份课表的能力边界。
-- 教务导入改为选择学校、获取课表、确认学期与作息、预览导入四步；Web 补可点击学校入口，作息改为时间选择器、模板与分段生成。
-- 已完成：五态加载契约、旧请求取消与学期响应隔离、缓存刷新失败提示，以及时间输入归一化和边界测试。
-- 后续：实现四步向导、结构化作息、预览切换、重复检测与幂等提交；真实账号和 Android 路径仍需发布前验收。
+- 已实现四步教务导入主路径：学校选择与外链、Web 书签/文件和 Android 原生获取、JSON 降级、结构化作息、预览与确认导入。
+- WebDAV 已从旧教务导入区剥离，但当前仍位于课程页“高级同步”，尚未迁入“设置 → 数据管理”。
+- M2 尚未完成：作息模板、批量/分段生成、重复与冲突检测、幂等提交仍待实施；当前改动还需 CI、Preview、Web/Android 真实路径验收。
 - 详细方案：[Phase 12：课程页与教务导入体验改进](docs/plans/phase12-course-import-experience.md)。
 
 | 文档 | 说明 |

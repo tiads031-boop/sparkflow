@@ -3,9 +3,16 @@ export interface ImportedSchoolCourse {
   name: string; teacher?: string; position?: string; day: number; weeks: number[];
   startSection?: number; endSection?: number; isCustomTime?: boolean; customStartTime?: string; customEndTime?: string;
 }
-export interface SchoolImportData { courses: ImportedSchoolCourse[]; timeSlots?: { number: number; startTime: string; endTime: string }[]; config?: { semesterStartDate?: string; semesterTotalWeeks?: number }; }
+export interface ImportedTimeSlot { number: number; startTime: string; endTime: string }
+export interface SchoolImportData { courses: ImportedSchoolCourse[]; timeSlots?: ImportedTimeSlot[]; config?: { semesterStartDate?: string; semesterTotalWeeks?: number }; }
 
 export interface ParsedTimeSlot { number: number; start: string; end: string }
+export interface SchoolImportSummary {
+  scheduleEntryCount: number;
+  uniqueCourseCount: number;
+  generatedEventCount: number;
+  excludedEventCount: number;
+}
 
 /** Normalize common timetable time variants to the API contract (HH:mm). */
 export function normalizeCourseTime(value: unknown): string | null {
@@ -33,9 +40,52 @@ export function parseTimeSlots(slotsText: string): ParsedTimeSlot[] {
   return [...slots.values()];
 }
 
+/** Return every numbered period referenced by non-custom-time courses. */
+export function requiredSectionNumbers(data: SchoolImportData): number[] {
+  const numbers = new Set<number>();
+  for (const course of data.courses) {
+    if (course.isCustomTime) continue;
+    const first = course.startSection;
+    const last = course.endSection;
+    if (!Number.isInteger(first) || !Number.isInteger(last) || first! < 1 || last! > 30 || last! < first!) continue;
+    for (let number = first!; number <= last!; number += 1) numbers.add(number);
+  }
+  return [...numbers].sort((a, b) => a - b);
+}
+
+/** Serialize structured school periods to the text format accepted by schoolBackup. */
+export function serializeTimeSlots(slots: readonly ImportedTimeSlot[]): string {
+  const serialized = slots.map(slot => `${slot.number} ${slot.startTime}-${slot.endTime}`).join('\n');
+  return parseTimeSlots(serialized)
+    .sort((a, b) => a.number - b.number)
+    .map(slot => `${slot.number} ${slot.start}-${slot.end}`)
+    .join('\n');
+}
+
+/** Produce stable preview counters without exposing the backup's internal model. */
+export function summarizeSchoolImport(data: SchoolImportData, backup: ScheduleBackup): SchoolImportSummary {
+  const generatedEventCount = backup.courses.reduce((total, course) => total + course.events.length, 0);
+  const plannedEventCount = data.courses.reduce((total, course) => total + new Set(course.weeks).size, 0);
+  return {
+    scheduleEntryCount: data.courses.length,
+    uniqueCourseCount: new Set(data.courses.map(course => course.name.trim()).filter(Boolean)).size,
+    generatedEventCount,
+    excludedEventCount: Math.max(0, plannedEventCount - generatedEventCount),
+  };
+}
+
+function isCalendarDate(value: string): boolean {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
 export function schoolBackup(data: SchoolImportData, name: string, start: string, end: string, slotsText: string): ScheduleBackup {
   if (!data || !Array.isArray(data.courses) || !data.courses.length || data.courses.length > 500) throw new Error('未找到有效课程或课程超过 500 条');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start || !name.trim()) throw new Error('请填写学期名称和有效的起止日期');
+  if (!name.trim()) throw new Error('请填写学期名称');
+  if (!isCalendarDate(start) || !isCalendarDate(end) || end < start) throw new Error('学期起止日期无效，请检查日期及先后顺序');
   // School dates/times are China local time, independent of the browser/device time zone.
   const first = new Date(`${start}T00:00:00+08:00`), last = new Date(`${end}T23:59:59+08:00`);
   if (!Number.isFinite(+first) || !Number.isFinite(+last)) throw new Error('学期日期无效');
@@ -46,9 +96,22 @@ export function schoolBackup(data: SchoolImportData, name: string, start: string
   anchor.setUTCDate(anchor.getUTCDate() - ((anchor.getUTCDay() || 7) - 1));
   const courses = data.courses.map((c, index) => {
     if (typeof c.name !== 'string' || !c.name.trim() || !Number.isInteger(c.day) || c.day < 1 || c.day > 7 || !Array.isArray(c.weeks) || !c.weeks.length || c.weeks.some(w => !Number.isInteger(w) || w < 1 || w > 60)) throw new Error(`第 ${index + 1} 条课程名称、星期或周次无效`);
-    const startTime = c.isCustomTime ? normalizeCourseTime(c.customStartTime) : slots.get(Number(c.startSection))?.start;
-    const endTime = c.isCustomTime ? normalizeCourseTime(c.customEndTime) : slots.get(Number(c.endSection))?.end;
-    if (!startTime || !endTime || endTime <= startTime) throw new Error(`“${c.name}”缺少有效时间，请补齐第 ${c.startSection} 至 ${c.endSection} 节作息`);
+    let startTime: string | null | undefined;
+    let endTime: string | null | undefined;
+    if (c.isCustomTime) {
+      startTime = normalizeCourseTime(c.customStartTime);
+      endTime = normalizeCourseTime(c.customEndTime);
+      if (!startTime || !endTime || endTime <= startTime) throw new Error(`“${c.name}”的自定义时间无效，请填写有效时间且结束晚于开始`);
+    } else {
+      if (!Number.isInteger(c.startSection) || !Number.isInteger(c.endSection) || c.startSection! < 1 || c.endSection! > 30 || c.endSection! < c.startSection!) throw new Error(`“${c.name}”的节次范围无效，请检查开始和结束节次`);
+      const missing = [];
+      for (let number = c.startSection!; number <= c.endSection!; number += 1) {
+        if (!slots.has(number)) missing.push(number);
+      }
+      if (missing.length) throw new Error(`“${c.name}”缺少第 ${missing.join('、')} 节作息，请补齐后重试`);
+      startTime = slots.get(c.startSection!)?.start;
+      endTime = slots.get(c.endSection!)?.end;
+    }
     const id = `school-course-${index}`;
     const weeks = [...new Set(c.weeks)].sort((a, b) => a - b);
     const events = weeks.map(w => {
@@ -58,6 +121,6 @@ export function schoolBackup(data: SchoolImportData, name: string, start: string
     }).filter(e => Date.parse(e.startTime) >= +first && Date.parse(e.endTime) <= +last);
     return { id, userId: '', semesterId, name: c.name.trim(), teacher: c.teacher, room: c.position, dayOfWeek: c.day, weeks, startTime, endTime, color: ['#cae393', '#b0a8db', '#a8dadc'][index % 3], createdAt: now, updatedAt: now, events };
   });
-  if (!courses.some(c => c.events.length)) throw new Error('所选学期日期与课程周次没有交集，请检查开学日期');
+  if (!courses.some(c => c.events.length)) throw new Error('所选日期范围已排除全部上课时间，请检查学期日期和课程周次');
   return { format: 'sparkflow-courses', version: 1, exportedAt: now, semesters: [{ id: semesterId, userId: '', name: name.trim(), startDate: first.toISOString(), endDate: last.toISOString(), isActive: false, createdAt: now, updatedAt: now }], courses };
 }

@@ -6,6 +6,7 @@ import { useCourseSchedule } from '../store/courseSchedule';
 import { fetchScheduleBackup, importScheduleBackup } from '../api/courses';
 import { downloadSchedule, localDay, occurrences, scheduleIcs, type ScheduleBackup } from '../utils/courseSchedule';
 import { requestCourseNotifications } from './CourseReminderRuntime';
+import CourseImportWizard from './CourseImportWizard';
 import CourseIntegrationsPanel from './CourseIntegrationsPanel';
 
 export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: (id: string) => void }) {
@@ -14,6 +15,7 @@ export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: 
   const prefs = useCoursePreferences();
   const [settings, setSettings] = useState(false);
   const [integrations, setIntegrations] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<ScheduleBackup | null>(null);
@@ -34,11 +36,12 @@ export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: 
   };
   return <>
     <div className="course-tools" aria-label="课表工具">
+      <button disabled={busy} onClick={() => setWizardOpen(true)}>导入课表</button>
       <button disabled={busy} onClick={() => void run(async () => { downloadSchedule(JSON.stringify(await fetchScheduleBackup(semesterId), null, 2), 'json'); setMessage('已导出当前范围的课表备份'); })}>备份 JSON</button>
-      <button disabled={busy} onClick={() => void run(async () => { const data = await fetchScheduleBackup(semesterId); if (!occurrences(data).length) throw new Error('当前范围没有已排课实例，无法导出日历'); downloadSchedule(scheduleIcs(data), 'ics'); setMessage('已导出 ICS 日历'); })}>导出 ICS</button>
       <button disabled={busy} onClick={() => input.current?.click()}>恢复 JSON</button>
+      <button disabled={busy} onClick={() => void run(async () => { const data = await fetchScheduleBackup(semesterId); if (!occurrences(data).length) throw new Error('当前范围没有已排课实例，无法导出日历'); downloadSchedule(scheduleIcs(data), 'ics'); setMessage('已导出 ICS 日历'); })}>导出 ICS</button>
       <button aria-expanded={settings} onClick={() => setSettings(!settings)}>显示与提醒</button>
-      <button aria-expanded={integrations} onClick={() => setIntegrations(!integrations)}>教务与同步</button>
+      <button aria-expanded={integrations} onClick={() => setIntegrations(!integrations)}>高级同步</button>
       <input ref={input} hidden type="file" accept=".json,application/json" onChange={e => {
         const file = e.target.files?.[0]; e.target.value = '';
         if (file) void run(async () => {
@@ -49,6 +52,11 @@ export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: 
         });
       }} />
     </div>
+    <CourseImportWizard
+      open={wizardOpen}
+      onClose={() => setWizardOpen(false)}
+      onImported={setMessage}
+    />
     {(message || error) && <p role="status">{message || error} {error && <button onClick={() => void refresh()}>重试</button>}</p>}
     {preview && <section className="course-settings" aria-label="恢复预览">
       <strong>恢复 {preview.semesters.length} 个学期、{preview.courses.length} 门课程</strong>
@@ -62,7 +70,7 @@ export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: 
         setMessage(`已恢复 ${result.courseCount} 门课程、${result.eventCount} 次课`);
       })}>确认恢复</button><button disabled={busy} onClick={() => setPreview(null)}>取消</button></div>
     </section>}
-    {integrations && <CourseIntegrationsPanel onPreview={setPreview} />}
+    {integrations && <CourseIntegrationsPanel />}
     {settings && <section className="course-settings" aria-label="课程显示与提醒设置">
       <label>外观<select value={prefs.theme} onChange={e => prefs.setPreferences({ theme: e.target.value as typeof prefs.theme })}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
       <label>页内小组件<select value={prefs.widget} onChange={e => prefs.setPreferences({ widget: e.target.value as typeof prefs.widget })}><option value="next">下一节</option><option value="today">今日列表</option><option value="twoDays">今日与明日</option></select></label>
