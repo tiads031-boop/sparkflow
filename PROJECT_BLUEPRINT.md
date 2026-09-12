@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-12 | **当前 Phase**: Phase 12（M2.2 待 PR/CI）→ Phase 14（方案完成，待实施）
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-12 | **当前 Phase**: Phase 12（M2.1/M2.2 已合并，后续待实施）＋ Phase 14（已完成冲突审计，待 M1）
 
 ---
 
@@ -60,6 +60,7 @@
 | 49 | Phase 12 M2 分批交付 | M2.1 先交付四步导入向导与本地预览；模板、批量生成、重复检测及服务端幂等继续留在后续批次 | 先验证跨平台导入主路径，同时避免把现有“新增副本”接口误表述为安全合并能力 |
 | 50 | Phase 12 M2.2 设置与作息边界 | 课表 WebDAV 仅放在“设置 → 数据管理”；本机作息模板按学校 adapter id 隔离；批量生成必须先预览再应用 | 避免课程页入口拥挤、学校模板串用，以及错误作息直接覆盖当前编辑内容 |
 | 51 | Phase 14 SparkFlow V5 体验主线 | 建立统一 Schedule Layer，以 Today 为首页，按 M1～M5 推进 Capture → Plan → Flow → Focus → Review | 收束现有任务、课程、日历与专注能力；M1～M3 构成 V5 Core，AI 仅负责意图解析，确定性 Scheduler 决定时间 |
+| 52 | Phase 13/14 与现有模块兼容契约 | 默认 5 Tab 改为可扩展注册表；课程/Google/local 统一从 CalendarEvent 投影；Task 使用 scheduleColor；新排程写入 start/end/duration；高冲突文件串行交付 | 避免 local-codex 导航丢失、课程重复、优先级颜色混淆、旧任务缺 end 及 App/Settings/Schema 并行冲突 |
 
 ---
 
@@ -135,9 +136,9 @@ Supabase PostgreSQL (唯一数据源)
 | 09 — Course 模块深化（课程详情页、笔记看板、事件追踪） | 🚧 部分实施中 | [phase09-course-module.md](docs/plans/phase09-course-module.md) |
 | 10 — 待办功能收束（VAPID 部署、拖入时间线、事件类型扩展等） | ⬜ | [phase10-pending-features.md](docs/plans/phase10-pending-features.md) |
 | 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
-| 12 — 课程页与教务导入体验改进 | 🚧 M2.1 已合并；M2.2 已实现，待 PR/CI | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
+| 12 — 课程页与教务导入体验改进 | 🚧 M2.1/M2.2 已合并；M2 后续与 M3 待实施 | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
 | 13 — Local Codex Bridge 本机监督接入 | ⬜ 方案完成，待实施 | [phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) |
-| 14 — Rhythm Experience / SparkFlow V5 | ⬜ 方案完成，待 Phase 12 M2.2 合并后实施 | [phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) |
+| 14 — Rhythm Experience / SparkFlow V5 | ⬜ 已完成冲突审计，待从 M1 实施 | [phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) |
 
 ---
 
@@ -148,7 +149,7 @@ Supabase PostgreSQL (唯一数据源)
 | 前端框架 | React 19 + TypeScript + Vite | PWA / APK 共用代码 |
 | 前端状态 | Zustand 5 | 轻量状态管理，多 slice 拆分 |
 | 前端样式 | Tailwind CSS 4 | 原子化 CSS，dark mode |
-| 前端路由 | React Router（Hash 路由） | Capacitor 兼容 |
+| 前端视图切换 | Zustand `activeTab` 状态路由 | 当前 App 无 React Router；由 App/types/uiSlice 共同维护并持久化导航 |
 | 后端框架 | NestJS 11 + TypeScript | 模块化后端 |
 | ORM | Prisma 7 | PostgreSQL 类型安全数据访问 |
 | 数据库 | Supabase PostgreSQL | 持久化主存储 |
@@ -209,7 +210,8 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ## 六、更新日志
 
 ### 2026-09-12
-- ✅ **Phase 14 方案落库**：确定 SparkFlow V5 以 Capture → Plan → Flow → Focus → Review 为产品主线；新增统一 Schedule Layer、Today Rhythm、Timeline V2、确定性 Planner、Focus 与 Daily Receipt 的五阶段实施方案。M1～M3 定义为 V5 Core，待 Phase 12 M2.2 合并并通过 CI 后启动。
+- ✅ **Phase 14 方案落库**：确定 SparkFlow V5 以 Capture → Plan → Flow → Focus → Review 为产品主线；新增统一 Schedule Layer、Today Rhythm、Timeline V2、确定性 Planner、Focus 与 Daily Receipt 的五阶段实施方案。M1～M3 定义为 V5 Core。
+- ✅ **Phase 14 冲突审计**：核实 Phase 12 M2.2 已随 PR #5 合并且 CI 成功；明确 Phase 13 `local-codex` 可扩展导航、CalendarEvent 单一课程/外部事件投影、`scheduleColor`、时间字段兼容读取及高冲突文件串行交付契约。
 
 ### 2026-09-10
 - ✅ **Phase 12 M2.1 合并验收**：PR #4 已合并，GitHub CI 与主 Vercel Preview 已通过；360px 浏览器交互及真实 Web/Android 导入链路仍待验收。
@@ -349,7 +351,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 |---|---|---|
 | 12.0 | 生产基线、健康检查与 CI | ✅ |
 | 12.1 | 加载状态契约、过期请求隔离、时间归一化 | ✅ |
-| 12.2 | 四步导入向导、设置迁移与结构化作息编辑 | 🚧 M2.1 已合并；M2.2 已实现，待 PR/CI |
+| 12.2 | 四步导入向导、设置迁移与结构化作息编辑 | 🚧 M2.1/M2.2 已合并；M2 后续与 M3 待实施 |
 | 12.3 | 幂等导入 API、重复策略与事务测试 | ⬜ |
 | 12.4 | Web/Android Beta 验收与发布 | ⬜ |
 
@@ -365,7 +367,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | M4 | Smart Planner：意图解析、确定性排程、预览/应用/撤销 | ⬜ |
 | M5 | Life Loop：Focus、Daily Receipt、Dark Mode、Android Widget | ⬜ |
 
-> 前置条件：Phase 12 M2.2 合并并通过 CI。M1～M3 为 V5 Core。详细方案：[docs/plans/phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md)
+> Phase 12 M2.2 已合并并通过 GitHub CI。M1～M3 为 V5 Core；Phase 13/14 对导航、Settings、App.tsx 和类型文件采用串行交付。详细方案：[docs/plans/phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md)
 
 ---
 
@@ -379,10 +381,10 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 - 当前仅完成实施方案，未新增 Gateway、前端控制页或数据库改动。
 - 详细方案：[Phase 13：Local Codex Bridge 本机监督接入](docs/plans/phase13-local-codex-bridge.md)。
 
-### 课程导入体验改进（M2.1 已合并；M2.2 待 PR/CI）
+### 课程导入体验改进（M2.1/M2.2 已合并；后续待实施）
 
 - M2.1 四步教务导入主路径已随 PR #4 合并，GitHub CI 与主 Vercel Preview 已通过；360px 浏览器交互及真实 Web/Android 导入仍待验收。
-- M2.2 已实现 WebDAV 设置迁移、按学校隔离的本机作息模板，以及先预览后应用的批量作息生成，当前待 PR/CI。
+- M2.2 已随 PR #5 合并，GitHub CI run #11 成功；已包含 WebDAV 设置迁移、按学校隔离的本机作息模板，以及先预览后应用的批量作息生成。
 - M2 尚未完成：已有学期、分段作息、重复与冲突检测、服务端幂等提交仍待实施。
 - 详细方案：[Phase 12：课程页与教务导入体验改进](docs/plans/phase12-course-import-experience.md)。
 
