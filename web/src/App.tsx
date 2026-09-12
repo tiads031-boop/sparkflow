@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
 import type { NavOrder, NavVisibility } from './types';
-import DashboardView from './components/DashboardView';
 import TasksView from './components/TasksView';
 import BoardView from './components/BoardView';
 import CalendarView from './components/CalendarView';
@@ -22,6 +21,8 @@ import { normalizeTaskSection } from './utils/taskSections';
 import { navigationRegistry } from './navigation';
 import AppShell from './components/shell/AppShell';
 import QuickAddSheet, { type QuickAddAction } from './components/shell/QuickAddSheet';
+import TodayView from './components/today/TodayView';
+import ScheduleEditor, { type ScheduleDraft } from './components/schedule/ScheduleEditor';
 
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
@@ -67,6 +68,7 @@ export default function App() {
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const navVisibility = useAppStore((s) => s.navVisibility);
   const navOrder = useAppStore((s) => s.navOrder);
+  const selectedDate = useAppStore((s) => s.selectedDate);
   const tasks = useAppStore((s) => s.tasks);
   const sparks = useAppStore((s) => s.sparks);
   const setSparks = useAppStore((s) => s.setSparks);
@@ -79,7 +81,6 @@ export default function App() {
   const loadTasks = useAppStore((s) => s.loadTasks);
   const loadPomodoroStats = useAppStore((s) => s.loadPomodoroStats);
   const tick = useAppStore((s) => s.tick);
-  const pomodoro = useAppStore((s) => s.pomodoro);
   const pushEnabled = useAppStore((s) => s.pushEnabled);
   const pushSupported = useAppStore((s) => s.pushSupported);
   const subscribeToPush = useAppStore((s) => s.subscribeToPush);
@@ -94,6 +95,8 @@ export default function App() {
 
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [scheduleEditorOpen, setScheduleEditorOpen] = useState(false);
+  const [editingScheduleTask, setEditingScheduleTask] = useState<Task | null>(null);
   const visibleNavItems = getOrderedNavItems(navOrder, navVisibility);
 
   useEffect(() => {
@@ -162,8 +165,36 @@ export default function App() {
       handleOpenCreate('spark');
       return;
     }
-    if (action === 'schedule') setActiveTab('timeline');
-    if (action === 'task' || action === 'schedule') handleOpenCreate('task');
+    if (action === 'schedule') {
+      setEditingScheduleTask(null);
+      setScheduleEditorOpen(true);
+      return;
+    }
+    if (action === 'task') handleOpenCreate('task');
+  };
+
+  const handleSaveSchedule = async (draft: ScheduleDraft) => {
+    const { taskId, ...updates } = draft;
+    if (taskId) {
+      await updateTask(taskId, updates);
+      return;
+    }
+    await addTask({
+      ...updates,
+      id: crypto.randomUUID(),
+      time: 'Just now',
+      status: 'To do',
+      priority: 'Medium',
+      colorType: 'green',
+      comments: 0,
+      subtasks: [],
+      section: 'personal',
+    });
+  };
+
+  const handleEditSchedule = (task: Task) => {
+    setEditingScheduleTask(task);
+    setScheduleEditorOpen(true);
   };
 
   const handleOpenDetail = (item: any, context: string) =>
@@ -303,7 +334,7 @@ export default function App() {
           {/* Course detail view (full page) */}
           {activeTab === 'courses' && viewingCourseId ? (
             <CourseTheme><CourseDetailView onBack={() => setViewingCourseId(null)} /></CourseTheme>
-          ) : activeTab === 'today' && <DashboardView tasks={tasks} pomodoro={pomodoro} />}
+          ) : activeTab === 'today' && <TodayView onTaskClick={handleEditSchedule} />}
           {activeTab === 'tasks' && <TasksView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'board' && <BoardView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'timeline' && <CalendarView onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
@@ -349,6 +380,16 @@ export default function App() {
           onToggleSubtask={toggleSubtask}
         />
         <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} onSelect={handleQuickAdd} />
+        {scheduleEditorOpen && (
+          <ScheduleEditor
+            key={editingScheduleTask?.id ?? selectedDate.toDateString()}
+            open
+            initialDate={selectedDate}
+            initialTask={editingScheduleTask}
+            onClose={() => { setScheduleEditorOpen(false); setEditingScheduleTask(null); }}
+            onSave={handleSaveSchedule}
+          />
+        )}
     </AppShell>
   );
 }

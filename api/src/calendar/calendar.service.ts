@@ -83,6 +83,7 @@ export class CalendarService {
     externalSource?: string;
     externalEventId?: string;
     sourceCalendarTitle?: string;
+    scheduleLocked?: boolean;
   }) {
     if (data.taskId) {
       const task = await this.prisma.task.findFirst({ where: { id: data.taskId, userId: data.userId }, select: { id: true } });

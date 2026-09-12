@@ -88,6 +88,9 @@ model Task {
   repeatRule      String?
   repeatStartDate DateTime?
   repeatEndDate   DateTime?
+  scheduleLocked  Boolean   @default(false)
+  scheduleSource  String    @default("manual")
+  scheduleColor   String?
 
   id              String    @id @default(uuid())
   userId          String
@@ -155,6 +158,7 @@ model CalendarEvent {
   googleEventId  String?
   googleSyncedAt DateTime?
   syncStatus     String    @default("pending")
+  scheduleLocked Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

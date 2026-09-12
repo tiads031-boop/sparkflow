@@ -32,6 +32,9 @@ interface ApiTask {
   repeatStartDate?: string | null;
   repeatEndDate?: string | null;
   tags?: string[];
+  scheduleLocked?: boolean;
+  scheduleSource?: string;
+  scheduleColor?: string | null;
 }
 
 const STATUS_DB_TO_FRONT: Record<string, Task['status']> = {
@@ -107,6 +110,9 @@ function fromApiTask(api: ApiTask): Task {
     repeatRule: api.repeatRule || undefined,
     repeatStartDate: api.repeatStartDate || undefined,
     repeatEndDate: api.repeatEndDate || undefined,
+    scheduleLocked: api.scheduleLocked ?? false,
+    scheduleSource: api.scheduleSource || 'manual',
+    scheduleColor: api.scheduleColor || undefined,
   };
 }
 
@@ -145,6 +151,9 @@ function toApiPayload(task: Partial<Task> & { title?: string }): Record<string, 
   if (task.repeatRule !== undefined) payload.repeatRule = task.repeatRule || null;
   if (task.repeatStartDate !== undefined) payload.repeatStartDate = normalizeDateLike(task.repeatStartDate);
   if (task.repeatEndDate !== undefined) payload.repeatEndDate = normalizeDateLike(task.repeatEndDate);
+  if (task.scheduleLocked !== undefined) payload.scheduleLocked = task.scheduleLocked;
+  if (task.scheduleSource !== undefined) payload.scheduleSource = task.scheduleSource;
+  if (task.scheduleColor !== undefined) payload.scheduleColor = task.scheduleColor || null;
   if (task.subtasks !== undefined) {
     payload.notes = task.subtasks.map((s) => ({ text: s.title, completed: s.completed }));
   }

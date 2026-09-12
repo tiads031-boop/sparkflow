@@ -30,6 +30,11 @@ export class TasksController {
     estimatedMinutes?: number;
     tags?: string[];
     inspirationId?: string;
+    scheduledStart?: string | null;
+    scheduledEnd?: string | null;
+    scheduleLocked?: boolean;
+    scheduleSource?: string;
+    scheduleColor?: string | null;
   }) {
     return this.tasksService.create({ ...data, userId });
   }
