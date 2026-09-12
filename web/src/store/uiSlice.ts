@@ -2,29 +2,16 @@ import type { StateCreator } from 'zustand';
 import type { AppState } from './index';
 import type { ActiveTab, ChartView, NavOrder, NavVisibility, ToggleableNavTab } from '../types';
 import { V4 } from '../v4config';
+import {
+  defaultNavOrder,
+  defaultNavVisibility,
+  isToggleableNavTab,
+  migrateNavigationId,
+  toggleableNavTabs,
+} from '../navigation';
 
 const NAV_VISIBILITY_STORAGE_KEY = 'sparkflow.navVisibility';
 const NAV_ORDER_STORAGE_KEY = 'sparkflow.navOrder';
-
-const toggleableNavTabs: ToggleableNavTab[] = [
-  'dashboard',
-  'tasks',
-  'board',
-  'calendar',
-  'courses',
-  'sparks',
-];
-
-const defaultNavVisibility: NavVisibility = {
-  dashboard: true,
-  tasks: true,
-  board: true,
-  calendar: true,
-  courses: true,
-  sparks: true,
-};
-
-const defaultNavOrder: NavOrder = [...toggleableNavTabs];
 
 function readStoredNavVisibility(): NavVisibility {
   if (typeof window === 'undefined') return defaultNavVisibility;
@@ -33,11 +20,16 @@ function readStoredNavVisibility(): NavVisibility {
     const raw = window.localStorage.getItem(NAV_VISIBILITY_STORAGE_KEY);
     if (!raw) return defaultNavVisibility;
 
-    const parsed = JSON.parse(raw) as Partial<Record<ToggleableNavTab, unknown>>;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const migrated = new Map<ToggleableNavTab, boolean>();
+    Object.entries(parsed).forEach(([key, value]) => {
+      const id = migrateNavigationId(key);
+      if (isToggleableNavTab(id) && typeof value === 'boolean') migrated.set(id, value);
+    });
     return toggleableNavTabs.reduce<NavVisibility>(
       (acc, tab) => ({
         ...acc,
-        [tab]: typeof parsed[tab] === 'boolean' ? parsed[tab] : defaultNavVisibility[tab],
+        [tab]: migrated.get(tab) ?? defaultNavVisibility[tab],
       }),
       { ...defaultNavVisibility },
     );
@@ -66,9 +58,10 @@ function readStoredNavOrder(): NavOrder {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return defaultNavOrder;
 
-    const storedTabs = parsed.filter((tab): tab is ToggleableNavTab =>
-      toggleableNavTabs.includes(tab as ToggleableNavTab),
-    );
+    const storedTabs = parsed
+      .map(migrateNavigationId)
+      .filter(isToggleableNavTab)
+      .filter((tab, index, values) => values.indexOf(tab) === index);
     const missingTabs = toggleableNavTabs.filter((tab) => !storedTabs.includes(tab));
     return [...storedTabs, ...missingTabs];
   } catch {
@@ -91,6 +84,7 @@ function isNavTabVisible(tab: ActiveTab, navVisibility: NavVisibility): boolean 
 }
 
 function getFallbackActiveTab(navVisibility: NavVisibility): ActiveTab {
+  if (navVisibility.today) return 'today';
   if (navVisibility.tasks) return 'tasks';
   return toggleableNavTabs.find((tab) => navVisibility[tab]) ?? 'settings';
 }

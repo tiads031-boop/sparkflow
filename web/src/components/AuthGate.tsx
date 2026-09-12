@@ -23,6 +23,7 @@ import type {
   SparkFlowStatusNeed,
 } from '../store/appStore';
 import type { ToggleableNavTab } from '../types';
+import { defaultNavVisibility, navigationRegistry } from '../navigation';
 
 interface AuthGateProps {
   children: ReactNode;
@@ -52,18 +53,23 @@ const statusOptions: Array<{
   { value: 'life-balance', label: '生活平衡' },
 ];
 
+const navigationIconMap = {
+  today: Home,
+  tasks: CheckSquare,
+  board: LayoutGrid,
+  timeline: CalendarIcon,
+  courses: BookOpen,
+  sparks: Sparkles,
+  settings: Home,
+} as const;
+
 const navigationOptions: Array<{
   value: ToggleableNavTab;
   label: string;
   icon: typeof Home;
-}> = [
-  { value: 'dashboard', label: '仪表盘', icon: Home },
-  { value: 'tasks', label: '任务', icon: CheckSquare },
-  { value: 'board', label: '看板', icon: LayoutGrid },
-  { value: 'calendar', label: '日历', icon: CalendarIcon },
-  { value: 'courses', label: '课程', icon: BookOpen },
-  { value: 'sparks', label: '灵感', icon: Sparkles },
-];
+}> = navigationRegistry
+  .filter((item): item is typeof item & { id: ToggleableNavTab } => item.toggleable)
+  .map((item) => ({ value: item.id, label: item.label, icon: navigationIconMap[item.icon] }));
 
 export default function AuthGate({ children }: AuthGateProps) {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
@@ -96,11 +102,7 @@ export default function AuthGate({ children }: AuthGateProps) {
   const [professions, setProfessions] = useState<SparkFlowProfession[]>(['student']);
   const [statusNeeds, setStatusNeeds] = useState<SparkFlowStatusNeed[]>(['study-focus']);
   const [navigationNeeds, setNavigationNeeds] = useState<ToggleableNavTab[]>([
-    'dashboard',
-    'tasks',
-    'calendar',
-    'courses',
-    'sparks',
+    ...navigationOptions.filter((item) => defaultNavVisibility[item.value]).map((item) => item.value),
   ]);
 
   const canComplete = useMemo(

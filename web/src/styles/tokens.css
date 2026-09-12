@@ -1,0 +1,23 @@
+:root {
+  color-scheme: light;
+  --sf-bg: #f4f4f6;
+  --sf-surface: #ffffff;
+  --sf-surface-elevated: #ffffff;
+  --sf-text-primary: #242424;
+  --sf-text-secondary: #626267;
+  --sf-text-tertiary: #96969d;
+  --sf-border: rgba(36, 36, 36, 0.08);
+  --sf-divider: rgba(36, 36, 36, 0.06);
+  --sf-accent: #242424;
+  --sf-marker-purple: #b0a8db;
+  --sf-marker-pink: #eeb6c8;
+  --sf-marker-yellow: #ead887;
+  --sf-marker-green: #cae393;
+  --sf-marker-blue: #a9c9ec;
+  --sf-marker-cyan: #a9dedc;
+  --sf-radius-sm: 16px;
+  --sf-radius-md: 20px;
+  --sf-radius-lg: 28px;
+  --sf-radius-pill: 999px;
+}
+

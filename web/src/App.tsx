@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   Home, CheckSquare, Calendar as CalendarIcon, Zap,
-  Plus, Bell, BellOff, LayoutGrid, BookOpen, Settings,
+  LayoutGrid, BookOpen, Settings,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
-import type { ActiveTab, NavOrder, NavVisibility } from './types';
+import type { NavOrder, NavVisibility } from './types';
 import DashboardView from './components/DashboardView';
 import TasksView from './components/TasksView';
 import BoardView from './components/BoardView';
@@ -19,6 +19,9 @@ import SettingsView from './components/SettingsView';
 import { importIcs } from './api/courses';
 import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
 import { normalizeTaskSection } from './utils/taskSections';
+import { navigationRegistry } from './navigation';
+import AppShell from './components/shell/AppShell';
+import QuickAddSheet, { type QuickAddAction } from './components/shell/QuickAddSheet';
 
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
@@ -29,21 +32,15 @@ function isCapacitorNative(): boolean {
   }
 }
 
-const navItems = [
-  { id: 'dashboard' as const, label: '仪表盘', icon: Home },
-  { id: 'tasks' as const, label: '任务', icon: CheckSquare },
-  { id: 'board' as const, label: '看板', icon: LayoutGrid },
-  { id: 'calendar' as const, label: '日历', icon: CalendarIcon },
-  { id: 'courses' as const, label: '课程', icon: BookOpen },
-  { id: 'sparks' as const, label: '灵感', icon: Zap },
-  { id: 'settings' as const, label: '设置', icon: Settings },
-];
-
-type NavItem = (typeof navItems)[number];
-
-function isVisibleNavItem(tab: NavItem, navVisibility: NavVisibility): boolean {
-  return tab.id === 'settings' || navVisibility[tab.id];
-}
+const navIconMap = {
+  today: Home,
+  tasks: CheckSquare,
+  board: LayoutGrid,
+  timeline: CalendarIcon,
+  courses: BookOpen,
+  sparks: Zap,
+  settings: Settings,
+} as const;
 
 function localDateBoundaryToIso(value: string | undefined, boundary: 'start' | 'end'): string | undefined {
   if (!value) return undefined;
@@ -53,96 +50,16 @@ function localDateBoundaryToIso(value: string | undefined, boundary: 'start' | '
   return date.toISOString();
 }
 
-function getOrderedNavItems(navOrder: NavOrder, navVisibility: NavVisibility): NavItem[] {
-  const navMap = new Map(navItems.map((item) => [item.id, item]));
+function getOrderedNavItems(navOrder: NavOrder, navVisibility: NavVisibility) {
+  const navMap = new Map(navigationRegistry.map((item) => [item.id, item]));
   const orderedToggleable = navOrder
     .map((id) => navMap.get(id))
-    .filter((item): item is NavItem => !!item && isVisibleNavItem(item, navVisibility));
+    .filter((item) => !!item && item.toggleable && navVisibility[item.id as keyof typeof navVisibility])
+    .map((item) => ({ id: item!.id, label: item!.label, icon: navIconMap[item!.icon] }));
   const settingsItem = navMap.get('settings');
-  return settingsItem ? [...orderedToggleable, settingsItem] : orderedToggleable;
-}
-
-function Header({
-  onAddClick,
-  pushEnabled,
-  pushSupported,
-  onTogglePush,
-}: {
-  onAddClick: (context: string) => void;
-  pushEnabled: boolean;
-  pushSupported: boolean;
-  onTogglePush: () => void;
-}) {
-  return (
-    <div className="flex justify-between items-center mb-4">
-      <div className="flex items-center gap-3">
-        <div className="text-xl font-black tracking-tighter text-[#242424] italic select-none">
-          SparkFlow<span className="text-[#cae393]">.</span>
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <button
-          onClick={() => onAddClick('task')}
-          className="w-9 h-9 rounded-full bg-[#242424] text-white flex items-center justify-center shadow-sm hover:scale-105 active:scale-95 transition-all"
-        >
-          <Plus size={18} />
-        </button>
-        {pushSupported && (
-          <button
-            onClick={onTogglePush}
-            className={`w-9 h-9 rounded-full flex items-center justify-center relative transition-colors ${
-              pushEnabled
-                ? 'bg-[#cae393] text-[#242424] hover:bg-[#b8d481]'
-                : 'bg-[#e5e2f3] text-gray-400 hover:bg-[#d8d4ec]'
-            }`}
-            title={pushEnabled ? '关闭推送通知' : '开启推送通知'}
-          >
-            {pushEnabled ? <Bell size={18} /> : <BellOff size={18} />}
-            {pushEnabled && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#242424] rounded-full border border-white" />
-            )}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function BottomNav({
-  activeTab,
-  setActiveTab,
-  items,
-}: {
-  activeTab: ActiveTab;
-  setActiveTab: (tab: ActiveTab) => void;
-  items: readonly NavItem[];
-}) {
-  return (
-    <div
-      className="fixed left-1/2 -translate-x-1/2 bg-[#242424] rounded-full px-1.5 py-1.5 flex items-center gap-1 shadow-[0_20px_40px_rgba(0,0,0,0.3)] z-40"
-      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)' }}
-    >
-      {items.map((tab) => {
-        const Icon = tab.icon;
-        const isActive = activeTab === tab.id;
-        return (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            title={tab.label}
-            className={`relative p-2.5 rounded-full transition-all duration-300 ${
-              isActive ? 'bg-white text-[#242424]' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-            {isActive && (
-              <span className="absolute -top-0.5 right-0 w-2 h-2 bg-[#cae393] rounded-full border-2 border-[#242424]" />
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
+  return settingsItem
+    ? [...orderedToggleable, { id: settingsItem.id, label: settingsItem.label, icon: navIconMap[settingsItem.icon] }]
+    : orderedToggleable;
 }
 
 export default function App() {
@@ -176,6 +93,7 @@ export default function App() {
   const loadCourseDetail = useAppStore((s) => s.loadCourseDetail);
 
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const visibleNavItems = getOrderedNavItems(navOrder, navVisibility);
 
   useEffect(() => {
@@ -237,6 +155,16 @@ export default function App() {
 
   const handleOpenCreate = (context: string) =>
     setModalConfig({ isOpen: true, mode: 'create', context: context as 'task' | 'spark', data: null });
+
+  const handleQuickAdd = (action: QuickAddAction) => {
+    setQuickAddOpen(false);
+    if (action === 'spark') {
+      handleOpenCreate('spark');
+      return;
+    }
+    if (action === 'schedule') setActiveTab('timeline');
+    if (action === 'task' || action === 'schedule') handleOpenCreate('task');
+  };
 
   const handleOpenDetail = (item: any, context: string) =>
     setModalConfig({ isOpen: true, mode: 'edit', context: context as 'task' | 'spark', data: item });
@@ -336,7 +264,15 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-svh font-sans bg-[#f4f4f6] flex justify-center">
+    <AppShell
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      navItems={visibleNavItems}
+      onQuickAdd={() => setQuickAddOpen(true)}
+      pushEnabled={pushEnabled}
+      pushSupported={pushSupported}
+      onTogglePush={() => pushEnabled ? unsubscribeFromPush() : subscribeToPush()}
+    >
       {/* CSS custom properties injection */}
       <style>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -357,23 +293,6 @@ export default function App() {
         .app-safe-top { padding-top: calc(env(safe-area-inset-top, 0px) + 28px); }
       `}</style>
 
-      {/* App container (removed phone frame, full-screen adaptive) */}
-      <div className="w-full h-svh flex flex-col overflow-hidden sm:max-w-lg sm:mx-auto">
-        {/* Header */}
-        <div className="px-5 pb-0 relative z-20 app-safe-top">
-          <Header
-            onAddClick={handleOpenCreate}
-            pushEnabled={pushEnabled}
-            pushSupported={pushSupported}
-            onTogglePush={() => pushEnabled ? unsubscribeFromPush() : subscribeToPush()}
-          />
-        </div>
-
-        {/* Content */}
-        <div
-          className="flex-1 overflow-y-auto hide-scrollbar px-5 relative z-10"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' }}
-        >
           {appMessage && (
             <div className="mb-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
               {appMessage}
@@ -384,10 +303,10 @@ export default function App() {
           {/* Course detail view (full page) */}
           {activeTab === 'courses' && viewingCourseId ? (
             <CourseTheme><CourseDetailView onBack={() => setViewingCourseId(null)} /></CourseTheme>
-          ) : activeTab === 'dashboard' && <DashboardView tasks={tasks} pomodoro={pomodoro} />}
+          ) : activeTab === 'today' && <DashboardView tasks={tasks} pomodoro={pomodoro} />}
           {activeTab === 'tasks' && <TasksView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'board' && <BoardView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
-          {activeTab === 'calendar' && <CalendarView onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
+          {activeTab === 'timeline' && <CalendarView onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'courses' && !viewingCourseId && (
             <CourseTheme>
             <CourseView
@@ -417,10 +336,6 @@ export default function App() {
             />
           )}
           {activeTab === 'settings' && <SettingsView />}
-        </div>
-
-        <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} items={visibleNavItems} />
-
         {/* Modals */}
         <DarkFrostedModal
           config={modalConfig}
@@ -433,8 +348,7 @@ export default function App() {
           onDelete={handleDeleteItem}
           onToggleSubtask={toggleSubtask}
         />
-      </div>
-    </div>
+        <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} onSelect={handleQuickAdd} />
+    </AppShell>
   );
 }
-
