@@ -84,6 +84,9 @@ export class TasksService {
     tags?: string[];
     inspirationId?: string;
     courseId?: string | null;
+    scheduleLocked?: boolean;
+    scheduleSource?: string;
+    scheduleColor?: string | null;
   }) {
     if (data.courseId) {
       const course = await this.prisma.course.findFirst({ where: { id: data.courseId, userId: data.userId }, select: { id: true } });

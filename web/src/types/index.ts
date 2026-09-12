@@ -44,11 +44,17 @@ export interface Task {
   /** V4 Calendar: 持续时长 (分钟) */
   duration?: number;
   /** 独立提醒时间，可早于/晚于截止时间 */
-  reminderAt?: string;
+  reminderAt?: string | null;
   /** 重复规则：daily / weekly / monthly */
   repeatRule?: 'daily' | 'weekly' | 'monthly' | string;
   repeatStartDate?: string;
   repeatEndDate?: string;
+  /** 是否禁止自动排程移动 */
+  scheduleLocked?: boolean;
+  /** 排程来源：manual / ai / imported */
+  scheduleSource?: 'manual' | 'ai' | 'imported' | string;
+  /** 时间视图专用颜色，不改变任务优先级颜色 */
+  scheduleColor?: string;
 }
 
 // ════════════════════════════════════════════════════
@@ -99,6 +105,27 @@ export interface CalendarEvent {
   color?: string;
   isOverride?: boolean;
   extendedProps?: { taskId?: string; eventType?: string };
+  taskId?: string | null;
+  externalSource?: string | null;
+  location?: string | null;
+  scheduleLocked?: boolean;
+}
+
+export type ScheduleSourceType = 'task' | 'course' | 'calendar' | 'google' | 'local';
+
+export interface ScheduleItem {
+  id: string;
+  sourceType: ScheduleSourceType;
+  sourceId: string;
+  title: string;
+  start: string;
+  end: string;
+  durationMinutes: number;
+  color: string;
+  locked: boolean;
+  completed: boolean;
+  location?: string;
+  taskId?: string;
 }
 
 // ════════════════════════════════════════════════════

@@ -1,6 +1,6 @@
 # Phase 14 — Rhythm Experience / SparkFlow V5
 
-> **状态**：🚧 M1 已随 PR #6 合并且 CI 成功，待真实设备交互复验
+> **状态**：🚧 M1 已合并；M2 已实现，待 PR/CI、迁移与真实设备验收
 > **基线要求**：Phase 12 M2.2 已随 PR #5 合并且 CI 成功；实施时从最新 `master` 建立短期分支  
 > **产品主线**：Capture → Plan → Flow → Focus → Review  
 > **V5 Core**：M1 + M2 + M3
@@ -277,6 +277,20 @@ CalendarEvent 增加同名 `scheduleLocked Boolean @default(false)`，以支持�
 - 可创建、编辑、锁定并完成安排
 - 空闲时间与真实占用一致
 - 刷新后安排、颜色和锁定状态不丢失
+
+### 5.7 M2 实施进度（2026-09-12）
+
+- [x] 新增统一 `ScheduleItem` 与 projection，Task 和 CalendarEvent 归一后供 Today 使用。
+- [x] 关联 `taskId` 的 CalendarEvent 去重；课程、Google 与 Android local 来源从 CalendarEvent 派生，不重复读取 Course 实例。
+- [x] 旧任务缺少 `scheduledEnd` 时，以 `estimatedMinutes / duration` 推导；无效时间和取消任务不进入投影。
+- [x] 新增 `computeFreeSlots`，支持区间裁剪、重叠合并和最小空闲时长。
+- [x] Today 首页包含周日期条、06:00–24:00 Rhythm Dial、下一项、空闲时段、今日进度与日程列表。
+- [x] 新增统一 Schedule Editor，支持新建和编辑任务安排；一次提交 start/end/duration、锁定、来源、颜色、提醒和备注。
+- [x] Task 增加 `scheduleLocked / scheduleSource / scheduleColor`；CalendarEvent 增加 `scheduleLocked`，均通过 additive migration 交付。
+- [x] Web build、21 项测试和新增模块定向 ESLint 通过；API build、6 suites / 17 tests 通过。
+- [ ] PR/CI、Supabase migration 应用、Vercel Preview 和真实 360px/Android 交互验收。
+
+云端浏览器当前策略阻止访问本地 `127.0.0.1`，因此未以不可复现的截图替代真实交互验收；临时 AuthGate 绕过已还原，未进入提交。
 
 ## 6. M3 — Timeline V2
 

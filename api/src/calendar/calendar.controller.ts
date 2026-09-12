@@ -30,6 +30,7 @@ export class CalendarController {
     externalSource?: string;
     externalEventId?: string;
     sourceCalendarTitle?: string;
+    scheduleLocked?: boolean;
   }) {
     return this.calendarService.create({ ...data, userId });
   }
