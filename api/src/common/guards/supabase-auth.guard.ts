@@ -13,6 +13,9 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 interface SupabaseUserResponse {
   id?: string;
   email?: string;
+  user_metadata?: {
+    nickname?: unknown;
+  };
 }
 
 @Injectable()
@@ -75,12 +78,15 @@ export class SupabaseAuthGuard implements CanActivate {
     const authUser = await response.json() as SupabaseUserResponse;
     if (!authUser.id) throw new UnauthorizedException('Invalid access token subject');
 
+    const accountNickname = typeof authUser.user_metadata?.nickname === 'string'
+      ? authUser.user_metadata.nickname.trim()
+      : '';
     await this.prisma.user.upsert({
       where: { id: authUser.id },
       update: {},
       create: {
         id: authUser.id,
-        nickname: authUser.email?.split('@')[0] || 'SparkFlow user',
+        nickname: accountNickname || authUser.email?.split('@')[0] || 'SparkFlow user',
       },
     });
     request.authUserId = authUser.id;

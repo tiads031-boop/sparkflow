@@ -24,6 +24,7 @@ import type {
 } from '../store/appStore';
 import type { ToggleableNavTab } from '../types';
 import { defaultNavVisibility, navigationRegistry } from '../navigation';
+import type { AuthMethod } from '../auth/credentials';
 
 interface AuthGateProps {
   children: ReactNode;
@@ -90,12 +91,14 @@ export default function AuthGate({ children }: AuthGateProps) {
   // ── 登录表单状态 ──
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loginMethod, setLoginMethod] = useState<AuthMethod>('nickname');
 
   // ── 注册表单状态 ──
   const [regUsername, setRegUsername] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [regLocalError, setRegLocalError] = useState('');
+  const [registerMethod, setRegisterMethod] = useState<AuthMethod>('nickname');
 
   // ── 问候页状态（v2 多选数组） ──
   const [displayName, setDisplayName] = useState('Fish');
@@ -121,7 +124,8 @@ export default function AuthGate({ children }: AuthGateProps) {
   // ── 登录 ──
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await login(username, password);
+    const loggedIn = await login(username, password, loginMethod);
+    if (loggedIn && loginMethod === 'nickname') setDisplayName(username.trim());
   };
 
   // ── 注册 ──
@@ -135,7 +139,8 @@ export default function AuthGate({ children }: AuthGateProps) {
     }
     setRegLocalError('');
 
-    await register(regUsername, regPassword);
+    const registered = await register(regUsername, regPassword, registerMethod);
+    if (registered && registerMethod === 'nickname') setDisplayName(regUsername.trim());
   };
 
   // ── 导航 toggle ──
@@ -206,19 +211,42 @@ export default function AuthGate({ children }: AuthGateProps) {
             <form onSubmit={handleRegister} className="bg-white rounded-[2rem] p-5 shadow-sm">
               <div className="mb-5">
                 <h1 className="text-xl font-black text-[#242424]">创建账号</h1>
-                <p className="text-xs text-gray-400 mt-1">使用 Supabase 安全登录，云端数据按账号隔离。</p>
+                <p className="text-xs text-gray-400 mt-1">昵称注册无需邮箱；云端数据仍按账号安全隔离。</p>
+              </div>
+
+              <div className="mb-4 grid grid-cols-2 rounded-2xl bg-[#f4f4f6] p-1" aria-label="注册方式">
+                {(['nickname', 'email'] as const).map((method) => (
+                  <button
+                    key={method}
+                    type="button"
+                    aria-pressed={registerMethod === method}
+                    onClick={() => {
+                      setRegisterMethod(method);
+                      setRegUsername('');
+                      setRegLocalError('');
+                    }}
+                    className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors ${
+                      registerMethod === method ? 'bg-white text-[#242424] shadow-sm' : 'text-gray-400'
+                    }`}
+                  >
+                    {method === 'nickname' ? '昵称注册' : '邮箱注册'}
+                  </button>
+                ))}
               </div>
 
               <div className="space-y-3">
                 <label className="block">
-                  <span className="text-xs font-bold text-[#242424]">邮箱</span>
+                  <span className="text-xs font-bold text-[#242424]">
+                    {registerMethod === 'nickname' ? '昵称' : '邮箱'}
+                  </span>
                   <input
                     value={regUsername}
                     onChange={(event) => setRegUsername(event.target.value)}
                     className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm text-[#242424] outline-none ring-2 ring-transparent focus:ring-[#cae393]"
-                    autoComplete="email"
-                    inputMode="email"
-                    placeholder="name@example.com"
+                    autoComplete={registerMethod === 'nickname' ? 'username' : 'email'}
+                    inputMode={registerMethod === 'email' ? 'email' : 'text'}
+                    placeholder={registerMethod === 'nickname' ? '2–24 个字符' : 'name@example.com'}
+                    required
                   />
                 </label>
                 <label className="block">
@@ -230,6 +258,8 @@ export default function AuthGate({ children }: AuthGateProps) {
                     autoComplete="new-password"
                     placeholder="至少 6 个字符"
                     type="password"
+                    minLength={6}
+                    required
                   />
                 </label>
                 <label className="block">
@@ -241,6 +271,8 @@ export default function AuthGate({ children }: AuthGateProps) {
                     autoComplete="new-password"
                     placeholder="再次输入密码"
                     type="password"
+                    minLength={6}
+                    required
                   />
                 </label>
               </div>
@@ -284,16 +316,38 @@ export default function AuthGate({ children }: AuthGateProps) {
                 <p className="text-xs text-gray-400 mt-1">登录后继续整理今天的节奏。</p>
               </div>
 
+              <div className="mb-4 grid grid-cols-2 rounded-2xl bg-[#f4f4f6] p-1" aria-label="登录方式">
+                {(['nickname', 'email'] as const).map((method) => (
+                  <button
+                    key={method}
+                    type="button"
+                    aria-pressed={loginMethod === method}
+                    onClick={() => {
+                      setLoginMethod(method);
+                      setUsername('');
+                    }}
+                    className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors ${
+                      loginMethod === method ? 'bg-white text-[#242424] shadow-sm' : 'text-gray-400'
+                    }`}
+                  >
+                    {method === 'nickname' ? '昵称登录' : '邮箱登录'}
+                  </button>
+                ))}
+              </div>
+
               <div className="space-y-3">
                 <label className="block">
-                  <span className="text-xs font-bold text-[#242424]">邮箱</span>
+                  <span className="text-xs font-bold text-[#242424]">
+                    {loginMethod === 'nickname' ? '昵称' : '邮箱'}
+                  </span>
                   <input
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
                     className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm text-[#242424] outline-none ring-2 ring-transparent focus:ring-[#cae393]"
-                    autoComplete="email"
-                    inputMode="email"
-                    placeholder="name@example.com"
+                    autoComplete={loginMethod === 'nickname' ? 'username' : 'email'}
+                    inputMode={loginMethod === 'email' ? 'email' : 'text'}
+                    placeholder={loginMethod === 'nickname' ? '输入昵称' : 'name@example.com'}
+                    required
                   />
                 </label>
                 <label className="block">
@@ -304,6 +358,7 @@ export default function AuthGate({ children }: AuthGateProps) {
                     className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm text-[#242424] outline-none ring-2 ring-transparent focus:ring-[#cae393]"
                     autoComplete="current-password"
                     type="password"
+                    required
                   />
                 </label>
               </div>

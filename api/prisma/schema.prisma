@@ -275,3 +275,12 @@ model GoogleToken {
   @@unique([userId])
   @@map("google_tokens")
 }
+
+model NicknameSignupRateLimit {
+  requestKey      String
+  windowStartedAt DateTime @db.Timestamptz(6)
+  attemptCount    Int      @default(1)
+
+  @@id([requestKey, windowStartedAt])
+  @@map("nickname_signup_rate_limits")
+}
