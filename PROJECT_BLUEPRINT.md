@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-10 | **当前 Phase**: Phase 12（M2.1 已合并；M2.2 已实现，待 PR/CI）
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-12 | **当前 Phase**: Phase 12（M2.2 待 PR/CI）→ Phase 14（方案完成，待实施）
 
 ---
 
@@ -59,6 +59,7 @@
 | 48 | 教务时间输入契约 | 接受单/双位小时、中文冒号及常见连接符，统一归一化为 `HH:mm` | 兼容真实学校课表输入，同时保持 API 与数据库格式稳定 |
 | 49 | Phase 12 M2 分批交付 | M2.1 先交付四步导入向导与本地预览；模板、批量生成、重复检测及服务端幂等继续留在后续批次 | 先验证跨平台导入主路径，同时避免把现有“新增副本”接口误表述为安全合并能力 |
 | 50 | Phase 12 M2.2 设置与作息边界 | 课表 WebDAV 仅放在“设置 → 数据管理”；本机作息模板按学校 adapter id 隔离；批量生成必须先预览再应用 | 避免课程页入口拥挤、学校模板串用，以及错误作息直接覆盖当前编辑内容 |
+| 51 | Phase 14 SparkFlow V5 体验主线 | 建立统一 Schedule Layer，以 Today 为首页，按 M1～M5 推进 Capture → Plan → Flow → Focus → Review | 收束现有任务、课程、日历与专注能力；M1～M3 构成 V5 Core，AI 仅负责意图解析，确定性 Scheduler 决定时间 |
 
 ---
 
@@ -136,6 +137,7 @@ Supabase PostgreSQL (唯一数据源)
 | 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
 | 12 — 课程页与教务导入体验改进 | 🚧 M2.1 已合并；M2.2 已实现，待 PR/CI | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
 | 13 — Local Codex Bridge 本机监督接入 | ⬜ 方案完成，待实施 | [phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) |
+| 14 — Rhythm Experience / SparkFlow V5 | ⬜ 方案完成，待 Phase 12 M2.2 合并后实施 | [phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) |
 
 ---
 
@@ -205,6 +207,9 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ---
 
 ## 六、更新日志
+
+### 2026-09-12
+- ✅ **Phase 14 方案落库**：确定 SparkFlow V5 以 Capture → Plan → Flow → Focus → Review 为产品主线；新增统一 Schedule Layer、Today Rhythm、Timeline V2、确定性 Planner、Focus 与 Daily Receipt 的五阶段实施方案。M1～M3 定义为 V5 Core，待 Phase 12 M2.2 合并并通过 CI 后启动。
 
 ### 2026-09-10
 - ✅ **Phase 12 M2.1 合并验收**：PR #4 已合并，GitHub CI 与主 Vercel Preview 已通过；360px 浏览器交互及真实 Web/Android 导入链路仍待验收。
@@ -350,6 +355,18 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 
 > 执行总计划：[docs/plans/p0-phase12-execution.md](docs/plans/p0-phase12-execution.md)；体验方案：[docs/plans/phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md)
 
+### Phase 14：Rhythm Experience / SparkFlow V5
+
+| 子阶段 | 内容 | 状态 |
+|---|---|---|
+| M1 | UI Foundation：Tokens、AppShell、5 Tab、Quick Add | ⬜ |
+| M2 | Today Rhythm：ScheduleItem、Today、Rhythm Dial、Schedule Editor | ⬜ |
+| M3 | Timeline V2：Month/Week/Timeline、锁定与 15 分钟粒度 | ⬜ |
+| M4 | Smart Planner：意图解析、确定性排程、预览/应用/撤销 | ⬜ |
+| M5 | Life Loop：Focus、Daily Receipt、Dark Mode、Android Widget | ⬜ |
+
+> 前置条件：Phase 12 M2.2 合并并通过 CI。M1～M3 为 V5 Core。详细方案：[docs/plans/phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md)
+
 ---
 
 ## 九、文档导航
@@ -377,6 +394,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | [docs/plans/phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) | Phase 11：账户注册、密码管理与问候页多选 |
 | [docs/plans/phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) | Phase 12：课程页与教务导入体验改进 |
 | [docs/plans/phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) | Phase 13：Local Codex Bridge 本机监督接入 |
+| [docs/plans/phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) | Phase 14：Rhythm Experience / SparkFlow V5 |
 | [docs/archive/](docs/archive/) | 已完成方案 + 设计决策（只读） |
 | [docs/prototypes/](docs/prototypes/) | 交互原型（v2/v3/v4/course-detail） |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | 部署手册（Supabase/Render/Vercel） |
