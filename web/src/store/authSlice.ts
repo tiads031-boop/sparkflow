@@ -4,6 +4,7 @@ import type { AppState } from './index';
 import { isSupabaseConfigured, supabase } from '../api/supabase';
 import { useCoursePreferences } from './coursePreferences';
 import { defaultNavVisibility, isToggleableNavTab, migrateNavigationId, toggleableNavTabs } from '../navigation';
+import { nicknameToEmail, normalizeNickname, validateNickname, type AuthMethod } from '../auth/credentials';
 
 const PROFILE_STORAGE_PREFIX = 'sparkflow.authProfile.v2';
 
@@ -87,7 +88,7 @@ function writeProfile(userId: string, hasCompletedOnboarding: boolean, profile: 
   localStorage.setItem(profileKey(userId), JSON.stringify({ hasCompletedOnboarding, profile }));
 }
 
-function authErrorMessage(message: string, code?: string): string {
+function authErrorMessage(message: string, code?: string, method: AuthMethod = 'email'): string {
   const lower = message.toLowerCase();
   if (code === 'over_email_send_rate_limit' || lower.includes('email rate limit exceeded')) {
     return '注册邮件发送已达服务限额，请稍后再试；如果已收到确认邮件，请先完成验证再登录';
@@ -99,7 +100,7 @@ function authErrorMessage(message: string, code?: string): string {
   if (code === 'email_address_not_authorized') return '邮件服务暂不支持向此邮箱发送验证邮件，请联系管理员';
   if (code === 'email_address_invalid') return '请输入有效邮箱地址';
   if (lower.includes('fetch') || lower.includes('network')) return '连接认证服务失败，请检查网络后重试';
-  if (lower.includes('invalid login credentials')) return '邮箱或密码不正确';
+  if (lower.includes('invalid login credentials')) return `${method === 'nickname' ? '昵称' : '邮箱'}或密码不正确`;
   if (lower.includes('email not confirmed')) return '请先在邮箱中确认注册邮件';
   if (lower.includes('user already registered')) return '该邮箱已经注册。请检查确认邮件，完成验证后直接登录';
   if (lower.includes('password')) return '密码至少需要 6 个字符';
@@ -121,16 +122,16 @@ export interface AuthSlice {
   registrationError: string | null;
   registrationPending: boolean;
   initializeAuth: () => Promise<void>;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (identifier: string, password: string, method: AuthMethod) => Promise<boolean>;
   logout: () => Promise<void>;
-  register: (email: string, password: string) => Promise<boolean>;
+  register: (identifier: string, password: string, method: AuthMethod) => Promise<boolean>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>;
   setRegistering: (value: boolean) => void;
   completeOnboarding: (profile: SparkFlowProfile) => void;
 }
 
 export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, get) => {
-  const applyUser = (user: { id: string; email?: string | null } | null) => {
+  const applyUser = (user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null) => {
     if (!user) {
       useCoursePreferences.getState().bindUser(null);
       set({
@@ -148,6 +149,9 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
       return;
     }
     const stored = readProfile(user.id);
+    const accountNickname = typeof user.user_metadata?.nickname === 'string'
+      ? user.user_metadata.nickname.trim()
+      : '';
     useCoursePreferences.getState().bindUser(user.id);
     set({
       authReady: true,
@@ -155,7 +159,7 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
       currentUserId: user.id,
       currentEmail: user.email ?? null,
       hasCompletedOnboarding: stored.hasCompletedOnboarding,
-      displayName: stored.profile.displayName,
+      displayName: stored.profile.displayName || accountNickname,
       professions: stored.profile.professions,
       statusNeeds: stored.profile.statusNeeds,
       navigationNeeds: stored.profile.navigationNeeds,
@@ -207,15 +211,24 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
       supabase.auth.onAuthStateChange((_event, session) => applyUser(session?.user ?? null));
     },
 
-    login: async (email, password) => {
+    login: async (identifier, password, method) => {
       if (!isSupabaseConfigured) {
         set({ loginError: '尚未配置 Supabase 登录环境变量' });
         return false;
       }
-      const normalizedEmail = email.trim().toLowerCase();
+      if (method === 'nickname') {
+        const nicknameError = validateNickname(identifier);
+        if (nicknameError) {
+          set({ loginError: nicknameError });
+          return false;
+        }
+      }
+      const normalizedEmail = method === 'nickname'
+        ? await nicknameToEmail(identifier)
+        : identifier.trim().toLowerCase();
       const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
       if (error || !data.user) {
-        set({ loginError: authErrorMessage(error?.message || '') });
+        set({ loginError: authErrorMessage(error?.message || '', error?.code, method) });
         return false;
       }
       applyUser(data.user);
@@ -228,14 +241,23 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
       applyUser(null);
     },
 
-    register: async (email, password) => {
+    register: async (identifier, password, method) => {
       if (get().registrationPending) return false;
       if (!isSupabaseConfigured) {
         set({ registrationError: '尚未配置 Supabase 登录环境变量' });
         return false;
       }
-      const normalizedEmail = email.trim().toLowerCase();
-      if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      if (method === 'nickname') {
+        const nicknameError = validateNickname(identifier);
+        if (nicknameError) {
+          set({ registrationError: nicknameError });
+          return false;
+        }
+      }
+      const normalizedEmail = method === 'nickname'
+        ? await nicknameToEmail(identifier)
+        : identifier.trim().toLowerCase();
+      if (method === 'email' && !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
         set({ registrationError: '请输入有效邮箱地址' });
         return false;
       }
@@ -251,6 +273,33 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
       }
       set({ registrationPending: true, registrationError: null });
       try {
+        if (method === 'nickname') {
+          const { data: result, error: functionError } = await supabase.functions.invoke<{
+            ok?: boolean;
+            error?: 'nickname_taken' | 'invalid_nickname' | 'weak_password' | 'rate_limited' | 'server_error';
+          }>('nickname-signup', {
+            body: { nickname: normalizeNickname(identifier), password },
+          });
+          if (functionError || !result?.ok) {
+            const nicknameMessages = {
+              nickname_taken: '这个昵称已经被使用',
+              invalid_nickname: '昵称只能包含 2–24 个文字、数字、点、横线或下划线',
+              weak_password: '密码至少需要 6 个字符',
+              rate_limited: '注册过于频繁，请稍后再试',
+              server_error: '昵称注册服务暂时不可用，请稍后再试',
+            } as const;
+            set({ registrationError: result?.error ? nicknameMessages[result.error] : nicknameMessages.server_error });
+            return false;
+          }
+          const signedIn = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+          if (signedIn.error || !signedIn.data.user) {
+            set({ registrationError: authErrorMessage(signedIn.error?.message || '', signedIn.error?.code, method) });
+            return false;
+          }
+          applyUser(signedIn.data.user);
+          set({ registrationError: null, isRegistering: false });
+          return true;
+        }
         const { data, error } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,

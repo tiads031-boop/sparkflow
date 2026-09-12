@@ -31,7 +31,8 @@ describe('SupabaseAuthGuard', () => {
   it('uses the verified token subject as the only request identity', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({
       id: 'auth-user-a',
-      email: 'a@example.com',
+      email: 'n_internal@users.fish-life.cc.cd',
+      user_metadata: { nickname: '小鱼' },
     }), { status: 200 }));
     const request = {
       method: 'POST',
@@ -44,6 +45,7 @@ describe('SupabaseAuthGuard', () => {
     expect(request).toMatchObject({ authUserId: 'auth-user-a' });
     expect(prisma.user.upsert).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'auth-user-a' },
+      create: expect.objectContaining({ nickname: '小鱼' }),
     }));
   });
 });
