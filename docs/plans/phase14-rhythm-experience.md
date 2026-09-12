@@ -1,7 +1,7 @@
 # Phase 14 — Rhythm Experience / SparkFlow V5
 
 > **状态**：⬜ 方案完成，待实施  
-> **基线要求**：Phase 12 M2.2 合并并通过 CI 后，以最新 `master` 为基线  
+> **基线要求**：Phase 12 M2.2 已随 PR #5 合并且 CI 成功；实施时从最新 `master` 建立短期分支  
 > **产品主线**：Capture → Plan → Flow → Focus → Review  
 > **V5 Core**：M1 + M2 + M3
 
@@ -63,6 +63,12 @@ M1～M3 完成后定义为 **V5 Core**。M4、M5 不阻塞核心版本发布。
 | sparks | sparks（二级入口，可重新固定） |
 
 Board 保留为 Tasks 的子视图；Sparks 可从全局“+”、Today 快捷入口进入，也允许用户在设置中重新固定到底栏。旧 localStorage 导航配置必须自动迁移。
+
+Phase 13 计划新增的 `local-codex` 不得在 Phase 14 中丢失：
+
+- 若 Phase 13 先落地，`local-codex` 作为可选一级入口保留，可由用户固定到底栏；默认 5 Tab 指的是默认可见集合，不是封闭枚举。
+- 若 Phase 14 先落地，Phase 13 必须复用 Phase 14 的导航注册表和迁移函数，不再直接扩展多处硬编码数组。
+- `local-codex` 在 Vercel/PWA/Android 仍遵守 Phase 13 的 `unavailable` 边界，不因 Today 改版而探测桌面 localhost。
 
 ## 4. M1 — UI Foundation
 
@@ -175,14 +181,16 @@ interface ScheduleItem {
 新增 `web/src/utils/scheduleProjection.ts`：
 
 ```text
-Task + CalendarEvent + Course Event
+Task + CalendarEvent
 → normalize
 → deduplicate
 → ScheduleItem[]
 → Today / Week / Timeline / Planner
 ```
 
-若 Task A 已被 `CalendarEvent(taskId=A)` 引用，只渲染一次。
+课程实例、Google 日历和 Android 本地日历当前都已落入 `CalendarEvent`，因此 M2 不再直接读取 `Course[]` 生成第三份事件。来源类型从 `CalendarEvent.eventType / externalSource / courseId` 推导。
+
+若 Task A 已被 `CalendarEvent(taskId=A)` 引用，只渲染一次。去重键优先采用关联 `taskId`；外部事件继续依赖现有 `(userId, externalSource, externalEventId)` 唯一约束，不能用标题和时间做破坏性模糊去重。
 
 M2 暂不增加 `/day-plan` API，继续利用 Task Store、现有 `/calendar` 与 Task 的 `scheduledStart/scheduledEnd`。
 
@@ -232,12 +240,20 @@ web/src/components/schedule/
 ```prisma
 scheduleLocked Boolean @default(false)
 scheduleSource String @default("manual")
-color String?
+scheduleColor String?
 ```
 
-`scheduleSource` 首批值：`manual / ai / imported`。
+`scheduleSource` 首批值：`manual / ai / imported`。`scheduleColor` 与现有由 priority 推导的 `colorType` 分离，避免改变任务卡片语义。
 
-不增加 `showOnDial`：只要存在 `scheduledStart + scheduledEnd` 就进入表盘。Schema、Create DTO/白名单、前端类型、导入导出与测试需同步更新。
+CalendarEvent 增加同名 `scheduleLocked Boolean @default(false)`，以支持用户锁定独立会议和手工日程；课程事件默认按来源派生为 locked，Google/local 事件默认视作外部固定事项，除非后续同步契约明确允许移动。
+
+不增加 `showOnDial`。排程时间的兼容读取规则为：
+
+1. `scheduledStart + scheduledEnd` 完整时直接使用；
+2. 只有 `scheduledStart` 时，以 `estimatedMinutes` 推导 end；
+3. 两者都缺少时才视为未安排。
+
+所有 M2 新写入路径必须同时提交 `scheduledStart`、`scheduledEnd` 和 `estimatedMinutes`；旧数据只在 projection 中兼容推导，不在页面加载时静默回写。Schema、TasksService create 白名单、Controller body 类型、前端 ApiTask/Task、导入导出与测试必须同步更新。
 
 ### 5.6 M2 验收
 
@@ -460,6 +476,38 @@ M1 建立 Token 后，M5 完成历史核心页面迁移。深色模式只替换�
 | 数据管理 | 导出、导入 |
 | 账户 | 个人资料、修改密码、退出 |
 
+## 10. 现有方案与代码兼容矩阵
+
+| 交叉区域 | 现状 | Phase 14 约束 | 结论 |
+|---|---|---|---|
+| Phase 12 课程导入 | PR #5 已合并；WebDAV 已在设置页，模板按学校隔离 | 不移动或改写 `CourseWebDavBackup` 的数据语义；Settings V5 仅重排容器 | 兼容 |
+| 课程时间数据 | 课程实例已存为 `CalendarEvent(courseId)` | Projection 读取 CalendarEvent，不从 Course 再生成实例 | 避免重复 |
+| Google/local 日历 | 均写入 CalendarEvent，并有 externalSource/externalEventId | 保留唯一约束与同步事实源；只做展示投影 | 兼容 |
+| Task 时间字段 | scheduledStart/end + estimatedMinutes 已存在，但旧编辑路径可能缺 end | 兼容推导；新路径三字段原子更新 | 需修正 |
+| Task 颜色 | `colorType` 由 priority 推导 | 新增 `scheduleColor`，不复用 `color` 或覆盖 priority | 避免语义冲突 |
+| 导航 | App/types/uiSlice 三处硬编码并持久化 | M1 先建立注册表与版本化迁移，保留未知/后续可选入口 | 需重构 |
+| Phase 13 | 计划新增 `local-codex` 导航和 Settings 入口 | 复用 M1 注册表；本机可用性边界保持不变 | 条件兼容 |
+| CalendarView | 单文件已有拖拽、resize、重复和来源去重 | 用 characterization tests 固定行为后再拆，不并行重写 | 兼容 |
+| Settings | 已包含 CourseWebDavBackup、导航、数据迁移、账户 | 仅重组 section；组件和存储 key 不迁移 | 兼容 |
+| 技术栈 | 当前根视图由 Zustand `activeTab` 切换，没有 React Router | Phase 14 不引入 React Router；继续状态路由，后续另立迁移方案 | 兼容 |
+
+### 10.1 文件所有权与合并顺序
+
+为避免 Phase 13/14 同时修改高冲突文件：
+
+1. Phase 14 M1 独占 `App.tsx`、`types/index.ts`、`store/uiSlice.ts` 与导航设置区，完成导航注册表和迁移。
+2. Phase 13 若在 M1 后实施，只向注册表登记 `local-codex`，不得恢复三处硬编码。
+3. Phase 12 后续 M3 不得与 Phase 14 M2 同时修改 `api/prisma/schema.prisma`；后开始者必须基于前者最新 master。
+4. `SettingsView.tsx` 的 Phase 12 数据能力与 Phase 14 视觉分组分成不同 PR；先用 characterization test 固定导入导出、WebDAV 和导航设置行为。
+5. `CalendarView.tsx` 拆分前先补现有拖拽、resize、taskId 去重和课程/外部事件回归测试，再逐组件迁移。
+
+### 10.2 数据库迁移安全
+
+- Task 与 CalendarEvent 新字段使用 nullable 或有默认值的 additive migration，不重命名、不删除现有列。
+- migration 合并前以当时最新 Supabase schema 重新生成，不手写假定的迁移序号。
+- Planner 的 `SchedulePlan` 放在 M4 独立 migration，不与 M2 字段混在同一迁移。
+- Apply/Undo 均按 `userId` 隔离，并复用现有 Supabase bearer-token 身份，不接受客户端传入的 userId 作为事实源。
+
 ## 10. 文件级清单
 
 ```text
@@ -539,7 +587,7 @@ V5 Core 合并前额外执行 Android Build 与真实移动端回归。
 ## 13. 实施顺序与依赖
 
 ```text
-Phase 12 M2.2 合并并通过 CI
+Phase 12 M2.2（PR #5 已合并，CI 成功）
 → Phase 14 M1
 → M2
 → M3
@@ -548,7 +596,7 @@ Phase 12 M2.2 合并并通过 CI
 → M5 Life Loop
 ```
 
-Phase 13 可独立推进，但若修改 `App.tsx`、Settings 或导航，应在 Phase 14 M1 开始前先完成基线协调。
+Phase 13 与 Phase 14 的 Gateway/Planner 后端互不替代，但共享导航和 Settings 表层。两者不得并行修改 `App.tsx`、`types/index.ts`、`uiSlice.ts` 或 Settings 导航区；后一方案必须复用先落地的导航注册表并从最新 `master` 建分支。
 
 ## 14. Definition of Done
 
