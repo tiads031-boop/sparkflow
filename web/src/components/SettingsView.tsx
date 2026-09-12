@@ -32,6 +32,7 @@ import type {
   SparkFlowStatusNeed,
 } from '../store/appStore';
 import type { ToggleableNavTab } from '../types';
+import { navigationRegistry } from '../navigation';
 import { exportSparkflowData, readSparkflowImportFile } from '../utils/dataPortability';
 import {
   presetTaskSections,
@@ -81,19 +82,29 @@ const defaultScopes: SyncScope[] = [
   { key: 'sparks', label: '灵感', description: '灵感卡片通常不同步', enabled: false },
 ];
 
+const navIconMap = {
+  today: Home,
+  tasks: CheckSquare,
+  board: LayoutGrid,
+  timeline: Calendar,
+  courses: BookOpen,
+  sparks: Zap,
+  settings: Settings,
+} as const;
+
 const navSettings: Array<{
   key: ToggleableNavTab;
   label: string;
   description: string;
   icon: typeof Home;
-}> = [
-  { key: 'dashboard', label: '仪表盘', description: '概览和统计图表', icon: Home },
-  { key: 'tasks', label: '任务', description: '待办列表', icon: CheckSquare },
-  { key: 'board', label: '看板', description: '项目和个人看板', icon: LayoutGrid },
-  { key: 'calendar', label: '日历', description: '日程和时间线', icon: Calendar },
-  { key: 'courses', label: '课程', description: '课表和课程管理', icon: BookOpen },
-  { key: 'sparks', label: '灵感', description: '灵感卡片', icon: Zap },
-];
+}> = navigationRegistry
+  .filter((item): item is typeof item & { id: ToggleableNavTab } => item.toggleable)
+  .map((item) => ({
+    key: item.id,
+    label: item.label,
+    description: item.description,
+    icon: navIconMap[item.icon],
+  }));
 
 const professionLabels: Record<SparkFlowProfession, string> = {
   student: '学生', work: '工作 / 实习', developer: '开发',

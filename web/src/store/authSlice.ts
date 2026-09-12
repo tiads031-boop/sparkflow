@@ -3,6 +3,7 @@ import type { ToggleableNavTab } from '../types';
 import type { AppState } from './index';
 import { isSupabaseConfigured, supabase } from '../api/supabase';
 import { useCoursePreferences } from './coursePreferences';
+import { defaultNavVisibility, isToggleableNavTab, migrateNavigationId, toggleableNavTabs } from '../navigation';
 
 const PROFILE_STORAGE_PREFIX = 'sparkflow.authProfile.v2';
 
@@ -39,14 +40,11 @@ const allProfessions: SparkFlowProfession[] = [
 const allStatusNeeds: SparkFlowStatusNeed[] = [
   'study-focus', 'internship-work', 'dev-research', 'project-shipping', 'life-balance',
 ];
-const allNavigationTabs: ToggleableNavTab[] = [
-  'dashboard', 'tasks', 'board', 'calendar', 'courses', 'sparks',
-];
 const defaultProfile: SparkFlowProfile = {
   displayName: '',
   professions: ['student'],
   statusNeeds: ['study-focus'],
-  navigationNeeds: ['dashboard', 'tasks', 'calendar', 'courses', 'sparks'],
+  navigationNeeds: toggleableNavTabs.filter((tab) => defaultNavVisibility[tab]),
 };
 
 function normalizeProfile(raw?: Record<string, unknown>): SparkFlowProfile {
@@ -59,8 +57,7 @@ function normalizeProfile(raw?: Record<string, unknown>): SparkFlowProfile {
         typeof v === 'string' && allStatusNeeds.includes(v as SparkFlowStatusNeed))
     : defaultProfile.statusNeeds;
   const navigationNeeds = Array.isArray(raw?.navigationNeeds)
-    ? raw.navigationNeeds.filter((v): v is ToggleableNavTab =>
-        typeof v === 'string' && allNavigationTabs.includes(v as ToggleableNavTab))
+    ? raw.navigationNeeds.map(migrateNavigationId).filter(isToggleableNavTab)
     : defaultProfile.navigationNeeds;
   return {
     displayName: typeof raw?.displayName === 'string' ? raw.displayName.trim() : '',
@@ -308,7 +305,7 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
         statusNeeds: normalized.statusNeeds,
         navigationNeeds: normalized.navigationNeeds,
       });
-      allNavigationTabs.forEach((tab) => get().setNavVisibility(tab, normalized.navigationNeeds.includes(tab)));
+      toggleableNavTabs.forEach((tab) => get().setNavVisibility(tab, normalized.navigationNeeds.includes(tab)));
     },
   };
 };

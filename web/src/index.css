@@ -15,7 +15,8 @@ body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   min-height: 100svh;
-  background: #f4f4f6;
+  color: var(--sf-text-primary);
+  background: var(--sf-bg);
 }
 
 #root {

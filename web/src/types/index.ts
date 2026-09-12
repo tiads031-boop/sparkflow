@@ -177,10 +177,10 @@ export interface CourseFormData {
 export type ChartView = 'day' | 'week' | 'month';
 
 export type ActiveTab =
-  | 'dashboard'
+  | 'today'
+  | 'timeline'
   | 'tasks'
   | 'board'
-  | 'calendar'
   | 'sparks'
   | 'courses'
   | 'settings';

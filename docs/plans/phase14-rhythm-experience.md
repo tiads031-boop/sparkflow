@@ -1,6 +1,6 @@
 # Phase 14 — Rhythm Experience / SparkFlow V5
 
-> **状态**：⬜ 方案完成，待实施  
+> **状态**：🚧 M1 已实现，待 PR/CI 与交互验收
 > **基线要求**：Phase 12 M2.2 已随 PR #5 合并且 CI 成功；实施时从最新 `master` 建立短期分支  
 > **产品主线**：Capture → Plan → Flow → Focus → Review  
 > **V5 Core**：M1 + M2 + M3
@@ -143,6 +143,19 @@ web/src/components/shell/
 - Android Capacitor Build 不受影响
 - 不新增数据库 migration
 - Web build、lint、test 通过
+
+### 4.4 M1 实施进度（2026-09-12）
+
+- [x] 新增 `tokens.css` 与 `themes.css`，V5 新外壳使用语义变量，未强制迁移历史页面。
+- [x] 新增可扩展 `navigationRegistry`，默认显示“今天 / 时间轴 / 待办 / 课程 / 设置”，看板与灵感保留为可选入口。
+- [x] 旧 `dashboard / calendar` 配置迁移为 `today / timeline`；未知导航 id 被安全过滤，重复项去重。
+- [x] Auth onboarding、Settings 导航配置与 App 主导航统一读取注册表，消除三套硬编码列表。
+- [x] 拆出 `AppShell / AppHeader / BottomNav / QuickAddSheet`；新建任务、日程和灵感复用现有编辑能力，Focus/Planner 明确显示为后续开放。
+- [x] Web production build 通过；17 项 Web 测试通过；新增/修改模块定向 ESLint 与 `git diff --check` 通过。
+- [ ] GitHub PR/CI 与真实 360px/桌面交互验收。
+- [ ] Android 原生 assemble：Capacitor sync 已通过；当前执行环境无法联网下载 Gradle 8.14.3，交由 CI 或已缓存 Gradle 的环境完成。
+
+全仓 `npm run lint` 仍被 54 个既有错误阻断，集中在旧 `CalendarView`、`DarkFrostedModal`、API client 与若干 store；M1 不扩大范围清理这些历史债务，以定向 ESLint 作为本批新增代码门禁。
 
 ## 5. M2 — Today Rhythm
 

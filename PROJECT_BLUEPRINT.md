@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-12 | **当前 Phase**: Phase 12（M2.1/M2.2 已合并，后续待实施）＋ Phase 14（已完成冲突审计，待 M1）
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-12 | **当前 Phase**: Phase 12（M2.1/M2.2 已合并，后续待实施）＋ Phase 14（M1 已实现，待 PR/CI）
 
 ---
 
@@ -138,7 +138,7 @@ Supabase PostgreSQL (唯一数据源)
 | 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
 | 12 — 课程页与教务导入体验改进 | 🚧 M2.1/M2.2 已合并；M2 后续与 M3 待实施 | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
 | 13 — Local Codex Bridge 本机监督接入 | ⬜ 方案完成，待实施 | [phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) |
-| 14 — Rhythm Experience / SparkFlow V5 | ⬜ 已完成冲突审计，待从 M1 实施 | [phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) |
+| 14 — Rhythm Experience / SparkFlow V5 | 🚧 M1 已实现，待 PR/CI 与交互验收 | [phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) |
 
 ---
 
@@ -212,6 +212,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ### 2026-09-12
 - ✅ **Phase 14 方案落库**：确定 SparkFlow V5 以 Capture → Plan → Flow → Focus → Review 为产品主线；新增统一 Schedule Layer、Today Rhythm、Timeline V2、确定性 Planner、Focus 与 Daily Receipt 的五阶段实施方案。M1～M3 定义为 V5 Core。
 - ✅ **Phase 14 冲突审计**：核实 Phase 12 M2.2 已随 PR #5 合并且 CI 成功；明确 Phase 13 `local-codex` 可扩展导航、CalendarEvent 单一课程/外部事件投影、`scheduleColor`、时间字段兼容读取及高冲突文件串行交付契约。
+- 🚧 **Phase 14 M1 UI Foundation**：新增 Design Tokens、主题变量、可扩展导航注册表与旧 `dashboard/calendar` 迁移；拆出 AppShell、Header、BottomNav 和 Quick Add Sheet，并统一 App、设置与 onboarding 的导航事实源。Web build、17 项测试和定向 ESLint 通过，待 PR/CI、交互与 Android assemble 验收。
 
 ### 2026-09-10
 - ✅ **Phase 12 M2.1 合并验收**：PR #4 已合并，GitHub CI 与主 Vercel Preview 已通过；360px 浏览器交互及真实 Web/Android 导入链路仍待验收。
@@ -361,7 +362,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 
 | 子阶段 | 内容 | 状态 |
 |---|---|---|
-| M1 | UI Foundation：Tokens、AppShell、5 Tab、Quick Add | ⬜ |
+| M1 | UI Foundation：Tokens、AppShell、5 Tab、Quick Add | 🚧 已实现，待 PR/CI 与交互验收 |
 | M2 | Today Rhythm：ScheduleItem、Today、Rhythm Dial、Schedule Editor | ⬜ |
 | M3 | Timeline V2：Month/Week/Timeline、锁定与 15 分钟粒度 | ⬜ |
 | M4 | Smart Planner：意图解析、确定性排程、预览/应用/撤销 | ⬜ |
