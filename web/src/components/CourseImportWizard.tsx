@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Capacitor } from '@capacitor/core';
 import {
   ArrowLeft,
@@ -398,7 +399,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
 
   if (!open) return null;
 
-  return <div className="course-import-overlay" onMouseDown={event => {
+  return createPortal(<div className="course-import-overlay" onMouseDown={event => {
     if (event.target === event.currentTarget && !busy) onClose();
   }}>
     <section className="course-import-sheet" role="dialog" aria-modal="true" aria-labelledby="course-import-title">
@@ -591,5 +592,5 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
         </button>
       </footer>
     </section>
-  </div>;
+  </div>, document.body);
 }

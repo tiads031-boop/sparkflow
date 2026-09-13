@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Capacitor } from '@capacitor/core';
+import { Bell, CalendarPlus, ChevronRight, Download, FileJson, FileUp, Plus, School, SlidersHorizontal, WandSparkles, X } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { useCoursePreferences } from '../store/coursePreferences';
 import { useCourseSchedule } from '../store/courseSchedule';
@@ -9,19 +11,47 @@ import { requestCourseNotifications } from './CourseReminderRuntime';
 import CourseImportWizard from './CourseImportWizard';
 import CourseIntegrationsPanel from './CourseIntegrationsPanel';
 
-export default function CourseSchedulePanel({ onCourseClick, showScheduleWidgets = true }: { onCourseClick: (id: string) => void; showScheduleWidgets?: boolean }) {
+interface CourseSchedulePanelProps {
+  onCourseClick: (id: string) => void;
+  showScheduleWidgets?: boolean;
+  onNewCourse: () => void;
+  onNewSemester: () => void;
+  onImportIcs: () => void;
+}
+
+export default function CourseSchedulePanel({
+  onCourseClick,
+  showScheduleWidgets = true,
+  onNewCourse,
+  onNewSemester,
+  onImportIcs,
+}: CourseSchedulePanelProps) {
   const { backup, error, status, refresh } = useCourseSchedule();
   const semesterId = useAppStore(s => s.activeSemesterId);
   const prefs = useCoursePreferences();
   const [settings, setSettings] = useState(false);
   const [integrations, setIntegrations] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<ScheduleBackup | null>(null);
   const [now, setNow] = useState(() => new Date());
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => { const timer = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(timer); }, []);
+  useEffect(() => {
+    if (!toolsOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setToolsOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [toolsOpen]);
   const entries = backup ? occurrences(backup, semesterId) : [];
   const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
   const next = entries.find(e => Date.parse(e.endTime) > now.getTime());
@@ -34,14 +64,21 @@ export default function CourseSchedulePanel({ onCourseClick, showScheduleWidgets
     try { await action(); } catch (e) { setMessage(e instanceof Error ? e.message : '操作失败，请重试'); }
     finally { setBusy(false); }
   };
+  const chooseTool = (action: () => void) => {
+    setToolsOpen(false);
+    action();
+  };
   return <>
-    <div className="course-tools" aria-label="课表工具">
-      <button disabled={busy} onClick={() => setWizardOpen(true)}>导入课表</button>
-      <button disabled={busy} onClick={() => void run(async () => { downloadSchedule(JSON.stringify(await fetchScheduleBackup(semesterId), null, 2), 'json'); setMessage('已导出当前范围的课表备份'); })}>备份 JSON</button>
-      <button disabled={busy} onClick={() => input.current?.click()}>恢复 JSON</button>
-      <button disabled={busy} onClick={() => void run(async () => { const data = await fetchScheduleBackup(semesterId); if (!occurrences(data).length) throw new Error('当前范围没有已排课实例，无法导出日历'); downloadSchedule(scheduleIcs(data), 'ics'); setMessage('已导出 ICS 日历'); })}>导出 ICS</button>
-      <button aria-expanded={settings} onClick={() => setSettings(!settings)}>显示与提醒</button>
-      <button aria-expanded={integrations} onClick={() => setIntegrations(!integrations)}>课表自动化</button>
+    <div className="course-primary-actions" aria-label="课程快捷操作">
+      <button type="button" className="course-primary-action" onClick={onNewCourse}>
+        <Plus aria-hidden="true" />
+        <span><strong>新建课程</strong><small>手动添加一门课</small></span>
+      </button>
+      <button type="button" className="course-secondary-action" onClick={() => setToolsOpen(true)} aria-haspopup="dialog" aria-expanded={toolsOpen}>
+        <FileUp aria-hidden="true" />
+        <span><strong>导入与管理</strong><small>教务、文件与设置</small></span>
+        <ChevronRight aria-hidden="true" />
+      </button>
       <input ref={input} hidden type="file" accept=".json,application/json" onChange={e => {
         const file = e.target.files?.[0]; e.target.value = '';
         if (file) void run(async () => {
@@ -52,6 +89,46 @@ export default function CourseSchedulePanel({ onCourseClick, showScheduleWidgets
         });
       }} />
     </div>
+    {toolsOpen && createPortal(
+      <div className="course-tools-overlay" role="presentation" onClick={() => setToolsOpen(false)}>
+        <section className="course-tools-sheet" role="dialog" aria-modal="true" aria-labelledby="course-tools-title" onClick={(event) => event.stopPropagation()}>
+          <div className="course-tools-sheet-header">
+            <div><p>课程表</p><h2 id="course-tools-title">导入与管理</h2></div>
+            <button type="button" onClick={() => setToolsOpen(false)} aria-label="关闭课程管理"><X /></button>
+          </div>
+          <div className="course-tools-sheet-body">
+            <p className="course-tools-group-label">添加课程</p>
+            <button type="button" className="course-tool-row course-tool-row-featured" disabled={busy} onClick={() => chooseTool(() => setWizardOpen(true))} autoFocus>
+              <School /><span><strong>从教务系统导入</strong><small>按学校指引获取并预览完整课表</small></span><ChevronRight />
+            </button>
+            <button type="button" className="course-tool-row" disabled={busy} onClick={() => chooseTool(onImportIcs)}>
+              <CalendarPlus /><span><strong>导入 ICS 文件</strong><small>适合已有日历文件的课表</small></span><ChevronRight />
+            </button>
+            <button type="button" className="course-tool-row" disabled={busy} onClick={() => chooseTool(() => input.current?.click())}>
+              <FileJson /><span><strong>恢复 SparkFlow 备份</strong><small>选择此前导出的 JSON 文件</small></span><ChevronRight />
+            </button>
+
+            <p className="course-tools-group-label">导出与设置</p>
+            <button type="button" className="course-tool-row" disabled={busy} onClick={() => chooseTool(() => void run(async () => { downloadSchedule(JSON.stringify(await fetchScheduleBackup(semesterId), null, 2), 'json'); setMessage('已导出当前范围的课表备份'); }))}>
+              <Download /><span><strong>备份当前课表</strong><small>导出可恢复的 JSON 数据</small></span><ChevronRight />
+            </button>
+            <button type="button" className="course-tool-row" disabled={busy} onClick={() => chooseTool(() => void run(async () => { const data = await fetchScheduleBackup(semesterId); if (!occurrences(data).length) throw new Error('当前范围没有已排课实例，无法导出日历'); downloadSchedule(scheduleIcs(data), 'ics'); setMessage('已导出 ICS 日历'); }))}>
+              <CalendarPlus /><span><strong>导出到系统日历</strong><small>生成通用 ICS 日历文件</small></span><ChevronRight />
+            </button>
+            <button type="button" className="course-tool-row" onClick={() => chooseTool(() => { setIntegrations(false); setSettings(true); })}>
+              <SlidersHorizontal /><span><strong>显示与提醒</strong><small>课程组件、通知和免提醒日期</small></span><ChevronRight />
+            </button>
+            <button type="button" className="course-tool-row" onClick={() => chooseTool(() => { setSettings(false); setIntegrations(true); })}>
+              <WandSparkles /><span><strong>课表自动化</strong><small>节假日与 Android 上课模式</small></span><ChevronRight />
+            </button>
+            <button type="button" className="course-tool-row" onClick={() => chooseTool(onNewSemester)}>
+              <Plus /><span><strong>新建学期</strong><small>设置学期名称与日期范围</small></span><ChevronRight />
+            </button>
+          </div>
+        </section>
+      </div>,
+      document.body,
+    )}
     <CourseImportWizard
       open={wizardOpen}
       onClose={() => setWizardOpen(false)}
@@ -70,9 +147,10 @@ export default function CourseSchedulePanel({ onCourseClick, showScheduleWidgets
         setMessage(`已恢复 ${result.courseCount} 门课程、${result.eventCount} 次课`);
       })}>确认恢复</button><button disabled={busy} onClick={() => setPreview(null)}>取消</button></div>
     </section>}
-    {integrations && <CourseIntegrationsPanel />}
+    {integrations && <div className="course-settings-section"><div className="course-settings-heading"><span><WandSparkles />课表自动化</span><button type="button" onClick={() => setIntegrations(false)} aria-label="收起课表自动化"><X /></button></div><CourseIntegrationsPanel /></div>}
     {settings && <section className="course-settings" aria-label="课程显示与提醒设置">
-      <label>外观<select value={prefs.theme} onChange={e => prefs.setPreferences({ theme: e.target.value as typeof prefs.theme })}><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
+      <div className="course-settings-heading"><span><Bell />显示与提醒</span><button type="button" onClick={() => setSettings(false)} aria-label="收起显示与提醒"><X /></button></div>
+      <p>课程页外观跟随 SparkFlow 全局主题，保持所有页面一致。</p>
       <label>页内小组件<select value={prefs.widget} onChange={e => prefs.setPreferences({ widget: e.target.value as typeof prefs.widget })}><option value="next">下一节</option><option value="today">今日列表</option><option value="twoDays">今日与明日</option></select></label>
       <label><input type="checkbox" checked={prefs.reminders} disabled={busy} onChange={e => {
         const enabled = e.target.checked;
