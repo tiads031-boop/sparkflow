@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Plus, Upload, Trash2, BookOpen, MapPin, User, Clock, Check } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Plus, Trash2, BookOpen, MapPin, User, Clock, Check } from 'lucide-react';
 import { useAppStore, type Course, type CourseFormData } from '../store/appStore';
 import CourseSchedulePanel from './CourseSchedulePanel';
 
@@ -278,6 +279,11 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
     fileInputRef.current?.click();
   }, []);
 
+  const handleNewCourse = useCallback(() => {
+    openForm();
+    onAddClick();
+  }, [onAddClick, openForm]);
+
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -339,36 +345,16 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
   return (
     <div className="animate-page-enter pb-24 relative">
       {/* ── Header ── */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold text-[#242424]">课程表</h1>
-        <div className="flex gap-2">
-          {/* ICS Import */}
-          <button
-            onClick={handleImportClick}
-            className="w-9 h-9 rounded-full bg-[#b0a8db]/20 text-[#b0a8db] flex items-center justify-center btn-press hover:bg-[#b0a8db]/30 transition-colors"
-            title="导入 ICS 课表"
-          >
-            <Upload size={18} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".ics"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          {/* New course */}
-          <button
-            onClick={() => {
-              openForm();
-              onAddClick();
-            }}
-            className="w-9 h-9 rounded-full bg-[#242424] text-white flex items-center justify-center shadow-sm btn-press hover:scale-105 transition-all"
-            title="新建课程"
-          >
-            <Plus size={18} />
-          </button>
-        </div>
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-[var(--sf-text-primary)]">课程表</h1>
+        <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">查看课程、学期与导入设置</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".ics,text/calendar"
+          onChange={handleFileChange}
+          className="hidden"
+        />
       </div>
 
       {/* ── 学期筛选 Pill 栏 ── */}
@@ -412,7 +398,13 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
         </div>
       )}
 
-      <CourseSchedulePanel onCourseClick={onCourseClick} showScheduleWidgets={hasCourses} />
+      <CourseSchedulePanel
+        onCourseClick={onCourseClick}
+        showScheduleWidgets={hasCourses}
+        onNewCourse={handleNewCourse}
+        onNewSemester={() => openSemesterForm()}
+        onImportIcs={handleImportClick}
+      />
 
       {isCoursesLoading && hasCourses && (
         <p role="status" className="mb-3 text-xs text-gray-400">正在刷新课程，当前仍显示上次数据…</p>
@@ -458,28 +450,9 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
             <BookOpen size={32} className="text-[#b0a8db]" strokeWidth={1.5} />
           </div>
           <h2 className="text-lg font-bold text-[#242424] mb-2">还没有课程</h2>
-          <p className="text-sm text-gray-400 mb-6 leading-relaxed max-w-xs mx-auto">
-            导入学校课表 ICS 文件，或手动创建课程，让 SparkFlow 帮你管理学习节奏
+          <p className="text-sm text-gray-400 leading-relaxed max-w-xs mx-auto">
+            使用上方“导入与管理”连接教务系统或导入文件，也可以手动创建第一门课程。
           </p>
-          <div className="flex flex-col gap-3 items-center">
-            <button
-              onClick={handleImportClick}
-              className="px-6 py-3 rounded-full bg-[#b0a8db] text-[#242424] font-medium text-sm shadow-sm btn-press hover:bg-[#a39bcb] transition-colors flex items-center gap-2"
-            >
-              <Upload size={16} />
-              导入 ICS 课表
-            </button>
-            <button
-              onClick={() => {
-                openForm();
-                onAddClick();
-              }}
-              className="px-6 py-3 rounded-full bg-[#242424] text-white font-medium text-sm shadow-sm btn-press hover:bg-black/80 transition-colors flex items-center gap-2"
-            >
-              <Plus size={16} />
-              手动创建课程
-            </button>
-          </div>
         </div>
       )}
 
@@ -574,8 +547,8 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
       )}
 
       {/* ── Delete confirmation bottom sheet ── */}
-      {deleteTarget && (
-        <div className="absolute inset-0 z-50" style={{ pointerEvents: 'none' }}>
+      {deleteTarget && createPortal(
+        <div className="course-modal fixed inset-0 z-[70] flex items-end justify-center" style={{ pointerEvents: 'none' }}>
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/30"
@@ -584,8 +557,8 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
           />
           {/* Sheet */}
           <div
-            className="absolute bottom-0 left-0 right-0 rounded-t-[2rem] p-5 bg-[#f4f4f6] overflow-hidden animate-slide-up-sheet"
-            style={{ pointerEvents: 'auto' }}
+            className="relative w-full sm:max-w-lg rounded-t-[2rem] p-5 bg-[var(--sf-bg)] overflow-hidden animate-slide-up-sheet"
+            style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom))', pointerEvents: 'auto' }}
           >
             <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mb-5" />
             <div className="text-center mb-5">
@@ -616,12 +589,13 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* ── Create form bottom sheet ── */}
-      {showForm && (
-        <div className="absolute inset-0 z-50" style={{ pointerEvents: 'none' }}>
+      {showForm && createPortal(
+        <div className="course-modal fixed inset-0 z-[70] flex items-end justify-center" style={{ pointerEvents: 'none' }}>
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/30"
@@ -630,8 +604,8 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
           />
           {/* Sheet */}
           <div
-            className="absolute bottom-0 left-0 right-0 rounded-t-[2rem] px-5 pt-5 pb-8 bg-[#f4f4f6] overflow-y-auto animate-slide-up-sheet focus-ring"
-            style={{ maxHeight: '85%', pointerEvents: 'auto' }}
+            className="relative w-full sm:max-w-lg rounded-t-[2rem] px-5 pt-5 bg-[var(--sf-bg)] overflow-y-auto animate-slide-up-sheet focus-ring"
+            style={{ maxHeight: '85dvh', paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))', pointerEvents: 'auto' }}
           >
             <div className="w-10 h-1 rounded-full bg-gray-300 mx-auto mb-5" />
             <h3 className="text-lg font-bold text-[#242424] mb-5">新建课程</h3>
@@ -759,7 +733,8 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* ── Course count indicator ── */}
@@ -774,8 +749,8 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
       )}
 
       {/* ── Semester form bottom sheet ── */}
-      {showSemesterForm && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ pointerEvents: 'none' }}>
+      {showSemesterForm && createPortal(
+        <div className="course-modal fixed inset-0 z-[70] flex items-end justify-center" style={{ pointerEvents: 'none' }}>
           <div
             className="absolute inset-0 bg-black/30"
             style={{ pointerEvents: 'auto' }}
@@ -848,7 +823,8 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

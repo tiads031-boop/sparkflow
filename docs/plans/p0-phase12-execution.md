@@ -1,8 +1,8 @@
 # SparkFlow P0 + Phase 12 实施方案
 
-> 更新日期：2026-09-10
+> 更新日期：2026-09-13
 > 目标版本：v0.9 Beta  
-> 当前基线：GitHub `master` 为 `426a9d9`（含 PR #4）；Render 生产后端为 `552f3caa`；Vercel 主生产项目为 `sparkflow031`。
+> 当前基线：GitHub `master` 为 `37d4da5`（含 Phase 14 M2）；Render 与 Vercel 实际运行提交仍按部署验收逐次核对。
 
 ## 1. 当前结论
 
@@ -12,7 +12,7 @@
 | Render | `sparkflow` 服务已自动部署 `552f3caa`；`/api/health` 返回 200 | 保持部署后日志与健康检查 |
 | Supabase | `sparkflow-db` 健康，Postgres 17；业务表均启用 RLS | 暂不改数据；启用泄露密码保护并核验 RLS 策略内容 |
 | Vercel | `sparkflow031` 是主生产项目并指向 `fish-life.cc.cd`；仍有两个重复项目检查 | 恢复团队 scope 后归档重复项目 |
-| 课程导入 | M2.1 已合并且 CI/主 Vercel Preview 通过；M2.2 已实现，待 PR/CI | 验收真实 Web/Android 与 360px 交互；继续已有学期、冲突检测与幂等 |
+| 课程导入 | M2.1/M2.2 已合并；M2.3 主题、入口与遮挡修复已实现，待 PR/CI/Preview | 先验收 360px 与 Android 操作层级，再继续已有学期、冲突检测与幂等 |
 
 ## 2. 实施原则
 

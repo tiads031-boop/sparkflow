@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-12 | **当前 Phase**: Phase 12（M2.1/M2.2 已合并，后续待实施）＋ Phase 14（M1/M2 已合并；M2 待部署与交互验收）
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-13 | **当前 Phase**: Phase 12（M2.3 课程页验收修复已实现，待 PR/CI/Preview）＋ Phase 14（M1/M2 已合并；M2 待部署与交互验收）
 
 ---
 
@@ -61,6 +61,7 @@
 | 50 | Phase 12 M2.2 设置与作息边界 | 课表 WebDAV 仅放在“设置 → 数据管理”；本机作息模板按学校 adapter id 隔离；批量生成必须先预览再应用 | 避免课程页入口拥挤、学校模板串用，以及错误作息直接覆盖当前编辑内容 |
 | 51 | Phase 14 SparkFlow V5 体验主线 | 建立统一 Schedule Layer，以 Today 为首页，按 M1～M5 推进 Capture → Plan → Flow → Focus → Review | 收束现有任务、课程、日历与专注能力；M1～M3 构成 V5 Core，AI 仅负责意图解析，确定性 Scheduler 决定时间 |
 | 52 | Phase 13/14 与现有模块兼容契约 | 默认 5 Tab 改为可扩展注册表；课程/Google/local 统一从 CalendarEvent 投影；Task 使用 scheduleColor；新排程写入 start/end/duration；高冲突文件串行交付 | 避免 local-codex 导航丢失、课程重复、优先级颜色混淆、旧任务缺 end 及 App/Settings/Schema 并行冲突 |
+| 53 | 课程页视觉与操作入口 | 课程页只跟随 SparkFlow 全局主题；正文保留“新建课程 / 导入与管理”两个主入口，其余课表工具归入全局底部 Sheet | 消除页面主题割裂、顶部重复按钮和被页面容器或底栏遮挡的问题 |
 
 ---
 
@@ -136,7 +137,7 @@ Supabase PostgreSQL (唯一数据源)
 | 09 — Course 模块深化（课程详情页、笔记看板、事件追踪） | 🚧 部分实施中 | [phase09-course-module.md](docs/plans/phase09-course-module.md) |
 | 10 — 待办功能收束（VAPID 部署、拖入时间线、事件类型扩展等） | ⬜ | [phase10-pending-features.md](docs/plans/phase10-pending-features.md) |
 | 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
-| 12 — 课程页与教务导入体验改进 | 🚧 M2.1/M2.2 已合并；M2 后续与 M3 待实施 | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
+| 12 — 课程页与教务导入体验改进 | 🚧 M2.3 验收修复已实现，待 PR/CI/Preview | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
 | 13 — Local Codex Bridge 本机监督接入 | ⬜ 方案完成，待实施 | [phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) |
 | 14 — Rhythm Experience / SparkFlow V5 | 🚧 M1/M2 已合并且 CI 成功；M2 待部署与交互验收 | [phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) |
 
@@ -208,6 +209,9 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ---
 
 ## 六、更新日志
+
+### 2026-09-13
+- 🚧 **Phase 12 M2.3 课程页验收修复**：取消 CourseTheme 对根主题的页面级覆盖；移除标题区重复上传/+按钮，将课程操作收束为“新建课程 / 导入与管理”；教务导入、ICS/JSON 导入导出、提醒和自动化进入分组 Sheet；课程相关 Sheet 使用 portal 脱离动画容器与底栏层叠上下文；Android 构建脚本改用可执行的 `./gradlew`。Web build、24 项测试与定向 ESLint 已通过；Capacitor sync 成功，Gradle wrapper 已正常启动但受当前环境外网限制无法下载 Gradle。待 PR/CI 和 Vercel 360px 验收。
 
 ### 2026-09-12
 - ✅ **Phase 14 方案落库**：确定 SparkFlow V5 以 Capture → Plan → Flow → Focus → Review 为产品主线；新增统一 Schedule Layer、Today Rhythm、Timeline V2、确定性 Planner、Focus 与 Daily Receipt 的五阶段实施方案。M1～M3 定义为 V5 Core。
@@ -315,6 +319,8 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | 2026-09-09 | **教务作息仅接受两位小时和半角连接符** | 输入先归一化，兼容单/双位小时、中文冒号及 `-—～至` 等连接符，内部保持 `HH:mm` |
 | 2026-09-09 | **Vercel 重复项目与检查持续 pending** | 主生产项目已确认；待重新授权 `sparkflow031` 团队 scope 后读取日志并归档重复项目，状态 🚧 |
 | 2026-09-09 | **Supabase 泄露密码保护未启用** | 数据表 RLS 已启用；Auth 控制台配置仍待开启，状态 ⬜ |
+| 2026-09-13 | **课程页主题割裂、顶部操作重复且 Sheet 可能被底栏遮挡** | 统一使用全局 Theme Tokens；操作入口分层收束；全部课程 Sheet 通过 portal 挂到 `document.body`，状态 🚧 待 Preview/真机复验 |
+| 2026-09-13 | **Linux 下 Android 构建脚本找不到 gradlew** | `android:build` 从 `gradlew assembleDebug` 修正为 `./gradlew assembleDebug` 并提交 wrapper 可执行位；Capacitor sync 成功，后续仅被 Gradle 下载网络阻断，状态 🚧 待联网环境完整构建 |
 
 ---
 
