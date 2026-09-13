@@ -9,7 +9,7 @@ import { requestCourseNotifications } from './CourseReminderRuntime';
 import CourseImportWizard from './CourseImportWizard';
 import CourseIntegrationsPanel from './CourseIntegrationsPanel';
 
-export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: (id: string) => void }) {
+export default function CourseSchedulePanel({ onCourseClick, showScheduleWidgets = true }: { onCourseClick: (id: string) => void; showScheduleWidgets?: boolean }) {
   const { backup, error, status, refresh } = useCourseSchedule();
   const semesterId = useAppStore(s => s.activeSemesterId);
   const prefs = useCoursePreferences();
@@ -88,13 +88,13 @@ export default function CourseSchedulePanel({ onCourseClick }: { onCourseClick: 
     </section>}
     {backup && status === 'refreshing' && <p role="status">正在刷新课程概览，当前仍显示上次数据…</p>}
     {backup && error && <p role="status">课程概览刷新失败，已保留上次数据：{error}</p>}
-    {!backup ? <p role="status">{error ? `课程概览暂不可用：${error}` : '正在加载课程概览…'}</p> : groups.map(group => <section className="course-widget" key={group.label}>
+    {showScheduleWidgets && (!backup ? <p role="status">{error ? `课程概览暂不可用：${error}` : '正在加载课程概览…'}</p> : groups.map(group => <section className="course-widget" key={group.label}>
       <h2>{group.label}</h2>
       {!group.entries.length && <p>{group.label === '下一节课程' ? '暂无后续排课' : '当天没有课程，好好安排自己的时间'}</p>}
       {group.entries.map(e => <button className="course-widget-row" key={e.id} onClick={() => onCourseClick(e.course.id)}>
         <time>{new Date(e.startTime).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })}<br />{new Date(e.startTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}–{new Date(e.endTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</time>
         <span><strong>{e.title}{Date.parse(e.startTime) <= now.getTime() && Date.parse(e.endTime) > now.getTime() ? ' · 上课中' : ''}</strong><p>{e.location || e.course.room || '地点待定'}{e.course.teacher ? ` · ${e.course.teacher}` : ''}{e.isOverride ? ' · 已调课' : ''}</p></span>
       </button>)}
-    </section>)}
+    </section>))}
   </>;
 }
