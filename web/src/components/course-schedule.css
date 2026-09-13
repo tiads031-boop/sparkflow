@@ -1,5 +1,5 @@
-.course-scope { --course-bg:#f4f4f6; --course-surface:#fff; --course-text:#242424; --course-muted:#666; --course-border:#ddd; color:var(--course-text); background:var(--course-bg); border-radius:24px; }
-.course-scope[data-course-theme="dark"] { color-scheme:dark; --course-bg:#191a20; --course-surface:#262832; --course-text:#f0f1f5; --course-muted:#b4b7c5; --course-border:#444754; padding:16px; }
+.course-scope { --course-bg:var(--sf-bg); --course-surface:var(--sf-surface); --course-text:var(--sf-text-primary); --course-muted:var(--sf-text-secondary); --course-border:var(--sf-border); color:var(--course-text); }
+.course-scope[data-course-theme="dark"] { color-scheme:dark; }
 .course-tools { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
 .course-tools button,.course-tools select,.course-settings input,.course-settings select { padding:8px 12px; border-radius:14px; border:1px solid var(--course-border); background:var(--course-surface); color:var(--course-text); font-size:12px; }
 .course-tools button:disabled { opacity:.45; }

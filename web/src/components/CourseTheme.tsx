@@ -11,5 +11,18 @@ export default function CourseTheme({ children }: { children: ReactNode }) {
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
   }, []);
-  return <div className="course-scope" data-course-theme={theme === 'system' ? (systemDark ? 'dark' : 'light') : theme}>{children}</div>;
+  const resolvedTheme = theme === 'system' ? (systemDark ? 'dark' : 'light') : theme;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const previousTheme = root.dataset.sfTheme;
+    root.dataset.sfTheme = resolvedTheme;
+
+    return () => {
+      if (previousTheme) root.dataset.sfTheme = previousTheme;
+      else delete root.dataset.sfTheme;
+    };
+  }, [resolvedTheme]);
+
+  return <div className="course-scope" data-course-theme={resolvedTheme}>{children}</div>;
 }
