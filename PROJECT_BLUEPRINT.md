@@ -210,6 +210,9 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 
 ## 六、更新日志
 
+### 2026-09-14
+- 🚧 **Phase 14 快速入口闭环**：启用“开始专注”和“AI 帮我安排”。专注模式复用 PomodoroSession，支持任务关联、15/25/45/60 分钟、暂停/继续、提前完成与完成关联任务；智能排程新增服务端预览、冲突/截止/锁定约束、事务应用与安全撤销，并新增 SchedulePlan additive migration。API 23 项测试与构建、Web 25 项测试与构建通过，待 PR、生产迁移和真实设备验收。
+
 ### 2026-09-13
 - 🚧 **Phase 12 M2.3 课程页验收修复**：取消 CourseTheme 对根主题的页面级覆盖；移除标题区重复上传/+按钮，将课程操作收束为“新建课程 / 导入与管理”；教务导入、ICS/JSON 导入导出、提醒和自动化进入分组 Sheet；课程相关 Sheet 使用 portal 脱离动画容器与底栏层叠上下文；Android 构建脚本改用可执行的 `./gradlew`。Web build、24 项测试、定向 ESLint、GitHub CI run #32 与主 Vercel Preview 通过，PR #10 已合并；Capacitor sync 成功，Gradle wrapper 已正常启动但受当前环境外网限制无法下载 Gradle。待生产与真机复验。
 
@@ -372,8 +375,8 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 | M1 | UI Foundation：Tokens、AppShell、5 Tab、Quick Add | 🚧 已合并，待真实设备交互复验 |
 | M2 | Today Rhythm：ScheduleItem、Today、Rhythm Dial、Schedule Editor | 🚧 已合并且 CI 成功，待部署与交互验收 |
 | M3 | Timeline V2：Month/Week/Timeline、锁定与 15 分钟粒度 | ⬜ |
-| M4 | Smart Planner：意图解析、确定性排程、预览/应用/撤销 | ⬜ |
-| M5 | Life Loop：Focus、Daily Receipt、Dark Mode、Android Widget | ⬜ |
+| M4 | Smart Planner：意图解析、确定性排程、预览/应用/撤销 | 🚧 确定性排程闭环已实现，待意图解析与生产验收 |
+| M5 | Life Loop：Focus、Daily Receipt、Dark Mode、Android Widget | 🚧 全屏 Focus 已实现，其余待实施 |
 
 > Phase 12 M2.2 已合并并通过 GitHub CI。M1～M3 为 V5 Core；Phase 13/14 对导航、Settings、App.tsx 和类型文件采用串行交付。详细方案：[docs/plans/phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md)
 

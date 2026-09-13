@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { InspirationsModule } from './inspirations/inspirations.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PomodoroModule } from './pomodoro/pomodoro.module';
+import { PlannerModule } from './planner/planner.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { CourseModule } from './course/course.module';
 import { SemesterModule } from './semester/semester.module';
@@ -28,6 +29,7 @@ import { AppService } from './app.service';
     InspirationsModule,
     TasksModule,
     PomodoroModule,
+    PlannerModule,
     CalendarModule,
     CourseModule,
     SemesterModule,

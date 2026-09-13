@@ -1,6 +1,6 @@
 # Phase 14 — Rhythm Experience / SparkFlow V5
 
-> **状态**：🚧 M1/M2 已合并且 CI 成功；M2 待部署与真实设备验收
+> **状态**：🚧 M1/M2 已合并；M4 确定性排程与 M5 Focus 已在功能分支实现，待 PR/部署验收
 > **基线要求**：Phase 12 M2.2 已随 PR #5 合并且 CI 成功；实施时从最新 `master` 建立短期分支  
 > **产品主线**：Capture → Plan → Flow → Focus → Review  
 > **V5 Core**：M1 + M2 + M3
@@ -9,7 +9,7 @@
 
 ## 1. 背景与目标
 
-SparkFlow 已具备任务、看板、日历、课程、灵感、Pomodoro、Google Calendar、Android 系统日历与 Supabase 持久化等能力。Phase 14 不继续堆叠孤立模块，而是把现有能力收束到用户每天真正执行的节奏中。
+SparkFlow 已具备任务、看板、日历、课程、灵感、Pomodoro、Google Calendar、Android 系统日历与自托管 PostgreSQL 持久化等能力。Phase 14 不继续堆叠孤立模块，而是把现有能力收束到用户每天真正执行的节奏中。
 
 V5 首页优先回答两个问题：
 
@@ -289,7 +289,8 @@ CalendarEvent 增加同名 `scheduleLocked Boolean @default(false)`，以支持�
 - [x] Task 增加 `scheduleLocked / scheduleSource / scheduleColor`；CalendarEvent 增加 `scheduleLocked`，均通过 additive migration 交付。
 - [x] Web build、21 项测试和新增模块定向 ESLint 通过；API build、6 suites / 17 tests 通过。
 - [x] PR #7 已合并；GitHub CI run #25 的 Web 与 API jobs 均成功。
-- [ ] Supabase migration 应用、Vercel Preview 和真实 360px/Android 交互验收。
+- [x] 排程字段 migration 已应用到自托管 PostgreSQL；Vercel 与真实注册链路已验收。
+- [ ] 真实 360px/Android 交互验收。
 
 云端浏览器当前策略阻止访问本地 `127.0.0.1`，因此未以不可复现的截图替代真实交互验收；临时 AuthGate 绕过已还原，未进入提交。
 
@@ -446,6 +447,16 @@ Preview 只计算，绝不写数据库。Apply 必须重新校验数据版本与
 - Apply 失败完整回滚
 - Undo 恢复到应用前状态
 
+### 7.5 M4 实施进度（2026-09-14）
+
+- [x] 新增服务端确定性 Scheduler，按优先级、截止时间和最早完整空档生成 15 分钟粒度建议。
+- [x] Preview 只读，不写数据库；课程、日历事件和已安排任务均作为占用区间。
+- [x] Apply 重新校验 task updatedAt、截止时间、锁定和冲突，并在 Prisma Transaction 中原子写入。
+- [x] 新增 SchedulePlan 保存前后状态；Undo 在确认任务未被后续修改后安全恢复。
+- [x] 快速添加中的“AI 帮我安排”已启用，支持日期/可安排时段、预览、确认和撤销。
+- [ ] 自然语言意图解析仍待独立接入；当前版本不依赖外部模型密钥，确定性排程可直接使用。
+- [ ] 待生产 migration、PR/CI 与真实设备验收。
+
 ## 8. M5 — Life Loop
 
 ### 8.1 Focus
@@ -491,6 +502,14 @@ M1 建立 Token 后，M5 完成历史核心页面迁移。深色模式只替换�
 
 需使用 Android AppWidget/Kotlin 原生层，不能只实现 React 页面。
 
+### 8.5 M5 Focus 实施进度（2026-09-14）
+
+- [x] 快速添加中的“开始专注”已启用，并复用现有 PomodoroSession 与 Zustand 状态机。
+- [x] 支持关联任务、自由专注、15/25/45/60 分钟、暂停、继续、放弃和提前完成。
+- [x] 完成后展示本次时长，并可直接完成关联任务。
+- [x] 服务端仅把 completed session 计入统计；提前完成按实际已专注分钟记录。
+- [ ] Daily Receipt、核心旧页面深色模式与 Android Widget 仍待后续批次。
+
 ## 9. Settings V5
 
 仅重新分组，不删除现有能力：
@@ -535,7 +554,7 @@ M1 建立 Token 后，M5 完成历史核心页面迁移。深色模式只替换�
 - Task 与 CalendarEvent 新字段使用 nullable 或有默认值的 additive migration，不重命名、不删除现有列。
 - migration 合并前以当时最新 Supabase schema 重新生成，不手写假定的迁移序号。
 - Planner 的 `SchedulePlan` 放在 M4 独立 migration，不与 M2 字段混在同一迁移。
-- Apply/Undo 均按 `userId` 隔离，并复用现有 Supabase bearer-token 身份，不接受客户端传入的 userId 作为事实源。
+- Apply/Undo 均按 `userId` 隔离，并复用现有自托管 bearer-token 会话身份，不接受客户端传入的 userId 作为事实源。
 
 ## 10. 文件级清单
 
