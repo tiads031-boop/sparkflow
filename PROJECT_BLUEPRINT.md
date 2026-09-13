@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-13 | **当前 Phase**: Phase 12（M2.3 已合并且 CI/主 Preview 成功，待生产与真机复验）＋ Phase 14（M1/M2 已合并；M2 待部署与交互验收）
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-14 | **当前 Phase**: Phase 12（M2.3 已合并且 CI/主 Preview 成功，待生产与真机复验）＋ Phase 14（M1/M2 已合并；M3 最小闭环完成，待设备验收与合并）
 
 ---
 
@@ -62,6 +62,7 @@
 | 51 | Phase 14 SparkFlow V5 体验主线 | 建立统一 Schedule Layer，以 Today 为首页，按 M1～M5 推进 Capture → Plan → Flow → Focus → Review | 收束现有任务、课程、日历与专注能力；M1～M3 构成 V5 Core，AI 仅负责意图解析，确定性 Scheduler 决定时间 |
 | 52 | Phase 13/14 与现有模块兼容契约 | 默认 5 Tab 改为可扩展注册表；课程/Google/local 统一从 CalendarEvent 投影；Task 使用 scheduleColor；新排程写入 start/end/duration；高冲突文件串行交付 | 避免 local-codex 导航丢失、课程重复、优先级颜色混淆、旧任务缺 end 及 App/Settings/Schema 并行冲突 |
 | 53 | 课程页视觉与操作入口 | 课程页只跟随 SparkFlow 全局主题；正文保留“新建课程 / 导入与管理”两个主入口，其余课表工具归入全局底部 Sheet | 消除页面主题割裂、顶部重复按钮和被页面容器或底栏遮挡的问题 |
+| 54 | Phase 14 M3 时间视图边界 | 保留 Calendar API 与 Task 更新链路，将 `CalendarView` 收束为薄入口；Month / Week / Timeline 统一消费 ScheduleItem range projection，只有 Task 可拖动，外部事件只读 | 避免重写 Calendar Engine，保持 Google/local/course、重复规则与现有编辑器兼容，同时明确外部数据写权限 |
 
 ---
 
@@ -212,6 +213,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 
 ### 2026-09-14
 - 🚧 **Phase 14 快速入口闭环**：启用“开始专注”和“AI 帮我安排”。专注模式复用 PomodoroSession，支持任务关联、15/25/45/60 分钟、暂停/继续、提前完成与完成关联任务；智能排程新增服务端预览、冲突/截止/锁定约束、事务应用与安全撤销，并新增 SchedulePlan additive migration。API 23 项测试与构建、Web 25 项测试与构建通过，待 PR、生产迁移和真实设备验收。
+- 🚧 **Phase 14 M3 Timeline V2**：拆出 TimelineView、MonthView、WeekGridView、DayTimelineView、DateNavigator、ViewSwitcher 与 ScheduleBlock；三视图统一使用 ScheduleItem range projection，补齐旧 `dueDate + startTime` 和重复任务展开；周视图提供跨日期列的 15 分钟拖动/Resize、锁定确认及网格创建，重复实例在单次例外模型落地前禁止拖动，并复用 Schedule Editor。Web build、30 项测试与 M3 定向 ESLint 通过，待浏览器/Android 手势、真实外部日历及时区验收后合并。
 
 ### 2026-09-13
 - 🚧 **Phase 12 M2.3 课程页验收修复**：取消 CourseTheme 对根主题的页面级覆盖；移除标题区重复上传/+按钮，将课程操作收束为“新建课程 / 导入与管理”；教务导入、ICS/JSON 导入导出、提醒和自动化进入分组 Sheet；课程相关 Sheet 使用 portal 脱离动画容器与底栏层叠上下文；Android 构建脚本改用可执行的 `./gradlew`。Web build、24 项测试、定向 ESLint、GitHub CI run #32 与主 Vercel Preview 通过，PR #10 已合并；Capacitor sync 成功，Gradle wrapper 已正常启动但受当前环境外网限制无法下载 Gradle。待生产与真机复验。
@@ -374,7 +376,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 |---|---|---|
 | M1 | UI Foundation：Tokens、AppShell、5 Tab、Quick Add | 🚧 已合并，待真实设备交互复验 |
 | M2 | Today Rhythm：ScheduleItem、Today、Rhythm Dial、Schedule Editor | 🚧 已合并且 CI 成功，待部署与交互验收 |
-| M3 | Timeline V2：Month/Week/Timeline、锁定与 15 分钟粒度 | ⬜ |
+| M3 | Timeline V2：Month/Week/Timeline、锁定与 15 分钟粒度 | 🚧 最小闭环完成，待设备验收与合并 |
 | M4 | Smart Planner：意图解析、确定性排程、预览/应用/撤销 | 🚧 确定性排程闭环已实现，待意图解析与生产验收 |
 | M5 | Life Loop：Focus、Daily Receipt、Dark Mode、Android Widget | 🚧 全屏 Focus 已实现，其余待实施 |
 

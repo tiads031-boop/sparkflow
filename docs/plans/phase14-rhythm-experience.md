@@ -296,6 +296,8 @@ CalendarEvent 增加同名 `scheduleLocked Boolean @default(false)`，以支持�
 
 ## 6. M3 — Timeline V2
 
+> **实施状态（2026-09-14）**：🚧 最小完整闭环已在 `codex/phase14-m3-timeline-v2` 落地。`CalendarView` 已收束为薄入口，Month / Week / Timeline 全部消费统一 `ScheduleItem` range projection；周视图支持跨日期列的 15 分钟吸附移动与 Resize，锁定项带锁标识并在调整前确认，重复实例在单次例外模型落地前禁止拖动，任务点击与网格创建复用 Schedule Editor。Web build、30 项测试和 M3 定向 ESLint 已通过；待浏览器/Android 手势、时区和真实 Google/local/course 数据验收后合并。
+
 不重写现有 Calendar Engine。逐步拆分 `CalendarView.tsx`：
 
 ```text
@@ -353,11 +355,11 @@ Flexible 普通任务可直接拖动，也允许 Planner 调整。
 
 ### 6.4 M3 验收
 
-- Month / Week / Timeline 数据完全一致
-- 拖动或 Resize 后所有视图同步
-- 课程、会议与锁定任务不会被自动移动
-- 15 分钟吸附正确，任意分钟时长不被篡改
-- 现有 Google / local / course 日程与重复规则无回归
+- ✅ Month / Week / Timeline 共用 `projectScheduleItemsForRange`，颜色、完成和锁定状态一致
+- ✅ 周视图拖动或 Resize 持久化到 Task，保存成功后三视图同步
+- ✅ course / Google / local 默认锁定，用户锁定任务显示锁标；调整锁定 Task 前确认
+- ✅ 移动按 15 分钟吸附且保留原时长；Resize 按 15 分钟吸附
+- 🚧 已补 legacy `dueDate + startTime` 与 daily/weekly/monthly 投影测试；真实 Google / local / course 与 DST/跨时区仍待设备验收
 
 ## 7. M4 — Smart Planner
 

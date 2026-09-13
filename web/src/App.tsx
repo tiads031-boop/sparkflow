@@ -4,7 +4,7 @@ import {
   LayoutGrid, BookOpen, Settings,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
-import type { NavOrder, NavVisibility } from './types';
+import type { NavOrder, NavVisibility, Spark } from './types';
 import TasksView from './components/TasksView';
 import BoardView from './components/BoardView';
 import CalendarView from './components/CalendarView';
@@ -29,7 +29,7 @@ import PlannerSheet from './components/planner/PlannerSheet';
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
   try {
-    return !!(window as any).Capacitor?.isNativePlatform?.();
+    return !!(window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
   } catch {
     return false;
   }
@@ -99,6 +99,7 @@ export default function App() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [scheduleEditorOpen, setScheduleEditorOpen] = useState(false);
   const [editingScheduleTask, setEditingScheduleTask] = useState<Task | null>(null);
+  const [scheduleEditorStart, setScheduleEditorStart] = useState<Date | null>(null);
   const [focusOpen, setFocusOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const visibleNavItems = getOrderedNavItems(navOrder, navVisibility);
@@ -156,7 +157,7 @@ export default function App() {
     isOpen: boolean;
     mode: 'create' | 'edit';
     context: 'task' | 'spark';
-    data: any;
+    data: Task | Spark | null;
   }>({ isOpen: false, mode: 'create', context: 'task', data: null });
   const [appMessage, setAppMessage] = useState<string | null>(null);
 
@@ -171,6 +172,7 @@ export default function App() {
     }
     if (action === 'schedule') {
       setEditingScheduleTask(null);
+      setScheduleEditorStart(null);
       setScheduleEditorOpen(true);
       return;
     }
@@ -206,10 +208,17 @@ export default function App() {
 
   const handleEditSchedule = (task: Task) => {
     setEditingScheduleTask(task);
+    setScheduleEditorStart(null);
     setScheduleEditorOpen(true);
   };
 
-  const handleOpenDetail = (item: any, context: string) =>
+  const handleCreateScheduleAt = (date: Date) => {
+    setEditingScheduleTask(null);
+    setScheduleEditorStart(date);
+    setScheduleEditorOpen(true);
+  };
+
+  const handleOpenDetail = (item: Task | Spark, context: string) =>
     setModalConfig({ isOpen: true, mode: 'edit', context: context as 'task' | 'spark', data: item });
 
   const handleCloseModal = () =>
@@ -349,7 +358,7 @@ export default function App() {
           ) : activeTab === 'today' && <TodayView onTaskClick={handleEditSchedule} />}
           {activeTab === 'tasks' && <TasksView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'board' && <BoardView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
-          {activeTab === 'timeline' && <CalendarView onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
+          {activeTab === 'timeline' && <CalendarView onTaskClick={handleEditSchedule} onCreate={handleCreateScheduleAt} />}
           {activeTab === 'courses' && !viewingCourseId && (
             <CourseTheme>
             <CourseView
@@ -363,8 +372,8 @@ export default function App() {
                   const result = await importIcs(file, undefined, { semesterId: useAppStore.getState().activeSemesterId || undefined });
                   alert(`导入完成：新增 ${result.created.length} 门，更新 ${result.updated.length} 门，共 ${result.eventCount} 次课`);
                   loadCourses();
-                } catch (err: any) {
-                  alert(`导入失败：${err.message}`);
+                } catch (err: unknown) {
+                  alert(`导入失败：${err instanceof Error ? err.message : '未知错误'}`);
                 }
               }}
             />
@@ -384,8 +393,8 @@ export default function App() {
           config={modalConfig}
           onClose={handleCloseModal}
           onSave={(params) => {
-            handleSaveItem(params).catch((err: any) => {
-              setAppMessage(err.message || '保存失败，请稍后重试');
+            handleSaveItem(params).catch((err: unknown) => {
+              setAppMessage(err instanceof Error ? err.message : '保存失败，请稍后重试');
             });
           }}
           onDelete={handleDeleteItem}
@@ -394,11 +403,12 @@ export default function App() {
         <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} onSelect={handleQuickAdd} />
         {scheduleEditorOpen && (
           <ScheduleEditor
-            key={editingScheduleTask?.id ?? selectedDate.toDateString()}
+            key={editingScheduleTask?.id ?? scheduleEditorStart?.toISOString() ?? selectedDate.toDateString()}
             open
             initialDate={selectedDate}
+            initialStart={scheduleEditorStart}
             initialTask={editingScheduleTask}
-            onClose={() => { setScheduleEditorOpen(false); setEditingScheduleTask(null); }}
+            onClose={() => { setScheduleEditorOpen(false); setEditingScheduleTask(null); setScheduleEditorStart(null); }}
             onSave={handleSaveSchedule}
           />
         )}
