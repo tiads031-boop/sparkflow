@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PomodoroService {
   constructor(private prisma: PrismaService) {}
 
   findAll(userId: string, date?: string) {
-    const where: any = { userId };
+    const where: Prisma.PomodoroSessionWhereInput = { userId };
     if (date) {
       const d = new Date(date);
       where.startedAt = {
@@ -27,18 +28,19 @@ export class PomodoroService {
 
     const [todayCount, weekCount, totalMinutes] = await Promise.all([
       this.prisma.pomodoroSession.count({
-        where: { userId, startedAt: { gte: today } },
+        where: { userId, status: 'completed', startedAt: { gte: today } },
       }),
       this.prisma.pomodoroSession.count({
         where: {
           userId,
+          status: 'completed',
           startedAt: {
             gte: new Date(today.getTime() - 7 * 86400000),
           },
         },
       }),
       this.prisma.pomodoroSession.aggregate({
-        where: { userId },
+        where: { userId, status: 'completed' },
         _sum: { duration: true },
       }),
     ]);
@@ -57,16 +59,36 @@ export class PomodoroService {
     notes?: string;
   }) {
     if (data.taskId) {
-      const task = await this.prisma.task.findFirst({ where: { id: data.taskId, userId: data.userId }, select: { id: true } });
+      const task = await this.prisma.task.findFirst({
+        where: { id: data.taskId, userId: data.userId },
+        select: { id: true },
+      });
       if (!task) throw new NotFoundException('Task not found');
     }
-    return this.prisma.pomodoroSession.create({ data });
+    return this.prisma.pomodoroSession.create({
+      data: { ...data, status: 'active' },
+    });
   }
 
-  complete(id: string, userId: string) {
+  async complete(id: string, userId: string) {
+    const session = await this.prisma.pomodoroSession.findFirst({
+      where: { id, userId },
+    });
+    if (!session) throw new NotFoundException('Pomodoro session not found');
+    const elapsedMinutes = Math.max(
+      1,
+      Math.min(
+        session.duration,
+        Math.ceil((Date.now() - session.startedAt.getTime()) / 60000),
+      ),
+    );
     return this.prisma.pomodoroSession.update({
       where: { id, userId },
-      data: { endedAt: new Date(), status: 'completed' },
+      data: {
+        endedAt: new Date(),
+        duration: elapsedMinutes,
+        status: 'completed',
+      },
     });
   }
 

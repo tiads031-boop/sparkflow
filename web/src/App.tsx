@@ -23,6 +23,8 @@ import AppShell from './components/shell/AppShell';
 import QuickAddSheet, { type QuickAddAction } from './components/shell/QuickAddSheet';
 import TodayView from './components/today/TodayView';
 import ScheduleEditor, { type ScheduleDraft } from './components/schedule/ScheduleEditor';
+import FocusSession from './components/focus/FocusSession';
+import PlannerSheet from './components/planner/PlannerSheet';
 
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
@@ -97,6 +99,8 @@ export default function App() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [scheduleEditorOpen, setScheduleEditorOpen] = useState(false);
   const [editingScheduleTask, setEditingScheduleTask] = useState<Task | null>(null);
+  const [focusOpen, setFocusOpen] = useState(false);
+  const [plannerOpen, setPlannerOpen] = useState(false);
   const visibleNavItems = getOrderedNavItems(navOrder, navVisibility);
 
   useEffect(() => {
@@ -168,6 +172,14 @@ export default function App() {
     if (action === 'schedule') {
       setEditingScheduleTask(null);
       setScheduleEditorOpen(true);
+      return;
+    }
+    if (action === 'focus') {
+      setFocusOpen(true);
+      return;
+    }
+    if (action === 'planner') {
+      setPlannerOpen(true);
       return;
     }
     if (action === 'task') handleOpenCreate('task');
@@ -390,6 +402,14 @@ export default function App() {
             onSave={handleSaveSchedule}
           />
         )}
+        <FocusSession open={focusOpen} onClose={() => setFocusOpen(false)} />
+        <PlannerSheet
+          key={selectedDate.toDateString()}
+          open={plannerOpen}
+          selectedDate={selectedDate}
+          onClose={() => setPlannerOpen(false)}
+          onApplied={loadTasks}
+        />
     </AppShell>
   );
 }

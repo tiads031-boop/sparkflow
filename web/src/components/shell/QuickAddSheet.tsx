@@ -12,8 +12,8 @@ const actions = [
   { id: 'task', label: '新建任务', icon: CheckSquare, enabled: true },
   { id: 'schedule', label: '新建日程', icon: CalendarPlus, enabled: true },
   { id: 'spark', label: '记录灵感', icon: Lightbulb, enabled: true },
-  { id: 'focus', label: '开始专注', icon: Focus, enabled: false },
-  { id: 'planner', label: 'AI 帮我安排', icon: BrainCircuit, enabled: false },
+  { id: 'focus', label: '开始专注', icon: Focus, enabled: true },
+  { id: 'planner', label: 'AI 帮我安排', icon: BrainCircuit, enabled: true },
 ] as const;
 
 export default function QuickAddSheet({ open, onClose, onSelect }: QuickAddSheetProps) {
@@ -50,4 +50,3 @@ export default function QuickAddSheet({ open, onClose, onSelect }: QuickAddSheet
     </div>
   );
 }
-

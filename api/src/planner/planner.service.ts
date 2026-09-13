@@ -1,0 +1,330 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  buildSchedule,
+  hasOverlap,
+  type BusyInterval,
+  type PlannerProposal,
+} from './planner.scheduler';
+
+type ApplyProposal = PlannerProposal;
+
+interface StoredScheduleState {
+  taskId: string;
+  scheduledStart: string | null;
+  scheduledEnd: string | null;
+  estimatedMinutes: number | null;
+  scheduleSource: string;
+}
+
+function parseDate(value: string, label: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime()))
+    throw new BadRequestException(`${label} is invalid`);
+  return date;
+}
+
+function sameInstant(value: Date | null, expected: string | null) {
+  return (value?.toISOString() ?? null) === expected;
+}
+
+function readStoredState(value: unknown): StoredScheduleState[] {
+  if (!Array.isArray(value))
+    throw new ConflictException('Stored schedule plan is invalid');
+  return value.map((entry) => {
+    if (!entry || typeof entry !== 'object')
+      throw new ConflictException('Stored schedule plan is invalid');
+    const item = entry as Record<string, unknown>;
+    if (
+      typeof item.taskId !== 'string' ||
+      (item.scheduledStart !== null &&
+        typeof item.scheduledStart !== 'string') ||
+      (item.scheduledEnd !== null && typeof item.scheduledEnd !== 'string') ||
+      (item.estimatedMinutes !== null &&
+        typeof item.estimatedMinutes !== 'number') ||
+      typeof item.scheduleSource !== 'string'
+    ) {
+      throw new ConflictException('Stored schedule plan is invalid');
+    }
+    return {
+      taskId: item.taskId,
+      scheduledStart: item.scheduledStart,
+      scheduledEnd: item.scheduledEnd,
+      estimatedMinutes: item.estimatedMinutes,
+      scheduleSource: item.scheduleSource,
+    };
+  });
+}
+
+@Injectable()
+export class PlannerService {
+  constructor(private prisma: PrismaService) {}
+
+  async preview(
+    userId: string,
+    data: { availabilityStart: string; availabilityEnd: string },
+  ) {
+    let availabilityStart = parseDate(
+      data.availabilityStart,
+      'availabilityStart',
+    );
+    const availabilityEnd = parseDate(data.availabilityEnd, 'availabilityEnd');
+    if (availabilityEnd <= availabilityStart)
+      throw new BadRequestException(
+        'availabilityEnd must be after availabilityStart',
+      );
+    if (
+      availabilityEnd.getTime() - availabilityStart.getTime() >
+      7 * 86400000
+    ) {
+      throw new BadRequestException('Planning range cannot exceed 7 days');
+    }
+    const now = new Date();
+    if (availabilityStart < now && now < availabilityEnd)
+      availabilityStart = now;
+
+    const [tasks, scheduledTasks, events] = await Promise.all([
+      this.prisma.task.findMany({
+        where: {
+          userId,
+          status: { notIn: ['done', 'cancelled'] },
+          scheduleLocked: false,
+          scheduledStart: null,
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.task.findMany({
+        where: {
+          userId,
+          status: { notIn: ['done', 'cancelled'] },
+          scheduledStart: { lt: availabilityEnd },
+          scheduledEnd: { gt: availabilityStart },
+        },
+        select: { scheduledStart: true, scheduledEnd: true },
+      }),
+      this.prisma.calendarEvent.findMany({
+        where: {
+          userId,
+          startTime: { lt: availabilityEnd },
+          endTime: { gt: availabilityStart },
+        },
+        select: { startTime: true, endTime: true },
+      }),
+    ]);
+
+    const occupied: BusyInterval[] = [
+      ...scheduledTasks.flatMap((task) =>
+        task.scheduledStart && task.scheduledEnd
+          ? [{ start: task.scheduledStart, end: task.scheduledEnd }]
+          : [],
+      ),
+      ...events.map((event) => ({
+        start: event.startTime,
+        end: event.endTime,
+      })),
+    ];
+    const result = buildSchedule(
+      tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        durationMinutes: task.estimatedMinutes ?? 30,
+        priority: task.priority,
+        dueAt: task.dueDate,
+        updatedAt: task.updatedAt,
+      })),
+      occupied,
+      availabilityStart,
+      availabilityEnd,
+    );
+
+    return {
+      ...result,
+      range: {
+        start: availabilityStart.toISOString(),
+        end: availabilityEnd.toISOString(),
+      },
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  async apply(userId: string, data: { proposals: ApplyProposal[] }) {
+    if (!Array.isArray(data.proposals) || data.proposals.length === 0)
+      throw new BadRequestException('No proposals to apply');
+    if (data.proposals.length > 50)
+      throw new BadRequestException('A plan can contain at most 50 tasks');
+    const ids = data.proposals.map((proposal) => proposal.taskId);
+    if (new Set(ids).size !== ids.length)
+      throw new BadRequestException('A task can only appear once in a plan');
+
+    return this.prisma.$transaction(async (tx) => {
+      const tasks = await tx.task.findMany({
+        where: { userId, id: { in: ids } },
+      });
+      if (tasks.length !== ids.length)
+        throw new NotFoundException('One or more tasks were not found');
+
+      const taskMap = new Map(tasks.map((task) => [task.id, task]));
+      const proposalIntervals: BusyInterval[] = data.proposals.map(
+        (proposal) => {
+          const task = taskMap.get(proposal.taskId)!;
+          const start = parseDate(proposal.start, 'proposal.start');
+          const end = parseDate(proposal.end, 'proposal.end');
+          if (end <= start)
+            throw new BadRequestException('Proposal end must be after start');
+          if (task.scheduleLocked)
+            throw new ConflictException(`Task ${task.id} is locked`);
+          if (task.updatedAt.toISOString() !== proposal.taskUpdatedAt)
+            throw new ConflictException(
+              'Plan is stale; generate a new preview',
+            );
+          if (task.dueDate && end > task.dueDate)
+            throw new ConflictException(
+              `Task ${task.id} would miss its deadline`,
+            );
+          return { start, end };
+        },
+      );
+      if (hasOverlap(proposalIntervals))
+        throw new ConflictException('Proposed tasks overlap');
+
+      const rangeStart = new Date(
+        Math.min(...proposalIntervals.map((item) => item.start.getTime())),
+      );
+      const rangeEnd = new Date(
+        Math.max(...proposalIntervals.map((item) => item.end.getTime())),
+      );
+      const [fixedTasks, events] = await Promise.all([
+        tx.task.findMany({
+          where: {
+            userId,
+            id: { notIn: ids },
+            status: { notIn: ['done', 'cancelled'] },
+            scheduledStart: { lt: rangeEnd },
+            scheduledEnd: { gt: rangeStart },
+          },
+          select: { scheduledStart: true, scheduledEnd: true },
+        }),
+        tx.calendarEvent.findMany({
+          where: {
+            userId,
+            startTime: { lt: rangeEnd },
+            endTime: { gt: rangeStart },
+          },
+          select: { startTime: true, endTime: true },
+        }),
+      ]);
+      const occupied: BusyInterval[] = [
+        ...fixedTasks.flatMap((task) =>
+          task.scheduledStart && task.scheduledEnd
+            ? [{ start: task.scheduledStart, end: task.scheduledEnd }]
+            : [],
+        ),
+        ...events.map((event) => ({
+          start: event.startTime,
+          end: event.endTime,
+        })),
+      ];
+      if (
+        proposalIntervals.some((proposal) =>
+          occupied.some(
+            (item) => proposal.start < item.end && proposal.end > item.start,
+          ),
+        )
+      ) {
+        throw new ConflictException('Schedule changed; generate a new preview');
+      }
+
+      const beforeState: StoredScheduleState[] = tasks.map((task) => ({
+        taskId: task.id,
+        scheduledStart: task.scheduledStart?.toISOString() ?? null,
+        scheduledEnd: task.scheduledEnd?.toISOString() ?? null,
+        estimatedMinutes: task.estimatedMinutes,
+        scheduleSource: task.scheduleSource,
+      }));
+      const afterState: StoredScheduleState[] = [];
+      for (const proposal of data.proposals) {
+        const updated = await tx.task.update({
+          where: { id: proposal.taskId, userId },
+          data: {
+            scheduledStart: new Date(proposal.start),
+            scheduledEnd: new Date(proposal.end),
+            estimatedMinutes: proposal.durationMinutes,
+            scheduleSource: 'ai',
+          },
+        });
+        afterState.push({
+          taskId: updated.id,
+          scheduledStart: updated.scheduledStart?.toISOString() ?? null,
+          scheduledEnd: updated.scheduledEnd?.toISOString() ?? null,
+          estimatedMinutes: updated.estimatedMinutes,
+          scheduleSource: updated.scheduleSource,
+        });
+      }
+      const plan = await tx.schedulePlan.create({
+        data: {
+          userId,
+          status: 'applied',
+          beforeState: beforeState as unknown as Prisma.InputJsonValue,
+          afterState: afterState as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return { planId: plan.id, appliedCount: afterState.length };
+    });
+  }
+
+  async undo(userId: string, planId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const plan = await tx.schedulePlan.findFirst({
+        where: { id: planId, userId },
+      });
+      if (!plan) throw new NotFoundException('Schedule plan not found');
+      if (plan.status !== 'applied')
+        throw new ConflictException('Schedule plan has already been undone');
+      const beforeState = readStoredState(plan.beforeState);
+      const afterState = readStoredState(plan.afterState);
+      const ids = afterState.map((item) => item.taskId);
+      const tasks = await tx.task.findMany({
+        where: { userId, id: { in: ids } },
+      });
+      const current = new Map(tasks.map((task) => [task.id, task]));
+      for (const expected of afterState) {
+        const task = current.get(expected.taskId);
+        if (
+          !task ||
+          !sameInstant(task.scheduledStart, expected.scheduledStart) ||
+          !sameInstant(task.scheduledEnd, expected.scheduledEnd)
+        ) {
+          throw new ConflictException(
+            'A planned task changed after apply; undo was cancelled',
+          );
+        }
+      }
+      for (const previous of beforeState) {
+        await tx.task.update({
+          where: { id: previous.taskId, userId },
+          data: {
+            scheduledStart: previous.scheduledStart
+              ? new Date(previous.scheduledStart)
+              : null,
+            scheduledEnd: previous.scheduledEnd
+              ? new Date(previous.scheduledEnd)
+              : null,
+            estimatedMinutes: previous.estimatedMinutes,
+            scheduleSource: previous.scheduleSource,
+          },
+        });
+      }
+      await tx.schedulePlan.update({
+        where: { id: plan.id },
+        data: { status: 'undone' },
+      });
+      return { planId: plan.id, restoredCount: beforeState.length };
+    });
+  }
+}

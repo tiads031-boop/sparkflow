@@ -12,7 +12,7 @@ import { DEFAULT_DURATION } from './constants';
 
 export interface PomodoroSlice {
   pomodoro: PomodoroState;
-  startPomodoro: (taskId?: string) => Promise<void>;
+  startPomodoro: (taskId?: string, durationMinutes?: number) => Promise<void>;
   pausePomodoro: () => void;
   resumePomodoro: () => void;
   stopPomodoro: () => Promise<void>;
@@ -35,11 +35,12 @@ const INITIAL_POMODORO: PomodoroState = {
 export const createPomodoroSlice: StateCreator<AppState, [], [], PomodoroSlice> = (set, get) => ({
   pomodoro: { ...INITIAL_POMODORO },
 
-  startPomodoro: async (taskId) => {
+  startPomodoro: async (taskId, durationMinutes = 25) => {
+    const durationSeconds = Math.max(1, Math.round(durationMinutes)) * 60;
     try {
       const res = await apiRequest('/pomodoro', {
         method: 'POST',
-        body: JSON.stringify({ userId: DEFAULT_USER_ID, taskId, duration: 25 }),
+        body: JSON.stringify({ userId: DEFAULT_USER_ID, taskId, duration: durationMinutes }),
       });
       const session = await res.json();
       set((state) => ({
@@ -47,7 +48,8 @@ export const createPomodoroSlice: StateCreator<AppState, [], [], PomodoroSlice> 
           ...state.pomodoro,
           isRunning: true,
           isPaused: false,
-          timeLeft: state.pomodoro.duration,
+          duration: durationSeconds,
+          timeLeft: durationSeconds,
           activeTaskId: taskId ?? null,
           activeSessionId: session.id,
         },
@@ -59,7 +61,8 @@ export const createPomodoroSlice: StateCreator<AppState, [], [], PomodoroSlice> 
           ...state.pomodoro,
           isRunning: true,
           isPaused: false,
-          timeLeft: state.pomodoro.duration,
+          duration: durationSeconds,
+          timeLeft: durationSeconds,
           activeTaskId: taskId ?? null,
         },
       }));

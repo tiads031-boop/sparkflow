@@ -29,6 +29,7 @@ model User {
   semesters         Semester[]
   googleToken       GoogleToken?
   authSessions      AuthSession[]
+  schedulePlans     SchedulePlan[]
 
   @@map("users")
 }
@@ -155,7 +156,7 @@ model PomodoroSession {
   duration          Int       @default(25)
   startedAt         DateTime  @default(now())
   endedAt           DateTime?
-  status            String    @default("completed") // completed/interrupted
+  status            String    @default("active") // active/completed/interrupted
   interruptionCount Int       @default(0)
   notes             String?
 
@@ -217,6 +218,21 @@ model AIConversation {
   @@index([userId])
   @@index([conversationType])
   @@map("ai_conversations")
+}
+
+model SchedulePlan {
+  id          String   @id @default(uuid())
+  userId      String
+  status      String   @default("applied")
+  beforeState Json
+  afterState  Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("schedule_plans")
 }
 
 model Course {
