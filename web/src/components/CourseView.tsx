@@ -412,7 +412,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
         </div>
       )}
 
-      <CourseSchedulePanel onCourseClick={onCourseClick} />
+      <CourseSchedulePanel onCourseClick={onCourseClick} showScheduleWidgets={hasCourses} />
 
       {isCoursesLoading && hasCourses && (
         <p role="status" className="mb-3 text-xs text-gray-400">正在刷新课程，当前仍显示上次数据…</p>
