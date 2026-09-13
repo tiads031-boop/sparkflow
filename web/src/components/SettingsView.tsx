@@ -863,7 +863,7 @@ export default function SettingsView() {
           </div>
           <div className="flex items-center justify-between py-2">
             <span className="text-sm text-gray-500">技术栈</span>
-            <span className="text-xs text-gray-400">React + NestJS + Supabase</span>
+            <span className="text-xs text-gray-400">React + NestJS + PostgreSQL</span>
           </div>
         </div>
       </div>

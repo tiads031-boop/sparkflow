@@ -6,11 +6,11 @@
  *
  * 设计决策（蓝图 #12, #11）：
  * - API 地址由 VITE_API_BASE_URL 环境变量驱动
- * - 认证使用 Supabase access token，后端从令牌中确定用户身份
+ * - 认证使用 SparkFlow 自托管会话令牌，后端从令牌中确定用户身份
  * - Capacitor 环境（APK）没有 Vite proxy，自动使用 VITE_API_BASE_URL 直连
  */
 
-import { getAccessToken } from './supabase';
+import { getAccessToken } from './auth';
 
 const RAW_API_BASE = (import.meta.env.VITE_API_BASE_URL || '') as string;
 
@@ -65,7 +65,7 @@ interface ApiOptions extends RequestOptions {
 /**
  * 统一 API 请求方法
  *
- * 自动拼接 API_BASE 前缀并附带 Supabase Bearer token。
+ * 自动拼接 API_BASE 前缀并附带 SparkFlow Bearer token。
  * 非 409 状态的错误响应会抛出 Error。
  * 409 留给调用方自行处理（冲突 diff）。
  * body 为 FormData 时不默认设置 Content-Type，让浏览器自动处理 boundary。

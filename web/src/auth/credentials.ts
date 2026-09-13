@@ -1,6 +1,5 @@
 export type AuthMethod = 'email' | 'nickname';
 
-const NICKNAME_ALIAS_DOMAIN = 'users.fish-life.cc.cd';
 const NICKNAME_PATTERN = /^[\p{L}\p{N}_.-]+$/u;
 
 export function normalizeNickname(value: string): string {
@@ -14,13 +13,3 @@ export function validateNickname(value: string): string | null {
   if (!NICKNAME_PATTERN.test(normalized)) return '昵称只能包含文字、数字、点、横线或下划线';
   return null;
 }
-
-export async function nicknameToEmail(value: string): Promise<string> {
-  const normalized = normalizeNickname(value);
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normalized));
-  const alias = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-    .slice(0, 52);
-  return `n_${alias}@${NICKNAME_ALIAS_DOMAIN}`;
-}
-

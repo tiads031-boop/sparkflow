@@ -1,186 +1,90 @@
-# SparkFlow MVP 部署手册
+# SparkFlow 自托管部署手册
 
-> 目标：将 SparkFlow 前后端部署到公网，手机可访问 PWA 并读写 CURRENT_CONTEXT.md。
-> 预计耗时：20-30 分钟（不含等待 Render 构建的 5 分钟）。
+生产架构：Vercel 托管前端 `fish-life.cc.cd`，腾讯云服务器运行 Nginx、SparkFlow API 与 PostgreSQL。注册、登录、密码哈希和会话均由 SparkFlow API 处理，不依赖外部认证或数据库服务。
 
----
+## 1. PostgreSQL
 
-## 一、前置准备
+数据库容器与 API 使用同一个私有 Docker 网络。数据库端口只绑定回环地址，不对公网开放。
 
-| 工具 | 用途 | 注册地址 |
-|---|---|---|
-| GitHub | 代码托管 | https://github.com |
-| Supabase | 免费 PostgreSQL | https://supabase.com |
-| Render | 后端 API 托管 | https://render.com |
-| Vercel | 前端 PWA 托管 | https://vercel.com |
-
-> 全部使用免费层即可。
-
----
-
-## 二、数据库：Supabase
-
-1. 登录 Supabase，点击 **New project**
-2. 输入项目名称（如 `sparkflow-db`），设置密码（记住它）
-3. 等待项目创建完成（约 1-2 分钟）
-4. 进入 **Project Settings > Database**
-5. 复制 **Connection string > URI** 格式：
-   ```
-   postgresql://postgres:[YOUR-PASSWORD]@db.xxxxxx.supabase.co:5432/postgres
-   ```
-6. 把 `[YOUR-PASSWORD]` 替换成你设的密码，这就是 `DATABASE_URL`
-
----
-
-## 三、后端：Render
-
-### 3.1 推送代码到 GitHub
-
-确保 `sparkflow/api/` 下的代码已提交到 GitHub 仓库（可以是单仓库内的子目录，也可以单独一个 repo）。
-
-### 3.2 创建 Web Service
-
-1. Render 面板点击 **New > Web Service**
-2. 连接你的 GitHub 仓库
-3. 配置如下：
-
-| 字段 | 值 |
-|---|---|
-| Name | `sparkflow-api` |
-| Root Directory | `api`（如果 api 在仓库根目录下；否则留空） |
-| Runtime | `Docker` |
-| Branch | `main` |
-
-> Render 会自动检测 `Dockerfile`。
-
-4. 展开 **Advanced**，添加环境变量：
-
+```bash
+docker network create sparkflow-db-net
+docker run -d --name sparkflow-postgres --restart unless-stopped \
+  --network sparkflow-db-net --memory 768m --cpus 0.75 \
+  -e POSTGRES_DB=sparkflow -e POSTGRES_USER=sparkflow_app \
+  -e POSTGRES_PASSWORD_FILE=/run/secrets/db_password \
+  -v /opt/sparkflow/postgres/password:/run/secrets/db_password:ro \
+  -v /opt/sparkflow/postgres/data:/var/lib/postgresql/data \
+  -v /opt/sparkflow/postgres/backups:/backups \
+  -p 127.0.0.1:5433:5432 \
+  --health-cmd='pg_isready -U sparkflow_app -d sparkflow' \
+  --health-interval=10s --health-timeout=5s --health-retries=5 \
+  postgres:17-alpine
 ```
-DATABASE_URL=postgresql://postgres:xxx@db.xxxxxx.supabase.co:5432/postgres
+
+## 2. API 镜像
+
+```bash
+git clone --branch master --single-branch https://github.com/tiads031-boop/sparkflow.git /opt/sparkflow/app
+docker build -t sparkflow-api:latest /opt/sparkflow/app/api
+```
+
+后端环境文件只允许 root 读取：
+
+```dotenv
+DATABASE_URL=postgresql://sparkflow_app:DB_PASSWORD@sparkflow-postgres:5432/sparkflow?schema=public
 PORT=3001
-SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
-CORS_ORIGIN=https://sparkflow-web.vercel.app
+CORS_ORIGIN=https://fish-life.cc.cd
 CONTEXT_MD_PATH=/data/CURRENT_CONTEXT.md
 ```
 
-> `CORS_ORIGIN` 先填 Vercel 的默认域名，部署完前端后再换成真实域名。
+## 3. 启动 API
 
-5. 点击 **Create Web Service**
-6. 等待构建完成（约 3-5 分钟），记录生成的域名：`https://sparkflow-api.onrender.com`
-
-### 3.3 挂载持久化磁盘（CURRENT_CONTEXT.md 需要）
-
-1. 在 Render 的 Service 页面，点击 **Disks**
-2. 点击 **Add Disk**
-3. 配置：
-   - Name: `data`
-   - Mount Path: `/data`
-   - Size: 1 GB（免费层最大 1GB）
-4. 点击 **Save**，Render 会自动重启服务
-5. 重启后 ContextBridge 会自动在 `/data/CURRENT_CONTEXT.md` 创建默认模板
-
-> 不挂载磁盘的话，容器重启后 md 文件会丢失。
-
----
-
-## 四、前端：Vercel
-
-### 4.1 准备生产环境变量
-
-在 `sparkflow/web/` 目录下，确认 `.env.production` 内容：
-
-```
-VITE_API_BASE_URL=https://sparkflow-api.onrender.com/api
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+```bash
+docker run -d --name sparkflow-api --restart unless-stopped \
+  --network sparkflow-db-net --memory 1024m --cpus 1 \
+  --env-file /opt/sparkflow/api.env \
+  -v /opt/sparkflow/api-data:/data \
+  -p 127.0.0.1:3001:3001 \
+  sparkflow-api:latest
 ```
 
-> 把 `sparkflow-api.onrender.com` 替换成 Render 给你的真实域名。
+容器启动时自动执行 `prisma migrate deploy`，然后启动 NestJS API。
 
-### 4.2 部署
+## 4. Nginx 与 HTTPS
 
-1. Vercel 面板点击 **Add New Project**
-2. 导入同一个 GitHub 仓库
-3. 配置：
+`api.fish-life.cc.cd` 反向代理到 `127.0.0.1:3001`。仅开放 HTTPS；PostgreSQL 和 API 容器端口继续只绑定回环地址。
 
-| 字段 | 值 |
-|---|---|
-| Framework Preset | Vite |
-| Root Directory | `web` |
-| Build Command | `npm run build` |
-| Output Directory | `dist` |
+```nginx
+server {
+  server_name api.fish-life.cc.cd;
 
-4. 点击 **Deploy**
-5. 等待构建（约 1 分钟），记录域名：`https://sparkflow-web.vercel.app`
+  location / {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
 
-### 4.3 更新后端 CORS
+## 5. Vercel
 
-回到 Render，把 `CORS_ORIGIN` 环境变量更新为 Vercel 的真实域名，保存后 Render 自动重部署。
+前端生产变量：
 
----
+```dotenv
+VITE_API_BASE_URL=https://api.fish-life.cc.cd/api
+```
 
-## 五、环境变量总览
+不再配置 `VITE_SUPABASE_URL` 或 `VITE_SUPABASE_PUBLISHABLE_KEY`。
 
-### 后端（Render）
+## 6. 验证
 
-| Key | 示例值 | 说明 |
-|---|---|---|
-| `DATABASE_URL` | `postgresql://...` | Supabase 连接串 |
-| `PORT` | `3001` | 服务端口 |
-| `SUPABASE_URL` | `https://...supabase.co` | Supabase Auth 项目地址 |
-| `SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` | 用于校验用户会话的公开应用密钥 |
-| `CORS_ORIGIN` | `https://...vercel.app` | 前端域名，逗号分隔多域名 |
-| `CONTEXT_MD_PATH` | `/data/CURRENT_CONTEXT.md` | 持久化磁盘挂载路径 |
-| `VAPID_PUBLIC_KEY` | `BCl...` | Web Push VAPID 公钥 |
-| `VAPID_PRIVATE_KEY` | `abc...` | Web Push VAPID 私钥 |
-| `VAPID_SUBJECT` | `mailto:you@email.com` | VAPID 联系邮箱 |
+```bash
+curl -fsS http://127.0.0.1:3001/api/health
+curl -fsS https://api.fish-life.cc.cd/api/health
+docker inspect -f '{{.State.Health.Status}}' sparkflow-postgres
+docker logs --tail 50 sparkflow-api
+```
 
-### 前端（Vercel / 本地）
-
-| Key | 示例值 | 说明 |
-|---|---|---|
-| `VITE_API_BASE_URL` | `https://...onrender.com/api` | 后端 API 地址 |
-| `VITE_SUPABASE_URL` | `https://...supabase.co` | Supabase Auth 项目地址 |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_...` | 浏览器端公开应用密钥 |
-
-> 本地开发时 `VITE_API_BASE_URL` 留空，走 Vite proxy。
-
----
-
-## 六、验证步骤
-
-1. 打开 Vercel 域名，确认 PWA 页面正常加载
-2. 观察 Header 徽章：首次应显示"同步中"，随后显示"已同步"
-3. 添加一个任务，观察徽章变为"同步中"然后回到"已同步"
-4. 刷新页面，确认任务仍然存在（已持久化到 Supabase + md 文件）
-5. 手机浏览器打开 Vercel 域名，点击"添加到主屏幕"，确认 PWA 安装成功
-
----
-
-## 七、已知限制（免费层）
-
-| 限制 | 说明 | 缓解方案 |
-|---|---|---|
-| Render 休眠 | 15 分钟无请求后休眠，首次请求延迟 30 秒 | 用 UptimeRobot 每 5 分钟 ping 一次 `/api/health` |
-| Supabase 暂停 | 7 天无活动后项目暂停 | 定期登录 Supabase 面板 |
-| 邮件发送 | Supabase 默认邮件服务有配额和收件人限制 | 正式开放注册前配置自定义 SMTP |
-
----
-
-## 八、故障排查
-
-**Q: 前端显示"同步异常"**
-- 检查浏览器 Network 面板，确认请求 URL 是否正确
-- 检查 Render logs，确认后端是否报错
-- 确认前后端使用同一 Supabase 项目及 publishable key
-- 确认 `CORS_ORIGIN` 包含 Vercel 域名
-
-**Q: 添加任务后刷新丢失**
-- 检查 Render 是否挂载了 `/data` 磁盘
-- 检查 `CONTEXT_MD_PATH` 是否为 `/data/CURRENT_CONTEXT.md`
-- 检查数据库连接是否正常（Render logs 看 Prisma 报错）
-
-**Q: 构建失败**
-- 后端：确认 `Dockerfile` 在 `api/` 目录下，Render 的 Root Directory 配置正确
-- 前端：确认 `vercel.json` 已提交到仓库
+最后在前端分别验证昵称注册、邮箱注册、登录、退出、改密及刷新后会话恢复。旧账号不迁移，切换后重新注册。
