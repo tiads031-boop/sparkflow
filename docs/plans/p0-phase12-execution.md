@@ -12,7 +12,7 @@
 | Render | `sparkflow` 服务已自动部署 `552f3caa`；`/api/health` 返回 200 | 保持部署后日志与健康检查 |
 | Supabase | `sparkflow-db` 健康，Postgres 17；业务表均启用 RLS | 暂不改数据；启用泄露密码保护并核验 RLS 策略内容 |
 | Vercel | `sparkflow031` 是主生产项目并指向 `fish-life.cc.cd`；仍有两个重复项目检查 | 恢复团队 scope 后归档重复项目 |
-| 课程导入 | M2.1/M2.2 已合并；M2.3 主题、入口与遮挡修复已实现，待 PR/CI/Preview | 先验收 360px 与 Android 操作层级，再继续已有学期、冲突检测与幂等 |
+| 课程导入 | M2.1/M2.2/M2.3 已合并；M2.3 CI 与主 Preview 成功，待生产/真机复验 | 先验收 360px 与 Android 操作层级，再继续已有学期、冲突检测与幂等 |
 
 ## 2. 实施原则
 

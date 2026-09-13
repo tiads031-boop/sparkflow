@@ -1,6 +1,6 @@
 # Phase 12：课程页与教务导入体验改进
 
-> 更新日期：2026-09-13。状态：实施中。M1、M2.1、M2.2 已合并；M2.3 课程页验收修复已实现，待 PR/CI 与 Vercel Preview。
+> 更新日期：2026-09-13。状态：实施中。M1、M2.1、M2.2、M2.3 已合并；M2.3 GitHub CI 与主 Vercel Preview 成功，待生产与真机复验。
 
 ## 1. 当前问题与证据
 
@@ -173,7 +173,8 @@
 - [x] Android 构建脚本改用 `./gradlew assembleDebug`，避免 Linux 环境无法解析当前目录下的 wrapper。
 - [x] Web build、24 项测试、定向 ESLint 与 diff check 通过。
 - [x] Capacitor sync 通过，Gradle wrapper 可正常启动；当前执行环境因无法访问 `services.gradle.org` 未完成 APK assemble。
-- [ ] PR/CI、Vercel Preview 360px、Android 真机与实际文件选择交互验收。
+- [x] PR #10 已合并；GitHub CI run #32 与主 Vercel Preview 成功。
+- [ ] 生产 360px、Android 真机与实际文件选择交互验收。
 
 ### M2 后续未完成范围
 
@@ -186,7 +187,7 @@
 |---|---|---|
 | M0 | CI、Node 22、Prisma 自动生成、公开健康接口与 Render 生产核验 | ✅ |
 | M1 | 五态加载契约、旧请求取消、学期响应隔离、缓存刷新提示、时间归一化与 4 个 Web 测试 | ✅ |
-| M2 | 四步导入向导、结构化作息、预览页与设置入口重组 | 🚧 M2.1/M2.2 已合并；M2.3 已实现待验收；其余能力待实施 |
+| M2 | 四步导入向导、结构化作息、预览页与设置入口重组 | 🚧 M2.1/M2.2/M2.3 已合并；生产与真机复验及其余能力待实施 |
 | M3 | 服务端幂等、重复策略、事务与集成测试 | ⬜ |
 | M4 | Web/Android 真实导入、Beta 发布与回滚验收 | ⬜ |
 

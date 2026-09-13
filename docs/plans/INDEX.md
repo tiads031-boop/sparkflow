@@ -8,11 +8,11 @@
 
 | 文件名 | Phase | 简述 | 状态 |
 |---|---|---|---|
-| [p0-phase12-execution.md](p0-phase12-execution.md) | P0/12 | 生产基线、CI、四步导入与幂等发布的执行总计划 | 🚧 M2.3 验收修复已实现，待 PR/CI/Preview |
+| [p0-phase12-execution.md](p0-phase12-execution.md) | P0/12 | 生产基线、CI、四步导入与幂等发布的执行总计划 | 🚧 M2.3 已合并且 CI/主 Preview 成功，待生产与真机复验 |
 | [phase09-course-module.md](phase09-course-module.md) | 09 | Course 模块：课表、笔记看板、事件追踪 | 🚧 部分实施中 |
 | [phase10-pending-features.md](phase10-pending-features.md) | 10 | 待办功能收束：VAPID 部署、截止拖入时间线、事件类型扩展等 | ⬜ |
 | [phase11-auth-registration-onboarding.md](phase11-auth-registration-onboarding.md) | 11 | 账户注册、密码管理与问候页多选 | ✅ |
-| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 12 | 课程页入口收敛、教务导入向导、作息编辑与部署验收 | 🚧 M2.3 验收修复已实现，待 PR/CI/Preview |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 12 | 课程页入口收敛、教务导入向导、作息编辑与部署验收 | 🚧 M2.3 已合并且 CI/主 Preview 成功，待生产与真机复验 |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 | 本机 Local Codex Bridge Gateway、监督控制、故障对账与验收 | ⬜ 方案完成，待实施 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | 14 | SparkFlow V5：Today、统一时间层、智能排程、专注与复盘 | 🚧 M1/M2 已合并且 CI 成功；M2 待部署与交互验收 |
 

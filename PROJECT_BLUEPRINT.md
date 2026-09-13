@@ -1,7 +1,7 @@
 # sparkflow — 项目开发蓝图
 
 > **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-13 | **当前 Phase**: Phase 12（M2.3 课程页验收修复已实现，待 PR/CI/Preview）＋ Phase 14（M1/M2 已合并；M2 待部署与交互验收）
+> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-13 | **当前 Phase**: Phase 12（M2.3 已合并且 CI/主 Preview 成功，待生产与真机复验）＋ Phase 14（M1/M2 已合并；M2 待部署与交互验收）
 
 ---
 
@@ -137,7 +137,7 @@ Supabase PostgreSQL (唯一数据源)
 | 09 — Course 模块深化（课程详情页、笔记看板、事件追踪） | 🚧 部分实施中 | [phase09-course-module.md](docs/plans/phase09-course-module.md) |
 | 10 — 待办功能收束（VAPID 部署、拖入时间线、事件类型扩展等） | ⬜ | [phase10-pending-features.md](docs/plans/phase10-pending-features.md) |
 | 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
-| 12 — 课程页与教务导入体验改进 | 🚧 M2.3 验收修复已实现，待 PR/CI/Preview | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
+| 12 — 课程页与教务导入体验改进 | 🚧 M2.3 已合并且 CI/主 Preview 成功，待生产与真机复验 | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
 | 13 — Local Codex Bridge 本机监督接入 | ⬜ 方案完成，待实施 | [phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) |
 | 14 — Rhythm Experience / SparkFlow V5 | 🚧 M1/M2 已合并且 CI 成功；M2 待部署与交互验收 | [phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) |
 
@@ -211,7 +211,7 @@ node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
 ## 六、更新日志
 
 ### 2026-09-13
-- 🚧 **Phase 12 M2.3 课程页验收修复**：取消 CourseTheme 对根主题的页面级覆盖；移除标题区重复上传/+按钮，将课程操作收束为“新建课程 / 导入与管理”；教务导入、ICS/JSON 导入导出、提醒和自动化进入分组 Sheet；课程相关 Sheet 使用 portal 脱离动画容器与底栏层叠上下文；Android 构建脚本改用可执行的 `./gradlew`。Web build、24 项测试与定向 ESLint 已通过；Capacitor sync 成功，Gradle wrapper 已正常启动但受当前环境外网限制无法下载 Gradle。待 PR/CI 和 Vercel 360px 验收。
+- 🚧 **Phase 12 M2.3 课程页验收修复**：取消 CourseTheme 对根主题的页面级覆盖；移除标题区重复上传/+按钮，将课程操作收束为“新建课程 / 导入与管理”；教务导入、ICS/JSON 导入导出、提醒和自动化进入分组 Sheet；课程相关 Sheet 使用 portal 脱离动画容器与底栏层叠上下文；Android 构建脚本改用可执行的 `./gradlew`。Web build、24 项测试、定向 ESLint、GitHub CI run #32 与主 Vercel Preview 通过，PR #10 已合并；Capacitor sync 成功，Gradle wrapper 已正常启动但受当前环境外网限制无法下载 Gradle。待生产与真机复验。
 
 ### 2026-09-12
 - ✅ **Phase 14 方案落库**：确定 SparkFlow V5 以 Capture → Plan → Flow → Focus → Review 为产品主线；新增统一 Schedule Layer、Today Rhythm、Timeline V2、确定性 Planner、Focus 与 Daily Receipt 的五阶段实施方案。M1～M3 定义为 V5 Core。
