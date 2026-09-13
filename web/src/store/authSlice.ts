@@ -1,10 +1,11 @@
 import type { StateCreator } from 'zustand';
 import type { ToggleableNavTab } from '../types';
 import type { AppState } from './index';
-import { isSupabaseConfigured, supabase } from '../api/supabase';
+import { api } from '../api/client';
+import { clearAccessToken, setAccessToken, type AuthUser } from '../api/auth';
 import { useCoursePreferences } from './coursePreferences';
 import { defaultNavVisibility, isToggleableNavTab, migrateNavigationId, toggleableNavTabs } from '../navigation';
-import { nicknameToEmail, normalizeNickname, validateNickname, type AuthMethod } from '../auth/credentials';
+import { normalizeNickname, validateNickname, type AuthMethod } from '../auth/credentials';
 
 const PROFILE_STORAGE_PREFIX = 'sparkflow.authProfile.v2';
 
@@ -88,23 +89,22 @@ function writeProfile(userId: string, hasCompletedOnboarding: boolean, profile: 
   localStorage.setItem(profileKey(userId), JSON.stringify({ hasCompletedOnboarding, profile }));
 }
 
-function authErrorMessage(message: string, code?: string, method: AuthMethod = 'email'): string {
+function authErrorMessage(message: string, method: AuthMethod = 'email'): string {
   const lower = message.toLowerCase();
-  if (code === 'over_email_send_rate_limit' || lower.includes('email rate limit exceeded')) {
-    return '注册邮件发送已达服务限额，请稍后再试；如果已收到确认邮件，请先完成验证再登录';
-  }
-  if (code === 'over_request_rate_limit' || lower.includes('rate limit') || lower.includes('security purposes')) {
+  if (lower.includes('rate_limited') || lower.includes('429')) {
     return '操作过于频繁，请稍后再试';
   }
-  if (lower.includes('database error')) return '账号保存失败。如果刚提交过注册，请先检查确认邮件；否则请稍后重试或联系管理员';
-  if (code === 'email_address_not_authorized') return '邮件服务暂不支持向此邮箱发送验证邮件，请联系管理员';
-  if (code === 'email_address_invalid') return '请输入有效邮箱地址';
+  if (lower.includes('nickname_taken')) return '这个昵称已经被使用';
+  if (lower.includes('email_taken')) return '该邮箱已经注册';
+  if (lower.includes('invalid_nickname')) return '昵称只能包含 2–24 个文字、数字、点、横线或下划线';
+  if (lower.includes('invalid_email')) return '请输入有效邮箱地址';
+  if (lower.includes('invalid_current_password')) return '当前密码不正确';
+  if (lower.includes('invalid_credentials') || lower.includes('401')) {
+    return `${method === 'nickname' ? '昵称' : '邮箱'}或密码不正确`;
+  }
   if (lower.includes('fetch') || lower.includes('network')) return '连接认证服务失败，请检查网络后重试';
-  if (lower.includes('invalid login credentials')) return `${method === 'nickname' ? '昵称' : '邮箱'}或密码不正确`;
-  if (lower.includes('email not confirmed')) return '请先在邮箱中确认注册邮件';
-  if (lower.includes('user already registered')) return '该邮箱已经注册。请检查确认邮件，完成验证后直接登录';
   if (lower.includes('password')) return '密码至少需要 6 个字符';
-  return message || '认证服务暂时不可用';
+  return '认证服务暂时不可用';
 }
 
 export interface AuthSlice {
@@ -131,7 +131,7 @@ export interface AuthSlice {
 }
 
 export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, get) => {
-  const applyUser = (user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> } | null) => {
+  const applyUser = (user: AuthUser | null) => {
     if (!user) {
       useCoursePreferences.getState().bindUser(null);
       set({
@@ -149,9 +149,7 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
       return;
     }
     const stored = readProfile(user.id);
-    const accountNickname = typeof user.user_metadata?.nickname === 'string'
-      ? user.user_metadata.nickname.trim()
-      : '';
+    const accountNickname = user.nickname?.trim() || '';
     useCoursePreferences.getState().bindUser(user.id);
     set({
       authReady: true,
@@ -168,7 +166,6 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
   };
 
   let initialized = false;
-  let confirmationEmailSentTo: string | null = null;
   return {
     authReady: false,
     isAuthenticated: false,
@@ -187,35 +184,16 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
     initializeAuth: async () => {
       if (initialized) return;
       initialized = true;
-      if (!isSupabaseConfigured) {
-        set({ authReady: true, loginError: '尚未配置 Supabase 登录环境变量' });
-        return;
+      try {
+        const result = await api.get<{ user: AuthUser }>('/auth/session', { throwOnError: true });
+        applyUser(result.user);
+      } catch {
+        clearAccessToken();
+        applyUser(null);
       }
-      // Supabase puts confirmation failures in the URL hash. Consume them so
-      // the app can explain the problem instead of leaving a broken route.
-      if (typeof window !== 'undefined' && window.location.hash) {
-        const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-        const code = params.get('error_code');
-        const description = params.get('error_description') || '';
-        if (code || description) {
-          const message = code === 'otp_expired' || description.toLowerCase().includes('expired')
-            ? '确认链接已过期，请重新注册或联系管理员重新发送确认邮件'
-            : '确认链接无效，请重新注册或联系管理员';
-          set({ loginError: message });
-          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-        }
-      }
-      const { data, error } = await supabase.auth.getSession();
-      if (error) set({ authReady: true, loginError: authErrorMessage(error.message) });
-      else applyUser(data.session?.user ?? null);
-      supabase.auth.onAuthStateChange((_event, session) => applyUser(session?.user ?? null));
     },
 
     login: async (identifier, password, method) => {
-      if (!isSupabaseConfigured) {
-        set({ loginError: '尚未配置 Supabase 登录环境变量' });
-        return false;
-      }
       if (method === 'nickname') {
         const nicknameError = validateNickname(identifier);
         if (nicknameError) {
@@ -223,30 +201,33 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
           return false;
         }
       }
-      const normalizedEmail = method === 'nickname'
-        ? await nicknameToEmail(identifier)
-        : identifier.trim().toLowerCase();
-      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
-      if (error || !data.user) {
-        set({ loginError: authErrorMessage(error?.message || '', error?.code, method) });
+      try {
+        const result = await api.post<{ token: string; user: AuthUser }>('/auth/login', {
+          method,
+          identifier: method === 'nickname' ? normalizeNickname(identifier) : identifier.trim().toLowerCase(),
+          password,
+        }, { throwOnError: true });
+        setAccessToken(result.token);
+        applyUser(result.user);
+        set({ loginError: null });
+        return true;
+      } catch (error) {
+        set({ loginError: authErrorMessage(error instanceof Error ? error.message : '', method) });
         return false;
       }
-      applyUser(data.user);
-      set({ loginError: null });
-      return true;
     },
 
     logout: async () => {
-      await supabase.auth.signOut();
-      applyUser(null);
+      try {
+        await api.post('/auth/logout', undefined, { throwOnError: true });
+      } finally {
+        clearAccessToken();
+        applyUser(null);
+      }
     },
 
     register: async (identifier, password, method) => {
       if (get().registrationPending) return false;
-      if (!isSupabaseConfigured) {
-        set({ registrationError: '尚未配置 Supabase 登录环境变量' });
-        return false;
-      }
       if (method === 'nickname') {
         const nicknameError = validateNickname(identifier);
         if (nicknameError) {
@@ -254,10 +235,10 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
           return false;
         }
       }
-      const normalizedEmail = method === 'nickname'
-        ? await nicknameToEmail(identifier)
+      const normalizedIdentifier = method === 'nickname'
+        ? normalizeNickname(identifier)
         : identifier.trim().toLowerCase();
-      if (method === 'email' && !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      if (method === 'email' && !/^\S+@\S+\.\S+$/.test(normalizedIdentifier)) {
         set({ registrationError: '请输入有效邮箱地址' });
         return false;
       }
@@ -265,66 +246,19 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
         set({ registrationError: '密码至少需要 6 个字符' });
         return false;
       }
-      // A successful signup without a session is awaiting email verification.
-      // Repeating it cannot complete verification and consumes the email quota.
-      if (confirmationEmailSentTo === normalizedEmail) {
-        set({ registrationError: '确认邮件已发送，请完成验证后再返回登录', isRegistering: true });
-        return false;
-      }
       set({ registrationPending: true, registrationError: null });
       try {
-        if (method === 'nickname') {
-          const { data: result, error: functionError } = await supabase.functions.invoke<{
-            ok?: boolean;
-            error?: 'nickname_taken' | 'invalid_nickname' | 'weak_password' | 'rate_limited' | 'server_error';
-          }>('nickname-signup', {
-            body: { nickname: normalizeNickname(identifier), password },
-          });
-          if (functionError || !result?.ok) {
-            const nicknameMessages = {
-              nickname_taken: '这个昵称已经被使用',
-              invalid_nickname: '昵称只能包含 2–24 个文字、数字、点、横线或下划线',
-              weak_password: '密码至少需要 6 个字符',
-              rate_limited: '注册过于频繁，请稍后再试',
-              server_error: '昵称注册服务暂时不可用，请稍后再试',
-            } as const;
-            set({ registrationError: result?.error ? nicknameMessages[result.error] : nicknameMessages.server_error });
-            return false;
-          }
-          const signedIn = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
-          if (signedIn.error || !signedIn.data.user) {
-            set({ registrationError: authErrorMessage(signedIn.error?.message || '', signedIn.error?.code, method) });
-            return false;
-          }
-          applyUser(signedIn.data.user);
-          set({ registrationError: null, isRegistering: false });
-          return true;
-        }
-        const { data, error } = await supabase.auth.signUp({
-          email: normalizedEmail,
+        const result = await api.post<{ token: string; user: AuthUser }>('/auth/register', {
+          method,
+          identifier: normalizedIdentifier,
           password,
-          options: {
-            emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
-          },
-        });
-        if (error) {
-          set({ registrationError: authErrorMessage(error.message, error.code) });
-          return false;
-        }
-        if (!data.user) {
-          set({ registrationError: '认证服务未返回账号信息，请稍后重试' });
-          return false;
-        }
-        if (!data.session) {
-          confirmationEmailSentTo = normalizedEmail;
-          set({ registrationError: '确认邮件已发送，请完成验证后再返回登录', isRegistering: true });
-          return false;
-        }
-        applyUser(data.user);
+        }, { throwOnError: true });
+        setAccessToken(result.token);
+        applyUser(result.user);
         set({ registrationError: null, isRegistering: false });
         return true;
       } catch (error) {
-        set({ registrationError: authErrorMessage(error instanceof Error ? error.message : '') });
+        set({ registrationError: authErrorMessage(error instanceof Error ? error.message : '', method) });
         return false;
       } finally {
         set({ registrationPending: false });
@@ -332,12 +266,17 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
     },
 
     changePassword: async (oldPassword, newPassword) => {
-      const email = get().currentEmail;
-      if (!email || newPassword.length < 6) return false;
-      const verified = await supabase.auth.signInWithPassword({ email, password: oldPassword });
-      if (verified.error) return false;
-      const result = await supabase.auth.updateUser({ password: newPassword });
-      return !result.error;
+      if (!get().currentUserId || newPassword.length < 6) return false;
+      try {
+        const result = await api.post<{ token: string; user: AuthUser }>('/auth/change-password', {
+          oldPassword,
+          newPassword,
+        }, { throwOnError: true });
+        setAccessToken(result.token);
+        return true;
+      } catch {
+        return false;
+      }
     },
 
     setRegistering: (value) => set({ isRegistering: value, registrationError: null, loginError: null }),

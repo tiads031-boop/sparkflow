@@ -7,13 +7,16 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  wechatId      String?   @unique
+  id            String   @id @default(uuid())
+  wechatId      String?  @unique
+  email         String?  @unique
+  loginNickname String?  @unique
+  passwordHash  String?
   nickname      String?
   avatarUrl     String?
-  settings      Json      @default("{}")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  settings      Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   inspirations      Inspiration[]
   tasks             Task[]
@@ -25,8 +28,35 @@ model User {
   courseNotes       CourseNote[]
   semesters         Semester[]
   googleToken       GoogleToken?
+  authSessions      AuthSession[]
 
   @@map("users")
+}
+
+model AuthSession {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model AuthRateLimit {
+  requestKey      String
+  action          String
+  windowStartedAt DateTime @db.Timestamptz(6)
+  attemptCount    Int      @default(1)
+
+  @@id([requestKey, action, windowStartedAt])
+  @@index([windowStartedAt])
+  @@map("auth_rate_limits")
 }
 
 model Semester {
@@ -49,25 +79,25 @@ model Semester {
 }
 
 model Inspiration {
-  id            String   @id @default(uuid())
-  userId        String
-  sourceUrl     String
-  sourceType    String   @default("article")
-  title         String?
-  description   String?
-  contentText   String?  @db.Text
-  coverImage    String?
-  author        String?
-  publishedAt   DateTime?
-  aiSummary     String?  @db.Text
-  aiInsights    Json     @default("[]")
-  tags          String[]
-  status        String   @default("active")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String    @id @default(uuid())
+  userId      String
+  sourceUrl   String
+  sourceType  String    @default("article")
+  title       String?
+  description String?
+  contentText String?   @db.Text
+  coverImage  String?
+  author      String?
+  publishedAt DateTime?
+  aiSummary   String?   @db.Text
+  aiInsights  Json      @default("[]")
+  tags        String[]
+  status      String    @default("active")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task          Task?
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task?
 
   @@index([userId])
   @@index([status])
@@ -80,7 +110,7 @@ model Task {
   description     String?
   status          String    @default("todo")
   priority        String    @default("medium")
-  section         String?   @default("personal")  // RENAMED from 'column'
+  section         String?   @default("personal") // RENAMED from 'column'
   project         String?
   notes           Json?     @default("[]")
   dueDate         DateTime?
@@ -92,30 +122,29 @@ model Task {
   scheduleSource  String    @default("manual")
   scheduleColor   String?
 
-  id              String    @id @default(uuid())
-  userId          String
-  inspirationId   String?   @unique
+  id               String    @id @default(uuid())
+  userId           String
+  inspirationId    String?   @unique
   estimatedMinutes Int?
-  scheduledStart  DateTime?
-  scheduledEnd    DateTime?
-  tags            String[]
-  aiFeasibility   Json?
-  courseId        String?
-  createdAt       DateTime  @default(now())
-  completedAt     DateTime?
-  updatedAt       DateTime  @updatedAt
+  scheduledStart   DateTime?
+  scheduledEnd     DateTime?
+  tags             String[]
+  aiFeasibility    Json?
+  courseId         String?
+  createdAt        DateTime  @default(now())
+  completedAt      DateTime?
+  updatedAt        DateTime  @updatedAt
 
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   pomodoroSessions PomodoroSession[]
-  calendarEvents  CalendarEvent[]
-  inspiration     Inspiration? @relation(fields: [inspirationId], references: [id])
-  course          Course?    @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  calendarEvents   CalendarEvent[]
+  inspiration      Inspiration?      @relation(fields: [inspirationId], references: [id])
+  course           Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([status])
   @@index([dueDate])
   @@index([courseId])
-
   @@map("tasks")
 }
 
@@ -130,8 +159,8 @@ model PomodoroSession {
   interruptionCount Int       @default(0)
   notes             String?
 
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task              Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([taskId])
@@ -139,51 +168,51 @@ model PomodoroSession {
 }
 
 model CalendarEvent {
-  id            String    @id @default(uuid())
-  userId        String
-  taskId        String?
-  courseId      String?
-  title         String
-  eventType     String    @default("task") // task/focus/meeting/reminder/course
-  startTime     DateTime
-  endTime       DateTime
-  isAllDay      Boolean   @default(false)
-  recurrenceRule String?
-  isOverride    Boolean   @default(false) // 是否为手动调课覆盖（换课时跳过）
-  color         String    @default("#185FA5")
-  location      String?
-  externalSource String?
-  externalEventId String?
+  id                  String    @id @default(uuid())
+  userId              String
+  taskId              String?
+  courseId            String?
+  title               String
+  eventType           String    @default("task") // task/focus/meeting/reminder/course
+  startTime           DateTime
+  endTime             DateTime
+  isAllDay            Boolean   @default(false)
+  recurrenceRule      String?
+  isOverride          Boolean   @default(false) // 是否为手动调课覆盖（换课时跳过）
+  color               String    @default("#185FA5")
+  location            String?
+  externalSource      String?
+  externalEventId     String?
   sourceCalendarTitle String?
-  googleEventId  String?
-  googleSyncedAt DateTime?
-  syncStatus     String    @default("pending")
-  scheduleLocked Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  googleEventId       String?
+  googleSyncedAt      DateTime?
+  syncStatus          String    @default("pending")
+  scheduleLocked      Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task          Task?     @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  course        Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  course Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, externalSource, externalEventId])
   @@index([userId])
   @@index([startTime])
   @@index([courseId])
   @@index([taskId], map: "calendar_events_task_id_idx")
-  @@unique([userId, externalSource, externalEventId])
   @@map("calendar_events")
 }
 
 model AIConversation {
-  id                String    @id @default(uuid())
-  userId            String
-  conversationType  String
-  userMessage       String
-  aiResponse        String    @db.Text
-  context           Json?
-  createdAt         DateTime  @default(now())
+  id               String   @id @default(uuid())
+  userId           String
+  conversationType String
+  userMessage      String
+  aiResponse       String   @db.Text
+  context          Json?
+  createdAt        DateTime @default(now())
 
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([conversationType])
@@ -191,32 +220,32 @@ model AIConversation {
 }
 
 model Course {
-  id          String    @id @default(uuid())
-  userId      String
-  semesterId  String?
-  name        String
-  teacher     String?
-  room        String?
-  color       String    @default("#b0a8db")
-  
-  // 课程规则模板（换课时修改这些字段）
-  dayOfWeek   Int?                    // 1=Mon..7=Sun
-  startTime   String?                 // "08:00"
-  endTime     String?                 // "09:40"
-  weeks       Json?     @default("[]") // [1,2,3,...] 或 {"type":"all"} 或 {"type":"odd"} 
-  location    String?                 // 校区/教学楼
-  
-  // ICS 来源
-  icsUid      String?   @unique
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id         String  @id @default(uuid())
+  userId     String
+  semesterId String?
+  name       String
+  teacher    String?
+  room       String?
+  color      String  @default("#b0a8db")
 
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  semester    Semester?         @relation(fields: [semesterId], references: [id], onDelete: SetNull)
-  events      CalendarEvent[]
-  tasks       Task[]
-  notes       CourseNote[]
+  // 课程规则模板（换课时修改这些字段）
+  dayOfWeek Int? // 1=Mon..7=Sun
+  startTime String? // "08:00"
+  endTime   String? // "09:40"
+  weeks     Json?   @default("[]") // [1,2,3,...] 或 {"type":"all"} 或 {"type":"odd"}
+  location  String? // 校区/教学楼
+
+  // ICS 来源
+  icsUid String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  semester Semester?       @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  events   CalendarEvent[]
+  tasks    Task[]
+  notes    CourseNote[]
 
   @@index([userId])
   @@index([userId, semesterId])
@@ -225,16 +254,16 @@ model Course {
 }
 
 model CourseNote {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   userId    String
   courseId  String
-  body      String    @db.Text
-  pinned    Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  body      String   @db.Text
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([courseId])
@@ -242,35 +271,35 @@ model CourseNote {
 }
 
 model PushSubscription {
-  id              String    @id @default(uuid())
-  userId          String
-  channel         String    @default("web")
-  endpoint        String
-  p256dh          String?
-  auth            String?
-  createdAt       DateTime  @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  channel   String   @default("web")
+  endpoint  String
+  p256dh    String?
+  auth      String?
+  createdAt DateTime @default(now())
 
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("push_subscriptions")
 }
 
 model GoogleToken {
-  id            String    @id @default(uuid())
-  userId        String
-  accessToken   String
-  refreshToken  String
-  tokenExpiry   DateTime
-  googleEmail   String?
-  calendarId    String?    @default("primary")
-  syncToken     String?
-  lastSyncAt    DateTime?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(uuid())
+  userId       String
+  accessToken  String
+  refreshToken String
+  tokenExpiry  DateTime
+  googleEmail  String?
+  calendarId   String?   @default("primary")
+  syncToken    String?
+  lastSyncAt   DateTime?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
   @@map("google_tokens")

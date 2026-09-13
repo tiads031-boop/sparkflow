@@ -5,6 +5,7 @@ import { json } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.use('/api/courses/import-json', json({ limit: '8mb' }));
 
   const corsOrigin = process.env.CORS_ORIGIN;

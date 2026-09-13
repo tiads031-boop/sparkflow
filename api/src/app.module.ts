@@ -13,7 +13,8 @@ import { SemesterModule } from './semester/semester.module';
 import { PushModule } from './push/push.module';
 import { GoogleCalendarModule } from './google-calendar/google-calendar.module';
 import { CommonModule } from './common/common.module';
-import { SupabaseAuthGuard } from './common/guards/supabase-auth.guard';
+import { SessionAuthGuard } from './common/guards/session-auth.guard';
+import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -21,6 +22,7 @@ import { AppService } from './app.service';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     CommonModule,
+    AuthModule,
     PrismaModule,
     UsersModule,
     InspirationsModule,
@@ -38,7 +40,7 @@ import { AppService } from './app.service';
     AppService,
     {
       provide: APP_GUARD,
-      useClass: SupabaseAuthGuard,
+      useClass: SessionAuthGuard,
     },
   ],
 })
