@@ -34,7 +34,6 @@ docker build -t sparkflow-api:latest /opt/sparkflow/app/api
 DATABASE_URL=postgresql://sparkflow_app:DB_PASSWORD@sparkflow-postgres:5432/sparkflow?schema=public
 PORT=3001
 CORS_ORIGIN=https://fish-life.cc.cd
-CONTEXT_MD_PATH=/data/CURRENT_CONTEXT.md
 ```
 
 ## 3. 启动 API

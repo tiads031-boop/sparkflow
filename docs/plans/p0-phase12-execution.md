@@ -1,138 +1,23 @@
-# SparkFlow P0 + Phase 12 实施方案
+# SparkFlow P0 + Phase 12 旧执行清单
 
-> 更新日期：2026-09-13
-> 目标版本：v0.9 Beta  
-> 当前基线：GitHub `master` 为 `37d4da5`（含 Phase 14 M2）；Render 与 Vercel 实际运行提交仍按部署验收逐次核对。
+> **原更新日期**：2026-09-13 | **状态**：⚠️ 冻结、已被替代
+>
+> 原清单以 Render、Supabase 和较早 Git 基线为前提，已不适用于当前生产。完整历史可通过 Git 读取本文件的旧版本。
 
-## 1. 当前结论
+## 替代关系
 
-| 领域 | 已确认状态 | 直接动作 |
-|---|---|---|
-| GitHub | `master` 已建立 Web 与 API CI | 所有功能分支先过构建和测试 |
-| Render | `sparkflow` 服务已自动部署 `552f3caa`；`/api/health` 返回 200 | 保持部署后日志与健康检查 |
-| Supabase | `sparkflow-db` 健康，Postgres 17；业务表均启用 RLS | 暂不改数据；启用泄露密码保护并核验 RLS 策略内容 |
-| Vercel | `sparkflow031` 是主生产项目并指向 `fish-life.cc.cd`；仍有两个重复项目检查 | 恢复团队 scope 后归档重复项目 |
-| 课程导入 | M2.1/M2.2/M2.3 已合并；M2.3 CI 与主 Preview 成功，待生产/真机复验 | 先验收 360px 与 Android 操作层级，再继续已有学期、冲突检测与幂等 |
-
-## 2. 实施原则
-
-1. 生产稳定性先于新功能：任何 Phase 12 发布都必须建立在可重复构建、可验证部署之上。
-2. 数据安全优先：导入采用服务端事务和幂等键；首期只提供“跳过重复 / 保留副本”。
-3. 前后端职责清晰：浏览器负责解析、校验和预览；服务端负责授权、去重、事务写入和结果查询。
-4. 渐进发布：每一批次都可独立回滚，不一次替换全部课程功能。
-
-## 3. 里程碑与任务
-
-### M0：生产基线收口（1–2 天）
-
-- [x] 盘点 GitHub、Render、Supabase 的真实状态。
-- [x] 增加 Web build 与 API build/test CI。
-- [x] 修复 Prisma Client 未生成导致的本地 API 构建失败。
-- [x] 使用 Node 22，避免 Supabase 客户端停止支持 Node 20。
-- [x] 新增真正的公开 `GET /api/health`。
-- [ ] 确认 Vercel 唯一生产项目、域名、Root Directory=`web` 和部署 commit。
-- [ ] 将 Render `CORS_ORIGIN` 精确设置为唯一生产域名、预览域名策略及 Capacitor 来源。
-- [x] 部署 `master`，确认 Render commit 与 GitHub 一致。
-- [ ] 以真实账号回归 Auth、学期、课程列表、课表概览和任务接口。
-
-验收：生产前后端各只有一个明确入口；`/api/health` 返回 200；CI 绿灯；课程失败态不再被显示为空数据。
-
-### M1：课程状态契约与导入基础（已完成）
-
-- [x] 为课程列表和课表概览定义统一状态：`idle/loading/success/error/refreshing`。
-- [x] 缓存已有数据；刷新失败时保留旧数据并显示非阻断提示。
-- [x] 请求支持 AbortController、统一超时和学期/账号切换后的过期响应隔离。
-- [x] 将时间归一化与作息文本解析拆成纯函数；其余字段校验和预览转换在 M2 继续拆分。
-- [x] 接受 `8:00`、`08:00`、中文冒号与常见连接符，内部统一为 `HH:mm`。
-
-验收：空数据与加载失败可区分；快速切换学期不会串数据；时间解析边界用例全部通过。
-
-### M2：四步导入向导（实施中，M2.1 已合并；M2.2 待 PR/CI）
-
-- [x] 四步向导骨架与独立预览步骤。
-- [x] 学校搜索、适配提示、地址编辑与可点击教务网址。
-- [x] Web 书签/文件、Android 原生获取及跨平台 JSON 降级。
-- [x] 新学期信息、结构化作息增删/复制、字段校验与预览摘要。
-- [x] M2.1 已随 PR #4 合并，GitHub CI 与主 Vercel Preview 通过。
-- [x] 将仅课表范围的 WebDAV 迁移到“设置 → 数据管理”，保留强 ETag 与弱 ETag 禁止覆盖保护；课程页“高级同步”收敛为“课表自动化”，保留节假日与 Android 上课模式。
-- [x] 新增按学校 adapter id 隔离的本机作息模板，支持保存、应用、删除与损坏数据容错。
-- [x] 新增批量作息生成：首节开始、每节时长、普通间隔、节数和单个大课间覆盖；生成结果先预览再应用。
-- [ ] 完成 360px 窄屏浏览器交互验收，并用真实学校数据分别跑通 Web 与 Android 导入路径。
-- [ ] 完成已有学期选择与上午/下午/晚间分段生成。
-- [ ] 完成重复/冲突检测与明确的重复处理策略。
-
-M2.2 已在本地通过 13 项 Web 测试、构建、ESLint 与 diff check，当前待 PR/CI。导入确认仍调用现有新增副本接口；在 M3 服务端幂等完成前，不保证重复提交去重。详细清单见 [phase12-course-import-experience.md](phase12-course-import-experience.md)。
-
-验收：Web 与 Android 各跑通一条真实导入；点击预览立即换页；360px 宽度无横向溢出。
-
-### M3：幂等导入 API（3–4 天）
-
-- 新增导入会话：`requestId`、用户、目标学期、payload hash、状态、结果摘要。
-- 生成稳定排课指纹：用户 + 学期 + 课程名规范值 + 星期 + 时间 + 周次。
-- 服务端事务内完成授权、去重、课程/事件写入及结果记录。
-- 相同 `requestId` 重放直接返回首次结果；未知结果先查询，禁止盲目重试。
-- 为“跳过重复 / 保留副本”建立 API 与数据库集成测试。
-
-验收：双击、刷新、超时和断网重试不产生意外副本；失败事务不留下半套课表。
-
-### M4：Beta 发布与后续收口（2–3 天）
-
-- Preview 部署 → 冒烟测试 → Promote 到生产，不重新构建同一产物。
-- Android 手动 release 构建与真实学校导入验收。
-- 课程与 Task 关联：创建任务可选课程、卡片课程标签、Board 课程筛选。
-- Dashboard 增加今日课程与课程相关待办；Events/Push 留到课程链路稳定后。
-
-验收：生产错误扫描无新增高优先级问题；回滚步骤已演练；版本标记为 v0.9 Beta。
-
-## 4. 分支、发布与回滚
-
-```text
-feature/* → Pull Request → CI → Preview → 验收 → master → Production
-```
-
-- 数据库迁移必须向前兼容：先加表/列，再发布读写逻辑，最后才移除旧结构。
-- Vercel 使用已验收 Preview 的 promote；Render 保留上一个 live deploy 供回滚。
-- 导入 UI 受功能开关控制；出现异常可关闭入口，不影响手动课程与既有数据。
-- 生产发布前备份 Supabase；首期绝不自动覆盖用户已编辑课程。
-
-## 5. 平台配置清单
-
-### GitHub
-
-- 默认分支：`master`。
-- 必需检查：`Web build`、`API build and test`。
-- 后续清零现有 lint 债务后再将 lint 升为必需检查。
-
-### Vercel
-
-- Root Directory：`web`；Node.js 22；构建命令 `npm run build`；输出 `dist`。
-- Production 环境仅保存公开的 Vite 配置；不得放入 service role 或数据库密码。
-- 只保留一个生产 alias，其他项目标记为 Preview/Archive。
-
-### Render
-
-- Git 仓库：`tiads031-boop/sparkflow`；分支 `master`；Root Directory `api`。
-- Docker 使用 Node 22；健康检查路径 `/api/health`。
-- `CORS_ORIGIN` 使用逗号分隔的精确来源，不使用 `*` 与 credentials 组合。
-
-### Supabase
-
-- 项目：`sparkflow-db`，Postgres 17。
-- 所有暴露表保持 RLS；授权不得依赖用户可编辑的 `user_metadata`。
-- 开启泄露密码保护；数据库变更后运行安全与性能 advisors。
-- 不因当前“unused index”提示立即删索引：现有数据量极小，尚不足以判断索引价值。
-
-## 6. 测试矩阵
-
-| 层级 | 必测内容 |
+| 旧内容 | 当前去向 |
 |---|---|
-| 单元 | 时间归一化、日期锚点、周次、指纹、冲突检测、状态 reducer |
-| API | Auth 拒绝、跨用户隔离、事务回滚、幂等重放、重复策略 |
-| Web | 登录、切换学期、空/错/旧数据、四步向导、移动窄屏 |
-| Android | SchoolImport、文件降级、返回应用、时区、本地通知权限 |
-| 生产冒烟 | health、Auth、semesters、courses、schedule、tasks、错误日志 |
+| Render/Supabase 生产基线 | 已由腾讯云 Nginx + NestJS API + 独立 PostgreSQL + 自建认证替代；见 [部署手册](../DEPLOY.md) |
+| P0 执行顺序 | 由 [NEXT.md](NEXT.md) 统一维护 |
+| Phase 12 交互、幂等与验收 | 由 [phase12-course-import-experience.md](phase12-course-import-experience.md) 维护 |
+| M2.1/M2.2/M2.3 旧合并状态 | 三批均已合并；当前优先级为服务端幂等/冲突策略与真实导入验收 |
 
-## 7. 当前阻塞项
+## 保留的有效原则
 
-1. Vercel 主生产部署已确认，但插件缺少 `sparkflow031` 团队 scope，尚不能读取失败日志或归档两个重复项目。
-2. Supabase 泄露密码保护需要在 Auth 设置中启用；这是控制台配置，不应通过数据库 SQL 假装完成。
+1. 生产稳定性和数据安全优先于新功能。
+2. 客户端负责获取、解析和预览；服务端负责授权、去重、事务和结果查询。
+3. 数据库 migration 采用 additive 方式；发布前备份，首期不静默覆盖用户已编辑课程。
+4. Preview、CI、健康接口和真实业务验收分别记录，不互相替代。
+
+本文件不得再新增任务或更新优先级；后续修改应写入 `NEXT.md` 或 Phase 12 主方案。

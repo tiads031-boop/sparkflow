@@ -1,6 +1,8 @@
 # Phase 13：Local Codex Bridge 本机监督接入
 
-> 状态：方案完成，待实施。本方案只定义实施边界、模块、接口、状态机、测试与验收；本次不新增 Gateway 或前端功能代码。
+> **最后核对**：2026-09-15 | **状态**：⬜ 后续队列，方案完成、尚未实施。
+>
+> 本方案只定义实施边界、模块、接口、状态机、测试与验收。启动条件与顺序见 [NEXT.md](NEXT.md)：须在 Phase 12 数据安全闭环及 Phase 14 M4/M5 主线之后再启动。
 
 ## 1. 目标与核心原则
 
@@ -24,11 +26,11 @@ SparkFlow 负责用户任务和监督体验；Local Codex Bridge 负责已有 MC
 本方案基于当前 `master` checkout，而不是参考仓库的静态站结构：
 
 - `web/` 是 React 19 + TypeScript + Vite 8 前端，使用 Zustand，构建结果同时服务 PWA、Vercel 和 Capacitor Android。
-- `api/` 是 NestJS 11 + Prisma 7 后端，通过 Render 连接 Supabase PostgreSQL；现有 `/api` 路径用于业务 REST API。
-- `web/src/api/client.ts` 会处理 SparkFlow 云端 API 地址和 Supabase access token，不适合承载本机 Bridge 调用。
+- `api/` 是 NestJS 11 + Prisma 7 后端，运行于腾讯云并连接独立的自建 PostgreSQL；现有 `/api` 路径用于业务 REST API。
+- `web/src/api/client.ts` 会处理 SparkFlow 云端 API 地址和自建会话 bearer token，不适合承载本机 Bridge 调用。
 - `web/vite.config.ts` 当前仅把 `/api` 代理到本地 NestJS；本机 Codex 接口必须使用独立前缀，避免混入业务 API。
 - `web/src/App.tsx`、`web/src/types/index.ts` 和 `web/src/store/uiSlice.ts` 共同维护主导航；导航顺序与可见性已持久化在 localStorage。
-- `Task` 通过现有 REST/Supabase 持久化；Prisma 中的 `AIConversation` 也不能被复用为 Codex transcript 或 thread lifecycle 存储。
+- `Task` 通过现有 REST/自建 PostgreSQL 持久化；Prisma 中的 `AIConversation` 也不能被复用为 Codex transcript 或 thread lifecycle 存储。
 - 云端 Vercel 页面和 Capacitor Android 不能被假定可以安全、可靠地访问桌面 `localhost`。
 
 因此，参考方案中的 `index.html`、`app.js`、GitHub Pages 和纯 localStorage 假设不适用于 SparkFlow；目录和接入方式按当前仓库调整。
@@ -92,7 +94,7 @@ flowchart TD
 - Vercel/PWA 云端部署继续运行全部普通 SparkFlow 功能，但默认不启用本机 Codex client，也不从 HTTPS 页面探测用户 localhost。
 - Capacitor Android 构建不展示可操作的本机 Bridge 控件；若导航状态来自旧 localStorage，仍须回退到可用 tab。
 - 功能只有在显式构建开关、本机 loopback origin、非 Capacitor 环境三项同时满足时启用。
-- Render NestJS API、Supabase、Service Worker 和 Android 原生插件不加入 Bridge 控制链路。
+- 腾讯云 NestJS API、自建 PostgreSQL、Service Worker 和 Android 原生插件不加入 Bridge 控制链路。
 
 建议启用条件：
 
@@ -284,7 +286,7 @@ sparkflow/
 
 ### 6.1 独立 client
 
-`web/src/features/local-codex/client.ts` 使用相对地址 `/local-codex/api`，不导入常规 `web/src/api/client.ts`，不附加 Supabase access token，也不读取 `VITE_API_BASE_URL`。
+`web/src/features/local-codex/client.ts` 使用相对地址 `/local-codex/api`，不导入常规 `web/src/api/client.ts`，不附加 SparkFlow 云端会话 token，也不读取 `VITE_API_BASE_URL`。
 
 所有 endpoint 都有显式 TypeScript 输入/输出类型；`AbortController` 只终止浏览器等待，不能把已发送的变更操作解释为已取消。observe 可在 tab 离开或组件卸载时取消前端等待。
 
@@ -338,7 +340,7 @@ sparkflow/
 
 ### 6.4 Task 与 thread 的轻量引用
 
-Phase 13 v1 不修改 Prisma `Task` schema，也不把引用同步到 Supabase。若恢复体验需要，可以在桌面本机 localStorage 单独存储：
+Phase 13 v1 不修改 Prisma `Task` schema，也不把引用同步到生产 PostgreSQL。若恢复体验需要，可以在桌面本机 localStorage 单独存储：
 
 ```ts
 type CodexTaskRef = {
@@ -523,7 +525,7 @@ Phase 13 不设计或实现：
 - Vercel → localhost 或 Android → 桌面 Gateway 作为 v1 路径；
 - tunnel、远程访问、多用户 Gateway、云端部署 Gateway；
 - 修改 Local Codex Bridge 仓库或安装另一份 npm Codex runtime；
-- 用 Prisma/Supabase 保存 native 执行状态；
+- 用 Prisma/生产 PostgreSQL 保存 native 执行状态；
 - 在本轮开始任何功能实现。
 
 ## 13. 分阶段实施
