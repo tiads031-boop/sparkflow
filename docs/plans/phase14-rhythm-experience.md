@@ -1,9 +1,10 @@
 # Phase 14 — Rhythm Experience / SparkFlow V5
 
-> **状态**：🚧 M1/M2 已合并；M4 确定性排程与 M5 Focus 已在功能分支实现，待 PR/部署验收
-> **基线要求**：Phase 12 M2.2 已随 PR #5 合并且 CI 成功；实施时从最新 `master` 建立短期分支  
+> **状态**：🚧 M1/M2/M4 确定性排程与 M5 Focus 已合并；M3 在 PR #14，开放且待验收/合并；M4 意图解析及 M5 其余能力待实施
+> **基线**：2026-09-15 `master@4d9ebe1`；PR #14 的 Web/API CI 与主 Vercel Preview 成功，但尚未合并
 > **产品主线**：Capture → Plan → Flow → Focus → Review  
 > **V5 Core**：M1 + M2 + M3
+> **近期顺序**：以 [NEXT.md](NEXT.md) 为唯一执行队列；先收口 PR #14，再让位于 Phase 12 服务端安全导入
 
 ---
 
@@ -294,7 +295,7 @@ CalendarEvent 增加同名 `scheduleLocked Boolean @default(false)`，以支持�
 
 云端浏览器当前策略阻止访问本地 `127.0.0.1`，因此未以不可复现的截图替代真实交互验收；临时 AuthGate 绕过已还原，未进入提交。
 
-## 6. M3 — Timeline V2
+## 6. M3 — Timeline V2（PR #14 开放，待合并）
 
 不重写现有 Calendar Engine。逐步拆分 `CalendarView.tsx`：
 
@@ -358,6 +359,14 @@ Flexible 普通任务可直接拖动，也允许 Planner 调整。
 - 课程、会议与锁定任务不会被自动移动
 - 15 分钟吸附正确，任意分钟时长不被篡改
 - 现有 Google / local / course 日程与重复规则无回归
+
+### 6.5 M3 当前状态（2026-09-15）
+
+- [x] Timeline V2 代码已提交至 PR #14；Web/API CI 与主项目 `sparkflow031` Preview 成功。
+- [ ] 完成 360px 窄屏、Android 横向滚动、长按创建、拖动和 Resize 真机验收。
+- [ ] 核验 Google、本地日历与课程数据在 Month/Week/Timeline 三种视图一致。
+- [ ] 核验 DST、跨时区和日期边界。
+- [ ] 验收通过后合并 PR #14，并检查生产部署；在此之前不得标记 M3 或 V5 Core 完成。
 
 ## 7. M4 — Smart Planner
 
@@ -447,7 +456,7 @@ Preview 只计算，绝不写数据库。Apply 必须重新校验数据版本与
 - Apply 失败完整回滚
 - Undo 恢复到应用前状态
 
-### 7.5 M4 实施进度（2026-09-14）
+### 7.5 M4 实施进度（2026-09-15）
 
 - [x] 新增服务端确定性 Scheduler，按优先级、截止时间和最早完整空档生成 15 分钟粒度建议。
 - [x] Preview 只读，不写数据库；课程、日历事件和已安排任务均作为占用区间。
@@ -455,7 +464,9 @@ Preview 只计算，绝不写数据库。Apply 必须重新校验数据版本与
 - [x] 新增 SchedulePlan 保存前后状态；Undo 在确认任务未被后续修改后安全恢复。
 - [x] 快速添加中的“AI 帮我安排”已启用，支持日期/可安排时段、预览、确认和撤销。
 - [ ] 自然语言意图解析仍待独立接入；当前版本不依赖外部模型密钥，确定性排程可直接使用。
-- [ ] 待生产 migration、PR/CI 与真实设备验收。
+- [x] 确定性排程与 Focus 已随 PR #13 合并到 `master@4d9ebe1`；API/Web 构建与测试已通过。
+- [ ] 核验 `SchedulePlan` migration 已在腾讯云生产 PostgreSQL 执行，并以真实账户走通 Preview → Apply → Undo。
+- [ ] 完成真实设备验收。
 
 ## 8. M5 — Life Loop
 
@@ -528,7 +539,7 @@ M1 建立 Token 后，M5 完成历史核心页面迁移。深色模式只替换�
 
 | 交叉区域 | 现状 | Phase 14 约束 | 结论 |
 |---|---|---|---|
-| Phase 12 课程导入 | PR #5 已合并；WebDAV 已在设置页，模板按学校隔离 | 不移动或改写 `CourseWebDavBackup` 的数据语义；Settings V5 仅重排容器 | 兼容 |
+| Phase 12 课程导入 | M2.1/M2.2/M2.3 已合并；服务端幂等与冲突策略待实施 | 不移动或改写 `CourseWebDavBackup` 的数据语义；Settings V5 仅重排容器 | 兼容，先完成 Phase 12 数据安全闭环 |
 | 课程时间数据 | 课程实例已存为 `CalendarEvent(courseId)` | Projection 读取 CalendarEvent，不从 Course 再生成实例 | 避免重复 |
 | Google/local 日历 | 均写入 CalendarEvent，并有 externalSource/externalEventId | 保留唯一约束与同步事实源；只做展示投影 | 兼容 |
 | Task 时间字段 | scheduledStart/end + estimatedMinutes 已存在，但旧编辑路径可能缺 end | 兼容推导；新路径三字段原子更新 | 需修正 |
@@ -552,7 +563,7 @@ M1 建立 Token 后，M5 完成历史核心页面迁移。深色模式只替换�
 ### 10.2 数据库迁移安全
 
 - Task 与 CalendarEvent 新字段使用 nullable 或有默认值的 additive migration，不重命名、不删除现有列。
-- migration 合并前以当时最新 Supabase schema 重新生成，不手写假定的迁移序号。
+- migration 合并前以当时最新自建 PostgreSQL schema 重新核对，不手写假定的迁移序号。
 - Planner 的 `SchedulePlan` 放在 M4 独立 migration，不与 M2 字段混在同一迁移。
 - Apply/Undo 均按 `userId` 隔离，并复用现有自托管 bearer-token 会话身份，不接受客户端传入的 userId 作为事实源。
 
@@ -588,7 +599,7 @@ api/
     └── planner/
 ```
 
-保持现有 Course 核心模型、Google Calendar 同步架构、系统 Calendar Adapter、PomodoroSession、Supabase 主数据架构与 Capacitor 打包模式。
+保持现有 Course 核心模型、Google Calendar 同步架构、系统 Calendar Adapter、PomodoroSession、自建 PostgreSQL 主数据架构与 Capacitor 打包模式。
 
 ## 11. 测试策略
 
@@ -635,13 +646,11 @@ V5 Core 合并前额外执行 Android Build 与真实移动端回归。
 ## 13. 实施顺序与依赖
 
 ```text
-Phase 12 M2.2（PR #5 已合并，CI 成功）
-→ Phase 14 M1
-→ M2
-→ M3
-→ V5 Core Release
-→ M4 Planner
-→ M5 Life Loop
+PR #14 M3 验收与合并
+→ 重复 Vercel 项目治理
+→ Phase 12 M3 服务端安全导入与真实验收
+→ Phase 14 M4 意图解析 / M5 Life Loop
+→ Phase 13 Local Codex Bridge
 ```
 
 Phase 13 与 Phase 14 的 Gateway/Planner 后端互不替代，但共享导航和 Settings 表层。两者不得并行修改 `App.tsx`、`types/index.ts`、`uiSlice.ts` 或 Settings 导航区；后一方案必须复用先落地的导航注册表并从最新 `master` 建分支。
@@ -664,6 +673,6 @@ M4 完成后，用户可以先预览、再确认 SparkFlow 的安排建议，并
 
 ## 15. 决策摘要
 
-Phase 14 是一次体验收束，而不是功能堆叠。现有 Task、Calendar、Course、Pomodoro、Google Calendar、系统日历与 Supabase 基础保持不变；通过统一 Schedule Layer，让数据最终汇聚到：
+Phase 14 是一次体验收束，而不是功能堆叠。现有 Task、Calendar、Course、Pomodoro、Google Calendar、系统日历与自建 PostgreSQL 基础保持不变；通过统一 Schedule Layer，让数据最终汇聚到：
 
 > **今天 → 时间 → 执行 → 回顾**
