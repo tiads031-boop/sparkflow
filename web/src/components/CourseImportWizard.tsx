@@ -18,7 +18,16 @@ import {
   X,
 } from 'lucide-react';
 import { SchoolImport } from '../api/courseNative';
-import { importScheduleBackup } from '../api/courses';
+import {
+  fetchScheduleImport,
+  importScheduleBackup,
+  previewScheduleImport,
+  type CourseImportDuplicatePolicy,
+  type CourseImportPreview,
+  type CourseImportRequest,
+  type CourseImportResult,
+  type CourseImportSource,
+} from '../api/courses';
 import { useAppStore } from '../store/appStore';
 import { useCourseSchedule } from '../store/courseSchedule';
 import type { ScheduleBackup } from '../utils/courseSchedule';
@@ -60,6 +69,7 @@ interface TimeSlotRow {
 
 const STEP_LABELS = ['选择学校', '获取课表', '学期与作息', '预览确认'];
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
+const createRequestId = () => globalThis.crypto?.randomUUID?.() || `import-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 
 function validHttpUrl(value: string) {
   try {
@@ -68,6 +78,13 @@ function validHttpUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function suggestedSemesterEnd(start: string | undefined, totalWeeks: number | undefined) {
+  if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !Number.isInteger(totalWeeks) || totalWeeks! < 1 || totalWeeks! > 60) return '';
+  const date = new Date(`${start}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + totalWeeks! * 7 - 1);
+  return date.toISOString().slice(0, 10);
 }
 
 function importedRows(data: SchoolImportData): TimeSlotRow[] {
@@ -98,6 +115,8 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
   const [schoolData, setSchoolData] = useState<SchoolImportData | null>(null);
   const [bookmark, setBookmark] = useState('');
   const [semester, setSemester] = useState({ name: '', start: '', end: '' });
+  const [semesterMode, setSemesterMode] = useState<'new' | 'existing'>('new');
+  const [targetSemesterId, setTargetSemesterId] = useState('');
   const [slots, setSlots] = useState<TimeSlotRow[]>([]);
   const [templates, setTemplates] = useState<CourseTimeTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -109,15 +128,23 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
   });
   const [generatorError, setGeneratorError] = useState('');
   const [preview, setPreview] = useState<ScheduleBackup | null>(null);
+  const [serverPreview, setServerPreview] = useState<CourseImportPreview | null>(null);
+  const [duplicatePolicy, setDuplicatePolicy] = useState<CourseImportDuplicatePolicy>('skip');
+  const [requestId, setRequestId] = useState(createRequestId);
+  const [importSource, setImportSource] = useState<CourseImportSource>();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
   const generatorPanel = useRef<HTMLDivElement>(null);
   const android = Capacitor.getPlatform() === 'android';
+  const semesters = useAppStore(state => state.semesters);
+  const activeSemesterId = useAppStore(state => state.activeSemesterId);
+  const hasLoadedSemesters = useAppStore(state => state.hasLoadedSemesters);
   const adapter = catalog.find(item => item.id === adapterId);
   const normalizedUrl = url.trim();
   const urlValid = validHttpUrl(normalizedUrl);
+  const targetSemester = semesters.find(item => item.id === targetSemesterId);
 
   const filteredCatalog = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -135,6 +162,10 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     return () => previouslyFocused?.focus();
   }, [open]);
+
+  useEffect(() => {
+    if (open && !hasLoadedSemesters) void useAppStore.getState().loadSemesters();
+  }, [hasLoadedSemesters, open]);
 
   useEffect(() => {
     if (open && step > 0) title.current?.focus();
@@ -194,6 +225,10 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     setSchoolData(null);
     setBookmark('');
     setPreview(null);
+    setServerPreview(null);
+    setSemesterMode('new');
+    setTargetSemesterId('');
+    setImportSource(undefined);
     setSemester(current => ({ ...current, name: `${item.school} · 新学期` }));
     setMessage('');
   };
@@ -206,12 +241,26 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     setSlots(importedRows(data));
     setGeneratedSlots(null);
     const start = data.config?.semesterStartDate;
+    const end = suggestedSemesterEnd(start, data.config?.semesterTotalWeeks);
+    setSemesterMode('new');
+    setTargetSemesterId('');
     setSemester(current => ({
       ...current,
       name: current.name || `${adapter?.school || '教务系统'} · 新学期`,
       start: start && /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : current.start,
+      end: end || current.end,
     }));
     setPreview(null);
+    setServerPreview(null);
+    setRequestId(createRequestId());
+    setImportSource({
+      system: adapter?.scriptId || adapter?.id || 'school-import',
+      schoolId: adapter?.id || 'school-import',
+      adapterId: adapter?.scriptId || adapter?.id || 'school-import',
+      termId: data.config?.termId || data.config?.currentSemesterId,
+      origin: urlValid ? new URL(normalizedUrl).origin : undefined,
+      fetchedAt: new Date().toISOString(),
+    });
     setMessage(`已读取到 ${data.courses.length} 条排课`);
   };
 
@@ -245,6 +294,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
       ? { ...row, [field]: field === 'number' ? Number(value) : value }
       : row));
     setPreview(null);
+    setServerPreview(null);
   };
 
   const addSlot = () => {
@@ -254,6 +304,8 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
       start: previous?.end || '',
       end: '',
     }]);
+    setPreview(null);
+    setServerPreview(null);
   };
 
   const copyPreviousSlot = (index: number) => {
@@ -263,12 +315,14 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
       ? { ...row, start: previous.start, end: previous.end }
       : row));
     setPreview(null);
+    setServerPreview(null);
   };
 
   const replaceSlots = (next: readonly { number: number; startTime: string; endTime: string }[]) => {
     setSlots(next.map(slot => ({ number: slot.number, start: slot.startTime, end: slot.endTime })));
     setGeneratedSlots(null);
     setPreview(null);
+    setServerPreview(null);
   };
 
   const saveTemplate = () => {
@@ -336,8 +390,46 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     setGeneratorError('');
   };
 
-  const buildPreview = () => {
+  const selectExistingSemester = (id: string) => {
+    setTargetSemesterId(id);
+    const selected = semesters.find(item => item.id === id);
+    if (selected) setSemester({
+      name: selected.name,
+      start: selected.startDate.slice(0, 10),
+      end: selected.endDate.slice(0, 10),
+    });
+    setPreview(null);
+    setServerPreview(null);
+  };
+
+  const selectSemesterMode = (mode: 'new' | 'existing') => {
+    setSemesterMode(mode);
+    setPreview(null);
+    setServerPreview(null);
+    if (mode === 'existing') selectExistingSemester(targetSemesterId || activeSemesterId || semesters[0]?.id || '');
+    else {
+      const start = schoolData?.config?.semesterStartDate || '';
+      setSemester({
+        name: `${adapter?.school || '教务系统'} · 新学期`,
+        start,
+        end: suggestedSemesterEnd(start, schoolData?.config?.semesterTotalWeeks),
+      });
+    }
+  };
+
+  const importRequest = (backup: ScheduleBackup): CourseImportRequest => ({
+    format: 'sparkflow-course-import',
+    version: 2,
+    requestId,
+    targetSemesterId: semesterMode === 'existing' ? targetSemesterId : undefined,
+    duplicatePolicy,
+    source: importSource,
+    backup,
+  });
+
+  const buildPreview = async () => {
     if (!schoolData) throw new Error('请先读取教务课表');
+    if (semesterMode === 'existing' && !targetSemester) throw new Error('请选择要导入的已有学期');
     const nextPreview = schoolBackup(
       schoolData,
       semester.name,
@@ -351,6 +443,12 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     );
     setPreview(nextPreview);
     setStep(3);
+    try {
+      setServerPreview(await previewScheduleImport(importRequest(nextPreview)));
+    } catch {
+      setServerPreview(null);
+      throw new Error('本地预览已生成，但重复与冲突检查失败；请检查网络后返回重试');
+    }
   };
 
   const resetCompletedImport = () => {
@@ -361,20 +459,40 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     setSlots([]);
     setGeneratedSlots(null);
     setPreview(null);
+    setServerPreview(null);
+    setSemesterMode('new');
+    setTargetSemesterId('');
+    setDuplicatePolicy('skip');
+    setRequestId(createRequestId());
+    setImportSource(undefined);
     setMessage('');
     if (fileInput.current) fileInput.current.value = '';
   };
 
   const confirmImport = async () => {
     if (!preview) throw new Error('请先生成导入预览');
-    const result = await importScheduleBackup(preview);
+    let result: CourseImportResult;
+    try {
+      result = await importScheduleBackup(importRequest(preview));
+    } catch (error) {
+      try {
+        const recovered = await fetchScheduleImport(requestId);
+        if (recovered.status !== 'applied' || !recovered.result) throw error;
+        result = { ...recovered.result, replayed: true };
+      } catch {
+        throw error;
+      }
+    }
+    await useAppStore.getState().loadSemesters();
+    if (result.targetSemesterId) useAppStore.getState().setActiveSemester(result.targetSemesterId);
     const refreshResults = await Promise.allSettled([
-      useAppStore.getState().loadSemesters(),
       useAppStore.getState().loadCourses(),
       useCourseSchedule.getState().refresh(),
     ]);
     const refreshFailed = refreshResults.some(refreshResult => refreshResult.status === 'rejected');
-    const success = `已导入 ${result.courseCount} 门课程，生成 ${result.eventCount} 次上课${refreshFailed ? '；课表刷新失败，请稍后手动刷新' : ''}`;
+    const skipped = result.skippedCount ? `，跳过 ${result.skippedCount} 条重复排课` : '';
+    const replayed = result.replayed ? '（已恢复上次导入结果）' : '';
+    const success = `已导入 ${result.courseCount} 条排课，生成 ${result.eventCount} 次上课${skipped}${replayed}${refreshFailed ? '；课表刷新失败，请稍后手动刷新' : ''}`;
     resetCompletedImport();
     onClose();
     await onImported(success);
@@ -496,11 +614,26 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
 
         {step === 2 && <>
           <div className="course-import-card">
-            <label>学期名称<input required value={semester.name} onChange={event => { setSemester(current => ({ ...current, name: event.target.value })); setPreview(null); }} /></label>
-            <div className="course-import-grid">
-              <label>学期开始<input required type="date" value={semester.start} onChange={event => { setSemester(current => ({ ...current, start: event.target.value })); setPreview(null); }} /></label>
-              <label>学期结束<input required type="date" value={semester.end} onChange={event => { setSemester(current => ({ ...current, end: event.target.value })); setPreview(null); }} /></label>
+            <strong>导入到哪个学期</strong>
+            <div className="course-import-choice-row">
+              <label><input type="radio" name="semester-mode" checked={semesterMode === 'new'} onChange={() => selectSemesterMode('new')} /> 创建新学期</label>
+              <label><input type="radio" name="semester-mode" checked={semesterMode === 'existing'} disabled={!semesters.length} onChange={() => selectSemesterMode('existing')} /> 使用已有学期</label>
             </div>
+            {semesterMode === 'existing' ? <>
+              <label>目标学期
+                <select required value={targetSemesterId} onChange={event => selectExistingSemester(event.target.value)}>
+                  <option value="">请选择学期</option>
+                  {semesters.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                </select>
+              </label>
+              {targetSemester && <p>{targetSemester.startDate.slice(0, 10)} 至 {targetSemester.endDate.slice(0, 10)}；已有课程会参与重复与冲突检查。</p>}
+            </> : <>
+              <label>学期名称<input required value={semester.name} onChange={event => { setSemester(current => ({ ...current, name: event.target.value })); setPreview(null); setServerPreview(null); }} /></label>
+              <div className="course-import-grid">
+                <label>学期开始<input required type="date" value={semester.start} onChange={event => { setSemester(current => ({ ...current, start: event.target.value })); setPreview(null); setServerPreview(null); }} /></label>
+                <label>学期结束<input required type="date" value={semester.end} onChange={event => { setSemester(current => ({ ...current, end: event.target.value })); setPreview(null); setServerPreview(null); }} /></label>
+              </div>
+            </>}
             <p>第一周从开学日期所在周的周一计算；所有时间均按北京时间排课。</p>
           </div>
           <div className="course-import-card">
@@ -560,7 +693,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
 
         {step === 3 && preview && previewSummary && <>
           <div className="course-import-card">
-            <strong>{preview.semesters[0]?.name}</strong>
+            <strong>{semesterMode === 'existing' ? targetSemester?.name : preview.semesters[0]?.name}</strong>
             <p>{semester.start} 至 {semester.end}</p>
             <div className="course-import-grid">
               <span><strong>{previewSummary.uniqueCourseCount}</strong><small>门独立课程</small></span>
@@ -568,7 +701,19 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
               <span><strong>{previewSummary.generatedEventCount}</strong><small>次上课实例</small></span>
             </div>
             {previewSummary.excludedEventCount > 0 && <p>另有 {previewSummary.excludedEventCount} 次上课超出学期日期范围，未纳入导入。</p>}
-            <p>本次导入会创建新的学期与课程副本，不会覆盖已有课表。</p>
+            {serverPreview ? <>
+              <div className="course-import-grid">
+                <span><strong>{serverPreview.summary.newCount}</strong><small>条可新增</small></span>
+                <span><strong>{serverPreview.summary.duplicateCount}</strong><small>条重复</small></span>
+                <span><strong>{serverPreview.summary.conflictCount}</strong><small>条有冲突</small></span>
+              </div>
+              <p>冲突只会提示，不会自动删除或覆盖现有课程。</p>
+            </> : <p>尚未完成服务端重复与冲突检查，提交时仍会再次校验。</p>}
+            <div className="course-import-choice-row">
+              <label><input type="radio" name="duplicate-policy" checked={duplicatePolicy === 'skip'} onChange={() => setDuplicatePolicy('skip')} /> 跳过重复（推荐）</label>
+              <label><input type="radio" name="duplicate-policy" checked={duplicatePolicy === 'keep'} onChange={() => setDuplicatePolicy('keep')} /> 保留副本</label>
+            </div>
+            <p>{semesterMode === 'existing' ? `将导入到已有学期“${targetSemester?.name || semester.name}”。` : '本次导入会创建一个新学期。'}</p>
           </div>
           <div className="course-import-grid">
             {preview.courses.slice(0, 6).map((course, index) => <article className="course-import-card" key={`${course.id}-${index}`}>

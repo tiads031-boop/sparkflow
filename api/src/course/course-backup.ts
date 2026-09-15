@@ -48,7 +48,7 @@ export function parseCourseBackup(value: unknown) {
     });
     eventCount += events.length;
     if (eventCount > 10000) return fail();
-    return { name: str(c.name), teacher: optional(c.teacher), room: optional(c.room), location: optional(c.location), color, dayOfWeek, startTime, endTime, weeks: weeks as number[], semesterId, events };
+    return { name: str(c.name), teacher: optional(c.teacher), room: optional(c.room), location: optional(c.location), color, dayOfWeek, startTime, endTime, weeks: weeks as number[], semesterId, sourceEntryId: optional(c.sourceEntryId), sourceFingerprint: optional(c.sourceFingerprint), events };
   });
   return { semesters, courses };
 }

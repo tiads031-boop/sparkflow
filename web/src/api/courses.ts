@@ -9,13 +9,60 @@ import { apiRequest, DEFAULT_USER_ID } from './client';
 import type { Course, CourseDetail, CourseNote, CourseFormData, CalendarEvent } from '../types';
 import type { ScheduleBackup } from '../utils/courseSchedule';
 
+export type CourseImportDuplicatePolicy = 'skip' | 'keep';
+
+export interface CourseImportSource {
+  system: string;
+  schoolId: string;
+  adapterId: string;
+  termId?: string;
+  origin?: string;
+  fetchedAt?: string;
+}
+
+export interface CourseImportRequest {
+  format: 'sparkflow-course-import';
+  version: 2;
+  requestId: string;
+  targetSemesterId?: string;
+  duplicatePolicy: CourseImportDuplicatePolicy;
+  source?: CourseImportSource;
+  backup: ScheduleBackup;
+}
+
+export interface CourseImportPreview {
+  requestId?: string;
+  payloadHash: string;
+  targetSemester: { id: string; name: string; startDate: string; endDate: string } | null;
+  duplicatePolicy: CourseImportDuplicatePolicy;
+  summary: { scheduleEntryCount: number; newCount: number; duplicateCount: number; conflictCount: number };
+  items: Array<{ index: number; fingerprint: string; duplicate: boolean; conflictCourseIds: string[] }>;
+}
+
+export interface CourseImportResult {
+  requestId?: string;
+  replayed?: boolean;
+  targetSemesterId?: string;
+  scheduleEntryCount?: number;
+  courseCount: number;
+  eventCount: number;
+  skippedCount?: number;
+  conflictCount?: number;
+}
+
 export async function fetchScheduleBackup(semesterId?: string | null, signal?: AbortSignal): Promise<ScheduleBackup> {
   const query = new URLSearchParams({ userId: DEFAULT_USER_ID });
   if (semesterId) query.set('semesterId', semesterId);
   return (await apiRequest(`/courses/backup?${query}`, { signal })).json();
 }
-export async function importScheduleBackup(backup: unknown): Promise<{ courseCount: number; eventCount: number }> {
+export async function importScheduleBackup(backup: unknown): Promise<CourseImportResult> {
   return (await apiRequest(`/courses/import-json?userId=${encodeURIComponent(DEFAULT_USER_ID)}`, { method: 'POST', body: JSON.stringify(backup) })).json();
+}
+export async function previewScheduleImport(request: CourseImportRequest): Promise<CourseImportPreview> {
+  return (await apiRequest(`/courses/import-json/preview?userId=${encodeURIComponent(DEFAULT_USER_ID)}`, { method: 'POST', body: JSON.stringify(request) })).json();
+}
+export async function fetchScheduleImport(requestId: string): Promise<{ status: string; result?: CourseImportResult }> {
+  return (await apiRequest(`/courses/imports/${encodeURIComponent(requestId)}?userId=${encodeURIComponent(DEFAULT_USER_ID)}`)).json();
 }
 
 const BASE = '/courses';

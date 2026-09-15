@@ -163,6 +163,12 @@ export interface Course {
   weeks?: number[];      // [1,2,3,...]
   location?: string;
   icsUid?: string | null;
+  sourceType?: string | null;
+  sourceSchoolId?: string | null;
+  sourceTermId?: string | null;
+  sourceEntryId?: string | null;
+  sourceFingerprint?: string | null;
+  importBatchId?: string | null;
   createdAt: string;
   updatedAt: string;
   _count?: { events: number; tasks: number; notes: number };

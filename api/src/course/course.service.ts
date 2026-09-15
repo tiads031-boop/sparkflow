@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as ical from 'node-ical';
 import { parseCourseBackup } from './course-backup';
+import { parseCourseImport, previewCourseImport, type ParsedCourseImport } from './course-import';
 
 interface CourseCreateData {
   userId: string;
@@ -55,8 +56,64 @@ export class CourseService {
     return { format: 'sparkflow-courses', version: 1, exportedAt: new Date().toISOString(), semesters, courses };
   }
 
+  async previewScheduleImport(userId: string, value: unknown) {
+    const request = parseCourseImport(value);
+    const targetSemester = request.targetSemesterId
+      ? await this.prisma.semester.findFirst({ where: { id: request.targetSemesterId, userId } })
+      : null;
+    if (request.targetSemesterId && !targetSemester) throw new NotFoundException('Semester not found');
+    const existing = targetSemester
+      ? await this.prisma.course.findMany({
+          where: { userId, semesterId: targetSemester.id },
+          select: this.importCourseSelect(),
+        })
+      : [];
+    return {
+      requestId: request.requestId,
+      payloadHash: request.payloadHash,
+      targetSemester: targetSemester
+        ? { id: targetSemester.id, name: targetSemester.name, startDate: targetSemester.startDate, endDate: targetSemester.endDate }
+        : null,
+      duplicatePolicy: request.duplicatePolicy,
+      ...previewCourseImport(request.backup.courses, existing, request.source),
+    };
+  }
+
+  async getScheduleImport(userId: string, requestId: string) {
+    const batch = await this.prisma.courseImportBatch.findUnique({ where: { userId_requestId: { userId, requestId } } });
+    if (!batch) throw new NotFoundException('Course import not found');
+    return {
+      requestId: batch.requestId,
+      status: batch.status,
+      payloadHash: batch.payloadHash,
+      targetSemesterId: batch.targetSemesterId,
+      result: batch.result,
+      createdAt: batch.createdAt,
+      updatedAt: batch.updatedAt,
+    };
+  }
+
   async importSchedule(userId: string, value: unknown) {
-    const backup = parseCourseBackup(value);
+    const request = parseCourseImport(value);
+    if (request.legacy) return this.importLegacySchedule(userId, request.backup);
+
+    const previous = await this.prisma.courseImportBatch.findUnique({
+      where: { userId_requestId: { userId, requestId: request.requestId! } },
+    });
+    if (previous) return this.replayImport(previous, request.payloadHash);
+
+    try {
+      return await this.importVersion2(userId, request);
+    } catch (error) {
+      const raced = await this.prisma.courseImportBatch.findUnique({
+        where: { userId_requestId: { userId, requestId: request.requestId! } },
+      });
+      if (raced) return this.replayImport(raced, request.payloadHash);
+      throw error;
+    }
+  }
+
+  private async importLegacySchedule(userId: string, backup: ReturnType<typeof parseCourseBackup>) {
     return this.prisma.$transaction(async tx => {
       const ids = new Map<string, string>();
       for (const s of backup.semesters) {
@@ -72,6 +129,122 @@ export class CourseService {
       }
       return { courseCount: backup.courses.length, eventCount };
     }, { timeout: 30000 });
+  }
+
+  private async importVersion2(userId: string, request: ParsedCourseImport) {
+    return this.prisma.$transaction(async tx => {
+      const batch = await tx.courseImportBatch.create({
+        data: {
+          userId,
+          requestId: request.requestId!,
+          payloadHash: request.payloadHash,
+          targetSemesterId: request.targetSemesterId,
+          duplicatePolicy: request.duplicatePolicy,
+          source: request.source ? JSON.parse(JSON.stringify(request.source)) : undefined,
+        },
+      });
+
+      let targetSemesterId = request.targetSemesterId;
+      if (targetSemesterId) {
+        const owned = await tx.semester.findFirst({ where: { id: targetSemesterId, userId }, select: { id: true } });
+        if (!owned) throw new NotFoundException('Semester not found');
+      } else {
+        const semester = request.backup.semesters[0];
+        const created = await tx.semester.create({
+          data: {
+            userId,
+            name: semester.name,
+            startDate: new Date(semester.startDate),
+            endDate: new Date(semester.endDate),
+            isActive: false,
+          },
+        });
+        targetSemesterId = created.id;
+      }
+
+      const existing = await tx.course.findMany({
+        where: { userId, semesterId: targetSemesterId },
+        select: this.importCourseSelect(),
+      });
+      const preview = previewCourseImport(request.backup.courses, existing, request.source);
+      let courseCount = 0;
+      let eventCount = 0;
+      let skippedCount = 0;
+
+      for (const item of preview.items) {
+        if (item.duplicate && request.duplicatePolicy === 'skip') {
+          skippedCount += 1;
+          continue;
+        }
+        const input = request.backup.courses[item.index];
+        const { events, semesterId: _semesterId, sourceFingerprint: _sourceFingerprint, ...data } = input;
+        const course = await tx.course.create({
+          data: {
+            ...data,
+            userId,
+            semesterId: targetSemesterId,
+            sourceType: request.source?.system,
+            sourceSchoolId: request.source?.schoolId,
+            sourceTermId: request.source?.termId,
+            sourceFingerprint: item.fingerprint,
+            importBatchId: batch.id,
+          },
+        });
+        if (events.length) await tx.calendarEvent.createMany({
+          data: events.map(event => ({
+            ...event,
+            userId,
+            courseId: course.id,
+            eventType: 'course',
+            color: course.color,
+            startTime: new Date(event.startTime),
+            endTime: new Date(event.endTime),
+          })),
+        });
+        courseCount += 1;
+        eventCount += events.length;
+      }
+
+      const result = {
+        requestId: request.requestId!,
+        replayed: false,
+        targetSemesterId,
+        scheduleEntryCount: request.backup.courses.length,
+        courseCount,
+        eventCount,
+        skippedCount,
+        conflictCount: preview.summary.conflictCount,
+      };
+      await tx.courseImportBatch.update({
+        where: { id: batch.id },
+        data: { status: 'applied', targetSemesterId, result },
+      });
+      return result;
+    }, { timeout: 30000, isolationLevel: 'Serializable' });
+  }
+
+  private replayImport(batch: { status: string; payloadHash: string; result: unknown }, payloadHash: string) {
+    if (batch.payloadHash !== payloadHash) throw new ConflictException('同一导入请求标识不能用于不同课表');
+    if (batch.status !== 'applied' || !batch.result || typeof batch.result !== 'object' || Array.isArray(batch.result)) {
+      throw new ConflictException('导入仍在处理中，请先查询导入结果');
+    }
+    return { ...(batch.result as Record<string, unknown>), replayed: true };
+  }
+
+  private importCourseSelect() {
+    return {
+      id: true,
+      name: true,
+      teacher: true,
+      room: true,
+      location: true,
+      dayOfWeek: true,
+      startTime: true,
+      endTime: true,
+      weeks: true,
+      sourceEntryId: true,
+      sourceFingerprint: true,
+    } as const;
   }
 
   // ==================== Course CRUD ====================

@@ -30,6 +30,7 @@ model User {
   googleToken       GoogleToken?
   authSessions      AuthSession[]
   schedulePlans     SchedulePlan[]
+  courseImportBatches CourseImportBatch[]
 
   @@map("users")
 }
@@ -254,6 +255,14 @@ model Course {
   // ICS 来源
   icsUid String? @unique
 
+  // 教务/文件导入来源。稳定指纹用于预览、同步及重复检测。
+  sourceType        String?
+  sourceSchoolId    String?
+  sourceTermId      String?
+  sourceEntryId     String?
+  sourceFingerprint String?
+  importBatchId     String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -262,11 +271,35 @@ model Course {
   events   CalendarEvent[]
   tasks    Task[]
   notes    CourseNote[]
+  importBatch CourseImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([userId, semesterId])
   @@index([semesterId], map: "courses_semester_id_idx")
+  @@index([userId, semesterId, sourceFingerprint])
+  @@index([importBatchId])
   @@map("courses")
+}
+
+model CourseImportBatch {
+  id               String   @id @default(uuid())
+  userId           String
+  requestId        String
+  payloadHash      String
+  status           String   @default("applying")
+  targetSemesterId String?
+  duplicatePolicy  String   @default("skip")
+  source           Json?
+  result           Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courses Course[]
+
+  @@unique([userId, requestId])
+  @@index([userId, createdAt])
+  @@map("course_import_batches")
 }
 
 model CourseNote {
