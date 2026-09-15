@@ -23,4 +23,3 @@ export default function ViewSwitcher({ value, onChange }: { value: TimelineMode;
     </div>
   );
 }
-

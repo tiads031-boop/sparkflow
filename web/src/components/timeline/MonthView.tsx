@@ -31,4 +31,3 @@ export default function MonthView({ date, items, onSelectDate, onSelectItem }: P
     </section>
   );
 }
-

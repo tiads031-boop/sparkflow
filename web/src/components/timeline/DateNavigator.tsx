@@ -20,4 +20,3 @@ export default function DateNavigator({ date, mode, onChange }: { date: Date; mo
     </div>
   );
 }
-

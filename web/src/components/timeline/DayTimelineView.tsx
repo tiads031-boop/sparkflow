@@ -27,4 +27,3 @@ export default function DayTimelineView({ items, onSelectItem }: Props) {
     </section>
   );
 }
-

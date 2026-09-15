@@ -12,7 +12,6 @@ interface Props {
   onClick?: () => void;
   onPointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
 }
-
 export default function ScheduleBlock({ item, compact, className = '', style, children, onClick, onPointerDown }: Props) {
   return (
     <button
@@ -31,4 +30,3 @@ export default function ScheduleBlock({ item, compact, className = '', style, ch
     </button>
   );
 }
-
