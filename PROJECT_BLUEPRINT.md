@@ -1,423 +1,229 @@
-# sparkflow — 项目开发蓝图
+# SparkFlow — 项目开发蓝图
 
-> **角色**：项目决策记录 + 架构总览 + 问题日志。具体功能方案见 [docs/plans/](docs/plans/)。
-> **创建时间**: 2026-05-06 | **最后更新**: 2026-09-14 | **当前 Phase**: Phase 12（M2.3 已合并且 CI/主 Preview 成功，待生产与真机复验）＋ Phase 14（M1/M2 已合并；M3 最小闭环完成，待设备验收与合并）
+> **角色**：决策记录、当前架构、进度与问题总览。具体执行顺序见 [docs/plans/NEXT.md](docs/plans/NEXT.md)。
+>
+> **创建时间**：2026-05-06 | **最后更新**：2026-09-15 | **代码基线**：`master@4d9ebe1`
+>
+> **当前 Phase**：Phase 14 M3（PR #14 开放、待验收合并）→ Phase 12 服务端安全导入与真实验收
 
 ---
 
-## 一、决策点总览（已确认）
+## 一、决策点总览
 
-| # | 决策项 | 确认方案 | 理由 |
+### 当前有效决策
+
+| # | 决策 | 当前方案 | 理由 |
 |---|---|---|---|
-| 1 | 文件协议层 | CURRENT_CONTEXT.md 纯文本，不改格式 | md 是 AI 和用户共享的"协议层" |
-| 2 | md 解析方式 | 正则有限状态机（逐行扫描） | 结构简单、依赖零、易定位 |
-| 3 | 条目唯一标识 | 标题 SHA256 前 8 位（contextMdHash） | 不污染 md 文本，数据库关联轻量 |
-| 4 | 同步模式 | 前端操作后自动 syncToApi | 避免 md 与数据库分叉 |
-| 5 | 冲突处理 | mtime 检测 + mkdir 原子锁 + 自动合并 | 覆盖 AI 和用户同时修改的竞态 |
-| 6 | 增强数据存储 | Task 表加 contextMdHash | Task 模型已完整，只需一个关联字段 |
-| 7 | ContextBridge 位置 | sparkflow-api NestJS 模块 | Node.js 可直接 fs 读写本地文件 |
-| 8 | 推送方案 | Web Push API + @nestjs/schedule | 无需第三方推送，PWA 原生支持 |
-| 9 | 灵感转化 | Inspiration → Task + 可选写入 md | 保留灵感功能，桥接到看板 |
-| 10 | 部署 | API: Render (Docker)，前端: Vercel 静态托管 | 低成本、零运维 |
-| 11 | 认证方案 | X-API-Key Header 全局 Guard | MVP 单用户，无需完整 OAuth |
-| 12 | CORS 配置 | CORS_ORIGIN 环境变量，逗号分隔多域名 | 部署后零代码适配新域名 |
-| 13 | md 协议扩展 | @key:value 元数据标记嵌入 description | 不破坏 md 可读性 |
-| 14 | 状态体系 | md 存 todo/in-progress/in-review/done/cancelled | 协议层简洁，表现层丰富 |
-| 15 | 子任务协议 | notes 用 `> [x]` / `> [ ]` 承载 completed 状态 | checkbox 语义自解释 |
-| 16 | 时间线数据扩展 | @start:HH:MM + @duration:MIN 元数据标记 | 向后兼容，不进 DB 纯协议层 |
-| 17 | 外部变更感知 | 前端 15s 轮询 GET /context 对比 mtime | 弥补 AI 手动编辑后前端无感知 |
-| 18 | 同步策略：skipDone | push 时只推送未完成任务 | 减少传输量，PWA 只看板展示活跃任务 |
-| 19 | 项目分组展示 | BoardView 按 project 字段分组，可折叠区块 | 前端纯展示层，不改 md 协议 |
-| 20 | 个人文件夹分组 | 个人待办支持 ### folder-name 分组 | 统一两列交互模式 |
-| 21 | 文件夹创建 UI | BoardView 列头 FolderPlus + 即时输入框 | 零弹窗、零模态层 |
-| 22 | **架构 B：Supabase 为主存储** | 移除 Render 文件系统依赖，ContextBridge 直操 Supabase | Render 重启文件系统重置，Supabase 持久化 |
-| 23 | Task 表扩展 | 新增 column、project、notes 字段 | 支撑 Supabase 主存储，完整保存看板元数据 |
-| 24 | 前端移除手机框 | 移动端全屏 + 桌面端 sm:max-w-lg 居中 | PWA 应用体验，安卓为主无需安全区 |
-| 25 | SparksView 拖拽边界 | useRef + window resize 读取容器宽度 | 自适应任何容器 |
-| 26 | 学期数据模型 | Semester 表（id, name, startDate, endDate, weeks） | 课表天然按学期组织 |
-| 27 | 学期筛选 UI | 水平滚动学期 pill 选择器 | pill 交互最轻量 |
-| 28 | 周周期配置 | startDate 为第 1 周周一，前端计算当前周数 | 统一周数计算基准 |
-| 29 | 日历绿点扩展 | CalendarHeader eventDays 合并 task + courseEvent | 一目了然，无需切 tab |
-| 30 | 项目代办自动折叠 | 无 In progress 任务的项目分组自动折叠 | 减少视觉噪音 |
-| 31 | @双向链接 | 描述中用 @项目名/@任务标题 建立双向链接 | 追溯引用网络，纯前端计算 |
-| 32 | Google Calendar 同步架构 | 后端作为同步中枢，Google Calendar API 双向同步 | Android 系统日历通过 Google 账号原生接入 |
-| 33 | OAuth 2.0 认证方案 | Authorization Code + PKCE，后端代理模式 | Refresh Token 仅存后端，前端不接触 |
-| 34 | 同步冲突策略 | Sparkflow 优先（last-write-wins） | 简化冲突，减少用户裁决 |
-| 35 | **删除 CURRENT_CONTEXT 同步架构** | 移除 context-bridge + syncSlice + contextMdHash，改纯 REST CRUD | PWA ↔ REST ↔ Supabase，消除 md 翻译层 |
-| 36 | **APP 端方案** | Capacitor 打包 React PWA 为 Android APK | 复用 100% 现有代码，获得 FCM + 系统日历 |
-| 37 | Google OAuth Web/App 回调 | 保持 `/api/google/auth/callback` 作为 Google Console redirect URI，Guard 对 GET callback 单独放行 | 部署环境与 `.env` 保持一致，避免 Google 回调被 API key 或路径前缀拦截 |
-| 38 | 小米/Android 本地日历接入 | Capacitor App 读取系统日历，导入到 CalendarEvent 并生成/更新 Task；Web 仅通过 Google/ICS 间接同步 | 浏览器不能直接读取手机系统日历，原生 App 才能接入 Xiaomi 本地日历 |
-| 39 | 账户与初始化门禁 | 前端单用户登录 + onboarding profile，固定账号 fish031 / 000000 | 当前仍是 MVP 单用户，先用前端门禁承载职业、状态、导航偏好 |
-| 40 | 待办分组扩展 | Task.section 保持字符串，前端预设 project/personal/work/study 并支持自定义分组偏好 | 不迁移数据库，兼容旧任务和未来用户自定义分组 |
-| 41 | 数据迁移 | 设置页 JSON 导出/导入；任务导入走现有 REST create 写入后端，灵感/偏好走前端状态与 localStorage | 满足备份迁移且不新增批量 API，避免破坏现有 CRUD |
-| 42 | 注册与密码管理 | 前端注册表单 + localStorage 用户表 + SHA-256 密码哈希；内置账户 fish031 保留；设置页可修改密码 | 多用户 MVP，密码不存明文，不依赖后端 |
-| 43 | 问候页多选 | profession 和 statusNeed 从单选升级为数组多选，至少保留 1 项 | 用户的身份和状态往往是复合的，多选更真实 |
-| 44 | Supabase 注册确认流程 | 注册请求锁、当前来源回跳、确认链接错误解析 | 避免重复提交触发邮箱唯一约束，并兼容本地/线上验证回调 |
-| 45 | Local Codex Bridge 接入边界 | 新增独立本机 Gateway；React 只调用固定 HTTP projection，现有 Render API/Supabase 不进入 Codex 控制链路 | native Codex 保持唯一执行事实源，并隔离本机控制面与云端业务面 |
-| 46 | 生产发布基线 | GitHub PR + Web/API CI；Render 提供公开 `/api/health`；Node.js 统一为 22 | 让构建、部署与生产健康状态可重复验证 |
-| 47 | 课程加载状态契约 | `idle/loading/success/error/refreshing`；取消旧请求并保留刷新前缓存 | 区分空数据与故障，避免快速切换学期时旧响应覆盖新状态 |
-| 48 | 教务时间输入契约 | 接受单/双位小时、中文冒号及常见连接符，统一归一化为 `HH:mm` | 兼容真实学校课表输入，同时保持 API 与数据库格式稳定 |
-| 49 | Phase 12 M2 分批交付 | M2.1 先交付四步导入向导与本地预览；模板、批量生成、重复检测及服务端幂等继续留在后续批次 | 先验证跨平台导入主路径，同时避免把现有“新增副本”接口误表述为安全合并能力 |
-| 50 | Phase 12 M2.2 设置与作息边界 | 课表 WebDAV 仅放在“设置 → 数据管理”；本机作息模板按学校 adapter id 隔离；批量生成必须先预览再应用 | 避免课程页入口拥挤、学校模板串用，以及错误作息直接覆盖当前编辑内容 |
-| 51 | Phase 14 SparkFlow V5 体验主线 | 建立统一 Schedule Layer，以 Today 为首页，按 M1～M5 推进 Capture → Plan → Flow → Focus → Review | 收束现有任务、课程、日历与专注能力；M1～M3 构成 V5 Core，AI 仅负责意图解析，确定性 Scheduler 决定时间 |
-| 52 | Phase 13/14 与现有模块兼容契约 | 默认 5 Tab 改为可扩展注册表；课程/Google/local 统一从 CalendarEvent 投影；Task 使用 scheduleColor；新排程写入 start/end/duration；高冲突文件串行交付 | 避免 local-codex 导航丢失、课程重复、优先级颜色混淆、旧任务缺 end 及 App/Settings/Schema 并行冲突 |
-| 53 | 课程页视觉与操作入口 | 课程页只跟随 SparkFlow 全局主题；正文保留“新建课程 / 导入与管理”两个主入口，其余课表工具归入全局底部 Sheet | 消除页面主题割裂、顶部重复按钮和被页面容器或底栏遮挡的问题 |
-| 54 | Phase 14 M3 时间视图边界 | 保留 Calendar API 与 Task 更新链路，将 `CalendarView` 收束为薄入口；Month / Week / Timeline 统一消费 ScheduleItem range projection，只有 Task 可拖动，外部事件只读 | 避免重写 Calendar Engine，保持 Google/local/course、重复规则与现有编辑器兼容，同时明确外部数据写权限 |
+| 1 | 生产数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证 | 与 DeepTutor 数据库隔离；认证和数据归属由服务端统一控制 |
+| 2 | 业务数据链路 | PWA/APK → NestJS REST → Prisma → PostgreSQL | 纯 REST CRUD，避免多事实源 |
+| 3 | 生产入口 | Web：Vercel `sparkflow031` / `fish-life.cc.cd`；API：腾讯云 `api.fish-life.cc.cd` | 保持前端静态托管，同时让 API/数据库自主可控 |
+| 4 | 客户端 | React 19 + TypeScript + Vite；Capacitor 复用同一前端构建 Android APK | Web、PWA 与 Android 共享能力 |
+| 5 | 日程事实源 | Task 与 CalendarEvent 统一投影为 `ScheduleItem` | Today、Timeline、Planner 共用同一显示与冲突口径 |
+| 6 | 外部日历 | Google Calendar 由后端同步；Android 本地日历落入 CalendarEvent | 浏览器不能直接读取系统日历，统一落库后再投影 |
+| 7 | 智能排程 | LLM 只负责语言→意图；确定性 Scheduler 决定时间 | 保证锁定、冲突、截止时间与撤销行为可复现 |
+| 8 | 课程导入 | 浏览器/Android 负责获取、解析与预览；服务端负责授权、指纹、幂等与事务 | 避免重复提交、半套课表和跨用户写入 |
+| 9 | 发布门禁 | 短期分支 → PR → Web/API CI → 主 Preview → 验收 → 合并 → 生产冒烟 | 开放 PR、健康接口和真实业务验收采用不同状态口径 |
+| 10 | Local Codex Bridge | 独立本机 loopback Gateway，native Codex 为唯一执行事实源 | 与云端 API/数据库隔离，不建立第二套 runtime/transcript |
+
+### 已被替代但保留追溯的历史决策
+
+| 历史方案 | 替代状态 | 当前去向 |
+|---|---|---|
+| CURRENT_CONTEXT.md、ContextBridge、`contextMdHash`、`@start/@duration` | ❌ 2026-06-01 起被纯 REST 架构替代 | 历史审计见 [去 md 后审计](docs/archive/2026-05-29-post-md-transition-audit.md)；不得恢复为新功能基础 |
+| API Key、前端 localStorage 账户、Supabase Auth | ❌ 被服务端自建密码/会话认证替代 | Phase 11 作为历史方案归档；生产以 `AuthSession` 与 `SessionAuthGuard` 为准 |
+| Supabase PostgreSQL 主存储 | ❌ 2026-09-13 被腾讯云独立 PostgreSQL 替代 | Prisma 模型与迁移继续沿用；Supabase 不再是生产依赖 |
+| Render API 部署 | ❌ 被腾讯云 Docker + Nginx 替代 | 历史部署记录保留在归档/冻结方案；当前部署见 [docs/DEPLOY.md](docs/DEPLOY.md) |
 
 ---
 
 ## 二、整体架构
 
+```mermaid
+flowchart TD
+    A["Web / PWA / Android"] -->|"HTTPS REST + Bearer session"| B["Tencent Nginx"]
+    B --> C["NestJS API"]
+    C --> D["Prisma"]
+    D --> E["SparkFlow PostgreSQL"]
+    C --> F["Google Calendar / Push"]
 ```
+
+生产数据库位于腾讯云 SparkFlow 独立环境，与 DeepTutor 的数据库、账户和迁移生命周期隔离。PostgreSQL 与 API 容器端口仅绑定服务器内部/回环网络；公网只暴露 Nginx HTTPS API。
+
+### 关键目录
+
+```text
 sparkflow/
-├── api/                  ← NestJS 后端（数据中枢）
-│   ├── src/
-│   │   ├── tasks/           ← Task 模块：纯 REST CRUD
-│   │   ├── inspirations/    ← 灵感模块
-│   │   ├── course/           ← 课程管理：CRUD + ICS 导入
-│   │   ├── calendar/         ← 日历事件查询
-│   │   ├── semester/         ← 学期管理
-│   │   ├── push/            ← Web Push 订阅与推送
-│   │   ├── google-calendar/ ← Google Calendar 双向同步
-│   │   ├── pomodoro/        ← 番茄钟持久化
-│   │   └── schedule/        ← 定时检查截止日期
-│   ├── prisma/schema.prisma ← Task, Course, Semester, CalendarEvent, GoogleToken ...
-│   └── package.json
-├── web/                  ← React 前端（PWA + Capacitor APK）
-│   ├── src/
-│   │   ├── components/      ← BoardView, TaskCard, CalendarView, SparksView ...
-│   │   ├── store/           ← Zustand slices（taskSlice, courseSlice, courseSchedule ...）
-│   │   ├── hooks/           ← useBoard, useTasks, usePush
-│   │   └── service-worker/  ← Web Push handling
-│   ├── public/manifest.json ← PWA manifest
-│   ├── android/             ← Capacitor Android 平台
-│   └── package.json
-├── scripts/              ← 导入脚本、配置
-├── docs/                 ← 方案文档 + 原型 + 归档
-│   ├── plans/            ← 活跃方案
-│   ├── archive/          ← 已完成方案（只读）
-│   └── prototypes/       ← 交互原型
-└── PROJECT_BLUEPRINT.md  ← 本文档
+├── api/
+│   ├── src/auth/              # 自建注册、登录、改密、会话
+│   ├── src/tasks/             # Task REST CRUD
+│   ├── src/calendar/          # CalendarEvent 查询
+│   ├── src/course/            # 课程、实例、备份与教务集成
+│   ├── src/planner/           # 确定性排程 Preview/Apply/Undo
+│   ├── src/pomodoro/          # 专注记录
+│   ├── src/google-calendar/   # Google 双向同步
+│   └── prisma/                # Schema 与 additive migrations
+├── web/
+│   ├── src/components/today/  # Today Rhythm
+│   ├── src/components/schedule/ # 统一安排编辑器
+│   ├── src/components/focus/  # Focus
+│   ├── src/components/planner/# Planner UI
+│   ├── src/components/        # Tasks、Course、Calendar 等现有视图
+│   └── android/               # Capacitor Android
+├── docs/plans/                # 活跃、后续及冻结方案
+├── docs/archive/              # 已完成/历史方案
+└── PROJECT_BLUEPRINT.md
 ```
 
-### 数据流（v2：纯 Supabase，无 md 中间层）
+### 数据与身份边界
 
-```
-sparkflow-web (PWA / APK)
-       │
-       │ REST API (JSON) + Supabase Bearer Token
-       ▼
-sparkflow-api (NestJS)
-       │
-       │ Prisma ORM
-       ▼
-Supabase PostgreSQL (唯一数据源)
-```
+1. `SessionAuthGuard` 从 bearer token 的哈希查询 `AuthSession`，以服务端 session userId 作为数据隔离事实源。
+2. 客户端不得把 `userId` 参数当授权依据；业务服务必须按当前用户过滤。
+3. `Task`、`CalendarEvent`、`Course`、`Semester`、`PomodoroSession` 与 `SchedulePlan` 均存入 SparkFlow PostgreSQL。
+4. Local Codex Bridge 若实施，只运行于桌面 loopback，不进入上述生产链路。
 
 ---
 
 ## 三、实施进度
 
-### Phase 1～8：全部完成 ✅
-
-| Phase | 内容 | 状态 | 归档 |
-|---|---|---|---|
-| 1 | ContextBridge 模块（md 解析/读写） | ✅ | — |
-| 2 | PWA 看板 UI + 前后端联通 | ✅ | — |
-| 3 | Web Push 通知 | ✅ | — |
-| 4 | 灵感转化流程 | ⬜ 待实施 | — |
-| 5 | 性能优化 | ✅ | — |
-| 6 | 功能深化（时间线、子任务、双向链接） | ✅ | — |
-| 7 | 学期 + Course 基础 + 稳定性修复 | ✅ | — |
-| 8 | 删除 CURRENT_CONTEXT + Google Calendar 同步 + Capacitor APK | ✅ | [archive](docs/archive/) |
-
-### 当前活跃 Phase
-
-| Phase | 状态 | 方案文档 |
+| 范围 | 状态 | 说明 |
 |---|---|---|
-| 09 — Course 模块深化（课程详情页、笔记看板、事件追踪） | 🚧 部分实施中 | [phase09-course-module.md](docs/plans/phase09-course-module.md) |
-| 10 — 待办功能收束（VAPID 部署、拖入时间线、事件类型扩展等） | ⬜ | [phase10-pending-features.md](docs/plans/phase10-pending-features.md) |
-| 11 — 账户注册、密码管理与问候页多选 | ✅ | [phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) |
-| 12 — 课程页与教务导入体验改进 | 🚧 M2.3 已合并且 CI/主 Preview 成功，待生产与真机复验 | [phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) |
-| 13 — Local Codex Bridge 本机监督接入 | ⬜ 方案完成，待实施 | [phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) |
-| 14 — Rhythm Experience / SparkFlow V5 | 🚧 M1/M2 已合并且 CI 成功；M2 待部署与交互验收 | [phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) |
+| Phase 1–8 | ✅ 历史完成 | PWA、REST、课程基础、Google Calendar、Capacitor 等；其中 md/Render/Supabase 部分已被后续架构替代 |
+| Phase 09 | ⚠️ 冻结重估 | CourseDetail、CourseNote、Today 课程投影等已覆盖大量目标；真实剩余项见方案 |
+| Phase 10 | ⚠️ 冻结重估 | md 扩展取消，正式认证完成；推送、事件类型、灵感转化降为 P2 |
+| Phase 11 | ✅ 已归档 | 早期账户与 onboarding；生产认证已由腾讯云自建认证替代 |
+| Phase 12 | 🚧 当前主线 | M1/M2.1/M2.2/M2.3 已合并；服务端幂等/冲突策略与真实 Web/Android 导入待完成 |
+| Phase 13 | ⬜ 后续队列 | 方案完成、未实施；待 Phase 12/14 稳定后启动 |
+| Phase 14 M1/M2 | ✅ 代码已合并 | UI Foundation、Today/Schedule Layer 已进入 master；真实移动端回归仍保留 |
+| Phase 14 M3 | 🚧 PR #14 开放 | Web/API CI 与主 Preview 成功，尚未合并；不可标记 V5 Core 完成 |
+| Phase 14 M4 | 🚧 部分完成 | 确定性 Scheduler、Preview/Apply/Undo 已合并；自然语言意图、顺延与生产数据验收待完成 |
+| Phase 14 M5 | 🚧 部分完成 | Focus 已合并；Daily Receipt、核心深色迁移、Android Widget 待完成 |
+
+完整分类见 [实施方案索引](docs/plans/INDEX.md)。
 
 ---
 
-## 四、技术选型详情
+## 四、技术选型
 
-| 层级 | 技术 | 用途 |
+| 层级 | 技术 | 当前用途 |
 |---|---|---|
-| 前端框架 | React 19 + TypeScript + Vite | PWA / APK 共用代码 |
-| 前端状态 | Zustand 5 | 轻量状态管理，多 slice 拆分 |
-| 前端样式 | Tailwind CSS 4 | 原子化 CSS，dark mode |
-| 前端视图切换 | Zustand `activeTab` 状态路由 | 当前 App 无 React Router；由 App/types/uiSlice 共同维护并持久化导航 |
-| 后端框架 | NestJS 11 + TypeScript | 模块化后端 |
-| ORM | Prisma 7 | PostgreSQL 类型安全数据访问 |
-| 数据库 | Supabase PostgreSQL | 持久化主存储 |
-| 移动端 | Capacitor 8 | 打包为 Android APK |
-| 推送 | Web Push API + FCM | PWA 推送 + Android 原生推送 |
-| 日历同步 | Google Calendar API（OAuth 2.0 + PKCE） | 双向同步，Android 系统日历借道 |
-| 认证 (Google) | Authorization Code + PKCE，后端代理 | Refresh Token 仅存后端 |
-| 认证 (API) | Supabase access token + `SupabaseAuthGuard` | 服务端校验 Bearer token，并以令牌 subject 隔离用户数据 |
-| 部署 | Render (API) + Vercel (Web) | 免费层，零运维 |
-
-### 关键依赖
-
-| 包名 | 用途 |
-|---|---|
-| @prisma/client, @prisma/adapter-pg | 数据库 ORM + Supabase pooler 适配 |
-| @nestjs/schedule, web-push | 定时推送 |
-| googleapis, google-auth-library | Google Calendar API |
-| @capacitor/push-notifications, @capacitor/local-notifications | Android 原生通知 |
-| @ebarooni/capacitor-calendar | Android 系统日历读写 |
-| @fullcalendar/react | CalendarView 日历组件 |
-| lucide-react | 图标库 |
-| zustand | 状态管理 |
+| 前端 | React 19、TypeScript 6、Vite 8、Zustand 5、Tailwind CSS 4 | Web/PWA/Android 共用 UI 与状态 |
+| 导航 | Zustand `activeTab` + 可扩展 navigation registry | 无 React Router；兼容旧导航配置迁移 |
+| 日历 | FullCalendar 6 + `ScheduleItem` projection | Month/Week/Timeline 与多来源日程 |
+| 移动端 | Capacitor 8、Android Gradle | APK、本地日历、通知与 deep link |
+| 后端 | NestJS 11、TypeScript、Node.js 22 | 业务 API、认证、同步、Planner |
+| ORM/数据库 | Prisma 7、PostgreSQL 17 | 腾讯云独立主存储与迁移 |
+| 认证 | 服务端密码哈希、随机 session token、tokenHash 持久化 | 注册/登录/退出/改密与跨用户隔离 |
+| 外部集成 | Google Calendar API、Web Push/FCM、WebDAV | 日历、提醒与课表备份 |
+| 部署 | 腾讯云 Docker + Nginx（API/DB）；Vercel `sparkflow031`（Web） | 当前生产架构 |
 
 ---
 
-## 五、使用指南
+## 五、使用与验证
 
 ```bash
-# === 后端开发 ===
+# API
 cd api
-npm run start:dev          # 启动 NestJS dev server（热重载）
-npm run build              # 构建生产版本
-npm test                   # 运行测试
+npm run build
+npm test
 
-# === 前端开发 ===
+# Web
 cd web
-npm run dev                # 启动 Vite dev server
-npm run build              # TypeScript 检查 + Vite 生产构建
-npm test                   # 运行 Node 原生 Web 单元测试
-npm run preview            # 预览生产构建
+npm run build
+npm test
 
-# === Android APK 构建 ===
+# Android（联网或已有 Gradle 缓存环境）
 cd web
-npm run android:build      # 完整构建：tsc + vite + cap sync + gradlew assembleDebug
-npm run android:install    # ADB 安装到设备
+npm run android:build
 
-# === ICS 课程导入 ===
-node scripts/import-courses.js   # 根据 course-import-config.json 导入课表
-
-# === 部署 ===
-# API: git push → Render 自动部署（Dockerfile）
-# Web: git push → Vercel 自动部署（vercel.json）
-# 详细部署步骤见 docs/DEPLOY.md
+# 生产健康
+curl -fsS https://api.fish-life.cc.cd/api/health
 ```
+
+健康 200 只证明 API 进程可用；发布验收还必须使用真实账户验证 Auth、tasks、semesters、courses、schedule，以及涉及 migration 的写入/撤销流程。
 
 ---
 
 ## 六、更新日志
 
+### 2026-09-15
+
+- ✅ **蓝图与计划重整**：以 `master@4d9ebe1`、腾讯云自建 PostgreSQL/认证和 `sparkflow031` 为当前事实源；Render/Supabase/md 方案明确为历史替代项。
+- ✅ **统一近期队列**：新增 [NEXT.md](docs/plans/NEXT.md)，确定 PR #14 → Vercel 重复项目 → Phase 12 安全导入/真实验收 → Phase 14 M4/M5 → Phase 13 的顺序。
+- ✅ **历史计划收口**：Phase 11 归档；Phase 09/10 按现有代码重估；Phase 12/14 更新开放 PR、迁移和真机验收状态。
+
 ### 2026-09-14
-- 🚧 **Phase 14 快速入口闭环**：启用“开始专注”和“AI 帮我安排”。专注模式复用 PomodoroSession，支持任务关联、15/25/45/60 分钟、暂停/继续、提前完成与完成关联任务；智能排程新增服务端预览、冲突/截止/锁定约束、事务应用与安全撤销，并新增 SchedulePlan additive migration。API 23 项测试与构建、Web 25 项测试与构建通过，待 PR、生产迁移和真实设备验收。
-- 🚧 **Phase 14 M3 Timeline V2**：拆出 TimelineView、MonthView、WeekGridView、DayTimelineView、DateNavigator、ViewSwitcher 与 ScheduleBlock；三视图统一使用 ScheduleItem range projection，补齐旧 `dueDate + startTime` 和重复任务展开；周视图提供跨日期列的 15 分钟拖动/Resize、锁定确认及网格创建，重复实例在单次例外模型落地前禁止拖动，并复用 Schedule Editor。Web build、30 项测试与 M3 定向 ESLint 通过，待浏览器/Android 手势、真实外部日历及时区验收后合并。
+
+- ✅ **Focus 与确定性 Planner 合并**：PR #13 合并为 `4d9ebe1`，加入专注状态机、Planner Preview/Apply/Undo 与 `SchedulePlan` migration；生产迁移及真实账户闭环仍待核验。
 
 ### 2026-09-13
-- 🚧 **Phase 12 M2.3 课程页验收修复**：取消 CourseTheme 对根主题的页面级覆盖；移除标题区重复上传/+按钮，将课程操作收束为“新建课程 / 导入与管理”；教务导入、ICS/JSON 导入导出、提醒和自动化进入分组 Sheet；课程相关 Sheet 使用 portal 脱离动画容器与底栏层叠上下文；Android 构建脚本改用可执行的 `./gradlew`。Web build、24 项测试、定向 ESLint、GitHub CI run #32 与主 Vercel Preview 通过，PR #10 已合并；Capacitor sync 成功，Gradle wrapper 已正常启动但受当前环境外网限制无法下载 Gradle。待生产与真机复验。
+
+- ✅ **生产架构迁移**：认证和数据库运行时迁至腾讯云自建 PostgreSQL/自建会话认证，前端继续使用 Vercel 主项目 `sparkflow031`。
+- ✅ **Phase 12 M2.3 合并**：课程页入口、主题和 portal/safe-area 收口；生产 360px、Android 真机与实际文件选择仍待验收。
 
 ### 2026-09-12
-- ✅ **Phase 14 方案落库**：确定 SparkFlow V5 以 Capture → Plan → Flow → Focus → Review 为产品主线；新增统一 Schedule Layer、Today Rhythm、Timeline V2、确定性 Planner、Focus 与 Daily Receipt 的五阶段实施方案。M1～M3 定义为 V5 Core。
-- ✅ **Phase 14 冲突审计**：核实 Phase 12 M2.2 已随 PR #5 合并且 CI 成功；明确 Phase 13 `local-codex` 可扩展导航、CalendarEvent 单一课程/外部事件投影、`scheduleColor`、时间字段兼容读取及高冲突文件串行交付契约。
-- 🚧 **Phase 14 M1 UI Foundation**：新增 Design Tokens、主题变量、可扩展导航注册表与旧 `dashboard/calendar` 迁移；拆出 AppShell、Header、BottomNav 和 Quick Add Sheet，并统一 App、设置与 onboarding 的导航事实源。Web build、17 项测试、定向 ESLint 与 GitHub CI run #20 通过，PR #6 已合并；待真实设备交互与 Android assemble 复验。
-- 🚧 **Phase 14 M2 Today Rhythm**：新增统一 ScheduleItem 投影、taskId 去重、旧时间字段兼容、空闲时段算法、Today Rhythm 首页与可新建/编辑的 Schedule Editor；Task/CalendarEvent 以 additive migration 增加排程元数据。Web build 与 21 项测试、API build 与 17 项测试、GitHub CI run #25 通过，PR #7 已合并；待数据库部署和真实设备验收。
 
-### 2026-09-10
-- ✅ **Phase 12 M2.1 合并验收**：PR #4 已合并，GitHub CI 与主 Vercel Preview 已通过；360px 浏览器交互及真实 Web/Android 导入链路仍待验收。
-- 🚧 **Phase 12 M2.2 设置与作息增强**：已将仅课表范围的 WebDAV 备份迁入“设置 → 数据管理”，课程页“高级同步”收敛为“课表自动化”；新增按学校 adapter id 隔离的本机作息模板，以及支持首节、时长、普通间隔、节数和单个大课间覆盖的批量生成预览。代码与 13 项 Web 测试已在本地通过，待 PR/CI；M2 尚未完成。
+- ✅ **V5 M1/M2 合并**：Design Tokens、AppShell、导航注册表、Today、Schedule Layer 和 Editor 进入主线。
 
-### 2026-09-09
-- ✅ **P0 生产基线**：新增公开 `GET /api/health`、Node.js 22 与 Prisma 自动生成配置；建立 Web build/test 与 API build/test CI；Render 已部署后端提交 `552f3caa` 并通过健康检查。
-- ✅ **Phase 12 M1 导入基础**：课程列表与课表概览统一为五态加载契约，旧请求可取消且过期学期响应被隔离；刷新失败保留缓存并显示非阻断提示；教务时间接受 `8:00`、中文冒号及常见连接符并统一为 `HH:mm`；新增 4 个 Web 边界测试。
-- 🚧 **Phase 12 M2.1 导入主路径**：完成选择学校、获取课表、确认学期与结构化作息、预览确认四步向导，补齐 Web 学校外链、Web 书签/文件与 Android 原生获取、JSON 降级路径；后续合并与验收状态见 2026-09-10 记录。
-- 🚧 **部署治理**：已确认 `sparkflow031` 为主 Vercel 项目并指向 `fish-life.cc.cd`；两个重复项目与持续 pending 检查仍待恢复团队 scope 后清理。
-
-### 2026-06-04
-- ✅ **日历时间线与重复/提醒闭环**：CalendarView 增加拖拽阈值、边界 clamp 与 pointer capture 安全释放，空白时间线支持直接拖动生成任务时间段；展开月历按月拉取事件并显示任务/课程/本地/Google 标签预览，绿点数据改为任务与日程预览统一驱动；Task 增加 `reminderAt/repeatRule/repeatStartDate/repeatEndDate` 字段，编辑弹层支持独立提醒时间、完整开始日期时间和 daily/weekly/monthly 重复范围；Android/local 日历导入改为创建/更新关联 Task 并回写 CalendarEvent.taskId，使导入日程可按任务编辑；`web npm run build`、`api npm run build` 通过。
-- ✅ **账户注册、密码管理与问候页多选**：新增注册表单（用户名+密码+确认密码），用户数据 SHA-256 哈希存储在 localStorage sparkflow.users；内置账户 fish031 保留，默认密码不再显示在登录页；设置页新增修改密码功能；问候页职业/身份和状态需求从单选升级为数组多选，至少保留 1 项；更新 DarkFrostedModal 兼容数组类型；`web npm run build` 通过。
-
-### 2026-09-07
-- ✅ **Supabase 注册流程修复**：注册按钮增加请求锁与 loading 状态，确认邮件已发送后阻止同邮箱重复提交；注册请求使用当前站点作为 `emailRedirectTo`，避免跳转到失效的 `localhost:3000`；解析 `otp_expired`/无效回调并清理错误 URL；补充数据库错误、邮件限流、网络失败和重试提示；新增 `scripts/test-auth-registration.mjs` 回归测试；`web npm run build` 通过。
-- ✅ **课程表与日历体验收口**：课程列表灰态改为仅在课程/学期结课后触发，本周已上过课程只保留轻提示；新建/编辑学期底部弹层改为 safe-area 友好的视口 sheet；CalendarView 中课程事件改用独立蓝青色系、已完成任务在时间线置灰，并在选中有日程日期时自动定位到当天第一条时间线内容，避免导入课表后绿点存在但首屏停留在 00:00 造成误解。
-- ✅ **课程日程不再自动转任务**：Google Calendar 回流和 Android/local 日历导入仅在已有 `taskId` 关联时更新任务；未关联课程日程只保留为 CalendarEvent，不再自动生成普通 Task；任务查询过滤历史自动生成的 `section=calendar` 待办，避免课程表挤占任务列表。
-- ✅ **部署与 App 编译验证**：后端 `api npm run build`、前端 `web npm run build`、Android `web npm run android:build` 均已通过；debug APK 产物生成在 `web/android/app/build/outputs/apk/debug/app-debug.apk`；前后端通过推送 `master` 触发 Render/Vercel 自动部署。
-- ✅ **移动端日历/任务/课程收口修复**：Google OAuth callback 增加结构化错误回传与前端 popup/deep-link 错误提示；看板快速添加移除个人/项目选择；任务编辑页补 safe-area、卡片内滚动、三状态中文展示与独立删除按钮；设置页新增底部导航顺序调整；课程模块将“课程笔记”收敛为“课程任务”，支持标签、搜索、转化任务，并按未来课程优先/已过课程置灰排序。
-- ✅ **Google Calendar OAuth Web/App 闭环**：OAuth URL 带 `userId/platform`，PKCE verifier 加密进 state；Web popup 自动关闭，Android 通过 `sparkflow://oauth` deep link 返回；`/api/google/auth/callback` 对 Google GET 回调放行。
-- ✅ **Google Calendar 双向同步增强**：手动/定时同步会先将 SparkFlow Task/CalendarEvent 推到 Google，再拉取 Google 事件；Google 事件落库到 CalendarEvent 并生成/更新 Task，syncToken 失效时自动 full sync。
-- ✅ **Xiaomi/Android 本地日历接入**：Settings 新增系统日历权限、近期本地事件导入、SparkFlow 日程写入系统日历；本地事件按 external id upsert，并关联 Task，Web 端明确通过 Google/ICS 间接同步。
-- ✅ **日历视图适配**：CalendarView 展示 Google/local/manual/course 等非课程日程，修复 CalendarService 查询 where/时间 overlap，避免已关联 Task 的日历事件重复渲染。
-- ✅ **App 端同步与移动适配收口**：验证 Render 已放行 `https://localhost` / `capacitor://localhost`；补齐 Android OAuth 失败 deep link 与 listener 清理、本地日历 external id 命名空间、待办添加错误提示、顶部/底部 safe-area 适配，并在设置页加入底部导航显示开关。
-
-### 2026-06-01
-- ✅ **删除 CURRENT_CONTEXT 同步架构**：移除 context-bridge 模块 + syncSlice + Task.contextMdHash，改纯 REST CRUD；数据流简化为 PWA ↔ REST ↔ Supabase
-- ✅ **Capacitor Android APK 打包**：Capacitor v8.3.4 配置 + FCM 推送 + 系统日历插件 + OAuth deep link + 8 个构建脚本
-- ✅ **Google Calendar 双向同步**：GoogleToken 表 + OAuth PKCE 后端代理 + push/pull/cron 同步 + SettingsView 连接管理
-
-### 2026-05-29
-- ✅ **数据同步全修复**：解决 sync-context.cjs push 覆盖问题（writeLocalMd + syncGeneration 竞态防护）、isSyncing 锁丢弃并发请求（needsResync 重触发）、mtime 动态导致 poll 每次刷新（contextVersion 计数器）、push 无差异检测（远程条目数警告）
-- ✅ **Dashboard 柱状图修复**：日视图追加全天条，周/月追加未排条，改用实际状态比例 + 组内归一化柱高，chartDefaultView 配置生效
-- ✅ **renderMd 丢失项目标题修复**：动态生成项目分组标题确保条目归属正确
-- ✅ **跨界面任务同步兜底**：localStorage 缓存 + API 失败时保留现有 tasks
-- ✅ **CalendarView 截止任务区域**：列表展示当日有 dueDate 但未安排时间线的任务 + ⏱️ 快速安排按钮
-- ✅ **时间线长按创建 + ghost 拖拽**：两轮 bug 修复（React 合成事件 pointerId 失效 + pointer capture 移动端不兼容）
-- ✅ **Course 模块后端基础设施**：Prisma Schema 迁移 + NestJS API + ICS 导入脚本 + CalendarView 课程渲染 + CourseDetailView 原型
-- ✅ **学期管理**：Semester CRUD + 激活切换 + 周数计算 + 学期 pill 选择器
-- ✅ **双向链接**：@项目名 / @任务标题 纯前端双向链接 + mention 标签 + 回链计数
-
-### 2026-05-28
-- ✅ **前端移除手机框**：全屏自适应 + SparksView 拖拽边界动态化
-- ✅ **截止时间功能闭环**：toggle 控制日期选择器 + 时区修复（toISOString） + 通知确认弹窗
-- ✅ **Dashboard 柱状图空状态**：无任务时显示引导占位图
-
-### 2026-05-27
-- ✅ **部署上线（Render + Vercel）**：9 项踩坑全修复（Prisma 7 配置、dotenv、Dockerfile COPY、Supabase IPv6 pooler、Vercel Hobby 限制等）
-- ✅ **Web Push 通知编码完成**：后端 PushModule + 前端 Service Worker + 铃铛订阅 UI（待部署 VAPID 环境变量）
-- ✅ **番茄钟持久化**：Pomodoro CRUD API + Dashboard 专注统计 + DarkFrostedModal 全局 tick 驱动
-- ✅ **子任务协议扩展**：notes 升级为 NoteItem[]（含 completed），解析/渲染/合并全链路
-- ✅ **3D 卡片编辑恢复**：左右滑动切换（编辑/专注/子任务），delete 两次确认
-- ✅ **元数据解析修复**：从完整 content 提取而非仅 description，In progress 状态不再丢失
-- ✅ **V4 交互原型**：Dashboard 日/周/月柱状图 + Calendar 时间线拖拽 + 参数面板
-
-### 2026-05-30（删除后闪现问题排查记录）
-- **现象**：网页端 `https://sparkflow031.vercel.app/` 删除任务后，任务短暂消失又重新出现，表现为“不能删除”。
-- **根因 1（后端软删除回流）**：前端 `deleteTask` 通过全量 `syncToApi()` 提交删除后的任务列表；后端 `ContextBridgeService.write()` 清理孤立条目时，若任务有关联的番茄钟或日历记录，会将任务状态改为 `cancelled` 而非硬删除；随后 `read()` 未过滤 `cancelled`，导致该任务又被返回给前端并重新渲染。
-- **根因 2（并发同步覆盖风险）**：`syncToApi()` 在已有同步进行中时只设置 `needsResync`，第一次同步成功响应仍会整表替换 `tasks`，快速连续操作场景下可能短暂覆盖本地新状态。
-- **建议修复方案 P0**：后端 `read()` 默认过滤 `status='cancelled'`，并在前端 `entriesToTasks()` 增加 `Cancelled` 兜底过滤；软删除任务保留在 DB 中用于历史关联，但不进入看板协议层。
-- **建议修复方案 P1**：新增显式删除接口或同步协议 `deletedHashes`，避免依赖“全量 entries 少一条”来推断删除；`syncToApi()` 增加 mutation id/提交快照校验，防止旧响应覆盖新本地状态。
-- **状态**：🚧 已完成排查与蓝图记录，待按 P0/P1 实施代码修复并部署验证。
-
-### 2026-05-06
-- ✅ **项目蓝图创建**：确立 sparkflow 定位（CURRENT_CONTEXT 可视化管理面板）
-- ✅ **10 项关键决策**：解析规范、同步机制、数据模型、推送、灵感转化、部署
-- ✅ **Phase 1 完成**：ContextBridge 模块（解析器 + 写回器 + 锁 + 合并），17 项单测全通过
+更早的详细变更以 Git 历史和 [docs/archive/](docs/archive/) 为准。
 
 ---
 
-## 七、已知问题与修复记录
+## 七、已知问题与风险
 
-| 时间 | 问题 | 修复 |
-|---|---|---|
-| 2026-05-27 | **部署踩坑 1**：Prisma 7 datasource.url 不支持 schema 文件 | URL 移至 prisma.config.ts |
-| 2026-05-27 | **部署踩坑 2**：dotenv 未安装 | 移除导入，依赖 process.env |
-| 2026-05-27 | **部署踩坑 3**：Dockerfile 缺少 prisma.config.ts | COPY 加入 |
-| 2026-05-27 | **部署踩坑 4**：prisma 在 devDependencies | 移至 dependencies |
-| 2026-05-27 | **部署踩坑 5**：构建产物在 dist/src/ | CMD 改为 node dist/src/main |
-| 2026-05-27 | **部署踩坑 6**：class-validator/class-transformer 缺失 | 安装到 dependencies |
-| 2026-05-27 | **部署踩坑 7**：Supabase IPv6-only vs Render IPv4 | 改用 shared pooler (5432) |
-| 2026-05-27 | **部署踩坑 8**：Vercel Hobby commit 作者限制 | Git user.email 匹配 Vercel 账号 |
-| 2026-05-27 | **部署踩坑 9**：ApiKeyGuard 拦截 OPTIONS | Guard 中 OPTIONS 直接放行 |
-| 2026-05-29 | **sync-context push 覆盖 Web 数据** | writeLocalMd + syncGeneration 竞态防护 |
-| 2026-05-29 | **isSyncing 锁丢弃并发请求** | needsResync 重触发机制 |
-| 2026-05-29 | **poll 因 mtime 动态每次刷新** | contextVersion 计数器替代 Date.now() |
-| 2026-05-29 | **Dashboard 柱状图数据映射错误** | 日/周/月三视图追加全天/未排条 + 状态比例 |
-| 2026-05-28 | **renderMd 丢失项目标题** | 动态生成分组标题 |
-| 2026-05-28 | **跨界面刷新任务消失** | localStorage 缓存兜底 |
-| 2026-05-28 | **截止时间时区偏移 8 小时** | toISOString 转换 |
-| 2026-05-28 | **时间线长按创建不响应** | ref 即时存 pointerId + try-catch setPointerCapture |
-| 2026-05-28 | **ghost 拖拽无法调时长** | 弃用 setPointerCapture，注册原生 document 监听 |
-| 2026-06-04 | **时间线轻触误触拖拽、绿点按周拉取不稳定、本地日历只读** | 拖拽增加 6px 阈值和 clamp；展开月历按月拉取并显示预览标签；本地导入创建/更新关联 Task |
-| 2026-09-07 | **注册显示 Database error saving new user** | 根因是重复注册请求触发 Supabase `users_email_partial_key` 唯一约束；增加前端请求锁、确认邮件状态保护和结构化错误提示，并修正验证回跳地址 |
-| 2026-09-09 | **Local Codex Bridge 接入方案** | 采用仅监听 loopback 的独立 Gateway 和固定 8-tool projection；云端 API、Supabase、Vercel 与 Android 不进入本机控制链路 |
-| 2026-09-09 | **课程加载失败被误显示为空数据** | 建立五态加载契约；刷新失败保留缓存，过期请求不能更新当前学期状态 |
-| 2026-09-09 | **教务作息仅接受两位小时和半角连接符** | 输入先归一化，兼容单/双位小时、中文冒号及 `-—～至` 等连接符，内部保持 `HH:mm` |
-| 2026-09-09 | **Vercel 重复项目与检查持续 pending** | 主生产项目已确认；待重新授权 `sparkflow031` 团队 scope 后读取日志并归档重复项目，状态 🚧 |
-| 2026-09-09 | **Supabase 泄露密码保护未启用** | 数据表 RLS 已启用；Auth 控制台配置仍待开启，状态 ⬜ |
-| 2026-09-13 | **课程页主题割裂、顶部操作重复且 Sheet 可能被底栏遮挡** | 统一使用全局 Theme Tokens；操作入口分层收束；全部课程 Sheet 通过 portal 挂到 `document.body`，状态 🚧 待 Preview/真机复验 |
-| 2026-09-13 | **Linux 下 Android 构建脚本找不到 gradlew** | `android:build` 从 `gradlew assembleDebug` 修正为 `./gradlew assembleDebug` 并提交 wrapper 可执行位；Capacitor sync 成功，后续仅被 Gradle 下载网络阻断，状态 🚧 待联网环境完整构建 |
+| 优先级 | 问题 | 当前判断 | 关闭条件 |
+|---|---|---|---|
+| P0 | PR #14 尚未合并 | 主 CI/Preview 成功不等于真机与边界验收完成 | 360px/Android/多来源/DST 验收后合并并检查生产 |
+| P0 | 两个旧 Vercel 项目制造失败噪声 | `sparkflow`、`sparkflow-psi1` 不是主项目，但影响 GitHub 总状态可读性 | 归档/断开旧项目 Git 集成，仅保留有效检查 |
+| P0 | 课程导入不具备完整服务端幂等 | 现有恢复/导入可能新增副本；断网重试有数据风险 | requestId、指纹、事务、结果查询和重复策略全部通过集成测试 |
+| P0 | 真实导入尚未闭环 | 360px、Web 真学校、Android 文件/原生路径未完成 | Web/Android 各一条真实路径与生产业务冒烟通过 |
+| P0 | `SchedulePlan` 生产迁移状态需核验 | 健康接口无法证明表已迁移或 Apply/Undo 可用 | 确认 migration 并用真实账户跑通 Preview → Apply → Undo |
+| P1 | V5 Core 未完成 | M3 仍在开放 PR | PR #14 合并并完成生产回归 |
+| P1 | 全仓 lint 存量债务 | 旧 CalendarView、modal、API/store 仍有既有错误 | 建独立清债批次后再将 lint 设为 required check |
+| P2 | Web Push/VAPID 生产状态未核实 | 旧 Render 配置已失效 | 腾讯云环境配置与 Web/Android 实际送达验收 |
 
 ---
 
-## 八、当前活跃 Phase
+## 八、下一步方针
 
-### Phase 09：Course 模块深化
+```mermaid
+flowchart TD
+    A["PR #14 验收合并"] --> B["重复 Vercel 治理"]
+    B --> C["Phase 12 安全导入"]
+    C --> D["真实 Web / Android 验收"]
+    D --> E["Phase 14 M4 / M5"]
+    E --> F["Phase 13 Local Bridge"]
+```
 
-| 子阶段 | 内容 | 状态 |
-|---|---|---|
-| 9.1 | 后端基础设施（Schema + API + ICS 导入 + CalendarView 渲染 + 原型） | ✅ |
-| 9.2 | 课程详情页正式版 + 调课/换课编辑 | 🚧 |
-| 9.3 | 任务关联课程 + Dashboard 今日课程 | ⬜ |
-| 9.4 | 课程笔记看板（CourseNote Kanban） | ⬜ |
-| 9.5 | 课表编辑器 + 学期管理 | ⬜ |
-| 9.6 | 事件追踪（EventView + eventType 扩展） | ⬜ |
+执行原则：
 
-> 详细方案：[docs/plans/phase09-course-module.md](docs/plans/phase09-course-module.md)
+1. **先收口开放工作**：不在 PR #14 未验收时并行重写旧 CalendarView。
+2. **先数据安全，后功能扩展**：Phase 12 优先服务端幂等、冲突与事务，再做额外课程功能。
+3. **先真实链路，后宣布完成**：Preview/CI/health 各自只是门禁之一，不能替代真机和生产业务读写。
+4. **减少并行主线**：Phase 09/10 冻结，Phase 13 排到 Phase 12/14 稳定后，避免导航、Settings、Schema 冲突。
+5. **保持迁移可逆性**：数据库只做 additive migration；导入、Planner 必须可对账、回滚或安全撤销。
 
-### Phase 10：待办功能收束
-
-| 子阶段 | 内容 | 状态 |
-|---|---|---|
-| 10.1 | VAPID 密钥部署（编码完成，待环境变量） | 🚧 |
-| 10.2 | 截止任务拖入时间线 | ✅ |
-| 10.3 | md 协议扩展 @start @duration | ⬜ |
-| 10.4 | CalendarEvent eventType 扩展 | ⬜ |
-| 10.5 | 灵感转化流程 | ⬜ |
-| 10.6 | 多用户 / 正式 OAuth | ⬜ |
-| 10.7 | 任务独立提醒 + 重复任务 + 月历任务预览 | ✅ |
-
-> 详细方案：[docs/plans/phase10-pending-features.md](docs/plans/phase10-pending-features.md)
-
-### Phase 12：课程导入体验
-
-| 子阶段 | 内容 | 状态 |
-|---|---|---|
-| 12.0 | 生产基线、健康检查与 CI | ✅ |
-| 12.1 | 加载状态契约、过期请求隔离、时间归一化 | ✅ |
-| 12.2 | 四步导入向导、设置迁移与结构化作息编辑 | 🚧 M2.1/M2.2 已合并；M2 后续与 M3 待实施 |
-| 12.3 | 幂等导入 API、重复策略与事务测试 | ⬜ |
-| 12.4 | Web/Android Beta 验收与发布 | ⬜ |
-
-> 执行总计划：[docs/plans/p0-phase12-execution.md](docs/plans/p0-phase12-execution.md)；体验方案：[docs/plans/phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md)
-
-### Phase 14：Rhythm Experience / SparkFlow V5
-
-| 子阶段 | 内容 | 状态 |
-|---|---|---|
-| M1 | UI Foundation：Tokens、AppShell、5 Tab、Quick Add | 🚧 已合并，待真实设备交互复验 |
-| M2 | Today Rhythm：ScheduleItem、Today、Rhythm Dial、Schedule Editor | 🚧 已合并且 CI 成功，待部署与交互验收 |
-| M3 | Timeline V2：Month/Week/Timeline、锁定与 15 分钟粒度 | 🚧 最小闭环完成，待设备验收与合并 |
-| M4 | Smart Planner：意图解析、确定性排程、预览/应用/撤销 | 🚧 确定性排程闭环已实现，待意图解析与生产验收 |
-| M5 | Life Loop：Focus、Daily Receipt、Dark Mode、Android Widget | 🚧 全屏 Focus 已实现，其余待实施 |
-
-> Phase 12 M2.2 已合并并通过 GitHub CI。M1～M3 为 V5 Core；Phase 13/14 对导航、Settings、App.tsx 和类型文件采用串行交付。详细方案：[docs/plans/phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md)
+逐项任务和完成门槛见 [NEXT.md](docs/plans/NEXT.md)。
 
 ---
 
 ## 九、文档导航
 
-### Local Codex Bridge 本机监督接入（方案，待实施）
-
-- SparkFlow React 前端通过 same-origin 本机 Gateway 监督 native Codex；Gateway 不进入现有 NestJS/Render/Supabase 数据链路。
-- 固定投影 Bridge 当前 8 个工具，明确 accepted、terminal、pending request 与 `UNKNOWN / possibly accepted` 的不同语义。
-- Vercel 与 Android 保持普通应用模式，不探测桌面 localhost；native Codex 仍是 thread、turn 与执行状态的唯一事实源。
-- 当前仅完成实施方案，未新增 Gateway、前端控制页或数据库改动。
-- 详细方案：[Phase 13：Local Codex Bridge 本机监督接入](docs/plans/phase13-local-codex-bridge.md)。
-
-### 课程导入体验改进（M2.1/M2.2 已合并；后续待实施）
-
-- M2.1 四步教务导入主路径已随 PR #4 合并，GitHub CI 与主 Vercel Preview 已通过；360px 浏览器交互及真实 Web/Android 导入仍待验收。
-- M2.2 已随 PR #5 合并，GitHub CI run #11 成功；已包含 WebDAV 设置迁移、按学校隔离的本机作息模板，以及先预览后应用的批量作息生成。
-- M2 尚未完成：已有学期、分段作息、重复与冲突检测、服务端幂等提交仍待实施。
-- 详细方案：[Phase 12：课程页与教务导入体验改进](docs/plans/phase12-course-import-experience.md)。
-
 | 文档 | 说明 |
 |---|---|
-| [docs/plans/INDEX.md](docs/plans/INDEX.md) | 所有实施方案索引 |
-| [docs/plans/phase09-course-module.md](docs/plans/phase09-course-module.md) | Phase 09：Course 模块深化方案 |
-| [docs/plans/phase10-pending-features.md](docs/plans/phase10-pending-features.md) | Phase 10：待办功能收束方案 |
-| [docs/plans/phase11-auth-registration-onboarding.md](docs/plans/phase11-auth-registration-onboarding.md) | Phase 11：账户注册、密码管理与问候页多选 |
-| [docs/plans/phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) | Phase 12：课程页与教务导入体验改进 |
-| [docs/plans/phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) | Phase 13：Local Codex Bridge 本机监督接入 |
-| [docs/plans/phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) | Phase 14：Rhythm Experience / SparkFlow V5 |
-| [docs/archive/](docs/archive/) | 已完成方案 + 设计决策（只读） |
-| [docs/prototypes/](docs/prototypes/) | 交互原型（v2/v3/v4/course-detail） |
-| [docs/DEPLOY.md](docs/DEPLOY.md) | 部署手册（Supabase/Render/Vercel） |
+| [docs/plans/NEXT.md](docs/plans/NEXT.md) | 唯一近期执行队列与完成门槛 |
+| [docs/plans/INDEX.md](docs/plans/INDEX.md) | 当前主线、后续、冻结与归档分类 |
+| [docs/plans/phase12-course-import-experience.md](docs/plans/phase12-course-import-experience.md) | 当前课程导入与数据安全方案 |
+| [docs/plans/phase14-rhythm-experience.md](docs/plans/phase14-rhythm-experience.md) | V5 Today/Timeline/Planner/Focus/Review 方案 |
+| [docs/plans/phase13-local-codex-bridge.md](docs/plans/phase13-local-codex-bridge.md) | 后续本机监督接入方案 |
+| [docs/plans/phase09-course-module.md](docs/plans/phase09-course-module.md) | 冻结的 Course 历史目标与现状核对 |
+| [docs/plans/phase10-pending-features.md](docs/plans/phase10-pending-features.md) | 冻结的历史待办与去向 |
+| [docs/archive/phase11-auth-registration-onboarding.md](docs/archive/phase11-auth-registration-onboarding.md) | 已完成并被生产认证替代的早期账户方案 |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | 腾讯云自托管 API/数据库与 Vercel 部署手册 |
+| [docs/archive/](docs/archive/) | 历史方案与设计决策 |
 
-### 文档管理规范
+### 文档管理规则
 
-1. **新建方案**：在 `docs/plans/` 下创建 `phaseXX-description.md`，更新 INDEX.md 和本导航
-2. **方案完成**：移至 `docs/archive/`，更新 INDEX.md 和本导航
-3. **命名**：用 `phaseXX-description.md` 格式（如 `phase09-course-module.md`），不用无编号 slug
-4. **归档只读**：历史方案仅作参考，不再修改
-5. **BLUEPRINT 职责**：只记录决策、架构、问题——不做详细任务追踪
+1. `PROJECT_BLUEPRINT.md` 只维护决策、架构、进度、问题和方针；详细任务进入 Phase 文档。
+2. 近期动作只在 `NEXT.md` 排序；完成后同步 Blueprint、INDEX 与对应 Phase。
+3. 已完成方案移入 `docs/archive/`；冻结方案不得未经重估直接恢复开发。
+4. 历史架构可以保留，但必须明确“已被替代”，避免与生产现状混淆。
