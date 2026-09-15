@@ -18,6 +18,7 @@ export interface ScheduleDraft {
 interface ScheduleEditorProps {
   open: boolean;
   initialDate: Date;
+  initialStart?: Date | null;
   initialTask?: Task | null;
   onClose: () => void;
   onSave: (draft: ScheduleDraft) => Promise<void>;
@@ -26,11 +27,11 @@ interface ScheduleEditorProps {
 const colors = ['#b0a8db', '#eeb6c8', '#ead887', '#cae393', '#a9c9ec', '#a9dedc'];
 const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-export default function ScheduleEditor({ open, initialDate, initialTask, onClose, onSave }: ScheduleEditorProps) {
-  const initialStart = initialTask?.scheduledStart ? new Date(initialTask.scheduledStart) : initialDate;
+export default function ScheduleEditor({ open, initialDate, initialStart: requestedStart, initialTask, onClose, onSave }: ScheduleEditorProps) {
+  const initialStart = initialTask?.scheduledStart ? new Date(initialTask.scheduledStart) : (requestedStart ?? initialDate);
   const [title, setTitle] = useState(initialTask?.title ?? '');
   const [date, setDate] = useState(() => localDate(initialStart));
-  const [time, setTime] = useState(() => initialTask?.scheduledStart
+  const [time, setTime] = useState(() => initialTask?.scheduledStart || requestedStart
     ? initialStart.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
     : '09:00');
   const [duration, setDuration] = useState(initialTask?.estimatedMinutes ?? initialTask?.duration ?? 60);
