@@ -58,6 +58,8 @@ npm test
 
 ## Android 构建
 
+需要安装 JDK 21 和 Android SDK（API 36）。
+
 在 `web/` 目录执行：
 
 ```bash
