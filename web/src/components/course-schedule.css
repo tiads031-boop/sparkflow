@@ -66,8 +66,8 @@
 /* Course import wizard */
 .course-import-overlay,
 .course-import-overlay * { box-sizing:border-box; }
-.course-import-overlay { position:fixed; inset:0; z-index:1000; display:flex; align-items:stretch; justify-content:center; min-width:0; overflow:hidden; background:rgba(18,18,22,.56); color:var(--course-text); }
-.course-import-sheet { display:flex; flex-direction:column; width:100%; min-width:0; height:100dvh; max-height:100dvh; overflow:hidden; background:var(--course-bg); color:var(--course-text); }
+.course-import-overlay { --course-bg:#fff; --course-surface:#fff; --course-text:#242424; --course-muted:#6b7280; --course-border:#e5e7eb; position:fixed; inset:0; z-index:1000; display:flex; align-items:stretch; justify-content:center; min-width:0; overflow:hidden; isolation:isolate; background:rgba(18,18,22,.56); color:var(--course-text); }
+.course-import-sheet { display:flex; flex-direction:column; width:100%; min-width:0; height:100dvh; max-height:100dvh; overflow:hidden; background:#fff; color:var(--course-text); }
 .course-import-header { position:sticky; top:0; z-index:3; display:flex; flex:none; align-items:center; justify-content:space-between; gap:16px; min-width:0; padding:calc(16px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 14px calc(16px + env(safe-area-inset-left)); border-bottom:1px solid var(--course-border); background:var(--course-surface); }
 .course-import-header > div { min-width:0; }
 .course-import-header p,.course-import-header h2 { margin:0; }
@@ -82,7 +82,7 @@
 .course-import-steps small { width:100%; overflow:hidden; font-size:10px; line-height:1.25; text-overflow:ellipsis; white-space:nowrap; }
 .course-import-steps [aria-current="step"] { color:var(--course-text); }
 .course-import-steps [aria-current="step"] span { border-color:#8b80ca; background:#b0a8db; color:#242424; }
-.course-import-body { flex:1 1 auto; min-width:0; min-height:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:16px calc(16px + env(safe-area-inset-right)) 24px calc(16px + env(safe-area-inset-left)); scrollbar-gutter:stable; }
+.course-import-body { flex:1 1 auto; min-width:0; min-height:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:16px calc(16px + env(safe-area-inset-right)) 24px calc(16px + env(safe-area-inset-left)); scrollbar-gutter:stable; background:#fff; }
 .course-import-body > :first-child { margin-top:0; }
 .course-import-body > :last-child { margin-bottom:0; }
 .course-import-body label { display:grid; min-width:0; gap:6px; color:var(--course-text); font-size:12px; font-weight:600; line-height:1.35; }
