@@ -19,6 +19,18 @@ export class CourseController {
     return this.courseService.importSchedule(userId, body);
   }
 
+  @Post('import-json/preview')
+  previewScheduleImport(@CurrentUserId() userId: string, @Body() body: unknown) {
+    if (!userId) throw new BadRequestException('缺少用户标识');
+    return this.courseService.previewScheduleImport(userId, body);
+  }
+
+  @Get('imports/:requestId')
+  getScheduleImport(@CurrentUserId() userId: string, @Param('requestId') requestId: string) {
+    if (!userId) throw new BadRequestException('缺少用户标识');
+    return this.courseService.getScheduleImport(userId, requestId);
+  }
+
   // ==================== ICS 文件导入 ====================
 
   @Post('import-ics')

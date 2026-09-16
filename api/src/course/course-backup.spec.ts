@@ -16,6 +16,13 @@ describe('course backup validation', () => {
     expect(result.courses[0]).not.toHaveProperty('tasks');
     expect(result.courses[0]).not.toHaveProperty('googleEventId');
   });
+  it('preserves only the import source fields needed for future synchronization', () => {
+    const input = fixture();
+    Object.assign(input.courses[0], { sourceEntryId: 'teaching-class-1', sourceFingerprint: 'abc123', sourceSchoolId: 'foreign-school' });
+    const result = parseCourseBackup(input);
+    expect(result.courses[0]).toMatchObject({ sourceEntryId: 'teaching-class-1', sourceFingerprint: 'abc123' });
+    expect(result.courses[0]).not.toHaveProperty('sourceSchoolId');
+  });
   it('rejects unsupported versions and missing semester references', () => {
     expect(() => parseCourseBackup({ ...fixture(), version: 2 })).toThrow();
     expect(() => parseCourseBackup({ ...fixture(), semesters: [] })).toThrow();

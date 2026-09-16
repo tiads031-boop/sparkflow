@@ -1,10 +1,11 @@
 import type { ScheduleBackup } from './courseSchedule';
 export interface ImportedSchoolCourse {
+  sourceId?: string;
   name: string; teacher?: string; position?: string; day: number; weeks: number[];
   startSection?: number; endSection?: number; isCustomTime?: boolean; customStartTime?: string; customEndTime?: string;
 }
 export interface ImportedTimeSlot { number: number; startTime: string; endTime: string }
-export interface SchoolImportData { courses: ImportedSchoolCourse[]; timeSlots?: ImportedTimeSlot[]; config?: { semesterStartDate?: string; semesterTotalWeeks?: number }; }
+export interface SchoolImportData { courses: ImportedSchoolCourse[]; timeSlots?: ImportedTimeSlot[]; config?: { semesterStartDate?: string; semesterTotalWeeks?: number; termId?: string; currentSemesterId?: string }; }
 
 export interface ParsedTimeSlot { number: number; start: string; end: string }
 export interface SchoolImportSummary {
@@ -119,7 +120,7 @@ export function schoolBackup(data: SchoolImportData, name: string, start: string
       const day = date.toISOString().slice(0, 10);
       return { id: `${id}-${w}`, title: c.name, startTime: new Date(`${day}T${startTime}:00+08:00`).toISOString(), endTime: new Date(`${day}T${endTime}:00+08:00`).toISOString(), location: c.position, courseId: id, isOverride: false };
     }).filter(e => Date.parse(e.startTime) >= +first && Date.parse(e.endTime) <= +last);
-    return { id, userId: '', semesterId, name: c.name.trim(), teacher: c.teacher, room: c.position, dayOfWeek: c.day, weeks, startTime, endTime, color: ['#cae393', '#b0a8db', '#a8dadc'][index % 3], createdAt: now, updatedAt: now, events };
+    return { id, userId: '', semesterId, name: c.name.trim(), teacher: c.teacher, room: c.position, dayOfWeek: c.day, weeks, startTime, endTime, sourceEntryId: c.sourceId, color: ['#cae393', '#b0a8db', '#a8dadc'][index % 3], createdAt: now, updatedAt: now, events };
   });
   if (!courses.some(c => c.events.length)) throw new Error('所选日期范围已排除全部上课时间，请检查学期日期和课程周次');
   return { format: 'sparkflow-courses', version: 1, exportedAt: now, semesters: [{ id: semesterId, userId: '', name: name.trim(), startDate: first.toISOString(), endDate: last.toISOString(), isActive: false, createdAt: now, updatedAt: now }], courses };

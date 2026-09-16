@@ -51,13 +51,14 @@ test('serializeTimeSlots normalizes and sorts structured periods', () => {
 test('schoolBackup emits normalized course and event times', () => {
   const backup = schoolBackup({
     courses: [
-      { name: '数学', day: 1, weeks: [1], startSection: 1, endSection: 2 },
+      { name: '数学', sourceId: 'teaching-class-1', day: 1, weeks: [1], startSection: 1, endSection: 2 },
       { name: '英语', day: 2, weeks: [1], isCustomTime: true, customStartTime: '13：30', customEndTime: '15：00' },
     ],
   }, '秋季学期', '2026-09-07', '2026-09-20', '1 8:00—8:45\n2 8:55—9:40');
 
   assert.equal(backup.courses[0].startTime, '08:00');
   assert.equal(backup.courses[0].endTime, '09:40');
+  assert.equal(backup.courses[0].sourceEntryId, 'teaching-class-1');
   assert.equal(backup.courses[1].startTime, '13:30');
   assert.equal(backup.courses[1].endTime, '15:00');
   assert.match(backup.courses[0].events[0].startTime, /T00:00:00\.000Z$/);
