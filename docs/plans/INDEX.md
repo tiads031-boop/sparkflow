@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-17 | **代码基线**：`master@fad1a619`
+> **最后更新**：2026-09-17 | **代码基线**：`master@a1fe22c6`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,15 +8,15 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | ✅ 仓库收口完成 → Phase 12 数据安全/真实导入 → 平台治理 → Phase 14 收口 → Phase 15 M1 |
-| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0 | 开始服务端安全导入与 Web/Android 真实路径验收 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | ✅ 仓库收口 → ✅ Phase 12 服务端安全代码/CI → 生产 migration + Web/Android 真实验收 → 平台治理 → Phase 14 收口 |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0 | V2 幂等/事务/重复冲突代码已具备；当前转入腾讯云 migration、真实 PostgreSQL 与 Web/Android 验收 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
 ## 下一产品批次
 
 | 文件 | Phase | 状态 | 启动条件 |
 |---|---|---|---|
-| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | ⬜ 方案已确认，未实施 | Phase 12 数据安全/真实导入闭环完成，且 Phase 14 无阻断级回归后启动 M1：Capture → Review → Task；AI Insight 放 M2 |
+| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | ⬜ 方案已确认，未实施 | Phase 12 真实导入闭环完成，且 Phase 14 无阻断级回归后启动 M1：Capture → Review → Task；AI Insight 放 M2 |
 
 ## 候选方案（已完成设计、未排期实施）
 
@@ -25,20 +25,39 @@
 | [../study-mode/README.md](../study-mode/README.md) | Study Mode、Study Home、学习文件夹、复习闭环、习惯与导出 | ⬜ M0 完成 | PR #25 已合并；复用 Today / Task / Calendar / Planner / Focus / Course，不建立第二套事实源；实施拆分见 [roadmap](../study-mode/roadmap.md) |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 / Local Codex Bridge | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后再启动；不进入云端 API/数据库控制链 |
 
-## 仓库收口状态
+## 仓库与近期里程碑
 
 | 项目 | 最终状态 | 后续去向 |
 |---|---|---|
 | PR #23 Study Mode proposal | ✅ 已关闭 | 被已合并的 PR #25 与 `docs/study-mode/` 替代 |
-| PR #24 Course linked tasks | ✅ 已合并 | squash commit `fad1a619`；课程任务统一进入共享 Task Store |
+| PR #24 Course linked tasks | ✅ 已合并 | `fad1a619`；课程任务统一进入共享 Task Store |
 | PR #14 Timeline V2 | ✅ 旧 PR 已关闭 | 剩余 M3 要求迁移到 Issue #26，从最新 master 重做 |
-| 开放 PR | ✅ 0 | 后续工作从最新 master 建短期分支 |
+| PR #28 Phase 12 safety tests | ✅ CI 成功并已合并 | `a1fe22c6`；补齐处理中、并发竞争、回滚、用户范围查询等安全证据 |
 
 ## 活跃执行 Issue
 
 | Issue | 范围 | 优先级/时机 |
 |---|---|---|
 | #26 Phase 14 M3 Timeline V2 reconciliation | 保留 Gantt 的前提下，从最新 master 重做 Month/Week/Day Timeline 与真实设备验收 | Phase 12 主线完成/稳定后进入 Phase 14 收口 |
+
+## Phase 12 当前事实
+
+已实现并通过 CI 证实：
+
+- V2 `requestId` / payload hash。
+- stable course fingerprint。
+- duplicate / conflict preview。
+- skip / keep duplicate policy。
+- `Serializable` Prisma transaction。
+- `CourseImportBatch` 结果查询和成功 replay。
+- `(userId, requestId)` 查询隔离与并发竞争/回滚相关单元测试。
+
+仍未关闭：
+
+- 腾讯云生产库 migration 是否已执行。
+- 真实 PostgreSQL 并发、断连/超时、事务回滚验收。
+- Web / Android 真实学校导入与重复提交验收。
+- Android 登录、API 地址、TLS / 网络策略生产回归。
 
 ## 冻结 / 待重估
 
