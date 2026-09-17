@@ -19,10 +19,11 @@ describe('InspirationsService Phase 15 M1', () => {
   });
 
   it('stores reflections separately and schedules the next review three days later', async () => {
-    const findFirst = jest.fn().mockResolvedValue({ id: 'inspiration-1' });
+    const findFirst = jest.fn()
+      .mockResolvedValueOnce({ id: 'inspiration-1' })
+      .mockResolvedValueOnce({ id: 'inspiration-1', reflections: [{ id: 'reflection-1' }] });
     const reflectionCreate = jest.fn().mockResolvedValue({ id: 'reflection-1' });
     const inspirationUpdate = jest.fn().mockResolvedValue({ id: 'inspiration-1' });
-    const findOne = jest.fn().mockResolvedValue({ id: 'inspiration-1', reflections: [{ id: 'reflection-1' }] });
     const $transaction = jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops));
     const prisma = {
       inspiration: { findFirst, update: inspirationUpdate },
@@ -30,7 +31,6 @@ describe('InspirationsService Phase 15 M1', () => {
       $transaction,
     };
     const service = new InspirationsService(prisma as never);
-    jest.spyOn(service, 'findOne').mockImplementation(findOne as never);
 
     await service.addReflection('inspiration-1', 'user-1', 'Preview 也应该能撤销');
 
