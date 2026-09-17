@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-18 | **代码基线**：`master@8e7e0700`
+> **最后更新**：2026-09-18 | **代码基线**：`master@4569a3a1`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -11,15 +11,15 @@
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，Nginx 反向代理至 NestJS；`/api/health` 已具备 `buildSha` 契约，但腾讯云当前实际运行 commit 仍需部署后核验 |
 | Web | Vercel 主项目 `sparkflow031`，生产域名 `fish-life.cc.cd`；Vercel 当前账户仅保留该项目，旧 status context 仍可能残留 |
-| GitHub | `master@8e7e0700`；PR #28–#34 已全部合并；Issue #31 承接 Phase 12 生产验收 |
-| Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、真实 Prisma/PostgreSQL 导入重放 E2E 已纳入 CI |
+| GitHub | `master@4569a3a1`；PR #28–#36 的 Phase 12/发布门禁改动已合并；Issue #31 承接生产验收 |
+| Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
 | 最新 APK | Release `android-8e7e0700f894`；`sparkflow-8e7e0700f894-debug.apk`；生产 API 地址在构建前后均已校验 |
 | 部署噪声 | Vercel Hobby build-rate-limit 仍可能导致部署状态失败；不得把平台额度失败等同于代码 CI 失败 |
 
 ## 近期总原则
 
-1. **Phase 12 的服务端安全代码、全量 migration CI 和真实 PostgreSQL 基础幂等 E2E 已具备；当前唯一 P0 主线是 Issue #31 的腾讯云生产 + Web/Android 真机验收。**
+1. **Phase 12 的服务端安全代码、全量 migration CI 和关键真实 PostgreSQL I/O 安全场景已具备；当前唯一 P0 主线是 Issue #31 的腾讯云生产 + Web/Android 真机验收。**
 2. **没有腾讯云 migration、`buildSha`、真实账户和真机证据前，不把 Phase 12 宣布为生产完成。**
 3. **Android “Web 正常、App 无法登录”的代码侧高概率 CORS 分叉已修复，但必须用最新 Release 真机复测后才能关闭。**
 4. **Phase 14 不重复已经进入 master 的 Today、四象限、甘特、Planner、Focus；M3 余项由 Issue #26 承接。**
@@ -44,8 +44,9 @@
 - [x] PR #32：`/api/health` 暴露 `buildSha`；Docker 支持 `BUILD_SHA`；部署手册要求 Git HEAD = 容器 BUILD_SHA = 公网 health buildSha。
 - [x] PR #33：后端 CORS 始终显式允许受控 Capacitor Origin，同时保留配置的 Web Origin。
 - [x] PR #34：Android CI 校验生产 API 地址、校验构建产物、用 commit SHA 命名 APK，并自动发布 GitHub prerelease。
+- [x] PR #36：真实 PostgreSQL 验证同 requestId 并发竞争、事务失败 rollback、同 requestId 跨用户隔离。
 
-**仓库/CI 侧安全基线已经收口，后续不要重复实现同一套幂等、migration 或 APK 可追溯机制。**
+**仓库/CI 侧安全基线已经收口，后续不要重复实现同一套幂等、migration、真实数据库并发/rollback 或 APK 可追溯机制。**
 
 ---
 
@@ -94,16 +95,17 @@
 
 ---
 
-## 2. Phase 12：仍需补强但不阻塞首轮生产验收的数据库场景（P1）
+## 2. Phase 12：数据库回归防护（P1）
 
-当前已有真实 PostgreSQL 的 migration 与“首次导入 + 相同 requestId replay”E2E；以下更复杂场景仍可继续补：
+真实 PostgreSQL CI 当前已经覆盖：
 
-- [ ] 两个真实数据库连接同时竞争同一 requestId 的并发 E2E。
-- [ ] 数据库事务中途失败后的真实 rollback E2E。
-- [ ] 客户端断连/超时但数据库已提交的端到端恢复测试。
-- [ ] 两个用户的真实 PostgreSQL import-result 隔离 E2E。
+- [x] 首次导入 + 相同 requestId 顺序 replay。
+- [x] 两个并发请求竞争相同 requestId，最终一份 commit + 一份 replay。
+- [x] 事务在 batch 创建后失败时完整 rollback，不残留 batch/course。
+- [x] 两个用户复用相同 requestId 时结果和课程数据保持用户隔离。
+- [ ] 客户端断连/超时但数据库已提交的 HTTP 端到端未知结果恢复测试。
 
-这些不能替代 Issue #31 的生产验收，但可继续提高回归防护等级。
+最后一项更适合与 Issue #31 的生产/HTTP 验收一起验证，不再阻塞数据库代码本身的收口。
 
 ---
 
