@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-17 | **代码基线**：`master@14b523ad`
+> **最后更新**：2026-09-17 | **代码基线**：`master@fad1a619`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,9 +8,9 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | 仓库收口 → Phase 12 数据安全/真实导入 → Phase 14 收口 → Phase 15 M1 |
-| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 | 当前 P0；完成服务端安全导入与 Web/Android 真实路径验收 |
-| [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | 14 | 🚧 部分完成 | 对账旧 PR #14；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | ✅ 仓库收口完成 → Phase 12 数据安全/真实导入 → 平台治理 → Phase 14 收口 → Phase 15 M1 |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0 | 开始服务端安全导入与 Web/Android 真实路径验收 |
+| [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
 ## 下一产品批次
 
@@ -25,13 +25,20 @@
 | [../study-mode/README.md](../study-mode/README.md) | Study Mode、Study Home、学习文件夹、复习闭环、习惯与导出 | ⬜ M0 完成 | PR #25 已合并；复用 Today / Task / Calendar / Planner / Focus / Course，不建立第二套事实源；实施拆分见 [roadmap](../study-mode/roadmap.md) |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 / Local Codex Bridge | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后再启动；不进入云端 API/数据库控制链 |
 
-## 当前 PR 对账
+## 仓库收口状态
 
-| PR | 状态判断 | 处理方式 |
+| 项目 | 最终状态 | 后续去向 |
 |---|---|---|
-| #14 Timeline V2 | ⚠️ 基于旧 master，当前不可直接合并 | 对照当前 master 重新核对剩余能力；必要时以短期新分支替代，不强行 merge 旧 PR |
-| #23 Study Mode proposal | ❌ 已被 #25 替代 | 关闭，避免误合并旧提案 |
-| #24 Course linked tasks | 🚧 可合并、待最终回归 | 在当前 master 上核对冲突/回归，通过后合并并做生产冒烟 |
+| PR #23 Study Mode proposal | ✅ 已关闭 | 被已合并的 PR #25 与 `docs/study-mode/` 替代 |
+| PR #24 Course linked tasks | ✅ 已合并 | squash commit `fad1a619`；课程任务统一进入共享 Task Store |
+| PR #14 Timeline V2 | ✅ 旧 PR 已关闭 | 剩余 M3 要求迁移到 Issue #26，从最新 master 重做 |
+| 开放 PR | ✅ 0 | 后续工作从最新 master 建短期分支 |
+
+## 活跃执行 Issue
+
+| Issue | 范围 | 优先级/时机 |
+|---|---|---|
+| #26 Phase 14 M3 Timeline V2 reconciliation | 保留 Gantt 的前提下，从最新 master 重做 Month/Week/Day Timeline 与真实设备验收 | Phase 12 主线完成/稳定后进入 Phase 14 收口 |
 
 ## 冻结 / 待重估
 
@@ -55,10 +62,10 @@
 
 ## 状态口径
 
-- ✅ 仅表示代码已合并且对应验收有证据；开放 PR 不标完成。
-- 🚧 表示已有实现或正在验收，但仍有明确未关闭项。
+- ✅ 代码/仓库状态已确认；涉及功能完成时仍需有对应验收证据。
+- 🚧 表示已有实现或正在推进，但仍有明确未关闭项。
 - ⬜ 表示方案存在、尚未实施；若仅 M0 文档/设计完成，会明确写出。
-- ⚠️ 表示文档或 PR 保留，但不得直接按旧基线继续开发。
+- ⚠️ 表示文档保留，但不得直接按旧基线继续开发。
 - ❌ 表示已取消或已被新架构/新方案替代。
 
 ## 管理规则
