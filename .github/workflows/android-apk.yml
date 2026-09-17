@@ -9,7 +9,7 @@ on:
       - '.github/workflows/android-apk.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-apk-${{ github.ref }}
@@ -56,3 +56,22 @@ jobs:
           path: web/android/app/build/outputs/apk/debug/sparkflow-*-debug.apk
           if-no-files-found: error
           retention-days: 14
+      - name: Publish APK to GitHub Releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHORT_SHA="${GITHUB_SHA::12}"
+          TAG="android-${SHORT_SHA}"
+          APK="android/app/build/outputs/apk/debug/sparkflow-${SHORT_SHA}-debug.apk"
+          NOTES="Debug APK built from commit ${GITHUB_SHA}. Production API target was verified as https://api.fish-life.cc.cd/api during CI."
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "$APK" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "SparkFlow Android ${SHORT_SHA}" \
+              --notes "$NOTES" \
+              --prerelease
+          fi
