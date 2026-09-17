@@ -11,6 +11,7 @@
  */
 
 import { getAccessToken } from './auth';
+import { ApiError, parseApiServerMessage } from './errors';
 
 const RAW_API_BASE = (import.meta.env.VITE_API_BASE_URL || '') as string;
 
@@ -27,7 +28,10 @@ const API_BASE = RAW_API_BASE.replace(/\/+$/, '').replace(/\/api$/i, '');
  */
 function isCapacitorNative(): boolean {
   try {
-    return !!(window as any).Capacitor?.isNativePlatform?.();
+    const capacitor = (window as Window & {
+      Capacitor?: { isNativePlatform?: () => boolean };
+    }).Capacitor;
+    return !!capacitor?.isNativePlatform?.();
   } catch {
     return false;
   }
@@ -66,8 +70,8 @@ interface ApiOptions extends RequestOptions {
  * 统一 API 请求方法
  *
  * 自动拼接 API_BASE 前缀并附带 SparkFlow Bearer token。
- * 非 409 状态的错误响应会抛出 Error。
- * 409 留给调用方自行处理（冲突 diff）。
+ * 错误响应统一抛出不包含原始响应正文的 ApiError。
+ * 完整响应仅写入开发者日志，避免把后端细节直接展示给用户。
  * body 为 FormData 时不默认设置 Content-Type，让浏览器自动处理 boundary。
  */
 export async function apiRequest(path: string, options?: RequestOptions): Promise<Response> {
@@ -84,9 +88,15 @@ export async function apiRequest(path: string, options?: RequestOptions): Promis
 
   const res = await fetch(url, { ...options, headers });
 
-  if (!res.ok && res.status !== 409) {
-    const text = await res.text().catch(() => 'Unknown error');
-    throw new Error(`API ${res.status}: ${text}`);
+  if (!res.ok) {
+    const responseText = await res.text().catch(() => '');
+    console.error('[SparkFlow API request failed]', {
+      method: options?.method || 'GET',
+      path,
+      status: res.status,
+      response: responseText,
+    });
+    throw new ApiError(res.status, parseApiServerMessage(responseText));
   }
 
   return res;

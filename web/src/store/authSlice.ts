@@ -7,6 +7,7 @@ import { useCoursePreferences } from './coursePreferences';
 import { defaultNavVisibility, isToggleableNavTab, migrateNavigationId, toggleableNavTabs } from '../navigation';
 import { normalizeNickname, validateNickname, type AuthMethod } from '../auth/credentials';
 import { authErrorMessage } from '../auth/errors';
+import { apiErrorContext } from '../api/errors';
 
 const PROFILE_STORAGE_PREFIX = 'sparkflow.authProfile.v2';
 
@@ -195,7 +196,7 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
         set({ loginError: null });
         return true;
       } catch (error) {
-        set({ loginError: authErrorMessage(error instanceof Error ? error.message : '', method) });
+        set({ loginError: authErrorMessage(apiErrorContext(error), method) });
         return false;
       }
     },
@@ -241,7 +242,7 @@ export const createAuthSlice: StateCreator<AppState, [], [], AuthSlice> = (set, 
         set({ registrationError: null, isRegistering: false });
         return true;
       } catch (error) {
-        set({ registrationError: authErrorMessage(error instanceof Error ? error.message : '', method) });
+        set({ registrationError: authErrorMessage(apiErrorContext(error), method) });
         return false;
       } finally {
         set({ registrationPending: false });

@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { SchoolImport } from '../api/courseNative';
+import { courseImportErrorMessage } from '../api/errors';
 import {
   fetchScheduleImport,
   importScheduleBackup,
@@ -477,9 +478,9 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     setStep(3);
     try {
       setServerPreview(await previewScheduleImport(importRequest(nextPreview)));
-    } catch {
+    } catch (error) {
       setServerPreview(null);
-      throw new Error('本地预览已生成，但重复与冲突检查失败；请检查网络后返回重试');
+      throw new Error(courseImportErrorMessage(error, 'preview'), { cause: error });
     }
   };
 
@@ -512,7 +513,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
         if (recovered.status !== 'applied' || !recovered.result) throw error;
         result = { ...recovered.result, replayed: true };
       } catch {
-        throw error;
+        throw new Error(courseImportErrorMessage(error, 'import'), { cause: error });
       }
     }
     await useAppStore.getState().loadSemesters();
