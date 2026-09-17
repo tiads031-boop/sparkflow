@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-17 | **代码基线**：`master@a1fe22c6`
+> **最后更新**：2026-09-18 | **代码基线**：`master@8e7e0700`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,15 +8,15 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | ✅ 仓库收口 → ✅ Phase 12 服务端安全代码/CI → 生产 migration + Web/Android 真实验收 → 平台治理 → Phase 14 收口 |
-| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0 | V2 幂等/事务/重复冲突代码已具备；当前转入腾讯云 migration、真实 PostgreSQL 与 Web/Android 验收 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | ✅ 仓库/CI 安全门禁 → **Issue #31 腾讯云 + Web/Android 生产验收** → 平台治理 → Phase 14 收口 |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、真实 PG replay E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
 ## 下一产品批次
 
 | 文件 | Phase | 状态 | 启动条件 |
 |---|---|---|---|
-| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | ⬜ 方案已确认，未实施 | Phase 12 真实导入闭环完成，且 Phase 14 无阻断级回归后启动 M1：Capture → Review → Task；AI Insight 放 M2 |
+| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | ⬜ 方案已确认，未实施 | Phase 12 生产真实导入闭环完成，且 Phase 14 无阻断级回归后启动 M1：Capture → Review → Task；AI Insight 放 M2 |
 
 ## 候选方案（已完成设计、未排期实施）
 
@@ -27,37 +27,53 @@
 
 ## 仓库与近期里程碑
 
-| 项目 | 最终状态 | 后续去向 |
+| 项目 | 状态 | 结果 / 后续 |
 |---|---|---|
 | PR #23 Study Mode proposal | ✅ 已关闭 | 被已合并的 PR #25 与 `docs/study-mode/` 替代 |
 | PR #24 Course linked tasks | ✅ 已合并 | `fad1a619`；课程任务统一进入共享 Task Store |
 | PR #14 Timeline V2 | ✅ 旧 PR 已关闭 | 剩余 M3 要求迁移到 Issue #26，从最新 master 重做 |
-| PR #28 Phase 12 safety tests | ✅ CI 成功并已合并 | `a1fe22c6`；补齐处理中、并发竞争、回滚、用户范围查询等安全证据 |
+| PR #28 Phase 12 safety tests | ✅ 已合并 | `a1fe22c6`；补齐处理中、并发竞争、回滚、用户范围查询等安全证据 |
+| PR #29 PostgreSQL migration CI | ✅ 已合并 | `526b234e`；全新 PostgreSQL 16 可执行完整 16 migrations 且状态一致 |
+| PR #30 PostgreSQL import replay E2E | ✅ 已合并 | `2ffbf448`；真实 Prisma/PG 导入 + 同 requestId replay 最终仅一份 batch/course/event |
+| PR #32 API build SHA | ✅ 已合并 | `5158bad1`；health / Docker / 部署手册建立生产 commit 可追溯契约 |
+| PR #33 Capacitor CORS | ✅ 已合并 | `38f6cdbc`；显式允许 `https://localhost` / `capacitor://localhost`，修复 Android 登录代码侧高概率分叉 |
+| PR #34 Android release gate | ✅ 已合并 | `8e7e0700`；生产 API 双重校验、commit 命名、SHA-256、GitHub prerelease 自动发布 |
 
 ## 活跃执行 Issue
 
 | Issue | 范围 | 优先级/时机 |
 |---|---|---|
-| #26 Phase 14 M3 Timeline V2 reconciliation | 保留 Gantt 的前提下，从最新 master 重做 Month/Week/Day Timeline 与真实设备验收 | Phase 12 主线完成/稳定后进入 Phase 14 收口 |
+| #31 Phase 12 production acceptance | 腾讯云 buildSha/migrations、生产 API、真实 Web/Android 教务导入、Planner、失败/重试路径 | **当前唯一 P0 主线** |
+| #26 Phase 14 M3 Timeline V2 reconciliation | 保留 Gantt 的前提下，从最新 master 重做 Month/Week/Day Timeline 与真实设备验收 | Issue #31 关闭/稳定后进入 Phase 14 收口 |
 
 ## Phase 12 当前事实
 
-已实现并通过 CI 证实：
+### 已由代码/CI证实
 
 - V2 `requestId` / payload hash。
-- stable course fingerprint。
-- duplicate / conflict preview。
-- skip / keep duplicate policy。
-- `Serializable` Prisma transaction。
-- `CourseImportBatch` 结果查询和成功 replay。
-- `(userId, requestId)` 查询隔离与并发竞争/回滚相关单元测试。
+- stable course fingerprint、duplicate / conflict preview、skip / keep policy。
+- `Serializable` Prisma transaction 与 `CourseImportBatch` 结果查询 / replay。
+- `(userId, requestId)` 查询隔离、并发竞争恢复、回滚错误传播单元测试。
+- fresh PostgreSQL 16 完整 migration chain 成功。
+- 真实 Prisma/PostgreSQL：首次导入 + 相同 requestId replay 不重复写入。
+- API 自托管镜像支持 `BUILD_SHA`，health 可回显部署 commit。
+- Android Capacitor Origin 已加入 API CORS allowlist。
+- Android APK CI 会验证 production API，生成 commit-stamped APK，并发布 GitHub prerelease。
 
-仍未关闭：
+### 仍未关闭
 
-- 腾讯云生产库 migration 是否已执行。
-- 真实 PostgreSQL 并发、断连/超时、事务回滚验收。
-- Web / Android 真实学校导入与重复提交验收。
-- Android 登录、API 地址、TLS / 网络策略生产回归。
+- 腾讯云当前运行镜像的 `buildSha` 和生产库 migration 状态。
+- Web 真实学校导入、重复提交与未知结果恢复。
+- Android 最新 Release 的真机登录、Session、SchoolImport/文件导入与窄屏交互。
+- Planner 生产 Preview → Apply → Undo。
+- 更强真实 PG 并发 / 事务失败 / 断连 E2E（P1 补强）。
+
+## 平台 / 发布状态
+
+- Vercel 连接当前只发现 `sparkflow031` 一个真实项目；旧 `sparkflow` / `sparkflow-psi1` 项目本体已不在项目列表。
+- GitHub 中旧 Vercel status context 仍可能残留；同时 Hobby `build-rate-limit` 会制造部署失败信号。
+- Android 最新自动 Release：`android-8e7e0700f894`，资产 `sparkflow-8e7e0700f894-debug.apk`。
+- `/health` 200 只说明进程存活；只有带明确 `buildSha` 且真实业务路径通过，才算生产证据。
 
 ## 冻结 / 待重估
 
@@ -65,14 +81,14 @@
 |---|---|---|---|
 | [phase09-course-module.md](phase09-course-module.md) | Course 深化、课程任务、课表与事件追踪 | ⚠️ 大量已覆盖 | 剩余项需真实需求后拆新方案 |
 | [phase10-pending-features.md](phase10-pending-features.md) | 历史待办收束 | ⚠️ 逐项重估 | md 协议已取消；认证已完成；“灵感转任务”由 Phase 15 接管，其余 P2 |
-| [p0-phase12-execution.md](p0-phase12-execution.md) | 旧 P0/Phase 12 执行清单 | ⚠️ 被替代 | 旧 Render/Supabase 基线仅作历史参考；执行以 NEXT + Phase 12 为准 |
+| [p0-phase12-execution.md](p0-phase12-execution.md) | 旧 P0/Phase 12 执行清单 | ⚠️ 被替代 | 旧 Render/Supabase 基线仅作历史参考；执行以 NEXT + Phase 12 + Issue #31 为准 |
 | [course-schedule-enhancements.md](course-schedule-enhancements.md) | 课程表功能完善记录 | ⚠️ 实现记录 | 已实现能力的补充说明；未完成项并入 Phase 12/14，不单独推进 |
 
 ## 归档
 
 | 文件 | Phase | 简述 |
 |---|---|---|
-| [../archive/phase11-auth-registration-onboarding.md](../archive/phase11-auth-registration-onboarding.md) | 11 | 早期账户/问候页实现；生产认证后来被腾讯云自建认证替代 |
+| [../archive/phase11-auth-registration-onboarding.md](../archive/phase11-auth-registration-onboarding.md) | 11 | 早期账户/Onboarding 历史方案；生产认证后来被腾讯云自建认证替代 |
 | [../archive/phase08-capacitor-setup.md](../archive/phase08-capacitor-setup.md) | 08 | Capacitor Android APK 打包与联调 |
 | [../archive/phase08-google-calendar-sync.md](../archive/phase08-google-calendar-sync.md) | 08 | Google Calendar 双向同步架构（历史部署描述） |
 | [../archive/2026-05-29-improvement-plan.md](../archive/2026-05-29-improvement-plan.md) | — | 2026-05-29 改进与历史设计决策 |
@@ -81,7 +97,7 @@
 
 ## 状态口径
 
-- ✅ 代码/仓库状态已确认；涉及功能完成时仍需有对应验收证据。
+- ✅ 代码/仓库状态已确认；涉及功能完成时仍需对应层级的验收证据。
 - 🚧 表示已有实现或正在推进，但仍有明确未关闭项。
 - ⬜ 表示方案存在、尚未实施；若仅 M0 文档/设计完成，会明确写出。
 - ⚠️ 表示文档保留，但不得直接按旧基线继续开发。
@@ -89,8 +105,8 @@
 
 ## 管理规则
 
-1. 新的近期动作先进入 `NEXT.md`，再链接到对应 Phase 方案。
-2. 已完成方案移至 `docs/archive/` 并修正 BLUEPRINT、INDEX 与相互链接。
-3. 架构迁移后，旧方案保留历史决策，但必须明确“已被替代”，不得继续写成生产现状。
-4. 开放 PR 若落后 master，必须先做能力对账；禁止仅因旧 PR 曾通过 CI 就直接合并。
-5. 每次合并、生产迁移或真实设备验收后同步更新 NEXT、相关 Phase 和 BLUEPRINT。
+1. 新的近期动作先进入 `NEXT.md`，再链接到对应 Phase / Issue。
+2. 架构迁移后，旧方案保留历史决策，但必须明确“已被替代”，不得继续写成生产现状。
+3. 开放 PR 若落后 master，必须先做能力对账；禁止仅因旧 PR 曾通过 CI 就直接合并。
+4. “代码存在”“CI 成功”“生产可用”必须使用不同状态口径。
+5. 每次合并、生产迁移或真实设备验收后同步更新 NEXT、相关 Phase、INDEX 和 BLUEPRINT。

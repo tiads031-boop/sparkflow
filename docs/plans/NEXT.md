@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-17 | **代码基线**：`master@a1fe22c6`
+> **最后更新**：2026-09-18 | **代码基线**：`master@8e7e0700`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -9,90 +9,115 @@
 | 范围 | 已确认事实 |
 |---|---|
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
-| API | `https://api.fish-life.cc.cd`，Nginx 反向代理至 NestJS；健康接口可用，但健康 200 不等于业务验收完成 |
-| Web | Vercel 主项目 `sparkflow031`，生产域名 `fish-life.cc.cd` |
-| GitHub | `master@a1fe22c6`；当前无开放 PR |
-| 已收口 PR | #23 已被 #25 替代并关闭；#24 已合并；#14 已关闭并迁移到 Issue #26；#28 Phase 12 安全测试已通过 CI 并合并 |
-| 部署噪声 | 旧 Vercel 项目仍制造状态噪声；PR #28 的 Vercel 状态还出现 build-rate-limit，GitHub Web/API CI 均成功 |
+| API | `https://api.fish-life.cc.cd`，Nginx 反向代理至 NestJS；`/api/health` 已具备 `buildSha` 契约，但腾讯云当前实际运行 commit 仍需部署后核验 |
+| Web | Vercel 主项目 `sparkflow031`，生产域名 `fish-life.cc.cd`；Vercel 当前账户仅保留该项目，旧 status context 仍可能残留 |
+| GitHub | `master@8e7e0700`；PR #28–#34 已全部合并；Issue #31 承接 Phase 12 生产验收 |
+| Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、真实 Prisma/PostgreSQL 导入重放 E2E 已纳入 CI |
+| Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
+| 最新 APK | Release `android-8e7e0700f894`；`sparkflow-8e7e0700f894-debug.apk`；生产 API 地址在构建前后均已校验 |
+| 部署噪声 | Vercel Hobby build-rate-limit 仍可能导致部署状态失败；不得把平台额度失败等同于代码 CI 失败 |
 
 ## 近期总原则
 
-1. **仓库旧分支已收口，Phase 12 服务端安全代码已经具备，当前门槛转为生产 migration 与真实导入验收。**
-2. **没有真实数据库/真实账号证据前，不把 Phase 12 宣布为生产完成。**
-3. **Phase 14 不重复已经进入 master 的 Today、四象限、甘特、Planner、Focus；M3 余项由 Issue #26 承接。**
-4. **Phase 15 先做 M1（Capture → Review → Task），AI Insight 放 M2。**
-5. **Study Mode 已有方案但暂不抢占主线。**
-6. **Local Codex Bridge 保持 P2，不进入当前生产控制链。**
+1. **Phase 12 的服务端安全代码、全量 migration CI 和真实 PostgreSQL 基础幂等 E2E 已具备；当前唯一 P0 主线是 Issue #31 的腾讯云生产 + Web/Android 真机验收。**
+2. **没有腾讯云 migration、`buildSha`、真实账户和真机证据前，不把 Phase 12 宣布为生产完成。**
+3. **Android “Web 正常、App 无法登录”的代码侧高概率 CORS 分叉已修复，但必须用最新 Release 真机复测后才能关闭。**
+4. **Phase 14 不重复已经进入 master 的 Today、四象限、甘特、Planner、Focus；M3 余项由 Issue #26 承接。**
+5. **Phase 15 先做 M1（Capture → Review → Task），AI Insight 放 M2。**
+6. **Study Mode 已有方案但暂不抢占主线；Local Codex Bridge 保持 P2。**
 
 ---
 
-## 0. 仓库收口与冲突清理（P0）— ✅ 已完成
+## 0. 仓库收口与基础门禁（P0）— ✅ 已完成
 
-### PR #23 — Study Mode proposal
+### 旧 PR 收口
 
-- [x] PR #25 / `docs/study-mode/` 作为唯一 Study Mode 方案事实源。
-- [x] #23 已关闭，不再维护重复提案。
+- [x] PR #23 被 PR #25 / `docs/study-mode/` 替代并关闭。
+- [x] PR #24 已 squash 合并为 `fad1a619`，课程任务统一进入共享 Task Store。
+- [x] PR #14 已关闭；剩余 Timeline M3 要求迁移到 Issue #26，从最新 master 重做。
 
-### PR #24 — Course linked tasks
+### Phase 12 安全与数据库门禁
 
-- [x] 已 squash 合并为 `fad1a619`。
-- [x] CourseNote → Task 统一走共享 Task Store；课程关联、标签、状态与删除能力进入主线。
-- [x] 转换成功后删除原 CourseNote，避免重复转换。
-- [x] 主 Vercel 项目 `sparkflow031` 合并后部署成功。
+- [x] PR #28：处理中不可重放、并发竞争恢复、回滚失败传播、`(userId, requestId)` 查询隔离等安全测试。
+- [x] PR #29：CI 启动全新 PostgreSQL 16，执行全部 Prisma migrations，并验证 `prisma migrate status`。
+- [x] PR #30：真实 Prisma/PostgreSQL 执行 V2 导入并重复相同 `requestId`；数据库最终仅保留一份 batch / course / course event。
+- [x] PR #32：`/api/health` 暴露 `buildSha`；Docker 支持 `BUILD_SHA`；部署手册要求 Git HEAD = 容器 BUILD_SHA = 公网 health buildSha。
+- [x] PR #33：后端 CORS 始终显式允许受控 Capacitor Origin，同时保留配置的 Web Origin。
+- [x] PR #34：Android CI 校验生产 API 地址、校验构建产物、用 commit SHA 命名 APK，并自动发布 GitHub prerelease。
 
-### PR #14 — Timeline V2
-
-- [x] 旧实现与后续甘特 / App / ScheduleEditor 改动发生重叠，已关闭而非强行合并。
-- [x] 剩余 M3 要求迁移到 Issue #26，从最新 master 重新实现。
-- [x] 保留 360px、Android 手势/滚动、Google/本地/课程一致性、DST/跨时区/日期边界验收要求。
-
-**完成门槛已满足：旧 PR 不再阻塞主线。**
+**仓库/CI 侧安全基线已经收口，后续不要重复实现同一套幂等、migration 或 APK 可追溯机制。**
 
 ---
 
-## 1. Phase 12：服务端安全导入（P0）— 🚧 代码闭环已具备，待生产验收
+## 1. Phase 12：腾讯云生产验收（P0，当前唯一主线）
 
-当前 master 已有 V2 教务导入安全链路，不再重复实现：
+以 Issue #31 为执行清单。
 
-- [x] 支持选择已有学期，新建/已有学期路径分离，不静默覆盖历史课程。
-- [x] V2 envelope 包含 `requestId`、payload hash、目标学期、duplicate policy、source 与结果摘要。
-- [x] 建立稳定排课 fingerprint、重复检测、时间冲突预览。
-- [x] “跳过重复（默认）/保留副本”贯穿向导、预览和服务端导入。
-- [x] Prisma `Serializable` Transaction 原子写入；失败回滚。
-- [x] 提交异常后前端按 `requestId` 查询结果，服务端支持成功重放并拒绝同 requestId 不同 payload。
-- [x] PR #28 补齐安全测试：处理中不可重放、并发竞争恢复、回滚失败传播、`(userId, requestId)` 结果隔离；Web/API CI 成功。
-- [ ] 在腾讯云生产库确认 `20260915120000_add_course_import_idempotency` migration 已执行。
-- [ ] 用真实 PostgreSQL 做重复重放、并发、超时/断连、事务回滚的集成验收，而不只依赖 mock/Jest。
-- [ ] 核验 `SchedulePlan` migration 已在生产执行，并用真实账户走通 Planner Preview → Apply → Undo。
+### A. 部署版本与 migration
 
-**当前完成口径**：服务端功能与 CI 级安全证据已具备；生产数据库 migration 和真实 I/O 场景仍是 P0 门禁。
+- [ ] 从最新 `master` 构建腾讯云 API 镜像，并传入 `--build-arg BUILD_SHA=<git HEAD>`。
+- [ ] 确认 `/api/health.buildSha` 与服务器仓库 `git rev-parse HEAD`、容器 `BUILD_SHA` 完全一致。
+- [ ] 在腾讯云生产库运行/核验 `prisma migrate status`。
+- [ ] 确认 `20260914050000_add_schedule_plans` 已执行。
+- [ ] 确认 `20260915120000_add_course_import_idempotency` 已执行。
+- [ ] 确认 `course_import_batches` 与课程来源/import 字段真实存在。
+
+### B. 生产 API 冒烟
+
+使用正常测试账号，不触碰其他用户数据：
+
+- [ ] 登录 / Session 恢复。
+- [ ] semesters、courses、tasks、schedule/calendar 读取。
+- [ ] Planner Preview → Apply → Undo，使用可删除的测试任务。
+- [ ] 核对服务端日志无 migration / auth / CORS 异常。
+
+### C. Web 真实教务导入
+
+- [ ] 真实学校路径：获取 → 返回 → 预览 → 导入。
+- [ ] 服务端重复/冲突预览可见。
+- [ ] 同一 `requestId` 重放不产生副本。
+- [ ] 已有学期路径不静默覆盖无关历史课程。
+- [ ] 未知结果/超时后先按 `requestId` 查询，再决定是否重试。
+
+### D. Android 真机
+
+使用最新 GitHub Release APK：
+
+- [ ] 安装 `sparkflow-8e7e0700f894-debug.apk` 或之后同机制生成的更新包。
+- [ ] 登录成功；确认此前 CORS 分叉已消失。
+- [ ] Session 刷新/重启后恢复。
+- [ ] SchoolImport / 文件降级 → 返回 SparkFlow → 预览 → 导入。
+- [ ] 重复提交仍然幂等。
+- [ ] 360px 等效窄屏、safe-area、软键盘、文件选择可用。
+
+**完成门槛**：腾讯云 migration + buildSha 可追溯、Web 真实导入、Android 真机登录/导入、Planner 生产闭环全部通过；失败/重试后无重复或半成品数据。
 
 ---
 
-## 2. Phase 12：真实导入与生产验收（P0/P1，当前执行重点）
+## 2. Phase 12：仍需补强但不阻塞首轮生产验收的数据库场景（P1）
 
-当前已有 JISU 夏/冬作息模板、分段课程元数据、结构化作息编辑和 V2 导入向导，但这不等于真实导入闭环已经完成。
+当前已有真实 PostgreSQL 的 migration 与“首次导入 + 相同 requestId replay”E2E；以下更复杂场景仍可继续补：
 
-- [ ] Web 用真实学校数据走通：获取 → 返回 → 预览重复/冲突 → 导入 → 再次提交确认幂等。
-- [ ] Android 真机走通：SchoolImport / 文件降级 → 返回应用 → 预览 → 导入。
-- [ ] 校验上午/下午/晚间分段作息与不同季节模板。
-- [ ] 360px、软键盘、safe-area、文件选择、错误定位和成功后切换目标学期。
-- [ ] 生产 Auth、semesters、courses、schedule、tasks 冒烟与日志检查。
-- [ ] 登录态、跨设备 session、Android API 地址/证书/网络策略纳入回归，避免 APK 出现“Web 正常、App 无法登录”的分叉。
+- [ ] 两个真实数据库连接同时竞争同一 requestId 的并发 E2E。
+- [ ] 数据库事务中途失败后的真实 rollback E2E。
+- [ ] 客户端断连/超时但数据库已提交的端到端恢复测试。
+- [ ] 两个用户的真实 PostgreSQL import-result 隔离 E2E。
 
-完成门槛：Web/Android 各一条真实路径通过；重复提交不产生副本；失败无半成品；导入结果可查询和验证。
+这些不能替代 Issue #31 的生产验收，但可继续提高回归防护等级。
 
 ---
 
-## 3. 平台与发布治理（P0/P1，可与 Phase 12 并行）
+## 3. 平台与发布治理（P0/P1，可与生产验收并行）
 
-- [ ] 确认 `sparkflow031` 是唯一生产 Web 项目，Root Directory=`web`、域名和环境变量正确。
-- [ ] 归档或断开旧项目 `sparkflow`、`sparkflow-psi1` 的 Git 集成，停止重复部署红灯。
-- [ ] 处理 Vercel build-rate-limit 对有效 Preview/Production 验收的影响，避免把额度失败误判为代码失败。
-- [ ] 确认 GitHub 必需检查只依赖有效 Web/API CI 与主项目部署。
-- [ ] Release/APK 发布流程统一：Android 构建必须对应明确 commit/tag，并保留生产 API 配置核对。
+- [x] Vercel 账户实际项目列表已确认只剩 `sparkflow031`；旧 `sparkflow` / `sparkflow-psi1` 项目本体已不存在。
+- [x] Android workflow 会核验 `.env.production` 指向 `https://api.fish-life.cc.cd/api`。
+- [x] Android workflow 会在 Vite build 后确认生产 API 真正嵌入 bundle。
+- [x] APK 文件名、Actions artifact 和 GitHub Release 均绑定 commit SHA；Release 中记录 APK SHA-256。
+- [ ] 继续区分/清理 GitHub 中残留的旧 Vercel status context，避免误导 PR 判断。
+- [ ] 处理 Vercel Hobby `build-rate-limit`，恢复稳定 Preview/Production 部署信号。
+- [ ] 确认 GitHub 必需检查只依赖有效 Web/API CI 与当前有效部署信号。
 
-完成门槛：后续 PR 的状态可区分代码 CI、主项目部署与平台额度问题；Web 与 APK 可追溯到同一代码基线。
+完成门槛：代码 CI、Vercel 部署状态、Android Release 均能明确追溯且互不混淆。
 
 ---
 
@@ -116,7 +141,7 @@
 
 ## 5. Phase 15 M1：Capture → Review → Task（P1，下一产品批次）
 
-启动条件：Phase 12 的数据安全/真实导入闭环完成，Phase 14 没有阻断级回归。
+启动条件：Phase 12 的生产真实导入闭环完成，Phase 14 没有阻断级回归。
 
 - [ ] 将前端旧 `Spark` 主链路迁移到服务端 `Inspiration` 事实源。
 - [ ] `sourceUrl` 改为 nullable，支持 `manual` 随手记。
@@ -182,9 +207,10 @@
 ## 每批次通用门禁
 
 1. 从最新 `master` 建短期分支，避免长期叠加 PR。
-2. Web/API 对应 build 与 tests 通过；`git diff --check` 通过。
+2. Web/API 对应 build 与 tests 通过；数据库相关改动同时通过 fresh PostgreSQL migration + targeted E2E。
 3. 数据库 migration 必须 additive、可备份、可验证，不与未经合并的 migration 并行冲突。
-4. Preview 验收后再合并；合并后检查生产健康和关键业务路径。
-5. Android 相关改动必须至少做一次真机登录/网络/导航回归。
-6. 文档状态只写已证实事实：开放 PR 不写已完成，健康接口不替代真实数据读写验收。
-7. 每次合并、生产迁移或真实设备验收后，同步更新 `NEXT.md`、相关 Phase 和 `PROJECT_BLUEPRINT.md`。
+4. API 自托管镜像必须带 `BUILD_SHA`；生产验收记录必须能追溯到明确 commit。
+5. Android 构建必须通过生产 API gate，并发布带 commit 的 APK；Android 相关功能仍必须至少做一次真机登录/网络/导航回归。
+6. Preview / CI / health 200 都不等于生产业务验收完成。
+7. 文档状态只写已证实事实：代码存在、CI 通过、生产可用分别记录。
+8. 每次合并、生产迁移或真实设备验收后，同步更新 `NEXT.md`、相关 Phase、`INDEX.md` 与 `PROJECT_BLUEPRINT.md`。
