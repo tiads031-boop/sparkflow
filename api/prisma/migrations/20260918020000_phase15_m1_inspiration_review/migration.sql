@@ -8,6 +8,13 @@ ALTER TABLE "inspirations"
   ADD COLUMN "lastReviewedAt" TIMESTAMP(3),
   ADD COLUMN "reviewCount" INTEGER NOT NULL DEFAULT 0;
 
+-- Existing active records should participate in the same review loop instead of
+-- becoming unreachable historical data. Old records naturally become due when
+-- their original creation date is more than one day ago.
+UPDATE "inspirations"
+SET "nextReviewAt" = "createdAt" + INTERVAL '1 day'
+WHERE "status" = 'active' AND "nextReviewAt" IS NULL;
+
 CREATE TABLE "inspiration_reflections" (
   "id" TEXT NOT NULL,
   "userId" TEXT NOT NULL,
