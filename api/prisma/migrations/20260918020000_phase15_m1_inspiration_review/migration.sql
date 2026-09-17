@@ -41,3 +41,13 @@ ALTER TABLE "inspiration_reflections"
 ALTER TABLE "inspiration_reflections"
   ADD CONSTRAINT "inspiration_reflections_inspirationId_fkey"
   FOREIGN KEY ("inspirationId") REFERENCES "inspirations"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Preserve the repository's existing API-only data boundary for every new
+-- application table. Browser roles must not bypass the authenticated NestJS API.
+ALTER TABLE public.inspiration_reflections ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.inspiration_reflections FROM anon, authenticated;
+DROP POLICY IF EXISTS deny_direct_client_access ON public.inspiration_reflections;
+CREATE POLICY deny_direct_client_access
+  ON public.inspiration_reflections
+  AS RESTRICTIVE FOR ALL TO anon, authenticated
+  USING (false) WITH CHECK (false);
