@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-15 | **代码基线**：`master@4d9ebe1`
+> **最后更新**：2026-09-17 | **代码基线**：`master@27f64066`
 >
 > 近期顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,22 +8,23 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | PR #14 验收合并 → 重复 Vercel 治理 → Phase 12 安全导入/真实验收 |
-| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 | 下一开发批次为服务端 requestId/指纹/事务/结果查询；随后 Web/Android 真实导入 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | 当前 P0/真实验收 → Phase 14 收口 → Phase 15 M1 |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 | 继续完成服务端安全导入与 Web/Android 真实路径验收 |
 
 ## 后续队列
 
 | 文件 | Phase | 状态 | 启动条件 |
 |---|---|---|---|
-| [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | 14 | 🚧 M3 在 PR #14；M4/M5 部分完成 | 先合并 M3 并完成 Phase 12 数据安全闭环，再继续意图解析、顺延、Daily Receipt、深色与 Widget |
-| [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 | ⬜ 方案完成，未实施 | Phase 12 与 Phase 14 主线稳定后，在 Windows/macOS 受支持环境启动 |
+| [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | 14 | 🚧 部分完成 | 继续完成剩余自然语言意图、顺延、Daily Receipt、深色与 Widget，并以真实设备验收为准 |
+| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | ⬜ 方案已确认，未实施 | 当前 P0 数据安全 / 真实导入闭环完成后先启动 M1：Capture → Review → Task；AI Insight 放 M2 |
+| [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后，在 Windows/macOS 受支持环境启动 |
 
 ## 冻结 / 待重估
 
 | 文件 | 原范围 | 状态 | 处理方式 |
 |---|---|---|---|
 | [phase09-course-module.md](phase09-course-module.md) | Course 深化、课程任务、课表与事件追踪 | ⚠️ 大量已覆盖 | 已按当前代码核对；剩余项需真实需求后拆新方案 |
-| [phase10-pending-features.md](phase10-pending-features.md) | 历史待办收束 | ⚠️ 逐项重估 | md 协议已取消；认证已完成；其余 P2 |
+| [phase10-pending-features.md](phase10-pending-features.md) | 历史待办收束 | ⚠️ 逐项重估 | md 协议已取消；认证已完成；“灵感转任务”已由 Phase 15 接管，其余 P2 |
 | [p0-phase12-execution.md](p0-phase12-execution.md) | 旧 P0/Phase 12 执行清单 | ⚠️ 被替代 | 旧 Render/Supabase 基线仅作历史参考；执行以 NEXT + Phase 12 为准 |
 | [course-schedule-enhancements.md](course-schedule-enhancements.md) | 课程表功能完善记录 | ⚠️ 实现记录 | 已实现能力的补充说明；未完成项已并入 Phase 12/14，不单独推进 |
 
