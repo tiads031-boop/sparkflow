@@ -36,13 +36,23 @@ jobs:
           cache: gradle
       - run: npm ci
       - run: npm test -- --run
+      - name: Verify Android production API target
+        run: grep -Fxq 'VITE_API_BASE_URL=https://api.fish-life.cc.cd/api' .env.production
       - run: npm run build
+      - name: Verify production API is embedded in bundle
+        run: grep -R -Fq 'https://api.fish-life.cc.cd/api' dist
       - run: npx cap sync android
       - run: chmod +x android/gradlew
       - run: cd android && ./gradlew assembleDebug --no-daemon
+      - name: Stamp APK with commit SHA
+        run: |
+          SHORT_SHA="${GITHUB_SHA::12}"
+          mv android/app/build/outputs/apk/debug/app-debug.apk \
+            "android/app/build/outputs/apk/debug/sparkflow-${SHORT_SHA}-debug.apk"
+          sha256sum android/app/build/outputs/apk/debug/sparkflow-*-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: sparkflow-android-debug
-          path: web/android/app/build/outputs/apk/debug/app-debug.apk
+          name: sparkflow-android-debug-${{ github.sha }}
+          path: web/android/app/build/outputs/apk/debug/sparkflow-*-debug.apk
           if-no-files-found: error
           retention-days: 14
