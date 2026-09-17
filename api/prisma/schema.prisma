@@ -20,6 +20,7 @@ model User {
 
   inspirations           Inspiration[]
   inspirationReflections InspirationReflection[]
+  insights               Insight[]
   tasks                  Task[]
   pomodoroSessions       PomodoroSession[]
   calendarEvents         CalendarEvent[]
@@ -103,9 +104,10 @@ model Inspiration {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task        Task?
-  reflections InspirationReflection[]
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task         Task?
+  reflections  InspirationReflection[]
+  insightLinks InsightInspiration[]
 
   @@index([userId])
   @@index([status])
@@ -127,6 +129,37 @@ model InspirationReflection {
   @@index([userId])
   @@index([inspirationId, createdAt])
   @@map("inspiration_reflections")
+}
+
+model Insight {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String   @db.Text
+  type      String
+  status    String   @default("active")
+  aiModel   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sources InsightInspiration[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@map("insights")
+}
+
+model InsightInspiration {
+  insightId     String
+  inspirationId String
+
+  insight     Insight     @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  inspiration Inspiration @relation(fields: [inspirationId], references: [id], onDelete: Cascade)
+
+  @@id([insightId, inspirationId])
+  @@index([inspirationId])
+  @@map("insight_inspirations")
 }
 
 model Task {

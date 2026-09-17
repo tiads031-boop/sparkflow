@@ -73,4 +73,30 @@ describe('InspirationsService Phase 15 M1', () => {
     expect(result.title).toBe('整理 SparkFlow 的可逆自动化原则');
     expect(result.tags).toEqual(['SparkFlow']);
   });
+
+  it('removes an affected insight when deleting its source would leave fewer than two sources', async () => {
+    const findFirst = jest.fn().mockResolvedValue({ id: 'inspiration-1' });
+    const deleteMany = jest.fn().mockResolvedValue({ count: 1 });
+    const tx = {
+      inspiration: {
+        delete: jest.fn().mockResolvedValue({ id: 'inspiration-1' }),
+      },
+      insightInspiration: {
+        findMany: jest.fn().mockResolvedValue([{ insightId: 'insight-1' }]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+      insight: { deleteMany },
+    };
+    const prisma = {
+      inspiration: { findFirst },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    };
+    const service = new InspirationsService(prisma as never);
+
+    await service.remove('inspiration-1', 'user-1');
+
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ['insight-1'] }, userId: 'user-1' },
+    });
+  });
 });

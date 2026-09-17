@@ -111,7 +111,26 @@ export class InspirationsService {
       select: { id: true },
     });
     if (!existing) throw new NotFoundException('Inspiration not found');
-    return this.prisma.inspiration.delete({ where: { id } });
+
+    return this.prisma.$transaction(async (tx) => {
+      const affectedLinks = await tx.insightInspiration.findMany({
+        where: { inspirationId: id },
+        select: { insightId: true },
+      });
+      const deleted = await tx.inspiration.delete({ where: { id } });
+
+      const unsupportedInsightIds: string[] = [];
+      for (const { insightId } of affectedLinks) {
+        const remainingSources = await tx.insightInspiration.count({ where: { insightId } });
+        if (remainingSources < 2) unsupportedInsightIds.push(insightId);
+      }
+      if (unsupportedInsightIds.length > 0) {
+        await tx.insight.deleteMany({
+          where: { id: { in: unsupportedInsightIds }, userId },
+        });
+      }
+      return deleted;
+    });
   }
 
   async getReviewQueue(userId: string, requestedLimit?: number) {
