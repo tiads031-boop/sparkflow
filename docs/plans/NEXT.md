@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-17 | **事实基线**：`master@9a316060`
+> **最后更新**：2026-09-17 | **代码基线**：`master@fad1a619`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -11,51 +11,47 @@
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，Nginx 反向代理至 NestJS；健康接口可用，但健康 200 不等于业务验收完成 |
 | Web | Vercel 主项目 `sparkflow031`，生产域名 `fish-life.cc.cd` |
-| GitHub | `master@9a316060`；Phase 15 与 Study Mode 方案已进入 master |
-| 当前开放 PR | #14 Timeline V2（旧基线、需重新对齐 master）；#24 Course linked tasks；#23 Study Mode proposal 已被 #25 替代，应关闭 |
+| GitHub | `master@fad1a619`；当前无开放 PR |
+| 已收口 PR | #23 已被 #25 替代并关闭；#24 已合并；#14 已关闭并把剩余要求迁移到 Issue #26 |
 | 部署噪声 | 旧 Vercel 项目 `sparkflow`、`sparkflow-psi1` 仍会产生失败检查；`sparkflow031` 才是主项目 |
 
 ## 近期总原则
 
-1. **先收口旧分支和生产风险，再继续扩产品面。**
-2. **Phase 12 的数据安全与真实导入是当前最高优先级。**
-3. **Phase 14 只做剩余核心闭环，不重复已经进入 master 的 UI/任务能力。**
+1. **仓库旧分支已收口，下一主线切换到 Phase 12 数据安全。**
+2. **Phase 12 的幂等、事务、重复/冲突与真实导入是当前最高优先级。**
+3. **Phase 14 不重复已经进入 master 的 Today、四象限、甘特、Planner、Focus；M3 余项由 Issue #26 承接。**
 4. **Phase 15 先做 M1（Capture → Review → Task），AI Insight 放 M2。**
-5. **Study Mode 已有方案但暂不抢占主线；启动前必须保证 Phase 12/14/15 主链路稳定。**
+5. **Study Mode 已有方案但暂不抢占主线。**
 6. **Local Codex Bridge 保持 P2，不进入当前生产控制链。**
 
 ---
 
-## 0. 仓库收口与冲突清理（P0，立即执行）
+## 0. 仓库收口与冲突清理（P0）— ✅ 已完成
 
 ### PR #23 — Study Mode proposal
 
-状态判断：已被已合并的 PR #25（更完整的 Study Mode 提案、路线图和设计资产）替代。
-
-- [x] 以 #25 / `docs/study-mode/` 为 Study Mode 唯一方案事实源。
-- [ ] 关闭 #23，避免后续误合并旧提案。
-
-### PR #14 — Timeline V2
-
-状态判断：PR 基于旧 master，当前已不可直接合并；不能再把“合并 #14”作为下一步前置条件。
-
-处理方式：
-
-- [ ] 对照当前 master 核对 #14 的 13 个改动文件。
-- [ ] 将“已经被后续 master 覆盖的能力”和“仍缺失的能力”拆开。
-- [ ] 仅保留仍缺失且可独立验收的 Timeline 能力；必要时新建短期分支重新实现，不强行 merge 旧 PR。
-- [ ] 保留原验收要求：360px、Android 手势/滚动、Google/本地/课程多来源一致性、DST/跨时区/日期边界。
-- [ ] 完成对账后关闭或替代 #14。
+- [x] PR #25 / `docs/study-mode/` 作为唯一 Study Mode 方案事实源。
+- [x] #23 已关闭，不再维护重复提案。
 
 ### PR #24 — Course linked tasks
 
-状态判断：可合并，Web/API 测试与 build 已通过；属于当前课程任务链路的修复，不应被长期悬挂。
+- [x] 已确认修复内容未进入原 master。
+- [x] 已 squash 合并为 `fad1a619`。
+- [x] CourseNote → Task 统一走共享 Task Store；课程关联、标签、状态与删除能力进入主线。
+- [x] 转换成功后删除原 CourseNote，避免重复转换。
+- [x] 主 Vercel 项目 `sparkflow031` 合并后部署成功。
 
-- [ ] 做一次当前 master 上的冲突/回归核对。
-- [ ] 确认 CourseNote → Task 后不会重复创建、关联信息可保留、待办立即可见。
-- [ ] 通过后合并并做生产冒烟。
+### PR #14 — Timeline V2
 
-完成门槛：#23 不再开放；#14 有明确“关闭/替代/重做”的结论；#24 不再处于长期悬挂状态。
+对账结论：旧实现仍有价值，但不能原样合并。
+
+- [x] 当前 master 仍保留旧 `CalendarView`，而 #14 的模块化 `components/timeline/` 尚未进入主线。
+- [x] 后续 master 已在 `CalendarView` 增加甘特图，并改动 `App.tsx`、`ScheduleEditor` 等重叠位置。
+- [x] 直接合并 #14 有覆盖后续能力的风险，因此已关闭旧 PR。
+- [x] 剩余 M3 要求迁移到 Issue #26，从最新 master 重新实现。
+- [x] 保留 360px、Android 手势/滚动、Google/本地/课程一致性、DST/跨时区/日期边界验收要求。
+
+**完成门槛已满足：当前无开放 PR，旧分支不再阻塞主线。**
 
 ---
 
@@ -107,7 +103,7 @@
 
 剩余范围：
 
-- [ ] M3 Timeline 剩余真实设备/边界验收（以 #14 对账结果为准）。
+- [ ] M3 Timeline V2 余项按 Issue #26 从最新 master 重新实现，并保留现有甘特能力。
 - [ ] M4 自然语言意图解析；确定性 Scheduler 继续作为唯一排程决策层。
 - [ ] M4 “帮我顺延”模式及生产/真机验收。
 - [ ] M5 Daily Receipt 与 PNG 分享。
