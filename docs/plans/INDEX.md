@@ -19,6 +19,12 @@
 | [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | ⬜ 方案已确认，未实施 | 当前 P0 数据安全 / 真实导入闭环完成后先启动 M1：Capture → Review → Task；AI Insight 放 M2 |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后，在 Windows/macOS 受支持环境启动 |
 
+## 候选方案（未排期）
+
+| 文件 | 范围 | 状态 | 说明 |
+|---|---|---|---|
+| [../study-mode/README.md](../study-mode/README.md) | 独立学习模式、学习文件夹、复习闭环、习惯与导出 | ⬜ 提案完成 | 复用 Today / Task / Calendar / Focus / Course；实施拆分见 [roadmap](../study-mode/roadmap.md) |
+
 ## 冻结 / 待重估
 
 | 文件 | 原范围 | 状态 | 处理方式 |
