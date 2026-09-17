@@ -26,9 +26,12 @@ test('parseTimeSlots normalizes common range connectors', () => {
   ]);
 });
 
-test('parseTimeSlots rejects duplicates and reversed ranges', () => {
-  assert.throws(() => parseTimeSlots('1 08:00-08:45\n1 09:00-09:45'), /不能重复/);
-  assert.throws(() => parseTimeSlots('1 09:00-08:45'), /节次格式/);
+test('parseTimeSlots reports duplicates and reversed ranges precisely', () => {
+  assert.throws(() => parseTimeSlots('1 08:00-08:45\n1 09:00-09:45'), /第 1 节重复/);
+  assert.throws(
+    () => parseTimeSlots('12 20:30-09:10'),
+    /第 12 节结束时间 09:10 必须晚于开始时间 20:30/,
+  );
 });
 
 test('requiredSectionNumbers returns unique sorted periods and ignores custom-time courses', () => {
