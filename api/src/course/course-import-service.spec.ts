@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { parseCourseImport } from './course-import';
 import { CourseService } from './course.service';
@@ -103,6 +103,13 @@ describe('course import service', () => {
         }),
       }),
     );
+    expect(prisma.$transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({
+        timeout: 30000,
+        isolationLevel: 'Serializable',
+      }),
+    );
   });
 
   it('returns an applied result without opening another transaction', async () => {
@@ -149,5 +156,133 @@ describe('course import service', () => {
       ),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('does not replay a batch that has not reached the applied state', async () => {
+    const prisma = {
+      courseImportBatch: {
+        findUnique: jest.fn().mockResolvedValue({
+          status: 'applying',
+          payloadHash: parseCourseImport(request()).payloadHash,
+          result: null,
+        }),
+      },
+      $transaction: jest.fn(),
+    };
+
+    await expect(
+      new CourseService(prisma as unknown as PrismaService).importSchedule(
+        'user-1',
+        request(),
+      ),
+    ).rejects.toThrow('导入仍在处理中，请先查询导入结果');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('recovers a committed competing import after a transaction race', async () => {
+    const applied = {
+      status: 'applied',
+      payloadHash: parseCourseImport(request()).payloadHash,
+      result: {
+        requestId: 'import-20260915-service',
+        targetSemesterId: 'semester-1',
+        courseCount: 1,
+        eventCount: 2,
+        skippedCount: 0,
+      },
+    };
+    const findUnique = jest
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(applied);
+    const prisma = {
+      courseImportBatch: { findUnique },
+      $transaction: jest.fn().mockRejectedValue(new Error('unique race')),
+    };
+
+    await expect(
+      new CourseService(prisma as unknown as PrismaService).importSchedule(
+        'user-1',
+        request(),
+      ),
+    ).resolves.toMatchObject({
+      requestId: 'import-20260915-service',
+      targetSemesterId: 'semester-1',
+      courseCount: 1,
+      replayed: true,
+    });
+    expect(findUnique).toHaveBeenNthCalledWith(1, {
+      where: {
+        userId_requestId: {
+          userId: 'user-1',
+          requestId: 'import-20260915-service',
+        },
+      },
+    });
+    expect(findUnique).toHaveBeenNthCalledWith(2, {
+      where: {
+        userId_requestId: {
+          userId: 'user-1',
+          requestId: 'import-20260915-service',
+        },
+      },
+    });
+  });
+
+  it('rethrows a transaction failure when no committed batch can be recovered', async () => {
+    const failure = new Error('transaction rolled back');
+    const prisma = {
+      courseImportBatch: {
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      $transaction: jest.fn().mockRejectedValue(failure),
+    };
+
+    await expect(
+      new CourseService(prisma as unknown as PrismaService).importSchedule(
+        'user-1',
+        request(),
+      ),
+    ).rejects.toBe(failure);
+  });
+
+  it('scopes import-result lookup by both user and request ID', async () => {
+    const findUnique = jest.fn().mockResolvedValue({
+      requestId: 'import-20260915-service',
+      status: 'applied',
+      payloadHash: 'hash',
+      targetSemesterId: 'semester-1',
+      result: { courseCount: 1, eventCount: 2 },
+      createdAt: new Date('2026-09-17T00:00:00Z'),
+      updatedAt: new Date('2026-09-17T00:00:01Z'),
+    });
+    const service = new CourseService({
+      courseImportBatch: { findUnique },
+    } as unknown as PrismaService);
+
+    await expect(
+      service.getScheduleImport('user-2', 'import-20260915-service'),
+    ).resolves.toMatchObject({
+      requestId: 'import-20260915-service',
+      status: 'applied',
+    });
+    expect(findUnique).toHaveBeenCalledWith({
+      where: {
+        userId_requestId: {
+          userId: 'user-2',
+          requestId: 'import-20260915-service',
+        },
+      },
+    });
+  });
+
+  it('does not expose an import result that is absent in the current user scope', async () => {
+    const service = new CourseService({
+      courseImportBatch: { findUnique: jest.fn().mockResolvedValue(null) },
+    } as unknown as PrismaService);
+
+    await expect(
+      service.getScheduleImport('user-2', 'import-owned-by-another-user'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
