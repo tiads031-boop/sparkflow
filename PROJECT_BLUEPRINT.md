@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-17  
-> **文档同步基线**：`master@73a71c09`
+> **代码同步基线**：`master@fad1a619`
 
 ---
 
@@ -11,7 +11,7 @@
 
 SparkFlow 是一个面向个人学习、工作与日常安排的智能效率系统。目标不是分别做“任务 App”“日历 App”或“笔记 App”，而是把 **记录、计划、排程、专注、复盘与学习** 串在同一条可追溯工作流中。
 
-当前已经形成的核心效率链路：
+当前核心效率链路：
 
 ```text
 今天
@@ -27,35 +27,19 @@ AI / Scheduler 安排
 完成
 ```
 
-接下来通过 Phase 15 补齐：
+Phase 15 继续补齐：
 
 ```text
-记录
-  ↓
-回顾
-  ↓
-洞察
-  ↓
-行动
-  ↓
-Planner / Timeline / Focus
+记录 → 回顾 → 洞察 → 行动 → Planner / Timeline / Focus
 ```
 
-Study Mode 作为建立在现有能力之上的学习工作区，后续补齐：
+Study Mode 作为建立在现有能力之上的学习工作区：
 
 ```text
-Folder
-  ↓
-Today
-  ↓
-Focus
-  ↓
-Review
-  ↓
-Schedule
+Folder → Today → Focus → Review → Schedule
 ```
 
-三条链路必须共享 Task、Course、Calendar、Planner、Focus 等既有事实源，不建立彼此隔离的第二套业务系统。
+三条链路共享 Task、Course、Calendar、Planner、Focus 等现有事实源，不建立互相隔离的第二套业务系统。
 
 ---
 
@@ -80,8 +64,6 @@ Schedule
 
 ## 三、已被替代的历史方案
 
-以下方案仅保留追溯，不得继续作为新开发基础：
-
 | 历史方案 | 当前状态 | 替代方案 |
 |---|---|---|
 | CURRENT_CONTEXT.md、ContextBridge、`@start/@duration` | ❌ 已取消 | 纯 REST + 服务端事实源 |
@@ -89,6 +71,8 @@ Schedule
 | Supabase PostgreSQL 作为生产主库 | ❌ 已替代 | 腾讯云独立 PostgreSQL |
 | Render 生产 API | ❌ 已替代 | 腾讯云 Docker + Nginx |
 | 前端 Sparks 作为记录主事实源 | ⚠️ 逐步退出 | Phase 15 `Inspiration` |
+| PR #14 旧 Timeline V2 分支 | ❌ 已关闭，不再直接合并 | Issue #26 从最新 master 重做 M3 余项 |
+| PR #23 Study Mode 早期提案 | ❌ 已关闭 | PR #25 / `docs/study-mode/` |
 
 历史审计与旧方案保留在 `docs/archive/` 与冻结 Phase 文档中。
 
@@ -123,21 +107,21 @@ flowchart TD
 
 - 聚合课程、任务、日历和日程。
 - 作为“今天怎么过”的主入口。
-- 后续承载 Phase 15 Review 入口和 Study Mode 聚合入口。
+- 后续承载 Phase 15 Review 与 Study Mode 聚合入口。
 
 ### Task / Todos
 
 - 创建、编辑、完成、删除。
 - 优先级、截止时间、预计时长、项目/分区、提醒、重复、子任务。
 - 列表、四象限、甘特图等组织方式。
-- Course / Inspiration / Insight 等来源需要保持反向引用。
+- PR #24 已合并：课程任务统一进入共享 Task Store，并保留 `courseId`、标签、状态和删除能力。
 
 ### Timeline / Calendar
 
 - Task 与 CalendarEvent 统一投影。
-- 月 / 周 / Timeline 等视图。
-- Google Calendar、本地日历、课程数据进入同一时间模型。
-- Timeline V2 仍需和当前 master 重新对账，旧 PR #14 不再作为可直接合并的前置条件。
+- 当前 master 仍使用旧 `CalendarView`，并已叠加 Gantt 能力。
+- 旧 PR #14 的模块化 Timeline 未进入主线，已关闭。
+- 剩余 M3 要求由 Issue #26 从最新 master 重做，必须保留现有 Gantt 和后续 App/ScheduleEditor 修复。
 
 ### Planner / AI 安排
 
@@ -159,8 +143,6 @@ flowchart TD
 
 ### Record / Inspiration（Phase 15）
 
-目标不是复制笔记软件，而是建立：
-
 ```text
 Capture → Review → Insight → Action
 ```
@@ -172,14 +154,7 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 
 已完成方案和设计资产整理，尚未进入运行时代码。
 
-阶段顺序：
-
-- M1：Study Mode 壳层 / Study Home / StudyFolder
-- M2：ReviewPlan / ReviewRecord
-- M3：StudyHabit / 学习计划 / 热力图
-- M4：模板 / PDF / 年度统计导出
-
-原则：复用当前业务模型，不复制 Task / Calendar / Course / Focus。
+阶段顺序：M1 Study Home / StudyFolder → M2 Review → M3 Habit / Plan → M4 Template / Export。
 
 ---
 
@@ -187,41 +162,29 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 
 | Phase | 状态 | 当前说明 |
 |---|---|---|
-| Phase 1–8 | ✅ 历史完成 | PWA、REST、课程基础、Google Calendar、Capacitor 等；其中旧 md/Render/Supabase 描述已被替代 |
-| Phase 09 | ⚠️ 冻结重估 | 多项能力已被后续实现覆盖；剩余需求以后重新拆分 |
+| Phase 1–8 | ✅ 历史完成 | PWA、REST、课程基础、Google Calendar、Capacitor 等；旧 md/Render/Supabase 描述已被替代 |
+| Phase 09 | ⚠️ 冻结重估 | 多项能力已被后续实现覆盖 |
 | Phase 10 | ⚠️ 冻结重估 | md 方案取消；认证已完成；灵感转任务由 Phase 15 接管 |
 | Phase 11 | ✅ 归档 | 早期账户/Onboarding 历史方案 |
 | Phase 12 | 🚧 当前 P0 | 安全导入、幂等/事务/冲突、真实 Web/Android 验收 |
 | Phase 13 | ⬜ P2 | Local Codex Bridge，等待用户主链路稳定 |
-| Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特等已有大量实现；剩余 Timeline 对账、自然语言排程、顺延、Receipt、深色、Settings、Widget |
+| Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
 | Phase 15 | ⬜ 方案完成 | M1 Capture → Review → Task；M2 Insight → Action |
 | Study Mode | ⬜ M0 完成 | 提案、路线图和九张设计参考已合入；运行时代码未实施 |
 
 ---
 
-## 七、当前开放 PR 与仓库状态
+## 七、仓库收口状态
 
-### PR #14 — Timeline V2
+第一阶段仓库整理已完成：
 
-- 旧基线 PR，当前不可直接合并。
-- 原 CI 通过不代表在最新 master 上仍可安全合并。
-- 处理方式：对照当前 master 做能力对账，只保留仍缺失的 Timeline 能力；必要时用新短期分支替代旧 PR。
+- ✅ PR #23 已关闭，由已合并的 #25 取代。
+- ✅ PR #24 已 squash 合并为 `fad1a619`。
+- ✅ PR #14 已关闭，不再作为旧基线直接 merge。
+- ✅ Issue #26 已建立，承接 M3 Timeline V2 的剩余要求。
+- ✅ 当前没有开放 PR。
 
-### PR #23 — Study Mode proposal
-
-- 已被 PR #25 的完整方案、路线图和设计资产替代。
-- 应关闭，避免后续误合并旧文档。
-
-### PR #24 — Course linked tasks
-
-- 当前属于应尽快收口的业务修复。
-- 已有 Web/API 测试和 build 通过记录。
-- 仍需在最新 master 上做回归核对，之后合并并做生产冒烟。
-
-### PR #25 — Study Mode proposal + design references
-
-- ✅ 已合并。
-- `docs/study-mode/` 为 Study Mode 当前设计事实源。
+这意味着后续开发重新从最新 master 建短期分支，不再叠加旧 PR。
 
 ---
 
@@ -233,8 +196,7 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 | P0 | Web/Android 真实导入未完全闭环 | 两端各一条真实学校路径通过 |
 | P0 | Android 可能出现 Web 正常但 App 登录/网络失败 | 真机验证 Session、API 地址、TLS、网络策略和错误提示 |
 | P0 | 旧 Vercel 项目制造误导性失败检查 | 仅保留 `sparkflow031` 有效 Git 集成/检查 |
-| P0 | #14 落后 master 且不可直接合并 | 完成能力对账并关闭/替代/重做 |
-| P1 | #24 业务修复悬挂 | 当前 master 回归通过后合并并生产冒烟 |
+| P1 | Issue #26 Timeline M3 仍未重做 | 最新 master 上实现并通过多来源、移动端、DST/边界验收 |
 | P1 | SchedulePlan 生产 migration 仍需真实核验 | 真账号跑通 Preview → Apply → Undo |
 | P1 | Phase 14 未完成真实设备收口 | 核心效率链路跨 Web/PWA/Android 验收 |
 
@@ -244,10 +206,10 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 
 ```mermaid
 flowchart TD
-    A["仓库收口：#23 / #14 / #24"] --> B["Phase 12 服务端安全导入"]
+    A["✅ 仓库收口完成"] --> B["Phase 12 服务端安全导入"]
     B --> C["Phase 12 Web / Android 真实验收"]
     C --> D["平台与发布治理"]
-    D --> E["Phase 14 核心闭环收口"]
+    D --> E["Phase 14 核心闭环收口 / Issue #26"]
     E --> F["Phase 15 M1 Capture → Review → Task"]
     F --> G["Phase 15 M2 Insight → Action"]
     G --> H["Study Mode M1/M2"]
@@ -255,14 +217,14 @@ flowchart TD
     I --> J["Phase 13 Local Codex Bridge"]
 ```
 
-### 第一批：仓库与生产风险收口
+### 第一批：仓库收口 — ✅ 完成
 
-- 关闭被 #25 替代的 #23。
-- 对账 #14，不再把旧 PR 直接 merge 作为前置目标。
-- 核对并收口 #24。
-- 清理旧 Vercel 项目检查噪声。
+- #23 关闭。
+- #24 合并。
+- #14 关闭并迁移到 Issue #26。
+- 当前无开放 PR。
 
-### 第二批：Phase 12
+### 第二批：Phase 12 — 当前主线
 
 - 服务端幂等、事务、重复/冲突策略。
 - Web/Android 真实课程导入。
@@ -270,24 +232,19 @@ flowchart TD
 
 ### 第三批：Phase 14
 
-- Timeline 剩余验收。
+- Issue #26 Timeline 余项。
 - 自然语言意图与顺延。
 - Daily Receipt、深色、Settings。
 - Android Widget 最后实施。
 
 ### 第四批：Phase 15
 
-M1 先做记录与行动闭环，不先堆 AI：
-
-```text
-Quick Capture → Review → Reflection → Task
-```
-
-M2 再做多记录 Insight，并坚持“AI 建议、用户确认”。
+M1：`Quick Capture → Review → Reflection → Task`。  
+M2：多记录 Insight，并坚持“AI 建议、用户确认”。
 
 ### 第五批：Study Mode
 
-在现有效率和记录链路稳定后，优先实施 Study Home + Folder + Review；模板/导出最后做。
+优先 Study Home + Folder + Review；模板/导出最后做。
 
 ### 第六批：Local Codex Bridge
 
