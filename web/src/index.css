@@ -100,3 +100,22 @@ body {
   outline: none;
   box-shadow: 0 0 0 3px rgba(176, 168, 219, 0.3);
 }
+
+/* Course import validation */
+.course-time-row-invalid {
+  border-color: rgba(180, 35, 24, 0.55) !important;
+  background: rgba(180, 35, 24, 0.045) !important;
+}
+.course-time-row-invalid input {
+  border-color: rgba(180, 35, 24, 0.7) !important;
+}
+.course-import-error {
+  margin: 12px 0 0 !important;
+  padding: 10px 12px !important;
+  border: 1px solid rgba(180, 35, 24, 0.24) !important;
+  border-radius: 12px !important;
+  background: #fff4f2 !important;
+  color: #b42318 !important;
+  font-weight: 650;
+  line-height: 1.45;
+}
