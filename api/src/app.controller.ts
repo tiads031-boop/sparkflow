@@ -18,6 +18,7 @@ export class AppController {
     return {
       status: 'ok',
       service: 'sparkflow-api',
+      buildSha: process.env.BUILD_SHA || 'unknown',
       timestamp: new Date().toISOString(),
     };
   }

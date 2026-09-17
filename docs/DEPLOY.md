@@ -21,12 +21,37 @@ docker run -d --name sparkflow-postgres --restart unless-stopped \
   postgres:17-alpine
 ```
 
-## 2. API 镜像
+## 2. API 源码与可追溯镜像
+
+首次部署：
 
 ```bash
 git clone --branch master --single-branch https://github.com/tiads031-boop/sparkflow.git /opt/sparkflow/app
-docker build -t sparkflow-api:latest /opt/sparkflow/app/api
+cd /opt/sparkflow/app
 ```
+
+后续部署只允许从最新 `master` 快进更新：
+
+```bash
+cd /opt/sparkflow/app
+git fetch origin master
+git checkout master
+git pull --ff-only origin master
+```
+
+构建前记录准确 commit，并把它写入镜像：
+
+```bash
+BUILD_SHA="$(git rev-parse HEAD)"
+docker build \
+  --build-arg BUILD_SHA="$BUILD_SHA" \
+  -t "sparkflow-api:$BUILD_SHA" \
+  -t sparkflow-api:latest \
+  ./api
+printf 'SparkFlow API image built from %s\n' "$BUILD_SHA"
+```
+
+不要只保留 `latest` 标签；commit 标签用于回滚和生产对账。`/api/health` 会返回镜像中的 `buildSha`，因此公网响应可以直接与 GitHub commit 对比。
 
 后端环境文件只允许 root 读取：
 
@@ -36,7 +61,9 @@ PORT=3001
 CORS_ORIGIN=https://fish-life.cc.cd
 ```
 
-## 3. 启动 API
+## 3. 启动 / 更新 API
+
+首次启动：
 
 ```bash
 docker run -d --name sparkflow-api --restart unless-stopped \
@@ -47,7 +74,22 @@ docker run -d --name sparkflow-api --restart unless-stopped \
   sparkflow-api:latest
 ```
 
-容器启动时自动执行 `prisma migrate deploy`，然后启动 NestJS API。
+更新已有容器时，先记录旧镜像，再替换容器：
+
+```bash
+docker inspect -f '{{.Config.Image}}' sparkflow-api || true
+docker stop sparkflow-api
+docker rm sparkflow-api
+
+docker run -d --name sparkflow-api --restart unless-stopped \
+  --network sparkflow-db-net --memory 1024m --cpus 1 \
+  --env-file /opt/sparkflow/api.env \
+  -v /opt/sparkflow/api-data:/data \
+  -p 127.0.0.1:3001:3001 \
+  sparkflow-api:latest
+```
+
+容器启动时自动执行 `prisma migrate deploy`，只有 migration 成功后才启动 NestJS API。
 
 ## 4. Nginx 与 HTTPS
 
@@ -77,13 +119,44 @@ VITE_API_BASE_URL=https://api.fish-life.cc.cd/api
 
 不再配置 `VITE_SUPABASE_URL` 或 `VITE_SUPABASE_PUBLISHABLE_KEY`。
 
-## 6. 验证
+## 6. 部署后强制验证
+
+先确认本地容器与公网 API 都健康，并读取实际部署 commit：
 
 ```bash
 curl -fsS http://127.0.0.1:3001/api/health
 curl -fsS https://api.fish-life.cc.cd/api/health
-docker inspect -f '{{.State.Health.Status}}' sparkflow-postgres
-docker logs --tail 50 sparkflow-api
+docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' sparkflow-api | grep '^BUILD_SHA='
 ```
 
-最后在前端分别验证昵称注册、邮箱注册、登录、退出、改密及刷新后会话恢复。旧账号不迁移，切换后重新注册。
+三个位置应指向同一个 SHA：
+
+```text
+/opt/sparkflow/app 当前 git rev-parse HEAD
+= sparkflow-api 容器 BUILD_SHA
+= /api/health 返回的 buildSha
+```
+
+核对数据库 migration：
+
+```bash
+docker exec sparkflow-api npx prisma migrate status
+```
+
+Phase 12 至少必须确认以下 migration 已应用：
+
+```text
+20260914050000_add_schedule_plans
+20260915120000_add_course_import_idempotency
+```
+
+继续检查：
+
+```bash
+docker inspect -f '{{.State.Health.Status}}' sparkflow-postgres
+docker logs --tail 100 sparkflow-api
+```
+
+如果 `/api/health` 返回 `buildSha: "unknown"`，说明镜像构建时没有传 `--build-arg BUILD_SHA=...`，该部署不得作为已完成的生产版本验收证据。
+
+最后用正常测试账户分别验证登录/会话、学期、课程、任务、日程、Planner Preview → Apply → Undo，以及 Phase 12 教务导入的首次提交与重复重放。`/health` 200 只证明进程存活，不替代真实业务验收。

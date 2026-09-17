@@ -16,7 +16,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+ARG BUILD_SHA=unknown
 ENV NODE_ENV=production
+ENV BUILD_SHA=${BUILD_SHA}
 
 COPY package*.json ./
 COPY prisma.config.ts ./
