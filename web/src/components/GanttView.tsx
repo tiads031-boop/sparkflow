@@ -1,8 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { useAppStore } from '../store/appStore';
 import type { Task } from '../types';
 
 const DAY_WIDTH = 44;
 const RANGE_DAYS = 14;
+const DAY_MS = 86_400_000;
+
+interface Gesture {
+  task: Task;
+  mode: 'move' | 'resize';
+  startX: number;
+  deltaDays: number;
+  range: NonNullable<ReturnType<typeof taskRange>>;
+}
 
 function startOfDay(value: Date) {
   const date = new Date(value);
@@ -50,6 +60,10 @@ function barColor(task: Task) {
 
 export default function GanttView({ tasks, selectedDate, onTaskClick }: { tasks: Task[]; selectedDate: Date; onTaskClick?: (task: Task) => void }) {
   const [weekOffset, setWeekOffset] = useState(0);
+  const [gesturePreview, setGesturePreview] = useState<{ taskId: string; mode: Gesture['mode']; deltaDays: number } | null>(null);
+  const gestureRef = useRef<Gesture | null>(null);
+  const suppressClickRef = useRef<string | null>(null);
+  const updateTask = useAppStore((state) => state.updateTask);
   const rangeStart = useMemo(() => addDays(getMonday(selectedDate), weekOffset * 7), [selectedDate, weekOffset]);
   const days = useMemo(() => Array.from({ length: RANGE_DAYS }, (_, index) => addDays(rangeStart, index)), [rangeStart]);
   const rangeEnd = addDays(rangeStart, RANGE_DAYS);
@@ -66,12 +80,60 @@ export default function GanttView({ tasks, selectedDate, onTaskClick }: { tasks:
     return { visibleTasks: visible, unscheduledCount: unscheduled };
   }, [tasks, rangeEnd, rangeStart]);
 
+  const beginGesture = (event: React.PointerEvent<HTMLElement>, task: Task, range: Gesture['range'], mode: Gesture['mode']) => {
+    if (task.scheduleLocked || range.milestone && mode === 'resize') return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    gestureRef.current = { task, range, mode, startX: event.clientX, deltaDays: 0 };
+    setGesturePreview({ taskId: task.id, mode, deltaDays: 0 });
+  };
+
+  const moveGesture = (event: React.PointerEvent<HTMLElement>) => {
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+    let deltaDays = Math.round((event.clientX - gesture.startX) / DAY_WIDTH);
+    if (gesture.mode === 'resize') {
+      const minimumDelta = Math.ceil((gesture.range.start.getTime() + 15 * 60_000 - gesture.range.end.getTime()) / DAY_MS);
+      deltaDays = Math.max(minimumDelta, deltaDays);
+    }
+    gesture.deltaDays = deltaDays;
+    setGesturePreview({ taskId: gesture.task.id, mode: gesture.mode, deltaDays });
+  };
+
+  const endGesture = (event: React.PointerEvent<HTMLElement>) => {
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    gestureRef.current = null;
+    setGesturePreview(null);
+    if (gesture.deltaDays === 0) return;
+    suppressClickRef.current = gesture.task.id;
+    if (gesture.range.milestone) {
+      void updateTask(gesture.task.id, { dueDate: new Date(gesture.range.start.getTime() + gesture.deltaDays * DAY_MS).toISOString() });
+      return;
+    }
+    if (gesture.mode === 'resize') {
+      void updateTask(gesture.task.id, { scheduledEnd: new Date(gesture.range.end.getTime() + gesture.deltaDays * DAY_MS).toISOString() });
+      return;
+    }
+    void updateTask(gesture.task.id, {
+      scheduledStart: new Date(gesture.range.start.getTime() + gesture.deltaDays * DAY_MS).toISOString(),
+      scheduledEnd: new Date(gesture.range.end.getTime() + gesture.deltaDays * DAY_MS).toISOString(),
+    });
+  };
+
+  const cancelGesture = () => {
+    gestureRef.current = null;
+    setGesturePreview(null);
+  };
+
   return (
     <section className="rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-4 shadow-sm">
       <header className="mb-4 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-bold">两周计划</h2>
-          <p className="mt-1 text-[11px] text-[var(--sf-text-tertiary)]">任务条按已安排时间显示，菱形代表截止里程碑</p>
+          <p className="mt-1 text-[11px] text-[var(--sf-text-tertiary)]">拖动任务条调整日期，拖右端调整工期；菱形代表截止里程碑</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button type="button" onClick={() => setWeekOffset((value) => value - 2)} className="h-8 w-8 rounded-full bg-[var(--sf-bg)] text-sm" aria-label="前两周">‹</button>
@@ -97,21 +159,49 @@ export default function GanttView({ tasks, selectedDate, onTaskClick }: { tasks:
 
           {visibleTasks.map((task) => {
             const range = taskRange(task)!;
+            const preview = gesturePreview?.taskId === task.id ? gesturePreview : null;
             const rawLeft = diffDays(range.start, rangeStart) * DAY_WIDTH;
             const rawRight = (diffDays(range.end, rangeStart) + (range.milestone ? 0 : 1)) * DAY_WIDTH;
-            const left = Math.max(0, rawLeft);
-            const width = Math.max(14, Math.min(RANGE_DAYS * DAY_WIDTH, rawRight) - left);
+            const previewMove = preview?.mode === 'move' ? preview.deltaDays * DAY_WIDTH : 0;
+            const previewResize = preview?.mode === 'resize' ? preview.deltaDays * DAY_WIDTH : 0;
+            const left = Math.max(0, rawLeft + previewMove);
+            const width = Math.max(14, Math.min(RANGE_DAYS * DAY_WIDTH, rawRight + previewMove + previewResize) - left);
             return (
-              <button type="button" key={task.id} onClick={() => onTaskClick?.(task)} className="group flex h-12 w-full border-b border-[var(--sf-divider)] text-left last:border-b-0 focus-ring">
+              <button type="button" key={task.id} onClick={() => {
+                if (suppressClickRef.current === task.id) {
+                  suppressClickRef.current = null;
+                  return;
+                }
+                onTaskClick?.(task);
+              }} className="group flex h-12 w-full border-b border-[var(--sf-divider)] text-left last:border-b-0 focus-ring">
                 <span className="sticky left-0 z-10 flex w-[132px] shrink-0 items-center bg-[var(--sf-surface)] px-3 text-xs font-medium group-hover:bg-[var(--sf-bg)]">
                   <span className="truncate">{task.title}</span>
                 </span>
                 <span className="relative block h-full" style={{ width: `${RANGE_DAYS * DAY_WIDTH}px`, backgroundImage: 'repeating-linear-gradient(to right, transparent 0, transparent 43px, var(--sf-divider) 43px, var(--sf-divider) 44px)' }}>
                   {range.milestone ? (
-                    <span className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-45 rounded-[3px]" style={{ left: `${Math.max(4, Math.min(RANGE_DAYS * DAY_WIDTH - 18, rawLeft - 7))}px`, backgroundColor: barColor(task) }} />
+                    <span
+                      className={`absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rotate-45 rounded-[3px] ${task.scheduleLocked ? 'cursor-not-allowed opacity-60' : 'cursor-grab'}`}
+                      style={{ left: `${Math.max(4, Math.min(RANGE_DAYS * DAY_WIDTH - 18, rawLeft + previewMove - 7))}px`, backgroundColor: barColor(task), touchAction: 'none' }}
+                      onPointerDown={(event) => beginGesture(event, task, range, 'move')}
+                      onPointerMove={moveGesture}
+                      onPointerUp={endGesture}
+                      onPointerCancel={cancelGesture}
+                    />
                   ) : (
-                    <span className="absolute top-2.5 h-7 rounded-full px-2 text-[10px] font-semibold leading-7 text-[#242424]" style={{ left: `${left}px`, width: `${width}px`, backgroundColor: barColor(task) }}>
+                    <span
+                      className={`absolute top-2.5 h-7 rounded-full px-2 text-[10px] font-semibold leading-7 text-[#242424] ${task.scheduleLocked ? 'cursor-not-allowed opacity-65' : 'cursor-grab'}`}
+                      style={{ left: `${left}px`, width: `${width}px`, backgroundColor: barColor(task), touchAction: 'none' }}
+                      onPointerDown={(event) => beginGesture(event, task, range, 'move')}
+                      onPointerMove={moveGesture}
+                      onPointerUp={endGesture}
+                      onPointerCancel={cancelGesture}
+                    >
                       <span className="block truncate">{task.title}</span>
+                      {!task.scheduleLocked ? <span
+                        className="absolute bottom-1 right-1 top-1 w-2 cursor-ew-resize rounded-full bg-black/15"
+                        onPointerDown={(event) => beginGesture(event, task, range, 'resize')}
+                        aria-hidden="true"
+                      /> : null}
                     </span>
                   )}
                 </span>
