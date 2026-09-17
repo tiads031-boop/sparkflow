@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-18 | **代码基线**：`master@8e7e0700`
+> **最后更新**：2026-09-18 | **代码基线**：`master@4569a3a1`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,8 +8,8 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | ✅ 仓库/CI 安全门禁 → **Issue #31 腾讯云 + Web/Android 生产验收** → 平台治理 → Phase 14 收口 |
-| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、真实 PG replay E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | ✅ 仓库/CI/真实 PG 安全门禁 → **Issue #31 腾讯云 + Web/Android 生产验收** → 平台治理 → Phase 14 收口 |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
 ## 下一产品批次
@@ -33,29 +33,33 @@
 | PR #24 Course linked tasks | ✅ 已合并 | `fad1a619`；课程任务统一进入共享 Task Store |
 | PR #14 Timeline V2 | ✅ 旧 PR 已关闭 | 剩余 M3 要求迁移到 Issue #26，从最新 master 重做 |
 | PR #28 Phase 12 safety tests | ✅ 已合并 | `a1fe22c6`；补齐处理中、并发竞争、回滚、用户范围查询等安全证据 |
-| PR #29 PostgreSQL migration CI | ✅ 已合并 | `526b234e`；全新 PostgreSQL 16 可执行完整 16 migrations 且状态一致 |
+| PR #29 PostgreSQL migration CI | ✅ 已合并 | `526b234e`；全新 PostgreSQL 16 可执行完整 migrations 且状态一致 |
 | PR #30 PostgreSQL import replay E2E | ✅ 已合并 | `2ffbf448`；真实 Prisma/PG 导入 + 同 requestId replay 最终仅一份 batch/course/event |
 | PR #32 API build SHA | ✅ 已合并 | `5158bad1`；health / Docker / 部署手册建立生产 commit 可追溯契约 |
 | PR #33 Capacitor CORS | ✅ 已合并 | `38f6cdbc`；显式允许 `https://localhost` / `capacitor://localhost`，修复 Android 登录代码侧高概率分叉 |
 | PR #34 Android release gate | ✅ 已合并 | `8e7e0700`；生产 API 双重校验、commit 命名、SHA-256、GitHub prerelease 自动发布 |
+| PR #35 Planning sync | ✅ 已合并 | `7afb7bb4`；NEXT / INDEX / BLUEPRINT 对齐生产验收主线 |
+| PR #36 Real PostgreSQL safety E2E | ✅ 已合并 | `4569a3a1`；真实 PG 并发同 request、事务 rollback、同 requestId 跨用户隔离全部通过 |
 
 ## 活跃执行 Issue
 
 | Issue | 范围 | 优先级/时机 |
 |---|---|---|
-| #31 Phase 12 production acceptance | 腾讯云 buildSha/migrations、生产 API、真实 Web/Android 教务导入、Planner、失败/重试路径 | **当前唯一 P0 主线** |
+| #31 Phase 12 production acceptance | 腾讯云 buildSha/migrations、生产 API、真实 Web/Android 教务导入、Planner、未知网络结果恢复 | **当前唯一 P0 主线** |
 | #26 Phase 14 M3 Timeline V2 reconciliation | 保留 Gantt 的前提下，从最新 master 重做 Month/Week/Day Timeline 与真实设备验收 | Issue #31 关闭/稳定后进入 Phase 14 收口 |
 
 ## Phase 12 当前事实
 
-### 已由代码/CI证实
+### 已由代码 / CI / 真实 PostgreSQL 证实
 
 - V2 `requestId` / payload hash。
 - stable course fingerprint、duplicate / conflict preview、skip / keep policy。
 - `Serializable` Prisma transaction 与 `CourseImportBatch` 结果查询 / replay。
-- `(userId, requestId)` 查询隔离、并发竞争恢复、回滚错误传播单元测试。
 - fresh PostgreSQL 16 完整 migration chain 成功。
-- 真实 Prisma/PostgreSQL：首次导入 + 相同 requestId replay 不重复写入。
+- 真实 PG 顺序 replay 不重复写入。
+- 真实 PG 同 requestId 并发竞争最终只保留一次 commit，并返回一次 replay。
+- 真实 PG 事务中途失败完整 rollback，不残留 batch/course。
+- 真实 PG 中同 requestId 可被不同用户独立使用，结果与课程保持用户隔离。
 - API 自托管镜像支持 `BUILD_SHA`，health 可回显部署 commit。
 - Android Capacitor Origin 已加入 API CORS allowlist。
 - Android APK CI 会验证 production API，生成 commit-stamped APK，并发布 GitHub prerelease。
@@ -63,10 +67,10 @@
 ### 仍未关闭
 
 - 腾讯云当前运行镜像的 `buildSha` 和生产库 migration 状态。
-- Web 真实学校导入、重复提交与未知结果恢复。
+- Web 真实学校导入、重复提交与未知网络结果恢复。
 - Android 最新 Release 的真机登录、Session、SchoolImport/文件导入与窄屏交互。
 - Planner 生产 Preview → Apply → Undo。
-- 更强真实 PG 并发 / 事务失败 / 断连 E2E（P1 补强）。
+- HTTP 层“客户端超时/断连但服务端已经提交”的端到端恢复验证。
 
 ## 平台 / 发布状态
 
