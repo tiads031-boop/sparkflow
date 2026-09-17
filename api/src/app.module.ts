@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { InspirationsModule } from './inspirations/inspirations.module';
+import { InsightsModule } from './insights/insights.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PomodoroModule } from './pomodoro/pomodoro.module';
 import { PlannerModule } from './planner/planner.module';
@@ -27,6 +28,7 @@ import { AppService } from './app.service';
     PrismaModule,
     UsersModule,
     InspirationsModule,
+    InsightsModule,
     TasksModule,
     PomodoroModule,
     PlannerModule,
