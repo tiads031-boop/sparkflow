@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-17 | **代码基线**：`master@fad1a619`
+> **最后更新**：2026-09-17 | **代码基线**：`master@a1fe22c6`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -11,14 +11,14 @@
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，Nginx 反向代理至 NestJS；健康接口可用，但健康 200 不等于业务验收完成 |
 | Web | Vercel 主项目 `sparkflow031`，生产域名 `fish-life.cc.cd` |
-| GitHub | `master@fad1a619`；当前无开放 PR |
-| 已收口 PR | #23 已被 #25 替代并关闭；#24 已合并；#14 已关闭并把剩余要求迁移到 Issue #26 |
-| 部署噪声 | 旧 Vercel 项目 `sparkflow`、`sparkflow-psi1` 仍会产生失败检查；`sparkflow031` 才是主项目 |
+| GitHub | `master@a1fe22c6`；当前无开放 PR |
+| 已收口 PR | #23 已被 #25 替代并关闭；#24 已合并；#14 已关闭并迁移到 Issue #26；#28 Phase 12 安全测试已通过 CI 并合并 |
+| 部署噪声 | 旧 Vercel 项目仍制造状态噪声；PR #28 的 Vercel 状态还出现 build-rate-limit，GitHub Web/API CI 均成功 |
 
 ## 近期总原则
 
-1. **仓库旧分支已收口，下一主线切换到 Phase 12 数据安全。**
-2. **Phase 12 的幂等、事务、重复/冲突与真实导入是当前最高优先级。**
+1. **仓库旧分支已收口，Phase 12 服务端安全代码已经具备，当前门槛转为生产 migration 与真实导入验收。**
+2. **没有真实数据库/真实账号证据前，不把 Phase 12 宣布为生产完成。**
 3. **Phase 14 不重复已经进入 master 的 Today、四象限、甘特、Planner、Focus；M3 余项由 Issue #26 承接。**
 4. **Phase 15 先做 M1（Capture → Review → Task），AI Insight 放 M2。**
 5. **Study Mode 已有方案但暂不抢占主线。**
@@ -35,7 +35,6 @@
 
 ### PR #24 — Course linked tasks
 
-- [x] 已确认修复内容未进入原 master。
 - [x] 已 squash 合并为 `fad1a619`。
 - [x] CourseNote → Task 统一走共享 Task Store；课程关联、标签、状态与删除能力进入主线。
 - [x] 转换成功后删除原 CourseNote，避免重复转换。
@@ -43,46 +42,45 @@
 
 ### PR #14 — Timeline V2
 
-对账结论：旧实现仍有价值，但不能原样合并。
-
-- [x] 当前 master 仍保留旧 `CalendarView`，而 #14 的模块化 `components/timeline/` 尚未进入主线。
-- [x] 后续 master 已在 `CalendarView` 增加甘特图，并改动 `App.tsx`、`ScheduleEditor` 等重叠位置。
-- [x] 直接合并 #14 有覆盖后续能力的风险，因此已关闭旧 PR。
+- [x] 旧实现与后续甘特 / App / ScheduleEditor 改动发生重叠，已关闭而非强行合并。
 - [x] 剩余 M3 要求迁移到 Issue #26，从最新 master 重新实现。
 - [x] 保留 360px、Android 手势/滚动、Google/本地/课程一致性、DST/跨时区/日期边界验收要求。
 
-**完成门槛已满足：当前无开放 PR，旧分支不再阻塞主线。**
+**完成门槛已满足：旧 PR 不再阻塞主线。**
 
 ---
 
-## 1. Phase 12：服务端安全导入（P0，当前开发主线）
+## 1. Phase 12：服务端安全导入（P0）— 🚧 代码闭环已具备，待生产验收
 
-先完成数据安全闭环，再扩展视觉或新学习能力。
+当前 master 已有 V2 教务导入安全链路，不再重复实现：
 
-- [ ] 支持选择已有学期，且不静默覆盖历史课程。
-- [ ] 定义导入 `requestId`、payload hash、目标学期、处理状态和结果摘要。
-- [ ] 建立稳定排课指纹、重复检测、时间冲突检测。
-- [ ] “跳过重复（默认）/保留副本”策略贯穿预览、API 与结果。
-- [ ] Prisma Transaction 原子写入；失败回滚；未知结果先查询再重试。
-- [ ] 跨用户隔离、重复重放、并发、超时和事务回滚集成测试。
+- [x] 支持选择已有学期，新建/已有学期路径分离，不静默覆盖历史课程。
+- [x] V2 envelope 包含 `requestId`、payload hash、目标学期、duplicate policy、source 与结果摘要。
+- [x] 建立稳定排课 fingerprint、重复检测、时间冲突预览。
+- [x] “跳过重复（默认）/保留副本”贯穿向导、预览和服务端导入。
+- [x] Prisma `Serializable` Transaction 原子写入；失败回滚。
+- [x] 提交异常后前端按 `requestId` 查询结果，服务端支持成功重放并拒绝同 requestId 不同 payload。
+- [x] PR #28 补齐安全测试：处理中不可重放、并发竞争恢复、回滚失败传播、`(userId, requestId)` 结果隔离；Web/API CI 成功。
+- [ ] 在腾讯云生产库确认 `20260915120000_add_course_import_idempotency` migration 已执行。
+- [ ] 用真实 PostgreSQL 做重复重放、并发、超时/断连、事务回滚的集成验收，而不只依赖 mock/Jest。
 - [ ] 核验 `SchedulePlan` migration 已在生产执行，并用真实账户走通 Planner Preview → Apply → Undo。
 
-完成门槛：双击、断网和超时重试不产生意外副本；失败无半成品；真实账户可确认唯一结果。
+**当前完成口径**：服务端功能与 CI 级安全证据已具备；生产数据库 migration 和真实 I/O 场景仍是 P0 门禁。
 
 ---
 
-## 2. Phase 12：真实导入与生产验收（P0/P1）
+## 2. Phase 12：真实导入与生产验收（P0/P1，当前执行重点）
 
-当前已有 JISU 夏/冬作息模板和分段课程元数据解析修复，但这不等于真实导入闭环已经完成。
+当前已有 JISU 夏/冬作息模板、分段课程元数据、结构化作息编辑和 V2 导入向导，但这不等于真实导入闭环已经完成。
 
-- [ ] Web 用真实学校数据走通：获取 → 返回 → 预览 → 导入。
+- [ ] Web 用真实学校数据走通：获取 → 返回 → 预览重复/冲突 → 导入 → 再次提交确认幂等。
 - [ ] Android 真机走通：SchoolImport / 文件降级 → 返回应用 → 预览 → 导入。
 - [ ] 校验上午/下午/晚间分段作息与不同季节模板。
 - [ ] 360px、软键盘、safe-area、文件选择、错误定位和成功后切换目标学期。
 - [ ] 生产 Auth、semesters、courses、schedule、tasks 冒烟与日志检查。
 - [ ] 登录态、跨设备 session、Android API 地址/证书/网络策略纳入回归，避免 APK 出现“Web 正常、App 无法登录”的分叉。
 
-完成门槛：Web/Android 各一条真实路径通过，导入结果可验证、可重试且不会产生重复数据。
+完成门槛：Web/Android 各一条真实路径通过；重复提交不产生副本；失败无半成品；导入结果可查询和验证。
 
 ---
 
@@ -90,10 +88,11 @@
 
 - [ ] 确认 `sparkflow031` 是唯一生产 Web 项目，Root Directory=`web`、域名和环境变量正确。
 - [ ] 归档或断开旧项目 `sparkflow`、`sparkflow-psi1` 的 Git 集成，停止重复部署红灯。
+- [ ] 处理 Vercel build-rate-limit 对有效 Preview/Production 验收的影响，避免把额度失败误判为代码失败。
 - [ ] 确认 GitHub 必需检查只依赖有效 Web/API CI 与主项目部署。
 - [ ] Release/APK 发布流程统一：Android 构建必须对应明确 commit/tag，并保留生产 API 配置核对。
 
-完成门槛：后续 PR 的 CI 状态不再被旧项目误导；Web 与 APK 可追溯到同一代码基线。
+完成门槛：后续 PR 的状态可区分代码 CI、主项目部署与平台额度问题；Web 与 APK 可追溯到同一代码基线。
 
 ---
 
