@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Lock, MapPin } from 'lucide-react';
+import { ArrowRight, Lightbulb, Lock, MapPin } from 'lucide-react';
 import { api, DEFAULT_USER_ID } from '../../api/client';
+import { getReviewQueue } from '../../api/inspirations';
 import { useAppStore } from '../../store/appStore';
 import type { CalendarEvent, ScheduleItem, Task } from '../../types';
 import { computeFreeSlots } from '../../utils/freeSlots';
@@ -20,7 +21,9 @@ export default function TodayView({ onTaskClick }: { onTaskClick: (task: Task) =
   const tasks = useAppStore((state) => state.tasks);
   const selectedDate = useAppStore((state) => state.selectedDate);
   const setSelectedDate = useAppStore((state) => state.setSelectedDate);
+  const setActiveTab = useAppStore((state) => state.setActiveTab);
   const [eventResult, setEventResult] = useState<{ key: string; events: CalendarEvent[] }>({ key: '', events: [] });
+  const [reviewDue, setReviewDue] = useState(0);
   const [now, setNow] = useState(() => new Date());
   const { start, end } = useMemo(() => dayRange(selectedDate), [selectedDate]);
   const rangeKey = `${start.toISOString()}:${end.toISOString()}`;
@@ -37,6 +40,21 @@ export default function TodayView({ onTaskClick }: { onTaskClick: (task: Task) =
       .catch(() => { if (!cancelled) setEventResult({ key: rangeKey, events: [] }); });
     return () => { cancelled = true; };
   }, [start, end, rangeKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadReviewDue = () => {
+      getReviewQueue(1)
+        .then((result) => { if (!cancelled) setReviewDue(result.total); })
+        .catch(() => { if (!cancelled) setReviewDue(0); });
+    };
+    loadReviewDue();
+    window.addEventListener('sparkflow:records-changed', loadReviewDue);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('sparkflow:records-changed', loadReviewDue);
+    };
+  }, []);
 
   const items = useMemo(() => {
     const events = eventResult.key === rangeKey ? eventResult.events : [];
@@ -60,6 +78,11 @@ export default function TodayView({ onTaskClick }: { onTaskClick: (task: Task) =
     if (task) onTaskClick(task);
   };
 
+  const startReview = () => {
+    setActiveTab('sparks');
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent('sparkflow:start-review')), 0);
+  };
+
   return (
     <div className="animate-page-enter space-y-4 pb-4">
       <div>
@@ -67,6 +90,20 @@ export default function TodayView({ onTaskClick }: { onTaskClick: (task: Task) =
         <p className="text-xs text-[var(--sf-text-tertiary)]">{selectedDate.toLocaleDateString('zh-CN', { weekday: 'long' })}</p>
       </div>
       <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
+      {reviewDue > 0 && (
+        <button
+          type="button"
+          onClick={startReview}
+          className="flex w-full items-center gap-3 rounded-[var(--sf-radius-lg)] bg-[#f2f0e8] p-4 text-left shadow-sm"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#cae393] text-[#242424]"><Lightbulb size={18} /></span>
+          <span className="min-w-0 flex-1">
+            <strong className="block text-sm text-[#242424]">有 {reviewDue} 条记录等你重新看看</strong>
+            <span className="mt-1 block text-xs text-[#242424]/55">隔一天再看，有些想法会变得更清楚。</span>
+          </span>
+          <ArrowRight size={16} className="shrink-0 text-[#242424]/50" />
+        </button>
+      )}
       <section className="rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-4">
         <RhythmDial items={items} now={referenceNow} onSelect={selectItem} />
       </section>
