@@ -67,6 +67,11 @@ interface TimeSlotRow {
   end: string;
 }
 
+interface TimeSlotProblem {
+  index: number;
+  message: string;
+}
+
 const STEP_LABELS = ['选择学校', '获取课表', '学期与作息', '预览确认'];
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const createRequestId = () => globalThis.crypto?.randomUUID?.() || `import-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
@@ -104,6 +109,25 @@ function importedRows(data: SchoolImportData): TimeSlotRow[] {
   return [...rows.values()].sort((a, b) => a.number - b.number);
 }
 
+function findTimeSlotProblem(rows: TimeSlotRow[]): TimeSlotProblem | null {
+  const seen = new Set<number>();
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    if (!Number.isInteger(row.number) || row.number < 1 || row.number > 30) {
+      return { index, message: `第 ${index + 1} 行节次编号无效，请填写 1–30` };
+    }
+    if (seen.has(row.number)) return { index, message: `第 ${row.number} 节重复，请删除或修改重复节次` };
+    seen.add(row.number);
+    const start = normalizeCourseTime(row.start);
+    const end = normalizeCourseTime(row.end);
+    if (!start || !end) return { index, message: `第 ${row.number} 节开始或结束时间未填写完整` };
+    if (end <= start) {
+      return { index, message: `第 ${row.number} 节结束时间 ${end} 必须晚于开始时间 ${start}` };
+    }
+  }
+  return null;
+}
+
 export default function CourseImportWizard({ open, onClose, onImported }: CourseImportWizardProps) {
   const [step, setStep] = useState(0);
   const [catalog, setCatalog] = useState<Adapter[]>([]);
@@ -137,6 +161,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
   const fileInput = useRef<HTMLInputElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
   const generatorPanel = useRef<HTMLDivElement>(null);
+  const invalidSlotRef = useRef<HTMLDivElement>(null);
   const android = Capacitor.getPlatform() === 'android';
   const semesters = useAppStore(state => state.semesters);
   const activeSemesterId = useAppStore(state => state.activeSemesterId);
@@ -145,6 +170,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
   const normalizedUrl = url.trim();
   const urlValid = validHttpUrl(normalizedUrl);
   const targetSemester = semesters.find(item => item.id === targetSemesterId);
+  const slotProblem = useMemo(() => findTimeSlotProblem(slots), [slots]);
 
   const filteredCatalog = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -295,6 +321,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
       : row));
     setPreview(null);
     setServerPreview(null);
+    setMessage('');
   };
 
   const addSlot = () => {
@@ -323,6 +350,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
     setGeneratedSlots(null);
     setPreview(null);
     setServerPreview(null);
+    setMessage('');
   };
 
   const saveTemplate = () => {
@@ -430,6 +458,10 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
   const buildPreview = async () => {
     if (!schoolData) throw new Error('请先读取教务课表');
     if (semesterMode === 'existing' && !targetSemester) throw new Error('请选择要导入的已有学期');
+    if (slotProblem) {
+      requestAnimationFrame(() => invalidSlotRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+      throw new Error(slotProblem.message);
+    }
     const nextPreview = schoolBackup(
       schoolData,
       semester.name,
@@ -678,14 +710,23 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
               </div>}
             </div>
             <div className="course-import-grid" role="table" aria-label="节次作息表">
-              {slots.map((row, index) => <div key={`${index}-${row.number}`} role="row">
-                <label>节次<input aria-label={`第 ${index + 1} 行节次`} type="number" min="1" max="30" value={row.number || ''} onChange={event => updateSlot(index, 'number', event.target.value)} /></label>
-                <label>开始<input aria-label={`第 ${row.number} 节开始时间`} type="time" value={row.start} onChange={event => updateSlot(index, 'start', event.target.value)} /></label>
-                <label>结束<input aria-label={`第 ${row.number} 节结束时间`} type="time" value={row.end} onChange={event => updateSlot(index, 'end', event.target.value)} /></label>
-                <button type="button" aria-label={`复制上一节时间到第 ${row.number} 节`} disabled={busy || index === 0} onClick={() => copyPreviousSlot(index)}><Copy /></button>
-                <button type="button" aria-label={`删除第 ${row.number} 节`} disabled={busy} onClick={() => { setSlots(current => current.filter((_, rowIndex) => rowIndex !== index)); setPreview(null); }}><Trash2 /></button>
-              </div>)}
+              {slots.map((row, index) => {
+                const invalid = slotProblem?.index === index;
+                return <div
+                  key={`${index}-${row.number}`}
+                  role="row"
+                  ref={invalid ? invalidSlotRef : undefined}
+                  className={invalid ? 'course-time-row-invalid' : undefined}
+                >
+                  <label>节次<input aria-invalid={invalid || undefined} aria-label={`第 ${index + 1} 行节次`} type="number" min="1" max="30" value={row.number || ''} onChange={event => updateSlot(index, 'number', event.target.value)} /></label>
+                  <label>开始<input aria-invalid={invalid || undefined} aria-label={`第 ${row.number} 节开始时间`} type="time" value={row.start} onChange={event => updateSlot(index, 'start', event.target.value)} /></label>
+                  <label>结束<input aria-invalid={invalid || undefined} aria-label={`第 ${row.number} 节结束时间`} type="time" value={row.end} onChange={event => updateSlot(index, 'end', event.target.value)} /></label>
+                  <button type="button" aria-label={`复制上一节时间到第 ${row.number} 节`} disabled={busy || index === 0} onClick={() => copyPreviousSlot(index)}><Copy /></button>
+                  <button type="button" aria-label={`删除第 ${row.number} 节`} disabled={busy} onClick={() => { setSlots(current => current.filter((_, rowIndex) => rowIndex !== index)); setPreview(null); setServerPreview(null); setMessage(''); }}><Trash2 /></button>
+                </div>;
+              })}
             </div>
+            {slotProblem && <p className="course-import-error" role="alert">{slotProblem.message}。修正后即可查看导入预览。</p>}
             <button type="button" disabled={busy} onClick={addSlot}><Plus aria-hidden="true" /> 添加节次</button>
             {!slots.length && <p role="status">导入结果没有作息时间，请添加课程实际使用的节次。</p>}
           </div>
@@ -731,9 +772,9 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
 
       <footer className="course-import-footer">
         <button type="button" disabled={busy || step === 0} onClick={() => { setStep(current => Math.max(0, current - 1)); setMessage(''); }}><ArrowLeft aria-hidden="true" /> 返回修改</button>
-        <button type="button" disabled={busy || (step === 1 && !schoolData) || (step === 3 && !preview)} onClick={next}>
+        <button type="button" disabled={busy || (step === 1 && !schoolData) || (step === 2 && Boolean(slotProblem)) || (step === 3 && !preview)} onClick={next}>
           {busy ? <LoaderCircle aria-hidden="true" /> : step === 3 ? <Check aria-hidden="true" /> : <ArrowRight aria-hidden="true" />}
-          {busy ? '处理中…' : step === 2 ? '查看导入预览' : step === 3 ? '确认导入' : '下一步'}
+          {busy ? '处理中…' : step === 2 && slotProblem ? '请先修正作息' : step === 2 ? '查看导入预览' : step === 3 ? '确认导入' : '下一步'}
         </button>
       </footer>
     </section>
