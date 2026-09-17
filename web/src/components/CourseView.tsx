@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Trash2, BookOpen, MapPin, User, Clock, Check } from 'lucide-react';
 import { useAppStore, type Course, type CourseFormData } from '../store/appStore';
+import { useCourseSchedule } from '../store/courseSchedule';
+import { getCourseDisplayState, getCourseTermState, shouldShowCoursePrimaryActions } from '../utils/courseDisplayState';
 import CourseSchedulePanel from './CourseSchedulePanel';
 
 // ════════════════════════════════════════════════════
@@ -67,68 +69,6 @@ function formatCourseTime(course: Course): string | null {
   return `${day} ${course.startTime}-${course.endTime}`;
 }
 
-function parseTimeMinutes(time?: string): number {
-  if (!time) return 0;
-  const [hours, minutes] = time.split(':').map(Number);
-  return (hours || 0) * 60 + (minutes || 0);
-}
-
-function parseLocalDate(date?: string): Date | null {
-  if (!date) return null;
-  const [year, month, day] = date.slice(0, 10).split('-').map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day);
-}
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function getCourseTermState(course: Course, semesters: Array<{ id: string; startDate: string; endDate: string; weeks?: number | null }>, now = new Date()) {
-  const semester = course.semesterId ? semesters.find((s) => s.id === course.semesterId) : null;
-  if (!semester) return { isEnded: false };
-
-  const today = startOfDay(now);
-  const semesterStart = parseLocalDate(semester.startDate);
-  const semesterEnd = parseLocalDate(semester.endDate);
-  const isAfterEndDate = semesterEnd ? semesterEnd < today : false;
-
-  let isAfterCourseWeeks = false;
-  if (semesterStart) {
-    const currentWeek = Math.floor((today.getTime() - semesterStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-    if (currentWeek > 0) {
-      if (course.weeks?.length) {
-        isAfterCourseWeeks = Math.max(...course.weeks) < currentWeek;
-      } else if (semester.weeks) {
-        isAfterCourseWeeks = semester.weeks < currentWeek;
-      }
-    }
-  }
-
-  return { isEnded: isAfterEndDate || isAfterCourseWeeks };
-}
-
-function getCourseWeekState(course: Course, index: number, isEnded = false, now = new Date()) {
-  if (!course.dayOfWeek) {
-    return { isPastThisWeek: false, isEnded, group: isEnded ? 3 : 1, order: index };
-  }
-
-  const currentDay = now.getDay() || 7;
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const endMinutes = course.endTime ? parseTimeMinutes(course.endTime) : 24 * 60 - 1;
-  const startMinutes = parseTimeMinutes(course.startTime);
-  const isPastThisWeek =
-    course.dayOfWeek < currentDay ||
-    (course.dayOfWeek === currentDay && endMinutes < currentMinutes);
-
-  return {
-    isPastThisWeek,
-    isEnded,
-    group: isEnded ? 3 : (isPastThisWeek ? 2 : 0),
-    order: (course.dayOfWeek - currentDay + 7) * 24 * 60 + startMinutes,
-  };
-}
-
 // ════════════════════════════════════════════════════
 // CourseView
 // ════════════════════════════════════════════════════
@@ -147,6 +87,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
   const addSemester = useAppStore((s) => s.addSemester);
   const editSemester = useAppStore((s) => s.editSemester);
   const removeSemester = useAppStore((s) => s.removeSemester);
+  const scheduleBackup = useCourseSchedule((s) => s.backup);
 
   // ── Form state ──
   const [showForm, setShowForm] = useState(false);
@@ -328,18 +269,31 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
 
   // ── Render ──
   const hasCourses = courses.length > 0;
+  const courseEvents = useMemo(
+    () => scheduleBackup
+      ? new Map(scheduleBackup.courses.map((course) => [course.id, course.events] as const))
+      : null,
+    [scheduleBackup],
+  );
   const displayCourses = useMemo(
-    () => courses
-      .map((course, index) => {
-        const termState = getCourseTermState(course, semesters);
-        return { course, index, state: getCourseWeekState(course, index, termState.isEnded) };
-      })
-      .sort((a, b) => {
-        if (a.state.group !== b.state.group) return a.state.group - b.state.group;
-        if (a.state.order !== b.state.order) return a.state.order - b.state.order;
-        return a.index - b.index;
-      }),
-    [courses, semesters],
+    () => {
+      const now = new Date();
+      return courses
+        .map((course, index) => {
+          const termState = getCourseTermState(course, semesters, now);
+          return {
+            course,
+            index,
+            state: getCourseDisplayState(course, index, termState, now, courseEvents?.get(course.id)),
+          };
+        })
+        .sort((a, b) => {
+          if (a.state.group !== b.state.group) return a.state.group - b.state.group;
+          if (a.state.order !== b.state.order) return a.state.order - b.state.order;
+          return a.index - b.index;
+        });
+    },
+    [courses, semesters, courseEvents],
   );
 
   return (
@@ -401,6 +355,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
       <CourseSchedulePanel
         onCourseClick={onCourseClick}
         showScheduleWidgets={hasCourses}
+        showPrimaryActions={shouldShowCoursePrimaryActions(activeSemesterId, courses.length)}
         onNewCourse={handleNewCourse}
         onNewSemester={() => openSemesterForm()}
         onImportIcs={handleImportClick}

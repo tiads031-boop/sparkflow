@@ -14,6 +14,7 @@ import CourseIntegrationsPanel from './CourseIntegrationsPanel';
 interface CourseSchedulePanelProps {
   onCourseClick: (id: string) => void;
   showScheduleWidgets?: boolean;
+  showPrimaryActions?: boolean;
   onNewCourse: () => void;
   onNewSemester: () => void;
   onImportIcs: () => void;
@@ -22,6 +23,7 @@ interface CourseSchedulePanelProps {
 export default function CourseSchedulePanel({
   onCourseClick,
   showScheduleWidgets = true,
+  showPrimaryActions = true,
   onNewCourse,
   onNewSemester,
   onImportIcs,
@@ -69,7 +71,7 @@ export default function CourseSchedulePanel({
     action();
   };
   return <>
-    <div className="course-primary-actions" aria-label="课程快捷操作">
+    {showPrimaryActions && <div className="course-primary-actions" aria-label="课程快捷操作">
       <button type="button" className="course-primary-action" onClick={onNewCourse}>
         <Plus aria-hidden="true" />
         <span><strong>新建课程</strong><small>手动添加一门课</small></span>
@@ -88,7 +90,7 @@ export default function CourseSchedulePanel({
           setPreview(data);
         });
       }} />
-    </div>
+    </div>}
     {toolsOpen && createPortal(
       <div className="course-tools-overlay" role="presentation" onClick={() => setToolsOpen(false)}>
         <section className="course-tools-sheet" role="dialog" aria-modal="true" aria-labelledby="course-tools-title" onClick={(event) => event.stopPropagation()}>
