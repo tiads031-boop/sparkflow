@@ -26,6 +26,7 @@ import {
   type InspirationRecord,
   type ReviewQueue,
 } from '../api/inspirations';
+import { InsightPanel } from './insights/InsightPanel';
 
 interface SparksViewProps {
   sparks: Spark[];
@@ -34,7 +35,7 @@ interface SparksViewProps {
   onAddClick: () => void;
 }
 
-type RecordViewMode = 'cards' | 'review' | 'wall';
+type RecordViewMode = 'cards' | 'review' | 'insights' | 'wall';
 
 function recordText(record: InspirationRecord) {
   return record.contentText || record.description || record.title || '未命名记录';
@@ -219,10 +220,11 @@ export default function SparksView(_props: SparksViewProps) {
         </button>
       </header>
 
-      <div className="grid grid-cols-3 rounded-full bg-[var(--sf-surface)] p-1 shadow-sm" aria-label="记录视图">
-        <button type="button" onClick={() => setMode('cards')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-xs font-semibold ${mode === 'cards' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><List size={13} /> 卡片</button>
-        <button type="button" onClick={() => { setMode('review'); loadReviews(); }} className={`flex items-center justify-center gap-1 rounded-full py-2 text-xs font-semibold ${mode === 'review' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><RefreshCw size={13} /> 回顾{reviewQueue.total > 0 ? ` ${reviewQueue.total}` : ''}</button>
-        <button type="button" onClick={() => setMode('wall')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-xs font-semibold ${mode === 'wall' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><LayoutGrid size={13} /> 自由墙</button>
+      <div className="grid grid-cols-4 rounded-full bg-[var(--sf-surface)] p-1 shadow-sm" aria-label="记录视图">
+        <button type="button" onClick={() => setMode('cards')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'cards' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><List size={12} /> 卡片</button>
+        <button type="button" onClick={() => { setMode('review'); loadReviews(); }} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'review' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><RefreshCw size={12} /> 回顾{reviewQueue.total > 0 ? ` ${reviewQueue.total}` : ''}</button>
+        <button type="button" onClick={() => setMode('insights')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'insights' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><Sparkles size={12} /> 洞察</button>
+        <button type="button" onClick={() => setMode('wall')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'wall' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><LayoutGrid size={12} /> 自由墙</button>
       </div>
 
       {error && <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div>}
@@ -258,6 +260,8 @@ export default function SparksView(_props: SparksViewProps) {
           ))}
         </section>
       )}
+
+      {mode === 'insights' && <InsightPanel recordCount={records.length} />}
 
       {mode === 'wall' && (
         <section>
