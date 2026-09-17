@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-17  
-> **代码同步基线**：`master@fad1a619`
+> **代码同步基线**：`master@a1fe22c6`
 
 ---
 
@@ -14,17 +14,7 @@ SparkFlow 是一个面向个人学习、工作与日常安排的智能效率系�
 当前核心效率链路：
 
 ```text
-今天
-  ↓
-待办 / 课程 / 日历
-  ↓
-时间轴
-  ↓
-AI / Scheduler 安排
-  ↓
-专注
-  ↓
-完成
+今天 → 待办 / 课程 / 日历 → 时间轴 → AI / Scheduler 安排 → 专注 → 完成
 ```
 
 Phase 15 继续补齐：
@@ -55,7 +45,7 @@ Folder → Today → Focus → Review → Schedule
 | 6 | 日程事实源 | Task 与 CalendarEvent 投影为统一 `ScheduleItem` | Today、Timeline、Planner 使用同一显示与冲突口径 |
 | 7 | AI 排程 | LLM 负责语言→意图；确定性 Scheduler 决定具体时间 | 保证锁定、冲突、截止时间和撤销可复现 |
 | 8 | AI 行动原则 | Preview → Confirm/Apply → Undo | AI 不直接替用户执行不可逆修改 |
-| 9 | 课程导入 | 客户端获取/解析/预览；服务端负责授权、幂等、事务和结果 | 避免重复、半写入和跨用户数据问题 |
+| 9 | 课程导入 | 客户端获取/解析/预览；服务端负责授权、幂等、重复/冲突、事务和结果查询 | 避免重复、半写入和跨用户数据问题 |
 | 10 | 记录事实源 | Phase 15 统一到服务端 `Inspiration` | 逐步淘汰前端旧 `Spark` 作为主事实源 |
 | 11 | Study Mode | 复用 Course / Task / Calendar / Planner / Focus | 学习场景是工作区，不是第二套效率系统 |
 | 12 | Local Codex Bridge | 独立本机 loopback Gateway，native Codex 为唯一执行事实源 | 不进入云端生产控制链，不建立第二套 runtime/transcript |
@@ -94,7 +84,7 @@ flowchart TD
 
 1. 服务端 Session 是身份事实源。
 2. 客户端传入的 `userId` 不得作为授权依据。
-3. Task、CalendarEvent、Course、Semester、PomodoroSession、SchedulePlan 等业务实体按当前登录用户隔离。
+3. Task、CalendarEvent、Course、Semester、PomodoroSession、SchedulePlan、CourseImportBatch 等业务实体按当前登录用户隔离。
 4. 数据库 migration 必须 additive、可验证、可备份。
 5. 健康接口 200 只表示进程可用，不能替代真实账户读写验收。
 6. Android 与 Web 必须使用同一生产 API 契约，不允许出现长期分叉配置。
@@ -137,9 +127,30 @@ flowchart TD
 
 ### Course / Import
 
-- 学期、课程、教师、教室、周次、课程详情与相关任务。
-- 支持教务/文件导入及季节作息模板。
-- 当前最大缺口不是“能解析”，而是服务端幂等、事务、冲突、重复检测和真实 Web/Android 闭环。
+课程导入已经不是“只有解析器”的状态。当前 V2 主链路已经具备：
+
+```text
+SchoolImport / JSON
+  ↓
+本地结构化作息与 ScheduleBackup
+  ↓
+V2 requestId envelope
+  ↓
+服务端 Preview
+  ├─ stable fingerprint
+  ├─ duplicate detection
+  └─ time conflict detection
+  ↓
+Serializable Transaction
+  ↓
+CourseImportBatch + Course + CalendarEvent
+  ↓
+异常时按 requestId 查询 / 成功结果 replay
+```
+
+PR #28 已补齐 CI 级安全证据：处理中批次不可重放、并发竞争恢复、事务失败传播和 `(userId, requestId)` 查询隔离。
+
+**当前缺口已从“安全代码实现”转为“生产证据”**：需要确认 migration 已在腾讯云执行，并用真实数据库、真实账号、Web/Android 做重复提交、断网/超时和回滚验收。
 
 ### Record / Inspiration（Phase 15）
 
@@ -166,7 +177,7 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 | Phase 09 | ⚠️ 冻结重估 | 多项能力已被后续实现覆盖 |
 | Phase 10 | ⚠️ 冻结重估 | md 方案取消；认证已完成；灵感转任务由 Phase 15 接管 |
 | Phase 11 | ✅ 归档 | 早期账户/Onboarding 历史方案 |
-| Phase 12 | 🚧 当前 P0 | 安全导入、幂等/事务/冲突、真实 Web/Android 验收 |
+| Phase 12 | 🚧 当前 P0：生产验收 | V2 幂等/事务/重复冲突代码与 CI 安全测试已具备；待生产 migration、真实 PostgreSQL 与 Web/Android 验收 |
 | Phase 13 | ⬜ P2 | Local Codex Bridge，等待用户主链路稳定 |
 | Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
 | Phase 15 | ⬜ 方案完成 | M1 Capture → Review → Task；M2 Insight → Action |
@@ -174,17 +185,13 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 
 ---
 
-## 七、仓库收口状态
-
-第一阶段仓库整理已完成：
+## 七、仓库与近期里程碑
 
 - ✅ PR #23 已关闭，由已合并的 #25 取代。
 - ✅ PR #24 已 squash 合并为 `fad1a619`。
-- ✅ PR #14 已关闭，不再作为旧基线直接 merge。
-- ✅ Issue #26 已建立，承接 M3 Timeline V2 的剩余要求。
-- ✅ 当前没有开放 PR。
-
-这意味着后续开发重新从最新 master 建短期分支，不再叠加旧 PR。
+- ✅ PR #14 已关闭，Issue #26 承接 M3 Timeline V2 剩余要求。
+- ✅ PR #28 已通过 Web/API CI 并 squash 合并为 `a1fe22c6`，补齐 Phase 12 服务端安全测试。
+- 当前开发继续从最新 master 创建短期分支。
 
 ---
 
@@ -192,10 +199,11 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 
 | 优先级 | 风险 | 关闭条件 |
 |---|---|---|
-| P0 | 课程导入缺少完整服务端幂等/事务闭环 | requestId、hash、指纹、重复策略、事务、结果查询和集成测试全部完成 |
-| P0 | Web/Android 真实导入未完全闭环 | 两端各一条真实学校路径通过 |
+| P0 | Course import migration 是否已在生产执行仍未证实 | 腾讯云 `_prisma_migrations` / schema 核验 `20260915120000_add_course_import_idempotency` |
+| P0 | 服务端安全代码缺少真实 PostgreSQL I/O 验收 | 真实库完成重复重放、并发、超时/断连、事务回滚并确认无副本/半成品 |
+| P0 | Web/Android 真实导入未完全闭环 | 两端各一条真实学校路径通过，重复提交验证幂等 |
 | P0 | Android 可能出现 Web 正常但 App 登录/网络失败 | 真机验证 Session、API 地址、TLS、网络策略和错误提示 |
-| P0 | 旧 Vercel 项目制造误导性失败检查 | 仅保留 `sparkflow031` 有效 Git 集成/检查 |
+| P0 | Vercel 旧项目/额度状态制造误导性失败 | 区分并清理旧项目检查；解决主项目 build-rate-limit 验收问题 |
 | P1 | Issue #26 Timeline M3 仍未重做 | 最新 master 上实现并通过多来源、移动端、DST/边界验收 |
 | P1 | SchedulePlan 生产 migration 仍需真实核验 | 真账号跑通 Preview → Apply → Undo |
 | P1 | Phase 14 未完成真实设备收口 | 核心效率链路跨 Web/PWA/Android 验收 |
@@ -206,14 +214,14 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 
 ```mermaid
 flowchart TD
-    A["✅ 仓库收口完成"] --> B["Phase 12 服务端安全导入"]
-    B --> C["Phase 12 Web / Android 真实验收"]
-    C --> D["平台与发布治理"]
-    D --> E["Phase 14 核心闭环收口 / Issue #26"]
-    E --> F["Phase 15 M1 Capture → Review → Task"]
-    F --> G["Phase 15 M2 Insight → Action"]
-    G --> H["Study Mode M1/M2"]
-    H --> I["Study Mode M3/M4"]
+    A["✅ 仓库收口"] --> B["✅ Phase 12 服务端安全代码 + CI"]
+    B --> C["Phase 12 生产 migration / PostgreSQL 验收"]
+    C --> D["Phase 12 Web / Android 真实导入"]
+    D --> E["平台与发布治理"]
+    E --> F["Phase 14 核心闭环 / Issue #26"]
+    F --> G["Phase 15 M1 Capture → Review → Task"]
+    G --> H["Phase 15 M2 Insight → Action"]
+    H --> I["Study Mode"]
     I --> J["Phase 13 Local Codex Bridge"]
 ```
 
@@ -222,11 +230,19 @@ flowchart TD
 - #23 关闭。
 - #24 合并。
 - #14 关闭并迁移到 Issue #26。
-- 当前无开放 PR。
 
-### 第二批：Phase 12 — 当前主线
+### 第二批 A：Phase 12 服务端安全代码 — ✅ 达到 CI 级门槛
 
-- 服务端幂等、事务、重复/冲突策略。
+- V2 requestId / payload hash。
+- stable fingerprint / duplicate / conflict preview。
+- Serializable transaction。
+- CourseImportBatch 结果查询与 replay。
+- PR #28 安全测试通过。
+
+### 第二批 B：Phase 12 生产验收 — 当前主线
+
+- 核验 course import / SchedulePlan migrations。
+- 真实 PostgreSQL 并发、断网/超时、回滚验证。
 - Web/Android 真实课程导入。
 - Auth / courses / tasks / schedule / Planner 生产冒烟。
 
@@ -258,11 +274,11 @@ M2：多记录 Insight，并坚持“AI 建议、用户确认”。
 2. 不长期堆叠大型 PR。
 3. Web/API build 与 tests 必须通过。
 4. migration 必须 additive、可备份、可验证。
-5. Preview 成功不等于生产验收完成。
+5. Preview / CI 成功不等于生产验收完成。
 6. Android 改动必须有真机登录、网络、safe-area、软键盘和核心导航回归。
 7. 数据修改型 AI 必须 Preview/Confirm，并尽量支持 Undo。
 8. 开放 PR 落后 master 时先做能力对账，不因旧 CI 通过就直接合并。
-9. 文档只写已证实事实；“代码存在”“Preview 成功”“生产可用”使用不同状态口径。
+9. 文档只写已证实事实；“代码存在”“CI 成功”“生产可用”使用不同状态口径。
 10. 每次合并、生产迁移、真实设备验收后同步 `NEXT.md`、相关 Phase、`INDEX.md` 与本蓝图。
 
 ---
