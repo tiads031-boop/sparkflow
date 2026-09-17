@@ -69,3 +69,5 @@ jobs:
         run: npx prisma migrate status
       - run: npm run build
       - run: npm test -- --runInBand
+      - name: Verify course import idempotency on PostgreSQL
+        run: npm run test:e2e -- --runInBand course-import-postgres
