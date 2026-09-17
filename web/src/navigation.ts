@@ -16,8 +16,8 @@ export const navigationRegistry: readonly NavigationItem[] = [
   { id: 'timeline', label: '时间轴', description: '日程和时间线', icon: 'timeline', toggleable: true, defaultVisible: true },
   { id: 'tasks', label: '待办', description: '任务列表', icon: 'tasks', toggleable: true, defaultVisible: true },
   { id: 'courses', label: '课程', description: '课表和课程管理', icon: 'courses', toggleable: true, defaultVisible: true },
+  { id: 'sparks', label: '记录', description: '随手记、每日回顾与行动来源', icon: 'sparks', toggleable: true, defaultVisible: true },
   { id: 'board', label: '看板', description: '项目和个人看板', icon: 'board', toggleable: true, defaultVisible: false },
-  { id: 'sparks', label: '灵感', description: '灵感卡片', icon: 'sparks', toggleable: true, defaultVisible: false },
   { id: 'settings', label: '设置', description: '偏好、同步和账户', icon: 'settings', toggleable: false, defaultVisible: true },
 ] as const;
 
@@ -52,4 +52,3 @@ export function migrateNavigationId(value: unknown): ActiveTab | null {
 export function isToggleableNavTab(value: ActiveTab | null): value is ToggleableNavTab {
   return value !== null && toggleableNavTabs.includes(value as ToggleableNavTab);
 }
-

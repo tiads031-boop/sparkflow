@@ -33,6 +33,7 @@ interface ApiTask {
   repeatEndDate?: string | null;
   tags?: string[];
   courseId?: string | null;
+  inspirationId?: string | null;
   scheduleLocked?: boolean;
   scheduleSource?: string;
   scheduleColor?: string | null;
@@ -100,6 +101,7 @@ function fromApiTask(api: ApiTask): Task {
     section: (api.section as Task['section']) || undefined,
     project: api.project || undefined,
     courseId: api.courseId || undefined,
+    inspirationId: api.inspirationId || undefined,
     tags: api.tags || [],
     comments: subtasks.length,
     subtasks,
@@ -135,6 +137,8 @@ function toApiPayload(task: Partial<Task> & { title?: string }): Record<string, 
   if (task.section !== undefined) payload.section = task.section;
   if (task.project !== undefined) payload.project = task.project;
   if (task.courseId !== undefined) payload.courseId = task.courseId;
+  // inspirationId is intentionally read-only in the generic task editor.
+  // Phase 15 links records to tasks only through the user-scoped conversion endpoint.
   if (task.tags !== undefined) payload.tags = task.tags;
   if (task.dueDate !== undefined) payload.dueDate = task.dueDate;
   if (task.estimatedMinutes !== undefined) payload.estimatedMinutes = task.estimatedMinutes;
@@ -291,9 +295,7 @@ export const createTaskSlice: StateCreator<AppState, [], [], TaskSlice> = (set, 
     } catch (err: any) {
       // 回滚
       set((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === taskId ? task : t,
-        ),
+        tasks: state.tasks.map((t) => (t.id === taskId ? task : t)),
       }));
       set({ taskError: err.message || '更新子任务失败' });
     }
