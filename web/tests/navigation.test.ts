@@ -18,13 +18,12 @@ test('unknown navigation ids are rejected without hiding future registered items
   assert.equal(isToggleableNavTab(migrateNavigationId('settings')), false);
 });
 
-test('V5 defaults expose five primary destinations including settings', () => {
+test('Phase 15 defaults expose records as a primary destination', () => {
   const visible = navigationRegistry.filter((item) =>
     item.id === 'settings' || (item.toggleable && defaultNavVisibility[item.id]),
   );
-  assert.deepEqual(visible.map((item) => item.id), ['today', 'timeline', 'tasks', 'courses', 'settings']);
-  assert.deepEqual(defaultNavOrder.slice(0, 4), ['today', 'timeline', 'tasks', 'courses']);
+  assert.deepEqual(visible.map((item) => item.id), ['today', 'timeline', 'tasks', 'courses', 'sparks', 'settings']);
+  assert.deepEqual(defaultNavOrder.slice(0, 5), ['today', 'timeline', 'tasks', 'courses', 'sparks']);
   assert.equal(defaultNavVisibility.board, false);
-  assert.equal(defaultNavVisibility.sparks, false);
+  assert.equal(defaultNavVisibility.sparks, true);
 });
-
