@@ -32,6 +32,7 @@ interface ApiTask {
   repeatStartDate?: string | null;
   repeatEndDate?: string | null;
   tags?: string[];
+  courseId?: string | null;
   scheduleLocked?: boolean;
   scheduleSource?: string;
   scheduleColor?: string | null;
@@ -98,6 +99,8 @@ function fromApiTask(api: ApiTask): Task {
     colorType: PRIORITY_TO_COLOR[api.priority] || 'green',
     section: (api.section as Task['section']) || undefined,
     project: api.project || undefined,
+    courseId: api.courseId || undefined,
+    tags: api.tags || [],
     comments: subtasks.length,
     subtasks,
     dueDate: api.dueDate || undefined,
@@ -131,6 +134,8 @@ function toApiPayload(task: Partial<Task> & { title?: string }): Record<string, 
   if (task.priority !== undefined) payload.priority = PRIORITY_FRONT_TO_DB[task.priority] || 'medium';
   if (task.section !== undefined) payload.section = task.section;
   if (task.project !== undefined) payload.project = task.project;
+  if (task.courseId !== undefined) payload.courseId = task.courseId;
+  if (task.tags !== undefined) payload.tags = task.tags;
   if (task.dueDate !== undefined) payload.dueDate = task.dueDate;
   if (task.estimatedMinutes !== undefined) payload.estimatedMinutes = task.estimatedMinutes;
   else if ((task as any).duration !== undefined) payload.estimatedMinutes = (task as any).duration;

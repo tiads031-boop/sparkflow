@@ -35,6 +35,10 @@ export interface Task {
   section?: TaskSection;
   /** 文件夹 / 项目名称 */
   project?: string;
+  /** 关联课程；课程详情与待办列表共享同一任务记录 */
+  courseId?: string;
+  /** 任务标签 */
+  tags?: string[];
   /** V4 Calendar: 开始时间 "HH:MM" */
   startTime?: string;
   /** 任务安排到时间线的完整本地/ISO 日期时间 */
