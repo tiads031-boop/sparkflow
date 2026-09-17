@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { Bell, Lock, X } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Bell, Lock } from 'lucide-react';
 import type { Task } from '../../types';
+import ModalCloseButton from '../ui/ModalCloseButton';
+import { useModalLifecycle } from '../ui/useModalLifecycle';
 
 export interface ScheduleDraft {
   taskId?: string;
@@ -39,6 +42,8 @@ export default function ScheduleEditor({ open, initialDate, initialTask, onClose
   const [color, setColor] = useState(initialTask?.scheduleColor ?? colors[0]);
   const [description, setDescription] = useState(initialTask?.description ?? '');
   const [saving, setSaving] = useState(false);
+  const close = useCallback(() => onClose(), [onClose]);
+  useModalLifecycle(open, close);
   if (!open) return null;
 
   const submit = async () => {
@@ -62,10 +67,13 @@ export default function ScheduleEditor({ open, initialDate, initialTask, onClose
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" onClick={onClose}>
-      <section role="dialog" aria-modal="true" aria-label="安排一件事" onClick={(event) => event.stopPropagation()} className="w-full max-w-lg rounded-t-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)]">
-        <div className="mb-4 flex items-center justify-between"><h2 className="font-bold">{initialTask ? '编辑安排' : '安排一件事'}</h2><button type="button" onClick={onClose} className="rounded-full bg-[var(--sf-bg)] p-2"><X size={16} /></button></div>
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[110] flex items-end justify-center bg-black/30"
+      onPointerDown={(event) => { if (event.target === event.currentTarget) close(); }}
+    >
+      <section role="dialog" aria-modal="true" aria-label="安排一件事" className="max-h-[94dvh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] bg-[var(--sf-surface)] p-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-[0_-16px_48px_rgba(0,0,0,0.14)]">
+        <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold">{initialTask ? '编辑安排' : '安排一件事'}</h2><ModalCloseButton onClick={close} label="关闭日程编辑" /></div>
         <div className="space-y-3">
           <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="要做什么？" className="w-full rounded-[var(--sf-radius-sm)] bg-[var(--sf-bg)] px-4 py-3 text-sm outline-none" autoFocus />
           <div className="grid grid-cols-2 gap-2"><label className="text-xs text-[var(--sf-text-secondary)]">日期<input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-1 w-full rounded-xl bg-[var(--sf-bg)] p-3 text-sm" /></label><label className="text-xs text-[var(--sf-text-secondary)]">开始<input type="time" value={time} onChange={(event) => setTime(event.target.value)} className="mt-1 w-full rounded-xl bg-[var(--sf-bg)] p-3 text-sm" /></label></div>
@@ -76,6 +84,7 @@ export default function ScheduleEditor({ open, initialDate, initialTask, onClose
           <button type="button" disabled={saving || !title.trim()} onClick={() => void submit()} className="w-full rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-bold text-[var(--sf-surface)] disabled:opacity-40">{saving ? '保存中…' : initialTask ? '更新安排' : '保存安排'}</button>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
