@@ -2,16 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { configureHttpBodyParsing } from './http-body';
+import { resolveCorsOrigins } from './cors';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
   configureHttpBodyParsing(app);
 
-  const corsOrigin = process.env.CORS_ORIGIN;
-  const origins = corsOrigin
-    ? corsOrigin.split(',').map((o) => o.trim())
-    : ['http://localhost:5173', 'http://localhost:3000'];
+  const origins = resolveCorsOrigins(process.env.CORS_ORIGIN);
 
   app.enableCors({
     origin: origins,
