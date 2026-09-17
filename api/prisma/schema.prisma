@@ -18,19 +18,20 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  inspirations      Inspiration[]
-  tasks             Task[]
-  pomodoroSessions  PomodoroSession[]
-  calendarEvents    CalendarEvent[]
-  aiConversations   AIConversation[]
-  pushSubscriptions PushSubscription[]
-  courses           Course[]
-  courseNotes       CourseNote[]
-  semesters         Semester[]
-  googleToken       GoogleToken?
-  authSessions      AuthSession[]
-  schedulePlans     SchedulePlan[]
-  courseImportBatches CourseImportBatch[]
+  inspirations           Inspiration[]
+  inspirationReflections InspirationReflection[]
+  tasks                  Task[]
+  pomodoroSessions       PomodoroSession[]
+  calendarEvents         CalendarEvent[]
+  aiConversations        AIConversation[]
+  pushSubscriptions      PushSubscription[]
+  courses                Course[]
+  courseNotes            CourseNote[]
+  semesters              Semester[]
+  googleToken            GoogleToken?
+  authSessions           AuthSession[]
+  schedulePlans          SchedulePlan[]
+  courseImportBatches    CourseImportBatch[]
 
   @@map("users")
 }
@@ -81,30 +82,51 @@ model Semester {
 }
 
 model Inspiration {
-  id          String    @id @default(uuid())
-  userId      String
-  sourceUrl   String
-  sourceType  String    @default("article")
-  title       String?
-  description String?
-  contentText String?   @db.Text
-  coverImage  String?
-  author      String?
-  publishedAt DateTime?
-  aiSummary   String?   @db.Text
-  aiInsights  Json      @default("[]")
-  tags        String[]
-  status      String    @default("active")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  userId         String
+  sourceUrl      String?
+  sourceType     String    @default("manual")
+  title          String?
+  description    String?
+  contentText    String?   @db.Text
+  coverImage     String?
+  author         String?
+  publishedAt    DateTime?
+  aiSummary      String?   @db.Text
+  aiInsights     Json      @default("[]")
+  tags           String[]
+  status         String    @default("active")
+  reviewState    String    @default("pending")
+  nextReviewAt   DateTime?
+  lastReviewedAt DateTime?
+  reviewCount    Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task Task?
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task        Task?
+  reflections InspirationReflection[]
 
   @@index([userId])
   @@index([status])
   @@index([tags])
+  @@index([userId, nextReviewAt])
   @@map("inspirations")
+}
+
+model InspirationReflection {
+  id            String   @id @default(uuid())
+  userId        String
+  inspirationId String
+  body          String   @db.Text
+  createdAt     DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inspiration Inspiration @relation(fields: [inspirationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([inspirationId, createdAt])
+  @@map("inspiration_reflections")
 }
 
 model Task {
@@ -140,7 +162,7 @@ model Task {
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   pomodoroSessions PomodoroSession[]
   calendarEvents   CalendarEvent[]
-  inspiration      Inspiration?      @relation(fields: [inspirationId], references: [id])
+  inspiration      Inspiration?      @relation(fields: [inspirationId], references: [id], onDelete: SetNull)
   course           Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
   @@index([userId])
@@ -157,9 +179,9 @@ model PomodoroSession {
   duration          Int       @default(25)
   startedAt         DateTime  @default(now())
   endedAt           DateTime?
-  status            String    @default("active") // active/completed/interrupted
+  status             String    @default("active") // active/completed/interrupted
   interruptionCount Int       @default(0)
-  notes             String?
+  notes              String?
 
   user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
@@ -266,11 +288,11 @@ model Course {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  semester Semester?       @relation(fields: [semesterId], references: [id], onDelete: SetNull)
-  events   CalendarEvent[]
-  tasks    Task[]
-  notes    CourseNote[]
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  semester    Semester?          @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  events      CalendarEvent[]
+  tasks       Task[]
+  notes       CourseNote[]
   importBatch CourseImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   @@index([userId])
