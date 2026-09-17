@@ -37,6 +37,8 @@ export interface Task {
   project?: string;
   /** 关联课程；课程详情与待办列表共享同一任务记录 */
   courseId?: string;
+  /** Phase 15：任务来源记录，用于回答“为什么做这件事” */
+  inspirationId?: string;
   /** 任务标签 */
   tags?: string[];
   /** V4 Calendar: 开始时间 "HH:MM" */
