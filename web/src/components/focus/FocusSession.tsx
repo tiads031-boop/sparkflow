@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react';
-import { Check, Pause, Play, RotateCcw, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, Pause, Play, RotateCcw } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
+import ModalCloseButton from '../ui/ModalCloseButton';
+import { useModalLifecycle } from '../ui/useModalLifecycle';
 
 const DURATIONS = [15, 25, 45, 60];
 
@@ -28,8 +31,6 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
   const progress = pomodoro.duration > 0 ? Math.max(0, Math.min(1, pomodoro.timeLeft / pomodoro.duration)) : 0;
   const task = tasks.find((candidate) => candidate.id === (pomodoro.activeTaskId || taskId));
 
-  if (!open) return null;
-
   const start = async () => {
     setBusy(true);
     setMessage('');
@@ -55,17 +56,21 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
     }
   };
 
-  const exit = async () => {
+  const exit = useCallback(async () => {
     if (pomodoro.isRunning) await stopPomodoro();
     onClose();
-  };
+  }, [onClose, pomodoro.isRunning, stopPomodoro]);
+  const requestClose = useCallback(() => { void exit(); }, [exit]);
+
+  useModalLifecycle(open, requestClose);
+  if (!open) return null;
 
   const finishTask = async () => {
     if (task) await updateTask(task.id, { status: 'Done' });
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[100] flex flex-col bg-[var(--sf-bg)] text-[var(--sf-text-primary)]"
       role="dialog"
@@ -77,14 +82,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
           <p className="text-xs font-bold tracking-[0.22em] text-[var(--sf-marker-purple)]">FOCUS</p>
           <h2 className="text-lg font-bold">专注这一件事</h2>
         </div>
-        <button
-          type="button"
-          onClick={() => void exit()}
-          className="grid h-11 w-11 place-items-center rounded-full bg-[var(--sf-surface)]"
-          aria-label="退出专注"
-        >
-          <X size={20} />
-        </button>
+        <ModalCloseButton onClick={() => void exit()} label="退出专注" />
       </header>
 
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-7 overflow-y-auto px-6 py-4">
@@ -124,7 +122,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
               type="button"
               disabled={busy}
               onClick={() => void start()}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-4 font-bold text-[var(--sf-accent)] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-4 font-bold text-[var(--sf-surface)] disabled:opacity-50"
             >
               <Play size={18} fill="currentColor" />
               开始专注
@@ -145,7 +143,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
               <button
                 type="button"
                 onClick={() => void finishTask()}
-                className="w-full rounded-full bg-[var(--sf-text-primary)] py-4 font-bold text-[var(--sf-accent)]"
+                className="w-full rounded-full bg-[var(--sf-text-primary)] py-4 font-bold text-[var(--sf-surface)]"
               >
                 完成关联任务
               </button>
@@ -208,6 +206,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
         )}
         {message && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{message}</p>}
       </main>
-    </div>
+    </div>,
+    document.body,
   );
 }

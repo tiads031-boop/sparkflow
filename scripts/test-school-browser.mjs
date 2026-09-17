@@ -25,9 +25,25 @@ try {
   const b = await check(list);
   assert.deepEqual(b.data.courses[0].weeks, [2,4,6,8,9,11]);
   assert.equal(b.data.courses[0].endSection, 3);
+  const legacy = `<table id="kbtable">
+    <tr><th>时间段</th><th>节次</th><th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th></tr>
+    <tr><th>上午</th><th>1</th><td></td><td><div class="kbcontent" name="ABCDEF-2-1">
+      法律职业伦理★<br><font title="周次(节次)">(1-1节)1 3周</font><br><font title="教室">中心-305</font><br><font title="教师">王旭东</font>
+      ---------------------<br>
+      民法分论III★<br><font title="周次(节次)">(1-2节)5-17周</font><br><font title="教室">躬行楼(实)-301</font><br><font title="教师">贾路路</font>
+    </div></td><td></td><td></td><td></td><td></td><td></td></tr>
+  </table>`;
+  const legacyResult = await check(legacy);
+  assert.equal(legacyResult.data.courses.length, 2);
+  assert.equal(legacyResult.data.courses[0].name, '法律职业伦理');
+  assert.equal(legacyResult.data.courses[0].day, 2);
+  assert.deepEqual(legacyResult.data.courses[0].weeks, [1,3]);
+  assert.equal(legacyResult.data.courses[0].position, '中心-305');
+  assert.equal(legacyResult.data.courses[0].teacher, '王旭东');
+  assert.equal(legacyResult.data.courses[1].endSection, 2);
   const c = await check(table.replace('1-16周(单)', '周次待定'));
   assert.equal(c.data.courses.length, 0);
   assert.equal(c.data.complete, false);
   assert.ok(c.errors.length > 0);
-  console.log('PASS: actual browser DOM table/list parsing, parity, single section, absent teacher/room, incomplete-data rejection');
+  console.log('PASS: browser DOM modern grid/list and legacy kbcontent parsing, parity, single section, absent teacher/room, incomplete-data rejection');
 } finally { await fetch(`${proxy}/close?target=${target}`); }

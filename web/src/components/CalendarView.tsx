@@ -2,6 +2,7 @@ import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import { useAppStore, type Task } from '../store/appStore';
 import { V4 } from '../v4config';
 import { api, DEFAULT_USER_ID } from '../api/client';
+import GanttView from './GanttView';
 
 // ==================== 日历事件类型 & API ====================
 
@@ -362,6 +363,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
   const inlineInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const [currentTimeTop, setCurrentTimeTop] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'timeline' | 'gantt'>('timeline');
 
   // 长按创建状态
   const [creatingGhost, setCreatingGhost] = useState<{ startTime: string; duration: number; top: number; height: number } | null>(null);
@@ -1076,6 +1078,14 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
           </button>
         </div>
       </div>
+      <div className="mb-4 grid grid-cols-2 rounded-full bg-[var(--sf-surface)] p-1 shadow-sm" aria-label="日程视图">
+        <button type="button" onClick={() => setViewMode('timeline')} className={`rounded-full py-2 text-sm font-semibold transition-colors ${viewMode === 'timeline' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}>时间轴</button>
+        <button type="button" onClick={() => setViewMode('gantt')} className={`rounded-full py-2 text-sm font-semibold transition-colors ${viewMode === 'gantt' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}>甘特图</button>
+      </div>
+
+      {viewMode === 'gantt' ? (
+        <GanttView tasks={tasks} selectedDate={selectedDate} onTaskClick={onTaskClick} />
+      ) : <>
       {importResult && (
         <div className={`mb-4 text-xs px-4 py-2 rounded-xl ${importResult.startsWith('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
           {importResult}
@@ -1453,6 +1463,7 @@ export default function CalendarView({ onTaskClick }: { onTaskClick?: (task: Tas
           <p className="text-sm text-gray-400">该日无日程安排</p>
         </div>
       )}
+      </>}
     </div>
   );
 }

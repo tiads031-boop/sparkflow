@@ -1,6 +1,8 @@
-import { useState } from 'react';
-import { BrainCircuit, Check, RotateCcw, Sparkles, X } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { BrainCircuit, Check, RotateCcw, Sparkles } from 'lucide-react';
 import { api } from '../../api/client';
+import { useModalLifecycle } from '../ui/useModalLifecycle';
 
 interface Proposal {
   taskId: string;
@@ -55,6 +57,8 @@ export default function PlannerSheet({
   const [planId, setPlanId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const close = useCallback(() => onClose(), [onClose]);
+  useModalLifecycle(open, close);
 
   if (!open) return null;
 
@@ -119,35 +123,29 @@ export default function PlannerSheet({
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[90] flex items-end justify-center bg-black/35"
-      role="dialog"
-      aria-modal="true"
-      aria-label="智能安排"
+      className="fixed inset-0 z-[110] flex justify-center bg-[var(--sf-surface)]"
     >
-      <section className="max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-[var(--sf-bg)] px-5 pb-[calc(env(safe-area-inset-bottom,0px)+24px)] pt-5">
-        <header className="mb-5 flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-[var(--sf-marker-purple)]">
-              <BrainCircuit size={18} />
-              <span className="text-xs font-bold tracking-widest">SMART PLANNER</span>
-            </div>
-            <h2 className="mt-1 text-xl font-bold">AI 帮我安排</h2>
-            <p className="mt-1 text-xs text-[var(--sf-text-secondary)]">先生成预览，确认后才会写入日程。</p>
-          </div>
+      <section role="dialog" aria-modal="true" aria-label="智能安排" className="h-dvh w-full max-w-xl overflow-y-auto bg-[var(--sf-surface)] px-6 pb-[calc(env(safe-area-inset-bottom,0px)+28px)] pt-[calc(env(safe-area-inset-top,0px)+20px)]">
+        <header className="mb-8">
           <button
             type="button"
-            onClick={onClose}
-            className="grid h-10 w-10 place-items-center rounded-full bg-[var(--sf-surface)]"
-            aria-label="关闭"
+            onClick={close}
+            className="rounded-full bg-[var(--sf-bg)] px-5 py-2.5 text-sm font-medium shadow-sm btn-press focus-ring"
           >
-            <X size={19} />
+            关闭
           </button>
+          <div className="mt-12 flex items-center gap-2 text-[var(--sf-marker-purple)]">
+            <BrainCircuit size={18} />
+            <span className="text-xs font-bold tracking-widest">SMART PLANNER</span>
+          </div>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight">把任务，交给 SparkFlow。</h2>
+          <p className="mt-2 text-sm text-[var(--sf-text-secondary)]">选择一天和可用时段，先预览，再写入日程。</p>
         </header>
 
-        <div className="grid grid-cols-2 gap-3 rounded-[var(--sf-radius-md)] bg-[var(--sf-surface)] p-4">
-          <label className="col-span-2 text-xs font-bold">
+        <div className="space-y-5">
+          <label className="flex items-center justify-between gap-4 text-sm font-medium">
             安排日期
             <input
               type="date"
@@ -156,46 +154,51 @@ export default function PlannerSheet({
                 setDate(event.target.value);
                 setPreview(null);
               }}
-              className="mt-1 w-full rounded-xl bg-[var(--sf-bg)] px-3 py-2 text-sm font-normal"
+              className="min-w-0 rounded-full bg-[var(--sf-bg)] px-4 py-2.5 text-right text-sm font-normal outline-none"
             />
           </label>
-          <label className="text-xs font-bold">
-            开始
-            <input
-              type="time"
-              value={startTime}
-              onChange={(event) => {
-                setStartTime(event.target.value);
-                setPreview(null);
-              }}
-              className="mt-1 w-full rounded-xl bg-[var(--sf-bg)] px-3 py-2 text-sm font-normal"
-            />
-          </label>
-          <label className="text-xs font-bold">
-            结束
-            <input
-              type="time"
-              value={endTime}
-              onChange={(event) => {
-                setEndTime(event.target.value);
-                setPreview(null);
-              }}
-              className="mt-1 w-full rounded-xl bg-[var(--sf-bg)] px-3 py-2 text-sm font-normal"
-            />
-          </label>
+          <div className="rounded-[var(--sf-radius-md)] bg-[var(--sf-bg)] p-4">
+            <p className="mb-4 text-sm font-medium">一天里可安排的时间</p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-xs text-[var(--sf-text-secondary)]">
+                从几点开始
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(event) => {
+                    setStartTime(event.target.value);
+                    setPreview(null);
+                  }}
+                  className="mt-2 w-full rounded-full bg-[var(--sf-surface)] px-4 py-2.5 text-center text-sm font-medium outline-none"
+                />
+              </label>
+              <label className="text-xs text-[var(--sf-text-secondary)]">
+                最晚几点结束
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(event) => {
+                    setEndTime(event.target.value);
+                    setPreview(null);
+                  }}
+                  className="mt-2 w-full rounded-full bg-[var(--sf-surface)] px-4 py-2.5 text-center text-sm font-medium outline-none"
+                />
+              </label>
+            </div>
+          </div>
         </div>
 
         <p className="mt-3 text-xs leading-5 text-[var(--sf-text-tertiary)]">
-          系统会避开课程、会议和已有安排，优先处理高优先级与临近截止任务；锁定事项永远不会被移动。
+          会自动避开课程、会议和已有安排，优先处理高优先级与临近截止任务；锁定事项不会被移动。
         </p>
         <button
           type="button"
           disabled={busy || !date || startTime >= endTime}
           onClick={() => void generate()}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3.5 font-bold text-[var(--sf-accent)] disabled:opacity-40"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3.5 font-bold text-[var(--sf-surface)] disabled:opacity-40"
         >
           <Sparkles size={17} />
-          {busy ? '正在计算…' : preview ? '重新生成预览' : '生成安排预览'}
+          {busy ? '正在计算…' : preview ? '重新看看怎么安排' : '看看怎么安排'}
         </button>
 
         {preview && preview.proposals.length > 0 && (
@@ -249,6 +252,7 @@ export default function PlannerSheet({
           </button>
         )}
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

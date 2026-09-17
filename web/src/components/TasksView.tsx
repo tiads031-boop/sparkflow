@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Task } from '../store/appStore';
 import TaskCard from './TaskCard';
+import QuadrantView from './QuadrantView';
 
 interface TasksViewProps {
   tasks: Task[];
@@ -9,6 +10,7 @@ interface TasksViewProps {
 
 export default function TasksView({ tasks, onTaskClick }: TasksViewProps) {
   const [filter, setFilter] = useState('All');
+  const [viewMode, setViewMode] = useState<'list' | 'quadrant'>('list');
   const filters = ['All', 'In progress', 'To do', 'Done'];
 
   const displayTasks =
@@ -28,8 +30,13 @@ export default function TasksView({ tasks, onTaskClick }: TasksViewProps) {
         <span className="text-xs text-gray-400">{tasks.filter((t) => t.status !== 'Cancelled').length} 项</span>
       </div>
 
+      <div className="mb-4 grid grid-cols-2 rounded-full bg-[var(--sf-surface)] p-1 shadow-sm" aria-label="任务视图">
+        <button type="button" onClick={() => setViewMode('list')} className={`rounded-full py-2 text-sm font-semibold transition-colors ${viewMode === 'list' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}>列表</button>
+        <button type="button" onClick={() => setViewMode('quadrant')} className={`rounded-full py-2 text-sm font-semibold transition-colors ${viewMode === 'quadrant' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}>四象限</button>
+      </div>
+
       {/* Filter pills */}
-      <div className="flex gap-2 overflow-x-auto pb-3 mb-2 hide-scrollbar">
+      <div className={`gap-2 overflow-x-auto pb-3 mb-2 hide-scrollbar ${viewMode === 'list' ? 'flex' : 'hidden'}`}>
         {filters.map((f) => (
           <button
             key={f}
@@ -45,8 +52,7 @@ export default function TasksView({ tasks, onTaskClick }: TasksViewProps) {
         ))}
       </div>
 
-      {/* Task list */}
-      <div className="space-y-1 stagger">
+      {viewMode === 'quadrant' ? <QuadrantView tasks={tasks} onTaskClick={onTaskClick} /> : <div className="space-y-1 stagger">
         {displayTasks.length > 0 ? (
           displayTasks.map((task) => (
             <TaskCard key={task.id} task={task} onClick={() => onTaskClick(task)} />
@@ -56,7 +62,7 @@ export default function TasksView({ tasks, onTaskClick }: TasksViewProps) {
             暂无{filter === 'All' ? '' : filterLabel(filter)}任务
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
