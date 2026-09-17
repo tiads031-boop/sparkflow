@@ -41,9 +41,21 @@ try {
   assert.equal(legacyResult.data.courses[0].position, '中心-305');
   assert.equal(legacyResult.data.courses[0].teacher, '王旭东');
   assert.equal(legacyResult.data.courses[1].endSection, 2);
+  const splitContent = `<table id="kbtable"><tr><td><div class="kbcontent" name="ABCDEF-4-1">
+    <p><span class="title">知识产权法★</span></p>
+    <span class="glyphicon glyphicon-time"></span><span>(3-4节)5-17周</span>
+    <span title="教室">躬行楼(实)-301</span><span title="教师">孙悦</span>
+  </div></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table>`;
+  const splitResult = await check(splitContent);
+  assert.equal(splitResult.data.courses.length, 1);
+  assert.equal(splitResult.data.courses[0].name, '知识产权法');
+  assert.equal(splitResult.data.courses[0].day, 4);
+  assert.equal(splitResult.data.courses[0].startSection, 3);
+  assert.equal(splitResult.data.courses[0].endSection, 4);
+  assert.deepEqual(splitResult.data.courses[0].weeks, [5,6,7,8,9,10,11,12,13,14,15,16,17]);
   const c = await check(table.replace('1-16周(单)', '周次待定'));
   assert.equal(c.data.courses.length, 0);
   assert.equal(c.data.complete, false);
   assert.ok(c.errors.length > 0);
-  console.log('PASS: browser DOM modern grid/list and legacy kbcontent parsing, parity, single section, absent teacher/room, incomplete-data rejection');
+  console.log('PASS: browser DOM modern grid/list, legacy and split kbcontent parsing, parity, single section, absent teacher/room, incomplete-data rejection');
 } finally { await fetch(`${proxy}/close?target=${target}`); }

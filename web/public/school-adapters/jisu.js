@@ -28,14 +28,25 @@
   }
 
   function blockLines(block) {
-    const paragraphs = [...block.querySelectorAll('p')].map(text).filter(Boolean);
-    if (paragraphs.length) return paragraphs;
+    const lines = [];
+    const append = value => {
+      for (const line of String(value || '').split(/\n+/).map(clean).filter(Boolean)) {
+        if (!lines.includes(line)) lines.push(line);
+      }
+    };
 
-    // Legacy Zhengfang pages use <br> inside .kbcontent. textContent does not
-    // preserve those visual line breaks, so turn them into text nodes first.
+    // Some JISU pages put only the course title in <p>, with period/week data
+    // in sibling icon rows. Keep every representation instead of returning
+    // early after finding paragraphs.
+    [...block.querySelectorAll('p')].map(text).filter(Boolean).forEach(append);
+
+    // Legacy Zhengfang pages also use <br> inside .kbcontent. textContent does
+    // not preserve those visual line breaks, so turn them into text nodes.
     const copy = block.cloneNode(true);
     for (const br of copy.querySelectorAll('br')) br.replaceWith('\n');
-    return String(copy.textContent || '').split(/\n+/).map(clean).filter(Boolean);
+    append(copy.textContent);
+    append(block.innerText);
+    return lines;
   }
 
   function stripCourseMarks(value) {
@@ -54,11 +65,19 @@
   function sectionAndWeeks(lines, fallback) {
     const sources = [fallback, ...lines].map(clean).filter(Boolean);
     const sectionPattern = /[（(\[]?\s*(\d+)\s*(?:[-－–—~～至]\s*(\d+))?\s*节\s*[）)\]]?/;
-    let sectionSource = sources.find(value => sectionPattern.test(value)) || sources.join(' ');
+    const sectionSource = sources.find(value => sectionPattern.test(value) && /周/.test(value))
+      || sources.find(value => sectionPattern.test(value))
+      || sources.join(' ');
     const section = sectionSource.match(sectionPattern);
     if (!section) return null;
     const afterSection = sectionSource.slice((section.index || 0) + section[0].length);
-    const weekText = (/周/.test(afterSection) ? afterSection : sources.find(value => /周/.test(value))) || afterSection;
+    let weekText = (/周/.test(afterSection) ? afterSection : sources.find(value => /周/.test(value))) || afterSection;
+    const repeatedSection = weekText.match(sectionPattern);
+    if (repeatedSection) weekText = weekText.slice((repeatedSection.index || 0) + repeatedSection[0].length);
+    // When all icon rows are inline, the room/teacher text follows immediately.
+    // Stop at the final supported week segment instead of parsing later numbers.
+    weekText = weekText.match(/^(.+?周(?:\s*[（(][单双][）)])?(?:\s*[,，、;；]\s*\d+(?:\s*[-－–—~～至]\s*\d+)?\s*周(?:\s*[（(][单双][）)])?)*)/)?.[1]
+      || weekText;
     const parsedWeeks = weeks(weekText);
     if (!parsedWeeks.length) return null;
     return {
@@ -84,7 +103,10 @@
 
   function add(block, day, sectionsText) {
     const name = courseName(block);
-    if (!name) return;
+    if (!name) {
+      invalid.push(`未识别课程名称：${text(block).slice(0, 40)}`);
+      return;
+    }
     try {
       const lines = blockLines(block);
       const details = stripCourseMarks(lines[0]) === name ? lines.slice(1) : lines;
