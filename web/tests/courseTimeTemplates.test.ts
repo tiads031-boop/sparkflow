@@ -58,3 +58,45 @@ test('template loading rebuilds normalized slots and drops invalid entries', () 
     slots: [{ number: 1, startTime: '08:00', endTime: '08:45' }],
   }]);
 });
+
+test('JISU adapters expose import-ready summer and winter built-in templates', () => {
+  const storage = { getItem: () => null };
+  const templates = loadCourseTimeTemplates('jisu_external', storage);
+  assert.deepEqual(templates.map(template => [template.name, template.builtIn, template.slots.length]), [
+    ['吉林外国语大学 · 夏季作息', true, 12],
+    ['吉林外国语大学 · 冬季作息', true, 12],
+  ]);
+  assert.deepEqual(templates[0]?.slots.slice(2, 8), [
+    { number: 3, startTime: '10:00', endTime: '10:45' },
+    { number: 4, startTime: '10:55', endTime: '11:40' },
+    { number: 5, startTime: '13:30', endTime: '14:15' },
+    { number: 6, startTime: '14:25', endTime: '15:10' },
+    { number: 7, startTime: '15:20', endTime: '16:05' },
+    { number: 8, startTime: '16:10', endTime: '16:55' },
+  ]);
+  assert.deepEqual(templates[1]?.slots.slice(2, 8), [
+    { number: 3, startTime: '10:10', endTime: '10:55' },
+    { number: 4, startTime: '11:05', endTime: '11:50' },
+    { number: 5, startTime: '13:10', endTime: '13:55' },
+    { number: 6, startTime: '14:00', endTime: '14:45' },
+    { number: 7, startTime: '14:55', endTime: '15:40' },
+    { number: 8, startTime: '15:45', endTime: '16:30' },
+  ]);
+  assert.equal(loadCourseTimeTemplates('jisu_campus', storage).length, 2);
+});
+
+test('built-in templates are not copied into user storage', () => {
+  let serialized = '';
+  const storage = {
+    getItem: () => null,
+    setItem: (_key: string, value: string) => { serialized = value; },
+  };
+  const templates = loadCourseTimeTemplates('jisu_external', storage);
+  saveCourseTimeTemplates('jisu_external', [
+    ...templates,
+    { id: 'custom', name: '我的作息', slots: [{ number: 1, startTime: '08:10', endTime: '08:55' }] },
+  ], storage);
+  assert.deepEqual(JSON.parse(serialized), [
+    { id: 'custom', name: '我的作息', slots: [{ number: 1, startTime: '08:10', endTime: '08:55' }] },
+  ]);
+});
