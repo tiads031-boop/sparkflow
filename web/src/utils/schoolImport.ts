@@ -30,12 +30,22 @@ export function normalizeCourseTime(value: unknown): string | null {
 export function parseTimeSlots(slotsText: string): ParsedTimeSlot[] {
   const slots = new Map<number, ParsedTimeSlot>();
   for (const line of slotsText.split(/\r?\n/).filter(value => value.trim())) {
-    const match = line.trim().match(/^(\d+)\s+(.+?)\s*(?:-|–|—|－|~|～|至)\s*(.+)$/);
-    const number = match ? Number(match[1]) : Number.NaN;
-    const start = match ? normalizeCourseTime(match[2]) : null;
-    const end = match ? normalizeCourseTime(match[3]) : null;
-    if (!match || !start || !end || end <= start) throw new Error('节次格式：1 08:00-08:45，每行一节');
-    if (number < 1 || number > 30 || slots.has(number)) throw new Error('节次必须为 1–30 且不能重复');
+    const trimmed = line.trim();
+    const match = trimmed.match(/^(\d+)\s+(.+?)\s*(?:-|–|—|－|~|～|至)\s*(.+)$/);
+    if (!match) throw new Error(`节次“${trimmed}”格式无效，应为“1 08:00-08:45”`);
+
+    const number = Number(match[1]);
+    if (!Number.isInteger(number) || number < 1 || number > 30) {
+      throw new Error(`节次编号 ${match[1]} 无效，必须为 1–30`);
+    }
+    if (slots.has(number)) throw new Error(`第 ${number} 节重复，请删除或修改重复节次`);
+
+    const start = normalizeCourseTime(match[2]);
+    const end = normalizeCourseTime(match[3]);
+    if (!start || !end) throw new Error(`第 ${number} 节时间格式无效，应使用 24 小时制 HH:mm`);
+    if (end <= start) {
+      throw new Error(`第 ${number} 节结束时间 ${end} 必须晚于开始时间 ${start}，请修正后再查看预览`);
+    }
     slots.set(number, { number, start, end });
   }
   return [...slots.values()];
