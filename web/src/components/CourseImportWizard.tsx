@@ -168,6 +168,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
   const activeSemesterId = useAppStore(state => state.activeSemesterId);
   const hasLoadedSemesters = useAppStore(state => state.hasLoadedSemesters);
   const adapter = catalog.find(item => item.id === adapterId);
+  const selectedTemplate = templates.find(template => template.id === selectedTemplateId);
   const normalizedUrl = url.trim();
   const urlValid = validHttpUrl(normalizedUrl);
   const targetSemester = semesters.find(item => item.id === targetSemesterId);
@@ -373,8 +374,9 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
   };
 
   const deleteTemplate = () => {
-    const selected = templates.find(template => template.id === selectedTemplateId);
+    const selected = selectedTemplate;
     if (!selected) throw new Error('请先选择要删除的模板');
+    if (selected.builtIn) throw new Error('内置示例模板不能删除');
     const next = templates.filter(template => template.id !== selected.id);
     saveCourseTimeTemplates(adapterId, next);
     setTemplates(next);
@@ -383,7 +385,7 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
   };
 
   const applyTemplate = () => {
-    const selected = templates.find(template => template.id === selectedTemplateId);
+    const selected = selectedTemplate;
     if (!selected) throw new Error('请先选择作息模板');
     replaceSlots(selected.slots);
     setMessage(`已将“${selected.name}”应用到节次表，请核对后再预览导入`);
@@ -671,17 +673,18 @@ export default function CourseImportWizard({ open, onClose, onImported }: Course
           </div>
           <div className="course-import-card">
             <strong>节次作息</strong>
-            <p>教务文件内的作息已优先载入。模板仅显示当前学校保存的内容，并且需要手动应用。</p>
+            <p>教务文件内的作息已优先载入。选择内置示例或当前学校保存的模板后，可直接应用到节次表。</p>
             <div className="course-time-template-controls">
               <label>当前学校模板
                 <select value={selectedTemplateId} onChange={event => setSelectedTemplateId(event.target.value)}>
                   <option value="">{templates.length ? '选择模板' : '尚无已保存模板'}</option>
-                  {templates.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}
+                  {templates.map(template => <option key={template.id} value={template.id}>{template.name}{template.builtIn ? '（内置示例）' : ''}</option>)}
                 </select>
               </label>
+              {selectedTemplate?.note && <p role="note">{selectedTemplate.note}</p>}
               <div className="course-time-actions">
                 <button type="button" disabled={busy || !selectedTemplateId} onClick={() => void run(async () => applyTemplate())}>应用模板</button>
-                <button type="button" disabled={busy || !selectedTemplateId} onClick={() => void run(async () => deleteTemplate())}><Trash2 aria-hidden="true" /> 删除</button>
+                <button type="button" disabled={busy || !selectedTemplateId || selectedTemplate?.builtIn} onClick={() => void run(async () => deleteTemplate())}><Trash2 aria-hidden="true" /> 删除</button>
               </div>
               <label>保存当前节次为新模板
                 <input value={templateName} maxLength={40} onChange={event => setTemplateName(event.target.value)} placeholder="例如：冬季作息" />
