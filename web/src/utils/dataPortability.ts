@@ -93,6 +93,8 @@ function sanitizeTask(value: unknown): Task | null {
     estimatedMinutes: asNumber(value.estimatedMinutes),
     section: asString(value.section),
     project: asString(value.project),
+    courseId: asString(value.courseId),
+    tags: asStringArray(value.tags),
     startTime: asString(value.startTime),
     scheduledStart: asString(value.scheduledStart),
     scheduledEnd: asString(value.scheduledEnd),

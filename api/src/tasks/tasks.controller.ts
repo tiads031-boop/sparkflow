@@ -25,10 +25,14 @@ export class TasksController {
     userId?: string;
     title: string;
     description?: string;
+    status?: string;
     priority?: string;
+    section?: string | null;
+    project?: string | null;
     dueDate?: string;
     estimatedMinutes?: number;
     tags?: string[];
+    courseId?: string | null;
     inspirationId?: string;
     scheduledStart?: string | null;
     scheduledEnd?: string | null;

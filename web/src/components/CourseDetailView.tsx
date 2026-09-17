@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User, Sparkles, Search, Tag, ClipboardCheck } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import type { CourseNote } from '../types';
-import { apiRequest, DEFAULT_USER_ID } from '../api/client';
+import type { CourseNote, Task } from '../types';
+import { buildLinkedCourseTask, normalizeLinkedTaskStatus } from '../utils/courseTaskLink';
 
 // ════════════════════════════════════════════════════
 // Props
@@ -38,12 +38,13 @@ type ParsedCourseTask = {
 };
 
 const TASK_META_RE = /^\[course-task:(todo|in-progress|done)\]\[tags:([^\]]*)\]\s*/;
-const TASK_STATUS_LABELS: Record<string, string> = {
-  'To do': '待处理',
-  'In progress': '进行中',
-  'In review': '进行中',
-  Done: '已完成',
-};
+const LINKED_TASK_STATUSES: Array<{ value: Task['status']; label: string }> = [
+  { value: 'To do', label: '待处理' },
+  { value: 'In progress', label: '进行中' },
+  { value: 'In review', label: '审核中' },
+  { value: 'Done', label: '已完成' },
+  { value: 'Cancelled', label: '已取消' },
+];
 
 function parseCourseTaskBody(body: string): ParsedCourseTask {
   const match = body.match(TASK_META_RE);
@@ -93,12 +94,16 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
   const editNote = useAppStore((s) => s.editNote);
   const removeNote = useAppStore((s) => s.removeNote);
   const loadCourseDetail = useAppStore((s) => s.loadCourseDetail);
+  const addTask = useAppStore((s) => s.addTask);
+  const updateTask = useAppStore((s) => s.updateTask);
+  const deleteTask = useAppStore((s) => s.deleteTask);
 
   const [noteText, setNoteText] = useState('');
   const [noteTags, setNoteTags] = useState('');
   const [noteStatus, setNoteStatus] = useState<CourseTaskStatus>('todo');
   const [taskSearch, setTaskSearch] = useState('');
   const [convertingNoteId, setConvertingNoteId] = useState<string | null>(null);
+  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
 
   // ⚠️ useMemo 必须在 early return 之前，保证 hooks 调用顺序一致
   const { thisWeekEvents, otherEvents } = useMemo(() => {
@@ -177,23 +182,40 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
     if (convertingNoteId) return;
     setConvertingNoteId(note.id);
     try {
-      await apiRequest('/tasks', {
-        method: 'POST',
-        body: JSON.stringify({
-          userId: DEFAULT_USER_ID,
-          title: parsed.body,
-          description: `来自课程任务：${c.name}`,
-          status: parsed.status,
-          priority: 'medium',
-          section: 'project',
-          project: c.name,
-          courseId: c.id,
-          tags: parsed.tags,
-        }),
-      });
+      await addTask(buildLinkedCourseTask({
+        id: crypto.randomUUID(),
+        courseId: c.id,
+        courseName: c.name,
+        title: parsed.body,
+        status: parsed.status,
+        tags: parsed.tags,
+      }));
+      await removeNote(note.id);
       await loadCourseDetail(c.id);
     } finally {
       setConvertingNoteId(null);
+    }
+  };
+
+  const handleLinkedTaskStatus = async (taskId: string, status: Task['status']) => {
+    if (updatingTaskId) return;
+    setUpdatingTaskId(taskId);
+    try {
+      await updateTask(taskId, { status });
+      await loadCourseDetail(c.id);
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
+  const handleDeleteLinkedTask = async (taskId: string) => {
+    if (updatingTaskId) return;
+    setUpdatingTaskId(taskId);
+    try {
+      await deleteTask(taskId);
+      await loadCourseDetail(c.id);
+    } finally {
+      setUpdatingTaskId(null);
     }
   };
 
@@ -375,7 +397,27 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
                   }}
                 />
                 <span className="flex-1 text-sm text-[#242424] truncate">{task.title}</span>
-                <span className="text-[10px] text-gray-400">{TASK_STATUS_LABELS[task.status] || '待处理'}</span>
+                <select
+                  value={normalizeLinkedTaskStatus(task.status)}
+                  onChange={(event) => void handleLinkedTaskStatus(task.id, event.target.value as Task['status'])}
+                  disabled={updatingTaskId === task.id}
+                  className="max-w-[76px] px-2 py-1 rounded-lg bg-white text-[10px] text-gray-500 outline-none disabled:opacity-40"
+                  aria-label={`更新关联任务“${task.title}”的状态`}
+                >
+                  {LINKED_TASK_STATUSES.map((status) => (
+                    <option key={status.value} value={status.value}>{status.label}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteLinkedTask(task.id)}
+                  disabled={updatingTaskId === task.id}
+                  className="p-1 rounded-lg text-gray-300 hover:text-red-400 disabled:opacity-40 transition-colors"
+                  aria-label={`删除关联任务“${task.title}”`}
+                  title="删除关联任务"
+                >
+                  <Trash2 size={14} />
+                </button>
               </div>
             ))}
           </div>
