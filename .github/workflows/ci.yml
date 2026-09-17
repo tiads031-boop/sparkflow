@@ -36,6 +36,22 @@ jobs:
   api:
     name: API build and test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sparkflow
+          POSTGRES_PASSWORD: sparkflow
+          POSTGRES_DB: sparkflow_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sparkflow -d sparkflow_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://sparkflow:sparkflow@localhost:5432/sparkflow_ci?schema=public
     defaults:
       run:
         working-directory: api
@@ -47,5 +63,9 @@ jobs:
           cache: npm
           cache-dependency-path: api/package-lock.json
       - run: npm ci
+      - name: Apply Prisma migrations on fresh PostgreSQL
+        run: npx prisma migrate deploy
+      - name: Verify Prisma migration status
+        run: npx prisma migrate status
       - run: npm run build
       - run: npm test -- --runInBand
