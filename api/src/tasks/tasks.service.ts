@@ -60,7 +60,15 @@ export class TasksService {
   findOne(id: string, userId: string) {
     return this.prisma.task.findFirst({
       where: { id, userId },
-      include: { pomodoroSessions: true, inspiration: true },
+      include: {
+        pomodoroSessions: true,
+        inspiration: true,
+        insight: {
+          include: {
+            _count: { select: { sources: true } },
+          },
+        },
+      },
     });
   }
 
