@@ -39,6 +39,8 @@ export interface Task {
   courseId?: string;
   /** Phase 15：任务来源记录，用于回答“为什么做这件事” */
   inspirationId?: string;
+  /** Phase 15 M3：任务来源洞察；一个洞察可以生成多个任务 */
+  insightId?: string;
   /** 任务标签 */
   tags?: string[];
   /** V4 Calendar: 开始时间 "HH:MM" */
