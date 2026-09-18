@@ -22,6 +22,14 @@ export interface InsightRecord {
   aiModel?: string | null;
   createdAt: string;
   updatedAt: string;
+  tasks?: Array<{
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    dueDate?: string | null;
+    estimatedMinutes?: number | null;
+  }>;
   sources: Array<{
     insightId: string;
     inspirationId: string;
@@ -58,6 +66,28 @@ export function archiveInsight(id: string) {
 
 export function deleteInsight(id: string) {
   return api.delete<InsightRecord>(`/insights/${encodeURIComponent(id)}`, {
+    throwOnError: true,
+  });
+}
+
+
+export function createTaskFromInsight(
+  id: string,
+  data: {
+    title?: string;
+    description?: string;
+    estimatedMinutes?: number;
+    dueDate?: string | null;
+    priority?: 'low' | 'medium' | 'high';
+  },
+) {
+  return api.post<{
+    id: string;
+    title: string;
+    status: string;
+    priority: string;
+    insightId: string;
+  }>(`/insights/${encodeURIComponent(id)}/task`, data, {
     throwOnError: true,
   });
 }
