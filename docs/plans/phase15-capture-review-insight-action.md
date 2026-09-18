@@ -3,16 +3,17 @@
 ## 当前实施状态（2026-09-18）
 
 - **M1：✅ 已实现并完成生产核心链路** — PR #38，Capture → Review → Task。
-- **M2：🚧 代码/API/数据库已上线** — PR #39；真实 AI 生成仍等待生产 Provider key。
-- **M3：🚧 代码/API/Android 已上线，Web 待发布** — PR #40；腾讯云 `master@1e5f8356`、19 migrations 已确认，Vercel Production 因 Hobby >100 deployments/day 暂停在 M2。
+- **M2：🚧 代码/API/数据库已上线并进入真实 Provider 验收** — PR #39；生产环境已有 Qwen 调用证据，PR #43 进一步关闭默认 thinking、启用 JSON mode，并补齐 Provider 重试/超时与安全错误日志。
+- **M3：🚧 代码完成，最新 Android 已到 `5835e322`，Web/API 待显式对齐最新 master** — PR #40 完成 Insight → Task；腾讯云已验证的生产 API 基线仍为 `1e5f8356`、19 migrations up to date；PR #43 后续稳定性修复尚需按发布门禁显式部署并复验。
 - Web 发布策略改为 **GitHub CI 后显式 Production**，不再为每个 Git commit 自动创建 Vercel deployment。
-- M4 不提前启动，先完成 M3 Web Production 与真实 AI/真机闭环。
+- M4 不提前启动，先完成 `master@5835e322` 的 Web/API 发布、真实 Qwen 洞察质量/失败恢复，以及 Android 真机闭环。
 
 ---
 
 > **状态**：⬜ 方案已确认，未实施  
 > **最后更新**：2026-09-17  
-> **设计基线**：`master@27f64066`  
+> **最初设计基线**：`master@27f64066`  
+> **当前实现基线**：`master@5835e322`
 > **定位**：把 SparkFlow 现有的记录、Today、待办、Planner、Timeline、Focus 串成一个从想法到行动的闭环，而不是新增一套独立笔记 App。
 
 ---
@@ -847,7 +848,7 @@ M1 验收：
 - [x] 归档 / 删除洞察。
 - [x] 基础 AI 输出质量测试与错误降级。
 
-M2 验收：AI 生成的每个洞察都能追溯到真实来源，错误来源 id 不可落库。
+M2 验收：AI 生成的每个洞察都能追溯到真实来源，错误来源 id 不可落库。生产验收另外要求记录成功率/延迟，并验证 429/5xx/超时能够按 PR #43 的有界重试和可恢复错误策略处理。
 
 ### M3 — Insight → Action（P1）
 
@@ -861,7 +862,15 @@ M2 验收：AI 生成的每个洞察都能追溯到真实来源，错误来源 i
 - [x] Insight 显示已产生行动。
 - [ ] 创建后直接打开 Planner（Task 已进入共享 Store，可进入 Planner；直接跳转体验待补）。
 
-M3 验收：从多张记录形成 Insight，再由用户确认生成 Task，任务可进入 Planner / Timeline / Focus。
+M3 验收：从多张记录形成 Insight，再由用户确认生成 Task，任务可进入 Planner / Timeline / Focus。当前实现代码已完成，生产收口以 `5835e322` Web/API 对齐 + `android-5835e3223748` 真机链路为准。
+
+### PR #43 — Qwen / 请求稳定性补丁（✅ 已合并）
+
+- Qwen/DashScope 关闭默认 thinking，并启用 JSON object 输出，降低受约束洞察生成的延迟与格式漂移。
+- Provider 请求上限 60s；429/500/502/503/504 首次失败允许一次短重试。
+- 普通 Web API 请求默认 15s 超时；Insight 生成单独使用 75s。
+- 408 在前端显示明确超时信息；Provider 失败只记录安全错误摘要，不输出密钥或用户正文。
+- Android Release `android-5835e3223748` 已生成；Web/API Production 仍需显式发布最新 master 后复验。
 
 ### M4 — 主动助手（P2）
 
