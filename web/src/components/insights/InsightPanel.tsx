@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Archive, ChevronDown, ChevronUp, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
+import { Archive, ArrowRight, ChevronDown, ChevronUp, RefreshCw, Sparkles, Trash2, X } from 'lucide-react';
 import {
   archiveInsight,
+  createTaskFromInsight,
   deleteInsight,
   generateInsights,
   listInsights,
@@ -9,6 +10,7 @@ import {
   type InsightSourceRecord,
   type InsightType,
 } from '../../api/insights';
+import { useAppStore } from '../../store/appStore';
 
 const typeLabels: Record<InsightType, string> = {
   theme: '主题',
@@ -25,12 +27,20 @@ interface InsightPanelProps {
 }
 
 export function InsightPanel({ recordCount }: InsightPanelProps) {
+  const loadTasks = useAppStore((state) => state.loadTasks);
   const [insights, setInsights] = useState<InsightRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [taskInsight, setTaskInsight] = useState<InsightRecord | null>(null);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskMinutes, setTaskMinutes] = useState('45');
+  const [taskDueDate, setTaskDueDate] = useState('');
+  const [taskPriority, setTaskPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [taskBusy, setTaskBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -75,6 +85,39 @@ export function InsightPanel({ recordCount }: InsightPanelProps) {
       await load();
     } catch (err: any) {
       setError(err?.message || '归档失败');
+    }
+  };
+
+  const openTaskSheet = (insight: InsightRecord) => {
+    setTaskInsight(insight);
+    setTaskTitle(insight.title);
+    setTaskDescription(insight.body);
+    setTaskMinutes('45');
+    setTaskDueDate('');
+    setTaskPriority('medium');
+    setError(null);
+  };
+
+  const confirmTask = async () => {
+    if (!taskInsight || !taskTitle.trim() || taskBusy) return;
+    setTaskBusy(true);
+    setError(null);
+    try {
+      const minutes = Number(taskMinutes);
+      const task = await createTaskFromInsight(taskInsight.id, {
+        title: taskTitle.trim(),
+        description: taskDescription.trim() || taskInsight.body,
+        estimatedMinutes: Number.isFinite(minutes) && minutes > 0 ? minutes : undefined,
+        dueDate: taskDueDate ? new Date(`${taskDueDate}T23:59:00`).toISOString() : undefined,
+        priority: taskPriority,
+      });
+      setTaskInsight(null);
+      setMessage(`已创建待办「${task.title}」，洞察和来源记录都会保留。`);
+      await Promise.all([load(), loadTasks()]);
+    } catch (err: any) {
+      setError(err?.message || '创建待办失败');
+    } finally {
+      setTaskBusy(false);
     }
   };
 
@@ -162,14 +205,75 @@ export function InsightPanel({ recordCount }: InsightPanelProps) {
 
             <div className="mt-4 flex items-center justify-between border-t border-[var(--sf-border)] pt-3">
               <span className="text-[10px] text-[var(--sf-text-tertiary)]">{new Date(insight.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                {insight.type === 'action' && (
+                  <button type="button" onClick={() => openTaskSheet(insight)} className="flex items-center gap-1 rounded-full bg-[#cae393] px-3 py-2 text-[11px] font-bold text-[#242424]">
+                    加入待办 <ArrowRight size={12} />
+                  </button>
+                )}
                 <button type="button" onClick={() => archive(insight)} className="flex items-center gap-1 rounded-full bg-[var(--sf-bg)] px-3 py-2 text-[11px] font-semibold"><Archive size={12} /> 归档</button>
                 <button type="button" aria-label="删除洞察" onClick={() => remove(insight)} className="rounded-full bg-[var(--sf-bg)] p-2"><Trash2 size={13} /></button>
               </div>
             </div>
+
+            {(insight.tasks?.length || 0) > 0 && (
+              <div className="mt-3 rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--sf-text-tertiary)]">产生的行动</p>
+                <div className="mt-2 space-y-1.5">
+                  {insight.tasks!.map((task) => (
+                    <div key={task.id} className="flex items-center justify-between gap-3 text-xs">
+                      <span className="min-w-0 truncate text-[var(--sf-text-secondary)]">{task.title}</span>
+                      <span className="shrink-0 text-[10px] text-[var(--sf-text-tertiary)]">{task.status === 'done' ? '已完成' : '待处理'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </article>
         );
       })}
+
+      {taskInsight && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" role="presentation" onClick={() => !taskBusy && setTaskInsight(null)}>
+          <section className="w-full max-w-lg rounded-t-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)]" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-[var(--sf-text-primary)]">创建待办</h2>
+                <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">来自洞察「{taskInsight.title}」，确认后才会写入 Task。</p>
+              </div>
+              <button type="button" aria-label="关闭" disabled={taskBusy} onClick={() => setTaskInsight(null)} className="rounded-full bg-[var(--sf-bg)] p-2"><X size={16} /></button>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-[var(--sf-text-secondary)]">标题
+                <input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} className="mt-1.5 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm outline-none" />
+              </label>
+              <label className="block text-xs font-semibold text-[var(--sf-text-secondary)]">说明
+                <textarea value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)} className="mt-1.5 min-h-20 w-full resize-none rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm leading-5 outline-none" />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block text-xs font-semibold text-[var(--sf-text-secondary)]">预计时长（分钟）
+                  <input type="number" min="5" max="1440" step="5" value={taskMinutes} onChange={(e) => setTaskMinutes(e.target.value)} className="mt-1.5 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-3 text-sm outline-none" />
+                </label>
+                <label className="block text-xs font-semibold text-[var(--sf-text-secondary)]">截止日期
+                  <input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} className="mt-1.5 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-3 text-sm outline-none" />
+                </label>
+              </div>
+              <label className="block text-xs font-semibold text-[var(--sf-text-secondary)]">优先级
+                <select value={taskPriority} onChange={(e) => setTaskPriority(e.target.value as 'low' | 'medium' | 'high')} className="mt-1.5 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-3 text-sm outline-none">
+                  <option value="low">低</option>
+                  <option value="medium">中</option>
+                  <option value="high">高</option>
+                </select>
+              </label>
+            </div>
+
+            <button type="button" disabled={taskBusy || !taskTitle.trim()} onClick={confirmTask} className="mt-4 w-full rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-bold text-[var(--sf-surface)] disabled:opacity-40">
+              {taskBusy ? '创建中…' : '确认创建待办'}
+            </button>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
