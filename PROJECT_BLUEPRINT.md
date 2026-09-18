@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-18  
-> **代码同步基线**：`master@1e5f8356`
+> **代码同步基线**：`master@5835e322`
 
 ---
 
@@ -195,9 +195,9 @@ Actions artifact + GitHub prerelease
 当前最新通过该门禁的 Release：
 
 ```text
-tag: android-1e5f8356089c
-asset: sparkflow-1e5f8356089c-debug.apk
-source: master@1e5f8356089c17cf03c286b6145cabd08dbe5285
+tag: android-5835e3223748
+asset: sparkflow-5835e3223748-debug.apk
+source: master@5835e322374862e691bef6b48d4bc6feac7a4a58
 ```
 
 后续仅修改 API/tests/docs 时不会触发新的 Android Release；涉及 `web/**` 或 Android workflow 的 master 变更才会生成新包。
@@ -209,8 +209,8 @@ Capture → Review → Insight → Action
 ```
 
 M1：✅ Inspiration、随手记、Reflection、回顾、记录 → Task 已实现并完成生产核心链路。  
-M2：🚧 Theme / Evolution / Action Insight 与来源解释已实现；API/DB 已上线，真实 AI Provider key 待配置。  
-M3：🚧 Insight → 用户确认 Task 与双向回链已实现；API/Android 已到 `1e5f8356`，Web Production 待 Vercel 日配额恢复后显式发布。
+M2：🚧 Theme / Evolution / Action Insight 与来源解释已实现；真实 Qwen Provider 已有生产调用证据；PR #43 已完成 thinking/JSON mode/重试/超时稳定性修复，待最新 master 生产复验。  
+M3：🚧 Insight → 用户确认 Task 与双向回链已实现；Android 已到 `5835e322`；腾讯云 API 当前已验证生产基线仍为 `1e5f8356`，Web/API 待显式发布最新 master 后做完整真实验收。
 
 ### Study Mode
 
@@ -231,7 +231,7 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；API/Android �
 | Phase 12 | 🚧 当前 P0：生产验收 | 安全代码、migration CI、真实 PG 顺序/并发 replay、rollback、用户隔离、部署追溯、Android CORS/Release 门禁已具备；Issue #31 承接生产和真机证据 |
 | Phase 13 | ⬜ P2 | Local Codex Bridge，等待用户主链路稳定 |
 | Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
-| Phase 15 | 🚧 M1–M3 已实现，生产收尾 | M1 已完成；M2 API/DB 上线但 AI Provider key 待配；M3 API/Android 已上线，Web Production 待 Vercel 配额恢复 |
+| Phase 15 | 🚧 M1–M3 已实现，生产收尾 | M1 已完成；M2 真实 Qwen 已有生产调用证据且 PR #43 已补稳定性；M3 最新 Android 已到 `5835e322`，Web/API 需对齐最新 master 并完成真实验收 |
 | Study Mode | ⬜ M0 完成 | 提案、路线图和九张设计参考已合入；运行时代码未实施 |
 
 ---
@@ -253,6 +253,8 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；API/Android �
 - ✅ PR #39：Phase 15 M2 explainable Insights。
 - ✅ PR #40：Phase 15 M3 Insight → confirmed Task + 双向回链。
 - ✅ PR #41：重复 M3 实现已关闭，未合并。
+- ✅ PR #43：Qwen Insight 稳定性与 API 请求超时治理，已合并至 `master@5835e322`。
+- ✅ PR #27：旧 Phase 12 安全测试分支已关闭，由 #28/#29/#30/#36 覆盖。
 - 🚧 Issue #31：当前 Phase 12 生产验收主线。
 - ⏭ Issue #26：Issue #31 稳定后进入 Phase 14 Timeline 收口。
 
@@ -281,7 +283,7 @@ flowchart TD
     C --> D["✅ API buildSha / Android CORS / Release gate"]
     D --> E["✅ Phase 15 M1 Capture → Review → Task"]
     E --> F["✅ M2 explainable Insight code/API"]
-    F --> G["🚧 M3 Web Production + AI Provider + real-device acceptance"]
+    F --> G["🚧 发布 5835e322 + Qwen/real-device acceptance"]
     G --> H["Issue #31 remaining Web/Android/Planner acceptance"]
     H --> I["Phase 15 M4 / Study Mode / Phase 14 next batch"]
     I --> J["Phase 13 Local Codex Bridge"]
@@ -291,9 +293,9 @@ flowchart TD
 
 1. ✅ 腾讯云 API 已部署 `master@1e5f8356`；Git HEAD / image / public health buildSha 已对齐。
 2. ✅ 生产 PostgreSQL 19 migrations up to date，包含 M2/M3。
-3. 🚧 Vercel Hobby 当日 deployment 次数已超限；额度恢复后显式发布 `1e5f8356` Web Production。
-4. 🚧 配置真实 AI Provider 后执行多卡片 → Insight → 用户确认 Task 的真实账户验收。
-5. Android 安装 `sparkflow-1e5f8356089c-debug.apk`，复测登录、Session、Insight/Action、SchoolImport 和窄屏交互。
+3. 🚧 显式发布当前 `master@5835e322` Web Production，并同步将 PR #43 后端稳定性修复部署到腾讯云 API；部署完成后重新核对 buildSha。
+4. 🚧 使用已接通的真实 Qwen Provider 执行多卡片 → Insight → 用户确认 Task 的成功率、延迟、来源真实性与失败恢复验收。
+5. Android 安装 `sparkflow-5835e3223748-debug.apk`，复测登录、Session、Insight/Action、SchoolImport 和窄屏交互。
 6. Web 真账号完成真实教务导入/replay，并完成 Planner Preview → Apply → Undo。
 7. 验证一次客户端未知/超时结果 → requestId 查询恢复路径。
 8. 上述真实链路通过后，再选择 Phase 15 M4、Study Mode 或 Phase 14 余项作为下一产品批次。
