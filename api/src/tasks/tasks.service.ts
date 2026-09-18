@@ -1,6 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+const taskSourceInclude = {
+  insight: {
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      _count: { select: { sources: true } },
+    },
+  },
+} as const;
+
 @Injectable()
 export class TasksService {
   constructor(private prisma: PrismaService) {}
@@ -53,6 +64,7 @@ export class TasksService {
     }
     return this.prisma.task.findMany({
       where,
+      include: taskSourceInclude,
       orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }],
     });
   }
@@ -60,7 +72,15 @@ export class TasksService {
   findOne(id: string, userId: string) {
     return this.prisma.task.findFirst({
       where: { id, userId },
-      include: { pomodoroSessions: true, inspiration: true },
+      include: {
+        pomodoroSessions: true,
+        inspiration: true,
+        insight: {
+          include: {
+            _count: { select: { sources: true } },
+          },
+        },
+      },
     });
   }
 
@@ -83,6 +103,7 @@ export class TasksService {
     scheduledEnd?: string | null;
     tags?: string[];
     inspirationId?: string;
+    insightId?: string;
     courseId?: string | null;
     scheduleLocked?: boolean;
     scheduleSource?: string;
@@ -96,16 +117,27 @@ export class TasksService {
       const inspiration = await this.prisma.inspiration.findFirst({ where: { id: data.inspirationId, userId: data.userId }, select: { id: true } });
       if (!inspiration) throw new NotFoundException('Inspiration not found');
     }
+    if (data.insightId) {
+      const insight = await this.prisma.insight.findFirst({ where: { id: data.insightId, userId: data.userId }, select: { id: true } });
+      if (!insight) throw new NotFoundException('Insight not found');
+    }
     return this.prisma.task.create({
       data: this.normalizeTaskDates(data),
+      include: taskSourceInclude,
     });
   }
 
   update(id: string, userId: string, data: Record<string, any>) {
-    const { userId: _ignoredUserId, ...safeData } = data;
+    const {
+      userId: _ignoredUserId,
+      inspirationId: _ignoredInspirationId,
+      insightId: _ignoredInsightId,
+      ...safeData
+    } = data;
     return this.prisma.task.update({
       where: { id, userId },
       data: this.normalizeTaskDates(safeData),
+      include: taskSourceInclude,
     });
   }
 

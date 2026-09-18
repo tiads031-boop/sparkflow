@@ -39,6 +39,11 @@ export interface Task {
   courseId?: string;
   /** Phase 15：任务来源记录，用于回答“为什么做这件事” */
   inspirationId?: string;
+  /** Phase 15 M3：任务来源洞察；由确认后的 Insight → Task 创建流程写入 */
+  insightId?: string;
+  insightTitle?: string;
+  insightType?: 'theme' | 'evolution' | 'action';
+  insightSourceCount?: number;
   /** 任务标签 */
   tags?: string[];
   /** V4 Calendar: 开始时间 "HH:MM" */

@@ -12,6 +12,17 @@ const ALLOWED_TYPES = new Set<InsightType>(['theme', 'evolution', 'action']);
 const ALLOWED_STATUSES = new Set(['active', 'archived']);
 
 const sourceInclude = {
+  tasks: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      priority: true,
+      dueDate: true,
+      estimatedMinutes: true,
+    },
+    orderBy: { createdAt: 'desc' as const },
+  },
   sources: {
     include: {
       inspiration: {

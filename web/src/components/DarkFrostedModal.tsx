@@ -558,6 +558,25 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
           placeholder="添加描述..."
         />
 
+      {/* Read-only Phase 15 source backlink */}
+      {isTask && !isCreate && (config.data?.insightId || config.data?.inspirationId) && (
+        <div className="mb-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2.5">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-white/30">来源</p>
+          {config.data?.insightId ? (
+            <>
+              <p className="mt-1 text-xs font-semibold text-[#cae393]">
+                💡 洞察 · {config.data?.insightTitle || '已关联洞察'}
+              </p>
+              {config.data?.insightSourceCount ? (
+                <p className="mt-1 text-[10px] text-white/40">来自 {config.data.insightSourceCount} 条记录</p>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-1 text-xs font-semibold text-[#cae393]">💡 来自记录</p>
+          )}
+        </div>
+      )}
+
       {/* @mention preview */}
       {hasMentionMatches && (
         <div className="mb-3 max-h-[60px] overflow-y-auto rounded-lg bg-white/5 p-2 space-y-0.5">

@@ -34,6 +34,7 @@ export class TasksController {
     tags?: string[];
     courseId?: string | null;
     inspirationId?: string;
+    insightId?: string;
     scheduledStart?: string | null;
     scheduledEnd?: string | null;
     scheduleLocked?: boolean;

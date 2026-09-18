@@ -50,3 +50,63 @@ describe('TasksService schedule metadata', () => {
     expect(result.tags).toEqual(['作业']);
   });
 });
+
+
+describe('TasksService Phase 15 M3 insight source', () => {
+  it('creates a task linked to an insight owned by the same user', async () => {
+    const findFirst = jest.fn().mockResolvedValue({ id: 'insight-1' });
+    const create = jest.fn(({ data }) => ({ id: 'task-1', ...data }));
+    const prisma = {
+      insight: { findFirst },
+      task: { create },
+    };
+    const service = new TasksService(prisma as never);
+
+    const result = await service.create({
+      userId: 'user-1',
+      title: '整理可逆自动化原则',
+      insightId: 'insight-1',
+      estimatedMinutes: 45,
+    });
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'insight-1', userId: 'user-1' },
+      select: { id: true },
+    });
+    expect(result.insightId).toBe('insight-1');
+  });
+
+  it('rejects an insight that is not owned by the current user', async () => {
+    const prisma = {
+      insight: { findFirst: jest.fn().mockResolvedValue(null) },
+      task: { create: jest.fn() },
+    };
+    const service = new TasksService(prisma as never);
+
+    await expect(service.create({
+      userId: 'user-1',
+      title: '不应创建',
+      insightId: 'other-user-insight',
+    })).rejects.toThrow('Insight not found');
+
+    expect(prisma.task.create).not.toHaveBeenCalled();
+  });
+
+  it('keeps source backlinks read-only in the generic task editor', async () => {
+    const update = jest.fn(({ data }) => data);
+    const prisma = { task: { update } };
+    const service = new TasksService(prisma as never);
+
+    const result = await service.update('task-1', 'user-1', {
+      title: '更新标题',
+      insightId: 'insight-2',
+      inspirationId: 'record-2',
+    });
+
+    expect(result).toEqual({ title: '更新标题' });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'task-1', userId: 'user-1' },
+      data: { title: '更新标题' },
+    }));
+  });
+});

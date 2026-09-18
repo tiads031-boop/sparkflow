@@ -12,6 +12,15 @@ export interface InsightSourceRecord {
   createdAt: string;
 }
 
+export interface InsightActionTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  dueDate?: string | null;
+  estimatedMinutes?: number | null;
+}
+
 export interface InsightRecord {
   id: string;
   userId: string;
@@ -22,6 +31,7 @@ export interface InsightRecord {
   aiModel?: string | null;
   createdAt: string;
   updatedAt: string;
+  tasks?: InsightActionTask[];
   sources: Array<{
     insightId: string;
     inspirationId: string;
@@ -60,4 +70,38 @@ export function deleteInsight(id: string) {
   return api.delete<InsightRecord>(`/insights/${encodeURIComponent(id)}`, {
     throwOnError: true,
   });
+}
+
+
+export interface CreateInsightTaskInput {
+  title: string;
+  description?: string;
+  estimatedMinutes?: number;
+  dueDate?: string;
+  priority?: 'low' | 'medium' | 'high';
+}
+
+function localDateEndToIso(value?: string) {
+  if (!value) return undefined;
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return undefined;
+  return new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
+}
+
+export async function createTaskFromInsight(insightId: string, input: CreateInsightTaskInput) {
+  const response = await apiRequest('/tasks', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: input.title.trim(),
+      description: input.description?.trim() || undefined,
+      status: 'todo',
+      priority: input.priority || 'medium',
+      section: 'personal',
+      estimatedMinutes: input.estimatedMinutes,
+      dueDate: localDateEndToIso(input.dueDate),
+      insightId,
+      tags: [],
+    }),
+  });
+  return response.json() as Promise<InsightActionTask>;
 }

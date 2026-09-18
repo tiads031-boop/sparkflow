@@ -144,6 +144,7 @@ model Insight {
 
   user    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   sources InsightInspiration[]
+  tasks   Task[]
 
   @@index([userId, status])
   @@index([userId, createdAt])
@@ -182,6 +183,7 @@ model Task {
   id               String    @id @default(uuid())
   userId           String
   inspirationId    String?   @unique
+  insightId         String?
   estimatedMinutes Int?
   scheduledStart   DateTime?
   scheduledEnd     DateTime?
@@ -196,12 +198,14 @@ model Task {
   pomodoroSessions PomodoroSession[]
   calendarEvents   CalendarEvent[]
   inspiration      Inspiration?      @relation(fields: [inspirationId], references: [id], onDelete: SetNull)
+  insight          Insight?          @relation(fields: [insightId], references: [id], onDelete: SetNull)
   course           Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([status])
   @@index([dueDate])
   @@index([courseId])
+  @@index([insightId])
   @@map("tasks")
 }
 
