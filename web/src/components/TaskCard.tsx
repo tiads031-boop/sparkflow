@@ -37,11 +37,15 @@ export default function TaskCard({ task, onClick }: TaskCardProps) {
       <div className="flex justify-between items-start mb-5">
         <div className="w-3/4">
           <h3 className="font-semibold text-base leading-tight">{task.title}</h3>
-          {task.inspirationId && (
+          {task.insightId ? (
+            <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold ${isDark ? 'bg-white/10 text-white/70' : 'bg-white/45 text-[#242424]/65'}`}>
+              <Lightbulb size={11} /> 来自洞察{task.insightTitle ? ` · ${task.insightTitle}` : ''}{task.insightSourceCount ? ` · ${task.insightSourceCount} 条记录` : ''}
+            </span>
+          ) : task.inspirationId ? (
             <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold ${isDark ? 'bg-white/10 text-white/70' : 'bg-white/45 text-[#242424]/65'}`}>
               <Lightbulb size={11} /> 来自记录
             </span>
-          )}
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium opacity-80">{task.comments} 讨论</span>
