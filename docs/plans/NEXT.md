@@ -56,12 +56,12 @@
 
 ### A. 部署版本与 migration
 
-- [ ] 从最新 `master` 构建腾讯云 API 镜像，并传入 `--build-arg BUILD_SHA=<git HEAD>`。
-- [ ] 确认 `/api/health.buildSha` 与服务器仓库 `git rev-parse HEAD`、容器 `BUILD_SHA` 完全一致。
-- [ ] 在腾讯云生产库运行/核验 `prisma migrate status`。
-- [ ] 确认 `20260914050000_add_schedule_plans` 已执行。
-- [ ] 确认 `20260915120000_add_course_import_idempotency` 已执行。
-- [ ] 确认 `course_import_batches` 与课程来源/import 字段真实存在。
+- [x] 已从 `master@1e5f8356` 构建腾讯云 API 镜像并写入 `BUILD_SHA`。
+- [x] 公网 `/api/health.buildSha`、服务器 Git HEAD、运行镜像均已对齐 `1e5f8356`。
+- [x] 腾讯云生产库 `prisma migrate status` 已核验：19 migrations，schema up to date。
+- [x] `20260914050000_add_schedule_plans` 已包含在生产 migration chain。
+- [x] `20260915120000_add_course_import_idempotency` 已包含在生产 migration chain。
+- [x] 生产 migration chain 已覆盖 `course_import_batches` 与课程来源/import 字段；CI 与生产 status 均通过。
 
 ### B. 生产 API 冒烟
 
