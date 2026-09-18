@@ -57,6 +57,7 @@ export function listInsights(status: 'active' | 'archived' = 'active') {
 export function generateInsights(days = 30) {
   return api.post<InsightRecord[]>('/insights/generate', { days }, {
     throwOnError: true,
+    timeoutMs: 75_000,
   });
 }
 
