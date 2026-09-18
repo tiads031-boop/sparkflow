@@ -12,6 +12,17 @@ const ALLOWED_TYPES = new Set<InsightType>(['theme', 'evolution', 'action']);
 const ALLOWED_STATUSES = new Set(['active', 'archived']);
 
 const sourceInclude = {
+  tasks: {
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      priority: true,
+      dueDate: true,
+      estimatedMinutes: true,
+    },
+    orderBy: { createdAt: 'desc' as const },
+  },
   sources: {
     include: {
       inspiration: {
@@ -139,6 +150,54 @@ export class InsightsService {
       where: { id },
       data: { status },
       include: sourceInclude,
+    });
+  }
+
+  async createTask(id: string, userId: string, data: {
+    title?: string;
+    description?: string;
+    estimatedMinutes?: number;
+    dueDate?: string | null;
+    priority?: 'low' | 'medium' | 'high';
+  }) {
+    const insight = await this.prisma.insight.findFirst({
+      where: { id, userId },
+      include: sourceInclude,
+    });
+    if (!insight) throw new NotFoundException('Insight not found');
+    if (insight.type !== 'action') {
+      throw new BadRequestException('Only action insights can create tasks');
+    }
+
+    const title = data.title?.trim() || insight.title.trim();
+    if (!title) throw new BadRequestException('Task title is required');
+
+    const dueDate = data.dueDate
+      ? new Date(data.dueDate)
+      : data.dueDate === null
+        ? null
+        : undefined;
+    if (dueDate instanceof Date && Number.isNaN(dueDate.getTime())) {
+      throw new BadRequestException('Invalid due date');
+    }
+
+    const estimatedMinutes = data.estimatedMinutes === undefined
+      ? undefined
+      : Math.min(Math.max(Math.round(Number(data.estimatedMinutes) || 0), 5), 1440);
+
+    return this.prisma.task.create({
+      data: {
+        userId,
+        insightId: insight.id,
+        title,
+        description: data.description?.trim() || insight.body,
+        status: 'todo',
+        priority: data.priority || 'medium',
+        section: 'personal',
+        estimatedMinutes,
+        dueDate,
+        tags: [],
+      },
     });
   }
 
