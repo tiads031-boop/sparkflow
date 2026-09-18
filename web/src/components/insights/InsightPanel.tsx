@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Archive, ChevronDown, ChevronUp, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
+import { Archive, ArrowRight, CheckCircle2, ChevronDown, ChevronUp, Circle, RefreshCw, Sparkles, Trash2, X } from 'lucide-react';
 import {
   archiveInsight,
+  createTaskFromInsight,
   deleteInsight,
   generateInsights,
   listInsights,
@@ -9,6 +10,7 @@ import {
   type InsightSourceRecord,
   type InsightType,
 } from '../../api/insights';
+import { useAppStore } from '../../store/appStore';
 
 const typeLabels: Record<InsightType, string> = {
   theme: '主题',
@@ -25,12 +27,19 @@ interface InsightPanelProps {
 }
 
 export function InsightPanel({ recordCount }: InsightPanelProps) {
+  const loadTasks = useAppStore((state) => state.loadTasks);
   const [insights, setInsights] = useState<InsightRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [actionInsight, setActionInsight] = useState<InsightRecord | null>(null);
+  const [actionTitle, setActionTitle] = useState('');
+  const [actionMinutes, setActionMinutes] = useState('45');
+  const [actionDueDate, setActionDueDate] = useState('');
+  const [actionPriority, setActionPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [actionBusy, setActionBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -75,6 +84,37 @@ export function InsightPanel({ recordCount }: InsightPanelProps) {
       await load();
     } catch (err: any) {
       setError(err?.message || '归档失败');
+    }
+  };
+
+  const openActionSheet = (insight: InsightRecord) => {
+    setActionInsight(insight);
+    setActionTitle(insight.title);
+    setActionMinutes('45');
+    setActionDueDate('');
+    setActionPriority('medium');
+    setError(null);
+  };
+
+  const confirmAction = async () => {
+    if (!actionInsight || !actionTitle.trim() || actionBusy) return;
+    setActionBusy(true);
+    setError(null);
+    try {
+      const task = await createTaskFromInsight(actionInsight.id, {
+        title: actionTitle,
+        description: actionInsight.body,
+        estimatedMinutes: Number(actionMinutes) > 0 ? Number(actionMinutes) : undefined,
+        dueDate: actionDueDate || undefined,
+        priority: actionPriority,
+      });
+      setMessage(`已创建待办「${task.title}」。来源洞察和原始记录仍会保留。`);
+      setActionInsight(null);
+      await Promise.all([load(), loadTasks()]);
+    } catch (err: any) {
+      setError(err?.message || '创建待办失败');
+    } finally {
+      setActionBusy(false);
     }
   };
 
@@ -160,9 +200,37 @@ export function InsightPanel({ recordCount }: InsightPanelProps) {
               </div>
             )}
 
+            {insight.tasks && insight.tasks.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] p-3">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[var(--sf-text-tertiary)]">产生的行动</p>
+                <div className="space-y-2">
+                  {insight.tasks.map((task) => {
+                    const done = task.status === 'done';
+                    return (
+                      <div key={task.id} className="flex items-start gap-2 text-xs text-[var(--sf-text-secondary)]">
+                        {done ? <CheckCircle2 size={14} className="mt-0.5 shrink-0" /> : <Circle size={14} className="mt-0.5 shrink-0" />}
+                        <div className="min-w-0">
+                          <p className={done ? 'line-through opacity-60' : ''}>{task.title}</p>
+                          <p className="mt-0.5 text-[10px] text-[var(--sf-text-tertiary)]">
+                            {task.estimatedMinutes ? `${task.estimatedMinutes} 分钟` : '未设时长'}
+                            {task.dueDate ? ` · 截止 ${new Date(task.dueDate).toLocaleDateString('zh-CN')}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="mt-4 flex items-center justify-between border-t border-[var(--sf-border)] pt-3">
               <span className="text-[10px] text-[var(--sf-text-tertiary)]">{new Date(insight.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                {insight.type === 'action' && (
+                  <button type="button" onClick={() => openActionSheet(insight)} className="flex items-center gap-1 rounded-full bg-[#cae393] px-3 py-2 text-[11px] font-bold text-[#242424]">
+                    加入待办 <ArrowRight size={12} />
+                  </button>
+                )}
                 <button type="button" onClick={() => archive(insight)} className="flex items-center gap-1 rounded-full bg-[var(--sf-bg)] px-3 py-2 text-[11px] font-semibold"><Archive size={12} /> 归档</button>
                 <button type="button" aria-label="删除洞察" onClick={() => remove(insight)} className="rounded-full bg-[var(--sf-bg)] p-2"><Trash2 size={13} /></button>
               </div>
@@ -170,6 +238,55 @@ export function InsightPanel({ recordCount }: InsightPanelProps) {
           </article>
         );
       })}
+
+      {actionInsight && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" role="presentation" onClick={() => !actionBusy && setActionInsight(null)}>
+          <section className="w-full max-w-lg rounded-t-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-[var(--sf-text-primary)]">创建待办</h3>
+                <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">确认后才会写入 Task。之后可继续交给 Planner 安排。</p>
+              </div>
+              <button type="button" aria-label="关闭" disabled={actionBusy} onClick={() => setActionInsight(null)} className="rounded-full bg-[var(--sf-bg)] p-2 disabled:opacity-40"><X size={15} /></button>
+            </div>
+
+            <label className="block text-xs font-semibold text-[var(--sf-text-secondary)]">
+              标题
+              <input value={actionTitle} onChange={(event) => setActionTitle(event.target.value)} className="mt-1.5 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-2.5 text-sm outline-none" />
+            </label>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <label className="text-xs font-semibold text-[var(--sf-text-secondary)]">
+                预计时长（分钟）
+                <input type="number" min="5" step="5" value={actionMinutes} onChange={(event) => setActionMinutes(event.target.value)} className="mt-1.5 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-2.5 text-sm outline-none" />
+              </label>
+              <label className="text-xs font-semibold text-[var(--sf-text-secondary)]">
+                优先级
+                <select value={actionPriority} onChange={(event) => setActionPriority(event.target.value as 'low' | 'medium' | 'high')} className="mt-1.5 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-2.5 text-sm outline-none">
+                  <option value="low">低</option>
+                  <option value="medium">中</option>
+                  <option value="high">高</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-3 block text-xs font-semibold text-[var(--sf-text-secondary)]">
+              截止日期（可选）
+              <input type="date" value={actionDueDate} onChange={(event) => setActionDueDate(event.target.value)} className="mt-1.5 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-2.5 text-sm outline-none" />
+            </label>
+
+            <div className="mt-3 rounded-2xl bg-[#f2f0e8] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#242424]/40">来源</p>
+              <p className="mt-1 text-xs font-semibold text-[#242424]/75">洞察「{actionInsight.title}」</p>
+              <p className="mt-1 text-[10px] text-[#242424]/45">来自 {actionInsight.sources.length} 条记录</p>
+            </div>
+
+            <button type="button" disabled={!actionTitle.trim() || actionBusy} onClick={confirmAction} className="mt-4 w-full rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-bold text-[var(--sf-surface)] disabled:opacity-40">
+              {actionBusy ? '创建中…' : '创建任务'}
+            </button>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
