@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-18  
-> **代码同步基线**：`master@4569a3a1`
+> **代码同步基线**：`master@1e5f8356`
 
 ---
 
@@ -39,7 +39,7 @@ Folder → Today → Focus → Review → Schedule
 |---|---|---|---|
 | 1 | 生产数据与认证 | 腾讯云独立 PostgreSQL + SparkFlow API 自建密码/Session 认证 | 与 DeepTutor 数据库隔离，服务端统一控制身份和数据归属 |
 | 2 | 业务链路 | Web/PWA/APK → NestJS REST → Prisma → PostgreSQL | 避免多事实源和客户端直接写数据库 |
-| 3 | Web 部署 | Vercel 主项目 `sparkflow031` / `fish-life.cc.cd` | 静态前端与后端基础设施分离 |
+| 3 | Web 部署 | Vercel 主项目 `sparkflow031` / `fish-life.cc.cd`；Git 自动 deployments 关闭，CI 后显式发布 Production | 避免 Hobby 每日 deployment 配额被短分支小 commit 耗尽，同时保持静态前端与后端基础设施分离 |
 | 4 | API 部署 | 腾讯云 Docker + Nginx / `api.fish-life.cc.cd` | API 与数据库自主可控 |
 | 5 | API 版本追溯 | Docker `BUILD_SHA` + `/api/health.buildSha` | 生产验收必须能确认实际运行 commit，不能只看 health 200 |
 | 6 | 客户端 | React + TypeScript + Vite；Capacitor 构建 Android | Web、PWA、Android 复用核心界面与逻辑 |
@@ -50,9 +50,10 @@ Folder → Today → Focus → Review → Schedule
 | 11 | 课程导入 | 客户端获取/解析/预览；服务端负责授权、幂等、重复/冲突、事务和结果查询 | 避免重复、半写入和跨用户数据问题 |
 | 12 | 数据库发布门禁 | CI 在 fresh PostgreSQL 16 上运行全量 migration + 真实数据库 targeted E2E | 验证历史 migration、幂等、并发、rollback 和用户隔离 |
 | 13 | Android 发布 | 构建前后校验 production API；APK/Artifact/Release 绑定 commit SHA | 每个真机包都能追溯来源与 API 目标 |
-| 14 | 记录事实源 | Phase 15 统一到服务端 `Inspiration` | 逐步淘汰前端旧 `Spark` 作为主事实源 |
-| 15 | Study Mode | 复用 Course / Task / Calendar / Planner / Focus | 学习场景是工作区，不是第二套效率系统 |
-| 16 | Local Codex Bridge | 独立本机 loopback Gateway，native Codex 为唯一执行事实源 | 不进入云端生产控制链，不建立第二套 runtime/transcript |
+| 14 | 记录事实源 | Phase 15 统一到服务端 `Inspiration`，Reflection 独立历史，Insight 使用 N:N 来源关系 | 记录、回顾、洞察都可追溯，不把 AI 输出当原始事实 |
+| 15 | AI 洞察与行动 | OpenAI-compatible Provider；Insight 只产生候选，Action 经用户确认后写入共享 Task，并保留 `insightId` 回链 | 保留用户控制权，可回答“为什么做这个任务” |
+| 16 | Study Mode | 复用 Course / Task / Calendar / Planner / Focus | 学习场景是工作区，不是第二套效率系统 |
+| 17 | Local Codex Bridge | 独立本机 loopback Gateway，native Codex 为唯一执行事实源 | 不进入云端生产控制链，不建立第二套 runtime/transcript |
 
 ---
 
@@ -126,7 +127,7 @@ flowchart TD
 - Preview → Apply → Undo 已具备基础实现。
 - 确定性 Scheduler 为唯一时间决策层。
 - 下一阶段补充自然语言意图和“帮我顺延”。
-- `SchedulePlan` migration 已进入代码/CI；生产库仍需 Issue #31 核验。
+- `SchedulePlan` 与后续 Phase 15 migrations 已在腾讯云生产库核验；当前生产共 19 migrations，schema up to date。
 
 ### Focus
 
@@ -191,12 +192,12 @@ APK commit-stamp + SHA-256
 Actions artifact + GitHub prerelease
 ```
 
-首个通过该门禁的 Release：
+当前最新通过该门禁的 Release：
 
 ```text
-tag: android-8e7e0700f894
-asset: sparkflow-8e7e0700f894-debug.apk
-source: master@8e7e0700f894e254af509314f83ea7cd8359482c
+tag: android-1e5f8356089c
+asset: sparkflow-1e5f8356089c-debug.apk
+source: master@1e5f8356089c17cf03c286b6145cabd08dbe5285
 ```
 
 后续仅修改 API/tests/docs 时不会触发新的 Android Release；涉及 `web/**` 或 Android workflow 的 master 变更才会生成新包。
@@ -207,8 +208,9 @@ source: master@8e7e0700f894e254af509314f83ea7cd8359482c
 Capture → Review → Insight → Action
 ```
 
-M1：统一 Inspiration、随手记、Reflection、回顾、转 Task。  
-M2：Theme / Evolution / Action Insight，并保持来源可解释。
+M1：✅ Inspiration、随手记、Reflection、回顾、记录 → Task 已实现并完成生产核心链路。  
+M2：🚧 Theme / Evolution / Action Insight 与来源解释已实现；API/DB 已上线，真实 AI Provider key 待配置。  
+M3：🚧 Insight → 用户确认 Task 与双向回链已实现；API/Android 已到 `1e5f8356`，Web Production 待 Vercel 日配额恢复后显式发布。
 
 ### Study Mode
 
@@ -229,7 +231,7 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 | Phase 12 | 🚧 当前 P0：生产验收 | 安全代码、migration CI、真实 PG 顺序/并发 replay、rollback、用户隔离、部署追溯、Android CORS/Release 门禁已具备；Issue #31 承接生产和真机证据 |
 | Phase 13 | ⬜ P2 | Local Codex Bridge，等待用户主链路稳定 |
 | Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
-| Phase 15 | ⬜ 方案完成 | M1 Capture → Review → Task；M2 Insight → Action |
+| Phase 15 | 🚧 M1–M3 已实现，生产收尾 | M1 已完成；M2 API/DB 上线但 AI Provider key 待配；M3 API/Android 已上线，Web Production 待 Vercel 配额恢复 |
 | Study Mode | ⬜ M0 完成 | 提案、路线图和九张设计参考已合入；运行时代码未实施 |
 
 ---
@@ -247,6 +249,10 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 - ✅ PR #34 `8e7e0700`：Android production API gate + commit-stamped GitHub Release。
 - ✅ PR #35 `7afb7bb4`：规划文档同步。
 - ✅ PR #36 `4569a3a1`：真实 PostgreSQL 并发 / rollback / 用户隔离 E2E。
+- ✅ PR #38：Phase 15 M1 Capture → Review → Task。
+- ✅ PR #39：Phase 15 M2 explainable Insights。
+- ✅ PR #40：Phase 15 M3 Insight → confirmed Task + 双向回链。
+- ✅ PR #41：重复 M3 实现已关闭，未合并。
 - 🚧 Issue #31：当前 Phase 12 生产验收主线。
 - ⏭ Issue #26：Issue #31 稳定后进入 Phase 14 Timeline 收口。
 
@@ -256,12 +262,12 @@ M2：Theme / Evolution / Action Insight，并保持来源可解释。
 
 | 优先级 | 风险 | 已有防线 | 关闭条件 |
 |---|---|---|---|
-| P0 | 腾讯云运行版本 / migration 未证实 | `BUILD_SHA` + health buildSha；Docker 启动先 migrate deploy；fresh PG CI | 生产三方 SHA 对账 + `prisma migrate status` + schema 核验 |
+| ✅ | 腾讯云运行版本 / migration | `BUILD_SHA` + health buildSha；fresh PG CI；生产 `1e5f8356` 已对账 | 19 migrations 已 up to date，转为常规发布核验 |
 | P0 | Web 真实学校导入未闭环 | V2 preview/import/replay + real PG 顺序/并发 E2E | 真实学校获取→预览→导入→同 requestId replay 通过 |
 | P0 | Android 之前存在 Web 正常/App 登录失败 | Capacitor CORS 已修；API/Bundle 地址 CI gate；Release 可追溯 | 最新 Release 真机登录、Session 和导入通过 |
 | P0 | Planner 生产 schema/闭环未证实 | SchedulePlan migration 在 fresh PG CI 成功 | 真账号 Preview → Apply → Undo |
 | P1 | HTTP 未知结果恢复仍缺端到端证据 | 前端按 requestId 查询 + 服务端 replay；真实 PG 已验证最终状态 | 模拟客户端超时/断连后查询并恢复已提交结果 |
-| P1 | Vercel 状态噪声 / build-rate-limit | 实际项目列表仅剩 `sparkflow031`；GitHub CI 独立 | 残留 status context 与 Hobby 额度影响不再干扰发布判断 |
+| P1 | Vercel Hobby deployment 日配额 | GitHub CI 独立；Git 自动 deployments 已关闭；当前 master 本地 Vite build 已通过 | 配额恢复后显式发布 M3 Production，并保持后续一批次一次 Web 发布 |
 | P1 | Issue #26 Timeline M3 未重做 | 当前主线仍保留 Gantt | 最新 master 上通过多来源、移动端、DST/边界验收 |
 
 ---
@@ -273,24 +279,24 @@ flowchart TD
     A["✅ 仓库收口"] --> B["✅ Phase 12 安全代码"]
     B --> C["✅ Fresh PostgreSQL migrations + replay/concurrency/rollback/isolation E2E"]
     C --> D["✅ API buildSha / Android CORS / Release gate"]
-    D --> E["Issue #31 腾讯云 + Web/Android 生产验收"]
-    E --> F["Phase 14 / Issue #26"]
-    F --> G["Phase 15 M1 Capture → Review → Task"]
-    G --> H["Phase 15 M2 Insight → Action"]
-    H --> I["Study Mode"]
+    D --> E["✅ Phase 15 M1 Capture → Review → Task"]
+    E --> F["✅ M2 explainable Insight code/API"]
+    F --> G["🚧 M3 Web Production + AI Provider + real-device acceptance"]
+    G --> H["Issue #31 remaining Web/Android/Planner acceptance"]
+    H --> I["Phase 15 M4 / Study Mode / Phase 14 next batch"]
     I --> J["Phase 13 Local Codex Bridge"]
 ```
 
-### 当前批次：Issue #31
+### 当前批次：Phase 15 M3 生产收尾 + Issue #31 剩余真实验收
 
-1. 腾讯云部署最新 master，使用 `BUILD_SHA` 构建镜像。
-2. 对账 Git HEAD / container BUILD_SHA / `/api/health.buildSha`。
-3. 核验生产 `SchedulePlan` 与 course-import migration。
-4. Web 真账号完成真实教务导入与 replay。
-5. Android 安装最新 Release，复测登录、Session、SchoolImport/文件路径与 replay。
-6. Planner Preview → Apply → Undo。
+1. ✅ 腾讯云 API 已部署 `master@1e5f8356`；Git HEAD / image / public health buildSha 已对齐。
+2. ✅ 生产 PostgreSQL 19 migrations up to date，包含 M2/M3。
+3. 🚧 Vercel Hobby 当日 deployment 次数已超限；额度恢复后显式发布 `1e5f8356` Web Production。
+4. 🚧 配置真实 AI Provider 后执行多卡片 → Insight → 用户确认 Task 的真实账户验收。
+5. Android 安装 `sparkflow-1e5f8356089c-debug.apk`，复测登录、Session、Insight/Action、SchoolImport 和窄屏交互。
+6. Web 真账号完成真实教务导入/replay，并完成 Planner Preview → Apply → Undo。
 7. 验证一次客户端未知/超时结果 → requestId 查询恢复路径。
-8. 全部通过后，Phase 12 从“生产验收”转为完成/维护，主线进入 Phase 14。
+8. 上述真实链路通过后，再选择 Phase 15 M4、Study Mode 或 Phase 14 余项作为下一产品批次。
 
 ---
 
@@ -301,7 +307,7 @@ flowchart TD
 3. 数据库相关变更必须同时通过 fresh PostgreSQL `migrate deploy/status` 和对应 real-DB E2E。
 4. migration 必须 additive、可备份、可验证。
 5. API 自托管生产镜像必须带 `BUILD_SHA`，且部署后与 health 回显一致。
-6. Preview / CI / health 200 均不等于生产业务验收完成。
+6. Preview / CI / health 200 均不等于生产业务验收完成；Vercel Web 不再使用每 commit 自动 deployment，合并后显式发布。
 7. Android 构建必须校验 production API、输出 commit-stamped APK 和 SHA-256，并保留 GitHub Release。
 8. Android 功能相关改动必须有真机登录、网络、safe-area、软键盘和核心导航回归。
 9. 数据修改型 AI 必须 Preview/Confirm，并尽量支持 Undo。

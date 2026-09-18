@@ -1,5 +1,15 @@
 # Phase 15 — Capture → Review → Insight → Action
 
+## 当前实施状态（2026-09-18）
+
+- **M1：✅ 已实现并完成生产核心链路** — PR #38，Capture → Review → Task。
+- **M2：🚧 代码/API/数据库已上线** — PR #39；真实 AI 生成仍等待生产 Provider key。
+- **M3：🚧 代码/API/Android 已上线，Web 待发布** — PR #40；腾讯云 `master@1e5f8356`、19 migrations 已确认，Vercel Production 因 Hobby >100 deployments/day 暂停在 M2。
+- Web 发布策略改为 **GitHub CI 后显式 Production**，不再为每个 Git commit 自动创建 Vercel deployment。
+- M4 不提前启动，先完成 M3 Web Production 与真实 AI/真机闭环。
+
+---
+
 > **状态**：⬜ 方案已确认，未实施  
 > **最后更新**：2026-09-17  
 > **设计基线**：`master@27f64066`  
@@ -800,19 +810,19 @@ M1 必须移动端优先验收：
 
 范围：
 
-- [ ] `Inspiration.sourceUrl` nullable + review 字段 migration。
-- [ ] 新增 `InspirationReflection`。
-- [ ] Inspiration 完整 CRUD。
-- [ ] 前端 Records 时间流。
-- [ ] Quick Add “随手记”。
-- [ ] 详情、标签、关键词搜索。
-- [ ] Today 回顾入口。
-- [ ] Review 单卡流程。
-- [ ] Reflection。
-- [ ] snooze / reviewed 调度。
-- [ ] 单条记录 → Task。
-- [ ] Capture 网络失败 pending queue。
-- [ ] 旧 `SparksView` 降为 FreeBoardView，不再作为数据事实源。
+- [x] `Inspiration.sourceUrl` nullable + review 字段 migration。
+- [x] 新增 `InspirationReflection`。
+- [x] Inspiration 完整 CRUD。
+- [x] 前端 Records 时间流。
+- [x] Quick Add “随手记”。
+- [ ] 详情、标签、关键词搜索（主链路已可用，搜索仍是后续体验增强）。
+- [x] Today 回顾入口。
+- [x] Review 单卡流程。
+- [x] Reflection。
+- [x] snooze / reviewed 调度。
+- [x] 单条记录 → Task。
+- [ ] Capture 网络失败 pending queue（后续增强，不阻塞已上线 M1）。
+- [x] 旧 `SparksView` 降为 FreeBoardView，不再作为数据事实源。
 
 M1 验收：
 
@@ -829,13 +839,13 @@ M1 验收：
 
 范围：
 
-- [ ] `Insight` + `InsightInspiration`。
-- [ ] AIProvider 抽象。
-- [ ] 手动“发现近期洞察”。
-- [ ] Theme / Evolution / Action 三类 Insight。
-- [ ] 来源卡片展开。
-- [ ] 归档 / 删除洞察。
-- [ ] 基础 AI 输出质量测试与错误降级。
+- [x] `Insight` + `InsightInspiration`。
+- [x] AIProvider 抽象。
+- [x] 手动“发现近期洞察”。
+- [x] Theme / Evolution / Action 三类 Insight。
+- [x] 来源卡片展开。
+- [x] 归档 / 删除洞察。
+- [x] 基础 AI 输出质量测试与错误降级。
 
 M2 验收：AI 生成的每个洞察都能追溯到真实来源，错误来源 id 不可落库。
 
@@ -843,13 +853,13 @@ M2 验收：AI 生成的每个洞察都能追溯到真实来源，错误来源 i
 
 范围：
 
-- [ ] `Task.insightId`。
-- [ ] Insight ActionSuggestion UI。
-- [ ] 用户确认 Sheet。
-- [ ] Insight → Task。
-- [ ] Task 来源回链。
-- [ ] Insight 显示已产生行动。
-- [ ] 创建后可直接打开 Planner。
+- [x] `Task.insightId`。
+- [x] Insight ActionSuggestion UI。
+- [x] 用户确认 Sheet。
+- [x] Insight → Task。
+- [x] Task 来源回链。
+- [x] Insight 显示已产生行动。
+- [ ] 创建后直接打开 Planner（Task 已进入共享 Store，可进入 Planner；直接跳转体验待补）。
 
 M3 验收：从多张记录形成 Insight，再由用户确认生成 Task，任务可进入 Planner / Timeline / Focus。
 

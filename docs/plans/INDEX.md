@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-18 | **代码基线**：`master@4569a3a1`
+> **最后更新**：2026-09-18 | **代码基线**：`master@1e5f8356`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,7 +8,7 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | ✅ 仓库/CI/真实 PG 安全门禁 → **Issue #31 腾讯云 + Web/Android 生产验收** → 平台治理 → Phase 14 收口 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | Phase 15 M1–M3 已进入 master；当前先收口 M3 Web Production + AI Provider，再继续真实 Web/Android/Planner 验收 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
@@ -16,7 +16,7 @@
 
 | 文件 | Phase | 状态 | 启动条件 |
 |---|---|---|---|
-| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | ⬜ 方案已确认，未实施 | Phase 12 生产真实导入闭环完成，且 Phase 14 无阻断级回归后启动 M1：Capture → Review → Task；AI Insight 放 M2 |
+| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3 已实现 | PR #38/#39/#40 已合并；API/DB/Android 已到 M3，Web Production 待 Vercel 日配额恢复，真实 AI 洞察待 Provider key |
 
 ## 候选方案（已完成设计、未排期实施）
 
@@ -40,6 +40,10 @@
 | PR #34 Android release gate | ✅ 已合并 | `8e7e0700`；生产 API 双重校验、commit 命名、SHA-256、GitHub prerelease 自动发布 |
 | PR #35 Planning sync | ✅ 已合并 | `7afb7bb4`；NEXT / INDEX / BLUEPRINT 对齐生产验收主线 |
 | PR #36 Real PostgreSQL safety E2E | ✅ 已合并 | `4569a3a1`；真实 PG 并发同 request、事务 rollback、同 requestId 跨用户隔离全部通过 |
+| PR #38 Phase 15 M1 | ✅ 已合并 | Capture → Review → Task；生产 API/Web 核心链路已验收 |
+| PR #39 Phase 15 M2 | ✅ 已合并 | 可解释 Theme/Evolution/Action Insight；生产 API/DB 已部署，AI Provider key 待配置 |
+| PR #40 Phase 15 M3 | ✅ 已合并 | Insight → 用户确认 Task + 双向来源回链；CI/API/Android 已完成 |
+| PR #41 duplicate M3 | ✅ 已关闭 | 被 PR #40 完整实现替代，避免重复 migration/API 变体 |
 
 ## 活跃执行 Issue
 
@@ -66,7 +70,7 @@
 
 ### 仍未关闭
 
-- 腾讯云当前运行镜像的 `buildSha` 和生产库 migration 状态。
+- ~~腾讯云运行镜像 buildSha / production migration 状态~~：已确认 `master@1e5f8356`、19 migrations up to date。
 - Web 真实学校导入、重复提交与未知网络结果恢复。
 - Android 最新 Release 的真机登录、Session、SchoolImport/文件导入与窄屏交互。
 - Planner 生产 Preview → Apply → Undo。
@@ -75,8 +79,8 @@
 ## 平台 / 发布状态
 
 - Vercel 连接当前只发现 `sparkflow031` 一个真实项目；旧 `sparkflow` / `sparkflow-psi1` 项目本体已不在项目列表。
-- GitHub 中旧 Vercel status context 仍可能残留；同时 Hobby `build-rate-limit` 会制造部署失败信号。
-- Android 最新自动 Release：`android-8e7e0700f894`，资产 `sparkflow-8e7e0700f894-debug.apk`。
+- Vercel Hobby 已实际触发 `api-deployments-free-per-day`（>100/day）；已关闭 Git 自动 deployments，后续 Web 采用 CI 后显式 Production 发布。
+- Android 最新自动 Release：`android-1e5f8356089c`，资产 `sparkflow-1e5f8356089c-debug.apk`；对应 M3 master。
 - `/health` 200 只说明进程存活；只有带明确 `buildSha` 且真实业务路径通过，才算生产证据。
 
 ## 冻结 / 待重估

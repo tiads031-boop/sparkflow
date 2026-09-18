@@ -160,3 +160,36 @@ docker logs --tail 100 sparkflow-api
 如果 `/api/health` 返回 `buildSha: "unknown"`，说明镜像构建时没有传 `--build-arg BUILD_SHA=...`，该部署不得作为已完成的生产版本验收证据。
 
 最后用正常测试账户分别验证登录/会话、学期、课程、任务、日程、Planner Preview → Apply → Undo，以及 Phase 12 教务导入的首次提交与重复重放。`/health` 200 只证明进程存活，不替代真实业务验收。
+
+
+---
+
+## Vercel Web 发布
+
+SparkFlow 的 Vercel 项目使用 Hobby 配额。历史上短分支每个小 commit 都触发 Git Preview，曾实际触发每日 deployment 次数硬限制。
+
+当前策略：
+
+1. `web/vercel.json` 使用 `git.deploymentEnabled=false`，关闭 Git 自动 deployments。
+2. GitHub Web/API CI 继续作为代码质量门禁。
+3. 业务 PR 合并后，确认目标 master commit，再显式创建一次 Vercel Production deployment。
+4. 发布完成后核对 Production deployment 的 Git SHA / bundle，并做真实页面验收。
+5. 不因为 Preview 缺失而把 GitHub CI 判为失败；也不把 Vercel 平台额度错误当成代码失败。
+
+推荐节奏：
+
+```text
+short branch commits
+  ↓
+GitHub CI
+  ↓
+PR merge
+  ↓
+confirm master SHA
+  ↓
+one explicit Vercel Production deployment
+  ↓
+production smoke
+```
+
+如果 Vercel 返回 `api-deployments-free-per-day`，停止重复重试，等待平台配额恢复后再发布；API/Android 发布状态需要单独记录，不能用 Web 部署失败覆盖其实际状态。

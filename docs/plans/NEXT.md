@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-18 | **代码基线**：`master@4569a3a1`
+> **最后更新**：2026-09-18 | **代码基线**：`master@1e5f8356`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -9,22 +9,22 @@
 | 范围 | 已确认事实 |
 |---|---|
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
-| API | `https://api.fish-life.cc.cd`，Nginx 反向代理至 NestJS；`/api/health` 已具备 `buildSha` 契约，但腾讯云当前实际运行 commit 仍需部署后核验 |
-| Web | Vercel 主项目 `sparkflow031`，生产域名 `fish-life.cc.cd`；Vercel 当前账户仅保留该项目，旧 status context 仍可能残留 |
-| GitHub | `master@4569a3a1`；PR #28–#36 的 Phase 12/发布门禁改动已合并；Issue #31 承接生产验收 |
+| API | `https://api.fish-life.cc.cd`，腾讯云已运行 `1e5f8356`；公网 `/api/health.buildSha` 与仓库一致；生产库 19 个 migrations 全部 up to date |
+| Web | Vercel 项目 `sparkflow031`；当前 Production 仍为 M2 `3286458a`。M3 `1e5f8356` 本地 Web build 已通过，但 Hobby 当日 >100 deployments 硬限额阻止新 Production；已关闭 Git 自动 deployments，待额度恢复后显式发布 |
+| GitHub | `master@1e5f8356`；Phase 15 M1/M2/M3 分别由 PR #38/#39/#40 合并；PR #41 为重复实现已关闭 |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
-| 最新 APK | Release `android-8e7e0700f894`；`sparkflow-8e7e0700f894-debug.apk`；生产 API 地址在构建前后均已校验 |
-| 部署噪声 | Vercel Hobby build-rate-limit 仍可能导致部署状态失败；不得把平台额度失败等同于代码 CI 失败 |
+| 最新 APK | Release `android-1e5f8356089c`；`sparkflow-1e5f8356089c-debug.apk`；对应 M3 master，Android CI 成功 |
+| 部署噪声 | Vercel Hobby 已触发 `api-deployments-free-per-day`（>100/day）；这不是代码失败。Git 自动 deployments 已在当前治理分支关闭，后续采用 CI 后显式 Production 发布 |
 
 ## 近期总原则
 
-1. **Phase 12 的服务端安全代码、全量 migration CI 和关键真实 PostgreSQL I/O 安全场景已具备；当前唯一 P0 主线是 Issue #31 的腾讯云生产 + Web/Android 真机验收。**
-2. **没有腾讯云 migration、`buildSha`、真实账户和真机证据前，不把 Phase 12 宣布为生产完成。**
-3. **Android “Web 正常、App 无法登录”的代码侧高概率 CORS 分叉已修复，但必须用最新 Release 真机复测后才能关闭。**
-4. **Phase 14 不重复已经进入 master 的 Today、四象限、甘特、Planner、Focus；M3 余项由 Issue #26 承接。**
-5. **Phase 15 先做 M1（Capture → Review → Task），AI Insight 放 M2。**
-6. **Study Mode 已有方案但暂不抢占主线；Local Codex Bridge 保持 P2。**
+1. **Phase 15 M1/M2/M3 代码均已进入 master；不要再重复实现 Capture、Insight 或 Insight→Task。**
+2. **当前第一收口项是 M3 Web Production：待 Vercel Hobby 每日 deployment 配额恢复后，将当前 master 显式发布并做真实浏览器验收。**
+3. **M2 真正的 AI 生成仍缺生产 Provider 配置；未配置时 503 是预期降级，禁止用伪造洞察代替。**
+4. **腾讯云 API 已部署到 `1e5f8356`，19 个 migrations 已应用；Phase 12 剩余重点缩小为真实 Web/Android 教务导入、Planner 与网络未知结果验收。**
+5. **Android 继续以 commit-stamped Release 做真机验收；最新 M3 包为 `android-1e5f8356089c`。**
+6. **M3 Web + AI Provider 真实验收完成后，再在 Phase 15 M4 主动助手、Study Mode、Phase 14 余项之间选择下一产品批次。**
 
 ---
 
@@ -56,12 +56,12 @@
 
 ### A. 部署版本与 migration
 
-- [ ] 从最新 `master` 构建腾讯云 API 镜像，并传入 `--build-arg BUILD_SHA=<git HEAD>`。
-- [ ] 确认 `/api/health.buildSha` 与服务器仓库 `git rev-parse HEAD`、容器 `BUILD_SHA` 完全一致。
-- [ ] 在腾讯云生产库运行/核验 `prisma migrate status`。
-- [ ] 确认 `20260914050000_add_schedule_plans` 已执行。
-- [ ] 确认 `20260915120000_add_course_import_idempotency` 已执行。
-- [ ] 确认 `course_import_batches` 与课程来源/import 字段真实存在。
+- [x] 已从 `master@1e5f8356` 构建腾讯云 API 镜像并写入 `BUILD_SHA`。
+- [x] 公网 `/api/health.buildSha`、服务器 Git HEAD、运行镜像均已对齐 `1e5f8356`。
+- [x] 腾讯云生产库 `prisma migrate status` 已核验：19 migrations，schema up to date。
+- [x] `20260914050000_add_schedule_plans` 已包含在生产 migration chain。
+- [x] `20260915120000_add_course_import_idempotency` 已包含在生产 migration chain。
+- [x] 生产 migration chain 已覆盖 `course_import_batches` 与课程来源/import 字段；CI 与生产 status 均通过。
 
 ### B. 生产 API 冒烟
 
@@ -141,32 +141,47 @@
 
 ---
 
-## 5. Phase 15 M1：Capture → Review → Task（P1，下一产品批次）
+## 5. Phase 15 M1：Capture → Review → Task（✅ 代码 + 生产核心链路已完成）
 
-启动条件：Phase 12 的生产真实导入闭环完成，Phase 14 没有阻断级回归。
+- [x] 服务端 `Inspiration` 成为记录事实源，支持 manual 随手记。
+- [x] `InspirationReflection` 保留回顾历史，不覆盖原文。
+- [x] 全局 Quick Add、记录卡片 / 回顾 / 自由墙、Today 回顾入口。
+- [x] 新记录次日、Reflection +3 天、稍后 +1 天、已消化 +14 天。
+- [x] 记录 → Task 并保留 `Task.inspirationId` 回链。
+- [x] fresh PostgreSQL migration、Web/API CI、生产 API 与核心真实链路验收。
 
-- [ ] 将前端旧 `Spark` 主链路迁移到服务端 `Inspiration` 事实源。
-- [ ] `sourceUrl` 改为 nullable，支持 `manual` 随手记。
-- [ ] 全局 Quick Add 提供“随手记”，目标 5 秒内完成一条记录。
-- [ ] “灵感”升级为“记录”：卡片 / 回顾；自由墙作为可选视图保留。
-- [ ] 新增 Reflection 历史，不覆盖原始记录正文。
-- [ ] Today 提供轻量每日回顾入口。
-- [ ] 支持记录 / Reflection → Task，并保留来源回链。
-- [ ] Web/Android 真实账户验收、跨用户隔离和 migration 测试。
-
-完成门槛：一条随手记可以经过回顾后由用户确认转成 Task，并继续进入 Planner / Timeline / Focus。
+仍可后续增强但不阻塞 M1 收口：关键词搜索、离线 pending create、回顾左右滑动等体验项。
 
 ---
 
-## 6. Phase 15 M2：Insight → Action（P1/P2）
+## 6. Phase 15 M2/M3：Insight → Action（🚧 代码完成，生产收尾）
 
-- [ ] Theme / Evolution / Action 三类 Insight。
-- [ ] 每个 Insight 必须展示来源卡片，可解释、可删除、可归档。
-- [ ] AI 只产生候选，不自动修改原记录、不自动创建 Task。
-- [ ] ActionSuggestion 经用户确认后创建 Task。
-- [ ] Task ↔ Insight 双向回链，能回答“为什么做这个任务”。
+### M2 Insight — ✅ 代码/数据库/API
 
-首版不引入向量数据库、知识图谱或独立 RAG 基础设施。
+- [x] `Insight` + `InsightInspiration` 正式 N:N 来源关系。
+- [x] Theme / Evolution / Action 三类可解释 Insight。
+- [x] 每个 Insight 展开真实来源；支持归档/删除。
+- [x] OpenAI-compatible Provider 抽象与输出校验；虚构/越权 source id 不落库。
+- [x] 腾讯云生产已应用 M2 migration。
+- [ ] **配置真实 AI Provider**（当前生产无 `AI_API_KEY` / OpenAI / DeepSeek key；生成接口按设计降级 503）。
+- [ ] 配置后用真实账户验证多卡片 → Insight 的模型质量。
+
+### M3 Insight → Task — ✅ 代码/API/Android，🚧 Web Production
+
+- [x] PR #40：`Task.insightId`，一个 Insight 可产生多个 Task。
+- [x] Action 洞察点击“加入待办”后先显示确认 Sheet；用户可改标题、时长、截止日期、优先级。
+- [x] Task ↔ Insight 双向回链；Task 详情显示洞察与来源记录数量。
+- [x] 普通 Task 编辑不能重新绑定 `insightId/inspirationId`；创建时校验 Insight 属于当前用户。
+- [x] 腾讯云 API 已部署 `master@1e5f8356`；M3 migration 后生产库共 19 migrations，状态 up to date。
+- [x] GitHub CI 与 Android APK `android-1e5f8356089c` 成功。
+- [ ] **Web Production 发布 `1e5f8356`**：当前被 Vercel Hobby >100 deployments/day 限额阻断；额度恢复后显式发布。
+- [ ] Web/Android 真机跑完整链路：记录 → 回顾 → Insight → 确认 Task → Planner → Timeline → Focus → Done。
+
+### 发布策略
+
+- Git 自动 Vercel deployments 关闭，避免每个短分支小 commit 消耗 Hobby 每日 deployment 次数。
+- GitHub CI 是代码门禁；Vercel Production 在合并并确认 commit 后显式创建。
+- 不把 Preview/health 200 当成业务验收。
 
 ---
 
