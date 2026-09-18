@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-18 | **代码基线**：`master@1e5f8356`
+> **最后更新**：2026-09-18 | **代码基线**：`master@5835e322`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -11,19 +11,19 @@
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，腾讯云已运行 `1e5f8356`；公网 `/api/health.buildSha` 与仓库一致；生产库 19 个 migrations 全部 up to date |
 | Web | Vercel 项目 `sparkflow031`；当前 Production 仍为 M2 `3286458a`。M3 `1e5f8356` 本地 Web build 已通过，但 Hobby 当日 >100 deployments 硬限额阻止新 Production；已关闭 Git 自动 deployments，待额度恢复后显式发布 |
-| GitHub | `master@1e5f8356`；Phase 15 M1/M2/M3 分别由 PR #38/#39/#40 合并；PR #41 为重复实现已关闭 |
+| GitHub | `master@5835e322`；Phase 15 M1/M2/M3 分别由 PR #38/#39/#40 合并；PR #41 为重复实现已关闭；PR #43 已合并 Qwen 洞察稳定性与 API 超时治理 |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
-| 最新 APK | Release `android-1e5f8356089c`；`sparkflow-1e5f8356089c-debug.apk`；对应 M3 master，Android CI 成功 |
+| 最新 APK | Release `android-5835e3223748`；`sparkflow-5835e3223748-debug.apk`；对应 `master@5835e322`，Android CI 成功 |
 | 部署噪声 | Vercel Hobby 已触发 `api-deployments-free-per-day`（>100/day）；这不是代码失败。Git 自动 deployments 已在当前治理分支关闭，后续采用 CI 后显式 Production 发布 |
 
 ## 近期总原则
 
 1. **Phase 15 M1/M2/M3 代码均已进入 master；不要再重复实现 Capture、Insight 或 Insight→Task。**
 2. **当前第一收口项是 M3 Web Production：待 Vercel Hobby 每日 deployment 配额恢复后，将当前 master 显式发布并做真实浏览器验收。**
-3. **M2 真正的 AI 生成仍缺生产 Provider 配置；未配置时 503 是预期降级，禁止用伪造洞察代替。**
+3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 已针对 thinking、JSON mode、429/5xx 重试与超时做稳定性修复。下一步是把 `5835e322` 部署到生产后复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
 4. **腾讯云 API 已部署到 `1e5f8356`，19 个 migrations 已应用；Phase 12 剩余重点缩小为真实 Web/Android 教务导入、Planner 与网络未知结果验收。**
-5. **Android 继续以 commit-stamped Release 做真机验收；最新 M3 包为 `android-1e5f8356089c`。**
+5. **Android 继续以 commit-stamped Release 做真机验收；最新包为 `android-5835e3223748`。**
 6. **M3 Web + AI Provider 真实验收完成后，再在 Phase 15 M4 主动助手、Study Mode、Phase 14 余项之间选择下一产品批次。**
 
 ---
@@ -34,6 +34,7 @@
 
 - [x] PR #23 被 PR #25 / `docs/study-mode/` 替代并关闭。
 - [x] PR #24 已 squash 合并为 `fad1a619`，课程任务统一进入共享 Task Store。
+- [x] PR #27 已由后续 #28/#29/#30/#36 的更完整 Phase 12 安全与真实 PostgreSQL 验证覆盖，关闭旧分支避免重复维护。
 - [x] PR #14 已关闭；剩余 Timeline M3 要求迁移到 Issue #26，从最新 master 重做。
 
 ### Phase 12 安全与数据库门禁
@@ -163,8 +164,8 @@
 - [x] 每个 Insight 展开真实来源；支持归档/删除。
 - [x] OpenAI-compatible Provider 抽象与输出校验；虚构/越权 source id 不落库。
 - [x] 腾讯云生产已应用 M2 migration。
-- [ ] **配置真实 AI Provider**（当前生产无 `AI_API_KEY` / OpenAI / DeepSeek key；生成接口按设计降级 503）。
-- [ ] 配置后用真实账户验证多卡片 → Insight 的模型质量。
+- [x] **真实 AI Provider 已接通并出现 Qwen 生产调用证据**；PR #43 针对 qwen3.7-plus 默认 thinking、JSON 输出、Provider 超时与 429/5xx 短重试做了稳定性修复。
+- [ ] 将 `master@5835e322` 的 Provider 稳定性修复部署到生产后，用真实账户复验多卡片 → Insight 的成功率、延迟与模型质量。
 
 ### M3 Insight → Task — ✅ 代码/API/Android，🚧 Web Production
 
@@ -173,8 +174,8 @@
 - [x] Task ↔ Insight 双向回链；Task 详情显示洞察与来源记录数量。
 - [x] 普通 Task 编辑不能重新绑定 `insightId/inspirationId`；创建时校验 Insight 属于当前用户。
 - [x] 腾讯云 API 已部署 `master@1e5f8356`；M3 migration 后生产库共 19 migrations，状态 up to date。
-- [x] GitHub CI 与 Android APK `android-1e5f8356089c` 成功。
-- [ ] **Web Production 发布 `1e5f8356`**：当前被 Vercel Hobby >100 deployments/day 限额阻断；额度恢复后显式发布。
+- [x] GitHub CI 与最新 Android APK `android-5835e3223748` 成功；该包已包含 PR #43 的前端请求超时治理。
+- [ ] **Web Production 发布当前 `master@5835e322`**：继续采用显式 Production 发布；发布后验证 Insight 75s 专用超时与普通 API 15s 有界超时。
 - [ ] Web/Android 真机跑完整链路：记录 → 回顾 → Insight → 确认 Task → Planner → Timeline → Focus → Done。
 
 ### 发布策略
@@ -182,6 +183,14 @@
 - Git 自动 Vercel deployments 关闭，避免每个短分支小 commit 消耗 Hobby 每日 deployment 次数。
 - GitHub CI 是代码门禁；Vercel Production 在合并并确认 commit 后显式创建。
 - 不把 Preview/health 200 当成业务验收。
+
+### PR #43 稳定性补丁（已进入 master）
+
+- Qwen/DashScope 请求关闭默认 thinking，并启用 JSON object 输出。
+- Provider 超时提升为 60s；429/500/502/503/504 首次失败允许一次短重试。
+- 普通 Web API 请求默认 15s 超时；Insight 生成单独允许 75s。
+- Provider 失败写入不含密钥/用户内容的安全摘要日志；前端区分 408 请求超时。
+- 该补丁已进入 `master@5835e322` 并生成 Android Release；腾讯云 API 与 Vercel Production 仍需按发布门禁显式对齐后再标记生产完成。
 
 ---
 

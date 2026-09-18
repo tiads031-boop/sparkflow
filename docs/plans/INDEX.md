@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-18 | **代码基线**：`master@1e5f8356`
+> **最后更新**：2026-09-18 | **代码基线**：`master@5835e322`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,7 +8,7 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | Phase 15 M1–M3 已进入 master；当前先收口 M3 Web Production + AI Provider，再继续真实 Web/Android/Planner 验收 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | Phase 15 M1–M3 与 PR #43 Qwen 稳定性补丁已进入 master；当前先发布/验收 `5835e322`，再继续真实 Web/Android/Planner 收口 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
@@ -16,7 +16,7 @@
 
 | 文件 | Phase | 状态 | 启动条件 |
 |---|---|---|---|
-| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3 已实现 | PR #38/#39/#40 已合并；API/DB/Android 已到 M3，Web Production 待 Vercel 日配额恢复，真实 AI 洞察待 Provider key |
+| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3 已实现，生产收尾 | PR #38/#39/#40 已合并；PR #43 已补 Qwen/请求超时稳定性；真实 Provider 已有生产调用证据，当前需发布 `5835e322` 并完成真实 AI/真机验收 |
 
 ## 候选方案（已完成设计、未排期实施）
 
@@ -41,9 +41,11 @@
 | PR #35 Planning sync | ✅ 已合并 | `7afb7bb4`；NEXT / INDEX / BLUEPRINT 对齐生产验收主线 |
 | PR #36 Real PostgreSQL safety E2E | ✅ 已合并 | `4569a3a1`；真实 PG 并发同 request、事务 rollback、同 requestId 跨用户隔离全部通过 |
 | PR #38 Phase 15 M1 | ✅ 已合并 | Capture → Review → Task；生产 API/Web 核心链路已验收 |
-| PR #39 Phase 15 M2 | ✅ 已合并 | 可解释 Theme/Evolution/Action Insight；生产 API/DB 已部署，AI Provider key 待配置 |
+| PR #39 Phase 15 M2 | ✅ 已合并 | 可解释 Theme/Evolution/Action Insight；生产 API/DB 已部署，真实 Qwen Provider 已出现生产调用证据 |
 | PR #40 Phase 15 M3 | ✅ 已合并 | Insight → 用户确认 Task + 双向来源回链；CI/API/Android 已完成 |
 | PR #41 duplicate M3 | ✅ 已关闭 | 被 PR #40 完整实现替代，避免重复 migration/API 变体 |
+| PR #43 Qwen insight stability | ✅ 已合并 | `master@5835e322`；关闭 Qwen thinking、启用 JSON mode、Provider 重试/超时与 Web API 有界超时 |
+| PR #27 legacy Phase 12 tests | ✅ 已关闭 | 被 #28/#29/#30/#36 更完整的安全与真实 PostgreSQL 验证覆盖 |
 
 ## 活跃执行 Issue
 
@@ -80,7 +82,7 @@
 
 - Vercel 连接当前只发现 `sparkflow031` 一个真实项目；旧 `sparkflow` / `sparkflow-psi1` 项目本体已不在项目列表。
 - Vercel Hobby 已实际触发 `api-deployments-free-per-day`（>100/day）；已关闭 Git 自动 deployments，后续 Web 采用 CI 后显式 Production 发布。
-- Android 最新自动 Release：`android-1e5f8356089c`，资产 `sparkflow-1e5f8356089c-debug.apk`；对应 M3 master。
+- Android 最新自动 Release：`android-5835e3223748`，资产 `sparkflow-5835e3223748-debug.apk`；对应 `master@5835e322`。
 - `/health` 200 只说明进程存活；只有带明确 `buildSha` 且真实业务路径通过，才算生产证据。
 
 ## 冻结 / 待重估
