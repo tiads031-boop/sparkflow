@@ -34,6 +34,13 @@ interface ApiTask {
   tags?: string[];
   courseId?: string | null;
   inspirationId?: string | null;
+  insightId?: string | null;
+  insight?: {
+    id: string;
+    title: string;
+    type: 'theme' | 'evolution' | 'action' | string;
+    _count?: { sources: number };
+  } | null;
   scheduleLocked?: boolean;
   scheduleSource?: string;
   scheduleColor?: string | null;
@@ -102,6 +109,10 @@ function fromApiTask(api: ApiTask): Task {
     project: api.project || undefined,
     courseId: api.courseId || undefined,
     inspirationId: api.inspirationId || undefined,
+    insightId: api.insightId || undefined,
+    insightTitle: api.insight?.title || undefined,
+    insightType: api.insight?.type as Task['insightType'] || undefined,
+    insightSourceCount: api.insight?._count?.sources,
     tags: api.tags || [],
     comments: subtasks.length,
     subtasks,
@@ -137,8 +148,8 @@ function toApiPayload(task: Partial<Task> & { title?: string }): Record<string, 
   if (task.section !== undefined) payload.section = task.section;
   if (task.project !== undefined) payload.project = task.project;
   if (task.courseId !== undefined) payload.courseId = task.courseId;
-  // inspirationId is intentionally read-only in the generic task editor.
-  // Phase 15 links records to tasks only through the user-scoped conversion endpoint.
+  // Source backlinks are intentionally read-only in the generic task editor.
+  // Phase 15 links records/insights only through explicit user-confirmed conversion flows.
   if (task.tags !== undefined) payload.tags = task.tags;
   if (task.dueDate !== undefined) payload.dueDate = task.dueDate;
   if (task.estimatedMinutes !== undefined) payload.estimatedMinutes = task.estimatedMinutes;
