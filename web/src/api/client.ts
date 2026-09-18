@@ -56,9 +56,10 @@ function resolveApiUrl(path: string): string {
   return `/api${normalizedPath}`;
 }
 
-interface RequestOptions extends Omit<RequestInit, 'headers'> {
+interface RequestOptions extends Omit<RequestInit, 'headers' | 'signal'> {
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
 interface ApiOptions extends RequestOptions {
@@ -83,10 +84,35 @@ export async function apiRequest(path: string, options?: RequestOptions): Promis
     ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
     ...((options?.headers as Record<string, string>) || {}),
   };
-  const accessToken = await getAccessToken();
+  const accessToken = getAccessToken();
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
-  const res = await fetch(url, { ...options, headers });
+  const {
+    timeoutMs = 15_000,
+    signal: externalSignal,
+    ...fetchOptions
+  } = options || {};
+  const controller = new AbortController();
+  let timedOut = false;
+  const abortFromExternal = () => controller.abort(externalSignal?.reason);
+  if (externalSignal?.aborted) abortFromExternal();
+  else externalSignal?.addEventListener('abort', abortFromExternal, { once: true });
+
+  const timeoutId = window.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  let res: Response;
+  try {
+    res = await fetch(url, { ...fetchOptions, headers, signal: controller.signal });
+  } catch (err) {
+    if (timedOut) throw new ApiError(408, '请求超时，请检查网络后重试');
+    throw err;
+  } finally {
+    window.clearTimeout(timeoutId);
+    externalSignal?.removeEventListener('abort', abortFromExternal);
+  }
 
   if (!res.ok) {
     const responseText = await res.text().catch(() => '');

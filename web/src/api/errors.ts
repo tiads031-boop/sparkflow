@@ -15,6 +15,7 @@ function defaultApiErrorMessage(status: number): string {
   if (status === 401) return '登录状态已失效，请重新登录';
   if (status === 403) return '当前账号无权执行此操作';
   if (status === 404) return '请求的内容不存在或已失效';
+  if (status === 408) return '请求超时，请检查网络后重试';
   if (status === 409) return '数据状态已变化，请刷新后重试';
   if (status === 413) return '提交的数据过大，请减少内容后重试';
   if (status === 429) return '操作过于频繁，请稍后再试';
