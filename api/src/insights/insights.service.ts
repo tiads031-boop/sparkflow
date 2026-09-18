@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -43,6 +44,8 @@ const sourceInclude = {
 
 @Injectable()
 export class InsightsService {
+  private readonly logger = new Logger(InsightsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AI_PROVIDER) private readonly ai: AIProvider,
@@ -107,7 +110,9 @@ export class InsightsService {
           })),
         })),
       });
-    } catch {
+    } catch (error) {
+      const detail = error instanceof Error ? `${error.name}: ${error.message}` : 'unknown provider error';
+      this.logger.warn(`AI insight generation failed: ${detail}`);
       throw new ServiceUnavailableException('AI 洞察暂时不可用，请稍后再试');
     }
 
