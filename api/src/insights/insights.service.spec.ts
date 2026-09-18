@@ -92,4 +92,67 @@ describe('InsightsService Phase 15 M2', () => {
 
     await expect(service.generate('user-1')).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
+  it('creates a task only after confirmation and preserves the insight backlink', async () => {
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'insight-1',
+      userId: 'user-1',
+      title: 'Review reversible automation',
+      body: 'Check preview and undo entry points.',
+      type: 'action',
+      sources: [
+        { inspirationId: 'inspiration-1' },
+        { inspirationId: 'inspiration-2' },
+      ],
+      tasks: [],
+    });
+    const create = jest.fn(({ data }) => Promise.resolve({ id: 'task-1', ...data }));
+    const prisma = {
+      insight: { findFirst },
+      task: { create },
+    };
+    const ai = { modelName: 'test-model', generateInsights: jest.fn() };
+    const service = new InsightsService(prisma as never, ai as never);
+
+    const task = await service.createTask('insight-1', 'user-1', {
+      title: 'Audit planner undo',
+      estimatedMinutes: 45,
+      priority: 'high',
+    });
+
+    expect(task.insightId).toBe('insight-1');
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'user-1',
+        insightId: 'insight-1',
+        title: 'Audit planner undo',
+        estimatedMinutes: 45,
+        priority: 'high',
+        status: 'todo',
+      }),
+    });
+  });
+
+  it('does not convert non-action insights into tasks', async () => {
+    const prisma = {
+      insight: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'insight-1',
+          userId: 'user-1',
+          title: 'Repeated theme',
+          body: 'A theme is not automatically an action.',
+          type: 'theme',
+          sources: [],
+          tasks: [],
+        }),
+      },
+      task: { create: jest.fn() },
+    };
+    const ai = { modelName: 'test-model', generateInsights: jest.fn() };
+    const service = new InsightsService(prisma as never, ai as never);
+
+    await expect(service.createTask('insight-1', 'user-1', {}))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.task.create).not.toHaveBeenCalled();
+  });
+
 });
