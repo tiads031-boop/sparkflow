@@ -24,6 +24,21 @@ export class InsightsController {
     return this.insights.generate(userId, data || {});
   }
 
+  @Post(':id/task')
+  createTask(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body() data: {
+      title?: string;
+      description?: string;
+      estimatedMinutes?: number;
+      dueDate?: string | null;
+      priority?: 'low' | 'medium' | 'high';
+    },
+  ) {
+    return this.insights.createTask(id, userId, data || {});
+  }
+
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
