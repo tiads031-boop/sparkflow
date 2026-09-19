@@ -8,6 +8,7 @@ import type {
   PlanningActionDraft,
   PlanningFact,
   PlanningFactStatus,
+  PlanningReplanDraft,
   PlanningResearchRequest,
   PlanningTurnInput,
   PlanningTurnResult,
@@ -158,6 +159,46 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
   return actions;
 }
 
+function toReplanRequests(value: unknown): PlanningReplanDraft[] {
+  if (!Array.isArray(value)) return [];
+  const requests: PlanningReplanDraft[] = [];
+
+  for (const item of value.slice(0, 3)) {
+    if (!item || typeof item !== 'object') continue;
+    const candidate = item as Record<string, unknown>;
+    if (
+      typeof candidate.title !== 'string' ||
+      typeof candidate.reason !== 'string'
+    ) continue;
+
+    const blockedStart = normalizedDate(candidate.blockedStart);
+    const blockedEnd = normalizedDate(candidate.blockedEnd);
+    const planningStart = normalizedDate(candidate.planningStart);
+    const planningEnd = normalizedDate(candidate.planningEnd);
+    if (
+      typeof blockedStart !== 'string' ||
+      typeof blockedEnd !== 'string' ||
+      typeof planningStart !== 'string' ||
+      typeof planningEnd !== 'string'
+    ) continue;
+    if (
+      new Date(blockedEnd) <= new Date(blockedStart) ||
+      new Date(planningEnd) <= new Date(planningStart)
+    ) continue;
+
+    requests.push({
+      title: candidate.title.trim().slice(0, 160) || '临时冲突重排',
+      blockedStart,
+      blockedEnd,
+      planningStart,
+      planningEnd,
+      reason: candidate.reason.trim().slice(0, 500),
+    });
+  }
+
+  return requests;
+}
+
 function toResearchQueries(value: unknown): PlanningResearchRequest[] {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 3).flatMap((item) => {
@@ -219,6 +260,7 @@ export function toPlanningTurn(value: unknown): PlanningTurnResult {
       : '',
     researchQueries: toResearchQueries(candidate.researchQueries),
     actions: toPlanningActions(candidate.actions),
+    replanRequests: toReplanRequests(candidate.replanRequests),
   };
 }
 
@@ -368,10 +410,16 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not create task actions from vague goals, brainstorms, or unresolved questions. Ask first when important task details are unclear.',
             'Task actions are only drafts for user confirmation. Never claim they are already applied.',
             'Do not propose direct calendar/course mutations in this phase.',
+            'If a temporary real-world conflict blocks an interval and the user asks to move affected flexible tasks, you may propose a replanRequest.',
+            'A replanRequest must contain exact ISO instants for blockedStart/blockedEnd and a bounded planningStart/planningEnd window where movable tasks may be relocated.',
+            'Use currentTime and timeZone to interpret relative phrases such as 今天/明天/今晚. If the acceptable relocation window is materially unclear, ask before producing a replanRequest.',
+            'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
+            'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null"}}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
             'Return actions as [] when no concrete task write is ready for confirmation.',
+            'Return replanRequests as [] when no deterministic schedule movement preview is needed.',
             'Return the complete updated context, not only a patch.',
             'Reply in the language used by the user.',
           ].join('\n'),
@@ -386,6 +434,8 @@ export class OpenAICompatibleProvider implements AIProvider {
             message: input.message,
             currentPlanningContext: input.context,
             currentTasks: input.currentTasks || [],
+            currentTime: input.currentTime || new Date().toISOString(),
+            timeZone: input.timeZone || 'UTC',
             researchAllowed: input.researchAllowed !== false,
             researchUnavailableReason: input.researchUnavailableReason || null,
             evidence: input.evidence || [],
