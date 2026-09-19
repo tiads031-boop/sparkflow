@@ -104,6 +104,20 @@ export type PlanningActionProposal =
             eventId: string;
             otherEventId: string;
           };
+    }
+  | {
+      proposalId: string;
+      type: 'course_template_change';
+      courseId: string;
+      courseName: string;
+      effectiveFrom: string;
+      changes: {
+        dayOfWeek?: number;
+        startTime?: string;
+        endTime?: string;
+        room?: string | null;
+        location?: string | null;
+      };
     };
 
 export interface PlanningConversationRow {

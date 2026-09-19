@@ -124,6 +124,59 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       continue;
     }
 
+    if (candidate.type === 'course_template_change') {
+      if (
+        typeof candidate.courseId !== 'string' ||
+        !candidate.courseId.trim() ||
+        typeof candidate.courseName !== 'string' ||
+        !candidate.courseName.trim() ||
+        !candidate.changes ||
+        typeof candidate.changes !== 'object'
+      ) continue;
+
+      const effectiveFrom = normalizedDate(candidate.effectiveFrom);
+      if (typeof effectiveFrom !== 'string') continue;
+
+      const rawChanges = candidate.changes as Record<string, unknown>;
+      const changes: Extract<PlanningActionDraft, { type: 'course_template_change' }>['changes'] = {};
+
+      if (rawChanges.dayOfWeek !== undefined) {
+        if (
+          typeof rawChanges.dayOfWeek !== 'number' ||
+          !Number.isInteger(rawChanges.dayOfWeek) ||
+          rawChanges.dayOfWeek < 1 ||
+          rawChanges.dayOfWeek > 7
+        ) continue;
+        changes.dayOfWeek = rawChanges.dayOfWeek;
+      }
+      if (typeof rawChanges.startTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(rawChanges.startTime.trim())) {
+        changes.startTime = rawChanges.startTime.trim();
+      }
+      if (typeof rawChanges.endTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(rawChanges.endTime.trim())) {
+        changes.endTime = rawChanges.endTime.trim();
+      }
+      if (typeof rawChanges.room === 'string') {
+        changes.room = rawChanges.room.trim().slice(0, 300) || null;
+      } else if (rawChanges.room === null) {
+        changes.room = null;
+      }
+      if (typeof rawChanges.location === 'string') {
+        changes.location = rawChanges.location.trim().slice(0, 300) || null;
+      } else if (rawChanges.location === null) {
+        changes.location = null;
+      }
+      if (!Object.keys(changes).length) continue;
+
+      actions.push({
+        type: 'course_template_change',
+        courseId: candidate.courseId.trim().slice(0, 100),
+        courseName: candidate.courseName.trim().slice(0, 120),
+        effectiveFrom,
+        changes,
+      });
+      continue;
+    }
+
     if (candidate.type === 'course_change') {
       if (
         typeof candidate.courseName !== 'string' ||
@@ -532,7 +585,11 @@ export class OpenAICompatibleProvider implements AIProvider {
             'For swap, both eventId and otherEventId must be exact occurrence ids and must be different.',
             'For extra, courseId must be copied exactly from currentCourses and the user must have made clear which course should get the extra occurrence.',
             'Use currentTime and timeZone to resolve relative course phrases such as 明天/本周五. If the target instant is materially unclear, ask before emitting course_change.',
-            'If the user says a recurring rule should change permanently (for example 以后都改到周五), do not encode that as a one-off course_change. Explain that this is a Course template change and ask for explicit confirmation through the template-edit flow.',
+            'If the user explicitly says a recurring course rule should change permanently (for example 以后都改到周五 or 从下周开始都改), use course_template_change instead of course_change.',
+            'course_template_change.courseId must be copied exactly from currentCourses. Never infer an id from the course name.',
+            'course_template_change.effectiveFrom is the first instant from which future ordinary recurring occurrences may be regenerated. Resolve it from explicit wording; for 从现在/以后开始 use currentTime. If the start point is ambiguous and could change whether the current week is affected, ask first.',
+            'course_template_change may change only dayOfWeek, startTime, endTime, room, or location. Do not silently rewrite weeks, teacher, semester, or unrelated Course fields.',
+            'A recurring template change must still go through Template Preview → Apply → Undo. Existing one-off overrides are preserved.',
             'Course actions are drafts for Course Preview → Apply → Undo. Never claim a course change has already been applied.',
             'When planningScope.type is goal, treat it as a persistent long-term learning goal, not as a Course.',
             'For goal scope, goalExecution is a derived execution snapshot from the user\'s real Tasks and completed focus sessions. Use it to understand pace and friction, but never equate task completion with actual mastery.',
@@ -550,9 +607,9 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
             'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"milestoneTitle":"基础建立"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","milestoneTitle":"强化训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"milestoneTitle":"基础建立"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","milestoneTitle":"强化训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5,"startTime":"10:00","endTime":"11:40","room":"B202"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
-            'Return actions as [] when no concrete task, learning-goal, or course-change draft is ready for confirmation.',
+            'Return actions as [] when no concrete task, learning-goal, one-off course, or recurring course-template draft is ready for confirmation.',
             'Return replanRequests as [] when no deterministic schedule movement preview is needed.',
             'Return the complete updated context, not only a patch.',
             'Reply in the language used by the user.',

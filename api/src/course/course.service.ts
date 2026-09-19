@@ -168,6 +168,162 @@ function sameCourseEventState(event: any, expected: CourseEventState) {
   });
 }
 
+
+type CourseTemplateChanges = {
+  dayOfWeek?: number;
+  startTime?: string;
+  endTime?: string;
+  room?: string | null;
+  location?: string | null;
+};
+
+type CourseTemplateChangeRequest = {
+  courseId: string;
+  effectiveFrom: string;
+  changes: CourseTemplateChanges;
+};
+
+type CourseTemplateState = {
+  courseId: string;
+  dayOfWeek: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  room: string | null;
+  location: string | null;
+};
+
+type CourseTemplateEventState = {
+  eventId: string;
+  taskId: string | null;
+  courseId: string | null;
+  title: string;
+  eventType: string;
+  startTime: string;
+  endTime: string;
+  isAllDay: boolean;
+  recurrenceRule: string | null;
+  isOverride: boolean;
+  overrideType: string | null;
+  overrideOriginalStart: string | null;
+  overrideGroupId: string | null;
+  color: string;
+  location: string | null;
+  externalSource: string | null;
+  externalEventId: string | null;
+  sourceCalendarTitle: string | null;
+  googleEventId: string | null;
+  googleSyncedAt: string | null;
+  syncStatus: string;
+  scheduleLocked: boolean;
+};
+
+type CourseTemplatePlanState = {
+  effectiveFrom: string;
+  course: CourseTemplateState;
+  events: CourseTemplateEventState[];
+};
+
+type CourseTemplateConflict = {
+  occurrenceIndex: number;
+  sourceType: 'calendar' | 'task';
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+};
+
+function courseTemplateState(course: any): CourseTemplateState {
+  return {
+    courseId: course.id,
+    dayOfWeek: typeof course.dayOfWeek === 'number' ? course.dayOfWeek : null,
+    startTime: course.startTime || null,
+    endTime: course.endTime || null,
+    room: course.room || null,
+    location: course.location || null,
+  };
+}
+
+function courseTemplateEventState(event: any): CourseTemplateEventState {
+  return {
+    eventId: event.id,
+    taskId: event.taskId || null,
+    courseId: event.courseId || null,
+    title: event.title,
+    eventType: event.eventType,
+    startTime: event.startTime instanceof Date ? event.startTime.toISOString() : String(event.startTime),
+    endTime: event.endTime instanceof Date ? event.endTime.toISOString() : String(event.endTime),
+    isAllDay: Boolean(event.isAllDay),
+    recurrenceRule: event.recurrenceRule || null,
+    isOverride: Boolean(event.isOverride),
+    overrideType: event.overrideType || null,
+    overrideOriginalStart: event.overrideOriginalStart
+      ? (event.overrideOriginalStart instanceof Date
+          ? event.overrideOriginalStart.toISOString()
+          : String(event.overrideOriginalStart))
+      : null,
+    overrideGroupId: event.overrideGroupId || null,
+    color: event.color,
+    location: event.location || null,
+    externalSource: event.externalSource || null,
+    externalEventId: event.externalEventId || null,
+    sourceCalendarTitle: event.sourceCalendarTitle || null,
+    googleEventId: event.googleEventId || null,
+    googleSyncedAt: event.googleSyncedAt
+      ? (event.googleSyncedAt instanceof Date
+          ? event.googleSyncedAt.toISOString()
+          : String(event.googleSyncedAt))
+      : null,
+    syncStatus: event.syncStatus || 'pending',
+    scheduleLocked: Boolean(event.scheduleLocked),
+  };
+}
+
+function readCourseTemplatePlanState(value: unknown): CourseTemplatePlanState | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.effectiveFrom !== 'string' ||
+    !candidate.course ||
+    typeof candidate.course !== 'object' ||
+    !Array.isArray(candidate.events)
+  ) return null;
+  const course = candidate.course as Record<string, unknown>;
+  if (typeof course.courseId !== 'string') return null;
+
+  const events = candidate.events.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const event = item as Record<string, unknown>;
+    if (
+      typeof event.eventId !== 'string' ||
+      typeof event.title !== 'string' ||
+      typeof event.eventType !== 'string' ||
+      typeof event.startTime !== 'string' ||
+      typeof event.endTime !== 'string' ||
+      typeof event.isAllDay !== 'boolean' ||
+      typeof event.isOverride !== 'boolean' ||
+      typeof event.color !== 'string' ||
+      typeof event.syncStatus !== 'string' ||
+      typeof event.scheduleLocked !== 'boolean'
+    ) return [];
+    return [event as unknown as CourseTemplateEventState];
+  });
+
+  if (events.length !== candidate.events.length) return null;
+  return {
+    effectiveFrom: candidate.effectiveFrom,
+    course: course as unknown as CourseTemplateState,
+    events,
+  };
+}
+
+function sameCourseTemplateState(course: any, expected: CourseTemplateState) {
+  return JSON.stringify(courseTemplateState(course)) === JSON.stringify(expected);
+}
+
+function sameCourseTemplateEventState(event: any, expected: CourseTemplateEventState) {
+  return JSON.stringify(courseTemplateEventState(event)) === JSON.stringify(expected);
+}
+
 @Injectable()
 export class CourseService {
   constructor(private prisma: PrismaService) {}
@@ -680,6 +836,234 @@ export class CourseService {
     }, { isolationLevel: 'Serializable', timeout: 15000 });
   }
 
+  async previewCourseTemplateChange(
+    userId: string,
+    data: CourseTemplateChangeRequest,
+  ) {
+    const preview = await this.buildCourseTemplatePreview(this.prisma, userId, data);
+    const {
+      replacedEventIds: _replacedEventIds,
+      normalizedChanges: _normalizedChanges,
+      ...publicPreview
+    } = preview;
+    return publicPreview;
+  }
+
+  async applyCourseTemplateChange(
+    userId: string,
+    data: CourseTemplateChangeRequest,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const preview = await this.buildCourseTemplatePreview(tx, userId, data);
+      if (preview.conflicts.length > 0) {
+        throw new ConflictException('课程模板修改与现有日程冲突，请调整后再确认');
+      }
+
+      const beforeEvents = preview.replacedEventIds.length
+        ? await tx.calendarEvent.findMany({
+            where: {
+              userId,
+              id: { in: preview.replacedEventIds },
+              courseId: preview.courseId,
+              isOverride: false,
+            },
+            orderBy: { startTime: 'asc' },
+          })
+        : [];
+
+      if (beforeEvents.length !== preview.replacedEventIds.length) {
+        throw new ConflictException('课程实例已变化，请重新生成模板预览');
+      }
+
+      const beforeState: CourseTemplatePlanState = {
+        effectiveFrom: preview.effectiveFrom,
+        course: preview.before,
+        events: beforeEvents.map(courseTemplateEventState),
+      };
+
+      const updatedCourse = await tx.course.update({
+        where: { id: preview.courseId, userId },
+        data: preview.normalizedChanges,
+      });
+
+      if (preview.replacedEventIds.length) {
+        await tx.calendarEvent.deleteMany({
+          where: {
+            userId,
+            id: { in: preview.replacedEventIds },
+            courseId: preview.courseId,
+            isOverride: false,
+          },
+        });
+      }
+
+      const createdEvents: any[] = [];
+      for (const occurrence of preview.generatedOccurrences) {
+        createdEvents.push(await tx.calendarEvent.create({
+          data: {
+            userId,
+            courseId: preview.courseId,
+            title: updatedCourse.name,
+            eventType: 'course',
+            startTime: new Date(occurrence.startTime),
+            endTime: new Date(occurrence.endTime),
+            color: updatedCourse.color,
+            location: occurrence.location,
+            isOverride: false,
+          },
+        }));
+      }
+
+      const afterState: CourseTemplatePlanState = {
+        effectiveFrom: preview.effectiveFrom,
+        course: courseTemplateState(updatedCourse),
+        events: createdEvents.map(courseTemplateEventState),
+      };
+
+      const plan = await tx.schedulePlan.create({
+        data: {
+          userId,
+          planType: 'course-template',
+          status: 'applied',
+          beforeState: beforeState as unknown as Prisma.InputJsonValue,
+          afterState: afterState as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      return {
+        planId: plan.id,
+        courseId: preview.courseId,
+        courseName: preview.courseName,
+        effectiveFrom: preview.effectiveFrom,
+        replacedCount: beforeEvents.length,
+        generatedCount: createdEvents.length,
+      };
+    }, { isolationLevel: 'Serializable', timeout: 15000 });
+  }
+
+  async undoCourseTemplateChange(userId: string, planId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const plan = await tx.schedulePlan.findFirst({
+        where: { id: planId, userId },
+      });
+      if (!plan) throw new NotFoundException('Course template plan not found');
+      if (plan.planType !== 'course-template') {
+        throw new ConflictException('This plan is not a course template change');
+      }
+      if (plan.status !== 'applied') {
+        throw new ConflictException('Course template change has already been undone');
+      }
+
+      const beforeState = readCourseTemplatePlanState(plan.beforeState);
+      const afterState = readCourseTemplatePlanState(plan.afterState);
+      if (
+        !beforeState ||
+        !afterState ||
+        beforeState.course.courseId !== afterState.course.courseId
+      ) {
+        throw new ConflictException('Course template history is incomplete');
+      }
+
+      const courseId = afterState.course.courseId;
+      const currentCourse = await tx.course.findFirst({
+        where: { id: courseId, userId },
+      });
+      if (!currentCourse || !sameCourseTemplateState(currentCourse, afterState.course)) {
+        throw new ConflictException(
+          'The course template changed after apply; undo was cancelled',
+        );
+      }
+
+      const currentEvents = afterState.events.length
+        ? await tx.calendarEvent.findMany({
+            where: {
+              userId,
+              id: { in: afterState.events.map((event) => event.eventId) },
+            },
+          })
+        : [];
+      if (currentEvents.length !== afterState.events.length) {
+        throw new ConflictException(
+          'A generated course occurrence changed after apply; undo was cancelled',
+        );
+      }
+      const currentById = new Map(currentEvents.map((event) => [event.id, event]));
+      for (const expected of afterState.events) {
+        const current = currentById.get(expected.eventId);
+        if (!current || !sameCourseTemplateEventState(current, expected)) {
+          throw new ConflictException(
+            'A generated course occurrence changed after apply; undo was cancelled',
+          );
+        }
+      }
+
+      if (afterState.events.length) {
+        await tx.calendarEvent.deleteMany({
+          where: {
+            userId,
+            id: { in: afterState.events.map((event) => event.eventId) },
+          },
+        });
+      }
+
+      await tx.course.update({
+        where: { id: courseId, userId },
+        data: {
+          dayOfWeek: beforeState.course.dayOfWeek,
+          startTime: beforeState.course.startTime,
+          endTime: beforeState.course.endTime,
+          room: beforeState.course.room,
+          location: beforeState.course.location,
+        },
+      });
+
+      for (const event of beforeState.events) {
+        await tx.calendarEvent.create({
+          data: {
+            id: event.eventId,
+            userId,
+            taskId: event.taskId,
+            courseId: event.courseId,
+            title: event.title,
+            eventType: event.eventType,
+            startTime: new Date(event.startTime),
+            endTime: new Date(event.endTime),
+            isAllDay: event.isAllDay,
+            recurrenceRule: event.recurrenceRule,
+            isOverride: event.isOverride,
+            overrideType: event.overrideType,
+            overrideOriginalStart: event.overrideOriginalStart
+              ? new Date(event.overrideOriginalStart)
+              : null,
+            overrideGroupId: event.overrideGroupId,
+            color: event.color,
+            location: event.location,
+            externalSource: event.externalSource,
+            externalEventId: event.externalEventId,
+            sourceCalendarTitle: event.sourceCalendarTitle,
+            googleEventId: event.googleEventId,
+            googleSyncedAt: event.googleSyncedAt
+              ? new Date(event.googleSyncedAt)
+              : null,
+            syncStatus: event.syncStatus,
+            scheduleLocked: event.scheduleLocked,
+          },
+        });
+      }
+
+      await tx.schedulePlan.update({
+        where: { id: plan.id },
+        data: { status: 'undone' },
+      });
+
+      return {
+        planId: plan.id,
+        courseId,
+        restoredCount: beforeState.events.length,
+      };
+    }, { isolationLevel: 'Serializable', timeout: 15000 });
+  }
+
   async listCourseChangeCandidates(userId: string, start?: string, end?: string) {
     const now = new Date();
     const rangeStart = start ? this.parseCourseChangeDate(start, 'start') : now;
@@ -701,6 +1085,294 @@ export class CourseService {
         },
       },
     });
+  }
+
+  private async buildCourseTemplatePreview(
+    db: any,
+    userId: string,
+    data: CourseTemplateChangeRequest,
+  ) {
+    if (!data?.courseId?.trim()) {
+      throw new BadRequestException('courseId is required');
+    }
+    if (!data.changes || typeof data.changes !== 'object') {
+      throw new BadRequestException('changes are required');
+    }
+
+    const effectiveFrom = this.parseCourseChangeDate(data.effectiveFrom, 'effectiveFrom');
+    const course = await db.course.findFirst({
+      where: { id: data.courseId, userId },
+    });
+    if (!course) throw new NotFoundException('Course not found');
+
+    const normalizedChanges: CourseTemplateChanges = {};
+    if (data.changes.dayOfWeek !== undefined) {
+      if (
+        !Number.isInteger(data.changes.dayOfWeek) ||
+        data.changes.dayOfWeek < 1 ||
+        data.changes.dayOfWeek > 7
+      ) {
+        throw new BadRequestException('dayOfWeek must be between 1 and 7');
+      }
+      normalizedChanges.dayOfWeek = data.changes.dayOfWeek;
+    }
+    if (data.changes.startTime !== undefined) {
+      normalizedChanges.startTime = this.normalizeCourseClock(data.changes.startTime, 'startTime');
+    }
+    if (data.changes.endTime !== undefined) {
+      normalizedChanges.endTime = this.normalizeCourseClock(data.changes.endTime, 'endTime');
+    }
+    if (data.changes.room !== undefined) {
+      normalizedChanges.room = data.changes.room?.trim().slice(0, 300) || null;
+    }
+    if (data.changes.location !== undefined) {
+      normalizedChanges.location = data.changes.location?.trim().slice(0, 300) || null;
+    }
+    if (!Object.keys(normalizedChanges).length) {
+      throw new BadRequestException('At least one template field must change');
+    }
+
+    const afterDay = normalizedChanges.dayOfWeek ?? course.dayOfWeek;
+    const afterStart = normalizedChanges.startTime ?? course.startTime;
+    const afterEnd = normalizedChanges.endTime ?? course.endTime;
+    const afterRoom = normalizedChanges.room !== undefined
+      ? normalizedChanges.room
+      : course.room;
+    const afterLocation = normalizedChanges.location !== undefined
+      ? normalizedChanges.location
+      : course.location;
+
+    if (!afterDay || !afterStart || !afterEnd) {
+      throw new BadRequestException('Course template needs dayOfWeek, startTime and endTime');
+    }
+    this.assertCourseClockRange(afterStart, afterEnd);
+
+    const before = courseTemplateState(course);
+    const after: CourseTemplateState = {
+      courseId: course.id,
+      dayOfWeek: afterDay,
+      startTime: afterStart,
+      endTime: afterEnd,
+      room: afterRoom || null,
+      location: afterLocation || null,
+    };
+    if (JSON.stringify(before) === JSON.stringify(after)) {
+      throw new BadRequestException('Course template has no changes');
+    }
+
+    const semester = await db.semester.findFirst({
+      where: {
+        userId,
+        ...(course.semesterId ? { id: course.semesterId } : { isActive: true }),
+      },
+    });
+    const semesterStart = semester?.startDate || this.getSemesterStart();
+    const semesterEnd = semester?.endDate
+      ? new Date(semester.endDate)
+      : new Date(effectiveFrom.getTime() + 180 * 24 * 60 * 60 * 1000);
+    semesterEnd.setHours(23, 59, 59, 999);
+
+    const allCourseEvents = await db.calendarEvent.findMany({
+      where: { userId, courseId: course.id },
+      orderBy: { startTime: 'asc' },
+    });
+
+    let weeks = this.extractCourseWeeks(course.weeks);
+    if (!weeks.length) {
+      const derivedWeeks: number[] = [];
+      for (const event of allCourseEvents as any[]) {
+        if (event.isOverride) continue;
+        const week = this.semesterWeekForDate(semesterStart, event.startTime);
+        if (typeof week === 'number' && week > 0) derivedWeeks.push(week);
+      }
+      weeks = [...new Set<number>(derivedWeeks)].sort((a, b) => a - b);
+    }
+
+    const regularFutureEvents = allCourseEvents.filter((event: any) => (
+      !event.isOverride &&
+      event.startTime >= effectiveFrom
+    ));
+    const eligibleWeeks = new Set(
+      regularFutureEvents
+        .map((event: any) => this.semesterWeekForDate(semesterStart, event.startTime))
+        .filter((week: number | null): week is number => Boolean(week && week > 0)),
+    );
+    const overrideWeeks = new Set(
+      allCourseEvents
+        .filter((event: any) => event.isOverride && event.overrideOriginalStart)
+        .map((event: any) => this.semesterWeekForDate(semesterStart, event.overrideOriginalStart))
+        .filter((week: number | null): week is number => Boolean(week && week > 0)),
+    );
+
+    const targetEntries = this.expandScheduleEntries(
+      semesterStart,
+      afterDay,
+      afterStart,
+      afterEnd,
+      weeks,
+    )
+      .filter((entry) => (
+        entry.start >= effectiveFrom &&
+        entry.start <= semesterEnd &&
+        entry.end <= semesterEnd &&
+        eligibleWeeks.has(entry.week) &&
+        !overrideWeeks.has(entry.week)
+      ));
+
+    const replacedEventIds = regularFutureEvents
+      .filter((event: any) => {
+        const week = this.semesterWeekForDate(semesterStart, event.startTime);
+        return Boolean(week && eligibleWeeks.has(week));
+      })
+      .map((event: any) => event.id);
+
+    const generatedOccurrences = targetEntries.map((entry) => ({
+      week: entry.week,
+      startTime: entry.start.toISOString(),
+      endTime: entry.end.toISOString(),
+      location: afterRoom || afterLocation || null,
+    }));
+
+    const conflicts: CourseTemplateConflict[] = [];
+    if (targetEntries.length) {
+      const rangeStart = targetEntries.reduce(
+        (min, entry) => entry.start < min ? entry.start : min,
+        targetEntries[0].start,
+      );
+      const rangeEnd = targetEntries.reduce(
+        (max, entry) => entry.end > max ? entry.end : max,
+        targetEntries[0].end,
+      );
+      const [events, tasks] = await Promise.all([
+        db.calendarEvent.findMany({
+          where: {
+            userId,
+            startTime: { lt: rangeEnd },
+            endTime: { gt: rangeStart },
+            ...(replacedEventIds.length
+              ? { id: { notIn: replacedEventIds } }
+              : {}),
+          },
+          select: {
+            id: true,
+            taskId: true,
+            title: true,
+            startTime: true,
+            endTime: true,
+            overrideType: true,
+          },
+        }),
+        db.task.findMany({
+          where: {
+            userId,
+            status: { notIn: ['done', 'cancelled'] },
+            scheduledStart: { lt: rangeEnd },
+            scheduledEnd: { gt: rangeStart },
+          },
+          select: {
+            id: true,
+            title: true,
+            scheduledStart: true,
+            scheduledEnd: true,
+          },
+        }),
+      ]);
+
+      const activeEvents = events.filter((event: any) => event.overrideType !== 'cancel');
+      const eventTaskIds = new Set(
+        activeEvents
+          .map((event: any) => event.taskId)
+          .filter((value: unknown): value is string => typeof value === 'string' && Boolean(value)),
+      );
+
+      targetEntries.forEach((target, occurrenceIndex) => {
+        for (const event of activeEvents) {
+          if (target.start < event.endTime && target.end > event.startTime) {
+            conflicts.push({
+              occurrenceIndex,
+              sourceType: 'calendar',
+              id: event.id,
+              title: event.title,
+              startTime: event.startTime.toISOString(),
+              endTime: event.endTime.toISOString(),
+            });
+          }
+        }
+        for (const task of tasks) {
+          if (
+            eventTaskIds.has(task.id) ||
+            !task.scheduledStart ||
+            !task.scheduledEnd
+          ) continue;
+          if (target.start < task.scheduledEnd && target.end > task.scheduledStart) {
+            conflicts.push({
+              occurrenceIndex,
+              sourceType: 'task',
+              id: task.id,
+              title: task.title,
+              startTime: task.scheduledStart.toISOString(),
+              endTime: task.scheduledEnd.toISOString(),
+            });
+          }
+        }
+      });
+    }
+
+    return {
+      courseId: course.id,
+      courseName: course.name,
+      effectiveFrom: effectiveFrom.toISOString(),
+      before,
+      after,
+      replacedEventIds,
+      generatedOccurrences,
+      preservedOverrideCount: allCourseEvents.filter((event: any) => event.isOverride).length,
+      conflicts,
+      normalizedChanges,
+    };
+  }
+
+  private normalizeCourseClock(value: string, label: string) {
+    const trimmed = value?.trim();
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(trimmed)) {
+      throw new BadRequestException(`${label} must use HH:mm`);
+    }
+    return trimmed;
+  }
+
+  private assertCourseClockRange(startTime: string, endTime: string) {
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const startMinutes = sh * 60 + sm;
+    const endMinutes = eh * 60 + em;
+    if (endMinutes <= startMinutes) {
+      throw new BadRequestException('endTime must be after startTime');
+    }
+    if (endMinutes - startMinutes > 12 * 60) {
+      throw new BadRequestException('Course duration cannot exceed 12 hours');
+    }
+  }
+
+  private extractCourseWeeks(value: unknown): number[] {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(
+      value
+        .filter((week): week is number => Number.isInteger(week) && week > 0 && week <= 80),
+    )].sort((a, b) => a - b);
+  }
+
+  private semesterWeekForDate(semesterStart: Date, value: Date) {
+    const start = new Date(semesterStart);
+    start.setHours(0, 0, 0, 0);
+    const monday = new Date(start);
+    const startDow = start.getDay() || 7;
+    monday.setDate(monday.getDate() - (startDow - 1));
+
+    const target = new Date(value);
+    target.setHours(0, 0, 0, 0);
+    const days = Math.floor((target.getTime() - monday.getTime()) / 86_400_000);
+    if (days < 0) return null;
+    return Math.floor(days / 7) + 1;
   }
 
   private parseCourseChangeDate(value: string, label: string) {
@@ -1034,21 +1706,18 @@ export class CourseService {
   /**
    * 展开学期范围内的课程实例
    */
-  private expandSchedule(
+  private expandScheduleEntries(
     semesterStart: Date,
     dayOfWeek: number,
     startTime: string,
     endTime: string,
     weeks: number[],
-    room?: string,
   ) {
-    const instances: { start: Date; end: Date }[] = [];
+    const instances: { week: number; start: Date; end: Date }[] = [];
     const [sh, sm] = startTime.split(':').map(Number);
     const [eh, em] = endTime.split(':').map(Number);
 
-    // 从学期起始日找到第一个匹配的 weekday
     const start = new Date(semesterStart);
-    // 调整到学期开始的周一
     const monday = new Date(start);
     const startDow = start.getDay() || 7;
     if (startDow !== 1) {
@@ -1061,11 +1730,27 @@ export class CourseService {
       date.setHours(sh, sm, 0, 0);
       const end = new Date(date);
       end.setHours(eh, em, 0, 0);
-
-      instances.push({ start: new Date(date), end: new Date(end) });
+      instances.push({ week, start: new Date(date), end: new Date(end) });
     }
 
     return instances;
+  }
+
+  private expandSchedule(
+    semesterStart: Date,
+    dayOfWeek: number,
+    startTime: string,
+    endTime: string,
+    weeks: number[],
+    room?: string,
+  ) {
+    return this.expandScheduleEntries(
+      semesterStart,
+      dayOfWeek,
+      startTime,
+      endTime,
+      weeks,
+    ).map(({ start, end }) => ({ start, end }));
   }
 
   /**

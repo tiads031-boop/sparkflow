@@ -174,6 +174,19 @@ export type PlanningActionDraft =
       courseName: string;
       otherCourseName?: string;
       change: PlanningCourseChangeRequest;
+    }
+  | {
+      type: 'course_template_change';
+      courseId: string;
+      courseName: string;
+      effectiveFrom: string;
+      changes: {
+        dayOfWeek?: number;
+        startTime?: string;
+        endTime?: string;
+        room?: string | null;
+        location?: string | null;
+      };
     };
 
 export type PlanningActionProposal = PlanningActionDraft & {
