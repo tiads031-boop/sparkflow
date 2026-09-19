@@ -188,21 +188,47 @@ export class PlanningService {
   ) {
     const scopeType = (data.scopeType || 'general').trim().toLowerCase();
     if (!SCOPE_TYPES.has(scopeType)) throw new BadRequestException('Unsupported planning scope');
-    const title = data.title?.trim().slice(0, 120) || null;
     const scopeId = data.scopeId?.trim().slice(0, 200) || null;
+    let title = data.title?.trim().slice(0, 120) || null;
+
+    if (scopeType === 'goal') {
+      if (!scopeId) throw new BadRequestException('Goal planning requires scopeId');
+      const goal = await this.prisma.studyFolder.findFirst({
+        where: { id: scopeId, userId },
+        select: { id: true, name: true },
+      });
+      if (!goal) throw new NotFoundException('Study goal not found');
+      title ||= `学习目标 · ${goal.name}`;
+    }
 
     return this.prisma.planningThread.create({
       data: { userId, title, scopeType, scopeId },
     });
   }
 
-  listThreads(userId: string, status = 'active') {
+  listThreads(
+    userId: string,
+    status = 'active',
+    scopeType?: string,
+    scopeId?: string,
+  ) {
     const normalizedStatus = status.trim().toLowerCase();
     if (!['active', 'superseded', 'closed'].includes(normalizedStatus)) {
       throw new BadRequestException('Unsupported planning thread status');
     }
+    const normalizedScopeType = scopeType?.trim().toLowerCase();
+    if (normalizedScopeType && !SCOPE_TYPES.has(normalizedScopeType)) {
+      throw new BadRequestException('Unsupported planning scope');
+    }
+    const normalizedScopeId = scopeId?.trim() || undefined;
+
     return this.prisma.planningThread.findMany({
-      where: { userId, status: normalizedStatus },
+      where: {
+        userId,
+        status: normalizedStatus,
+        ...(normalizedScopeType ? { scopeType: normalizedScopeType } : {}),
+        ...(normalizedScopeId ? { scopeId: normalizedScopeId } : {}),
+      },
       orderBy: { updatedAt: 'desc' },
       include: {
         _count: { select: { conversations: true, schedulePlans: true } },
@@ -543,6 +569,27 @@ export class PlanningService {
     });
     if (!conversation) throw new NotFoundException('Planning action proposal not found');
 
+    const planningThread = await this.prisma.planningThread.findFirst({
+      where: { id: threadId, userId },
+      select: { id: true, scopeType: true, scopeId: true, status: true },
+    });
+    if (!planningThread) throw new NotFoundException('Planning thread not found');
+    if (planningThread.status !== 'active') {
+      throw new ConflictException('Planning thread is not active');
+    }
+
+    const goalFolderId =
+      planningThread.scopeType === 'goal' && planningThread.scopeId
+        ? planningThread.scopeId
+        : null;
+    if (goalFolderId) {
+      const goal = await this.prisma.studyFolder.findFirst({
+        where: { id: goalFolderId, userId },
+        select: { id: true },
+      });
+      if (!goal) throw new NotFoundException('Study goal not found');
+    }
+
     const context = conversationContextObject(conversation.context);
     const actions = readActionProposals(context.actions);
     const appliedBefore = new Set(
@@ -567,7 +614,7 @@ export class PlanningService {
               description: action.description ?? null,
               status: 'todo',
               priority: action.priority || 'medium',
-              section: 'personal',
+              section: goalFolderId ? 'study' : 'personal',
               estimatedMinutes: action.estimatedMinutes ?? null,
               dueDate: action.dueDate ? new Date(action.dueDate) : null,
               scheduleSource: 'ai',
@@ -580,6 +627,12 @@ export class PlanningService {
             select: { id: true },
           });
           if (!task) throw new ConflictException('Task proposal id is already in use');
+          if (goalFolderId) {
+            await tx.studyFolderTask.createMany({
+              data: [{ folderId: goalFolderId, taskId: task.id }],
+              skipDuplicates: true,
+            });
+          }
           createdTaskIds.push(task.id);
           continue;
         }
