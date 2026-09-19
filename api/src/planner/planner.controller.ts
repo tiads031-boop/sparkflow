@@ -11,8 +11,9 @@ export class PlannerController {
   preview(
     @CurrentUserId() userId: string,
     @Body() data: {
-      availabilityStart: string;
-      availabilityEnd: string;
+      availabilityStart?: string;
+      availabilityEnd?: string;
+      availabilityWindows?: Array<{ start: string; end: string }>;
       planningThreadId?: string;
     },
   ) {
@@ -41,6 +42,7 @@ export class PlannerController {
       planningThreadId?: string;
       planningThreadRevision?: number;
       blockedIntervals?: Array<{ start: string; end: string }>;
+      availabilityWindows?: Array<{ start: string; end: string }>;
     },
   ) {
     return this.plannerService.apply(userId, data);
