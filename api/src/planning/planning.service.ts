@@ -191,18 +191,63 @@ export class PlanningService {
     const title = data.title?.trim().slice(0, 120) || null;
     const scopeId = data.scopeId?.trim().slice(0, 200) || null;
 
+    if (scopeType === 'goal') {
+      if (!scopeId) throw new BadRequestException('Goal planning requires scopeId');
+      const ownedGoal = await this.prisma.studyFolder.findFirst({
+        where: { id: scopeId, userId },
+        select: { id: true, name: true },
+      });
+      if (!ownedGoal) throw new NotFoundException('Learning goal not found');
+
+      const existing = await this.prisma.planningThread.findFirst({
+        where: {
+          userId,
+          scopeType: 'goal',
+          scopeId,
+          status: 'active',
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (existing) return existing;
+
+      return this.prisma.planningThread.create({
+        data: {
+          userId,
+          title: title || ownedGoal.name,
+          scopeType,
+          scopeId,
+        },
+      });
+    }
+
     return this.prisma.planningThread.create({
       data: { userId, title, scopeType, scopeId },
     });
   }
 
-  listThreads(userId: string, status = 'active') {
+  listThreads(
+    userId: string,
+    status = 'active',
+    scopeType?: string,
+    scopeId?: string,
+  ) {
     const normalizedStatus = status.trim().toLowerCase();
     if (!['active', 'superseded', 'closed'].includes(normalizedStatus)) {
       throw new BadRequestException('Unsupported planning thread status');
     }
+
+    const normalizedScopeType = scopeType?.trim().toLowerCase();
+    if (normalizedScopeType && !SCOPE_TYPES.has(normalizedScopeType)) {
+      throw new BadRequestException('Unsupported planning scope');
+    }
+
     return this.prisma.planningThread.findMany({
-      where: { userId, status: normalizedStatus },
+      where: {
+        userId,
+        status: normalizedStatus,
+        ...(normalizedScopeType ? { scopeType: normalizedScopeType } : {}),
+        ...(scopeId?.trim() ? { scopeId: scopeId.trim().slice(0, 200) } : {}),
+      },
       orderBy: { updatedAt: 'desc' },
       include: {
         _count: { select: { conversations: true, schedulePlans: true } },
@@ -324,10 +369,18 @@ export class PlanningService {
       where: {
         userId,
         status: { notIn: ['done', 'cancelled'] },
-        OR: [
-          { section: null },
-          { section: { not: 'calendar' } },
-        ],
+        ...(thread.scopeType === 'goal' && thread.scopeId
+          ? {
+              studyFolders: {
+                some: { folderId: thread.scopeId },
+              },
+            }
+          : {
+              OR: [
+                { section: null },
+                { section: { not: 'calendar' } },
+              ],
+            }),
       },
       orderBy: [{ dueDate: 'asc' }, { updatedAt: 'desc' }],
       take: 80,
@@ -540,6 +593,11 @@ export class PlanningService {
         planningThreadId: threadId,
         conversationType: 'planning',
       },
+      include: {
+        planningThread: {
+          select: { scopeType: true, scopeId: true },
+        },
+      },
     });
     if (!conversation) throw new NotFoundException('Planning action proposal not found');
 
@@ -559,6 +617,19 @@ export class PlanningService {
 
       for (const action of selected) {
         if (action.type === 'create_task') {
+          const goalScopeId =
+            conversation.planningThread?.scopeType === 'goal'
+              ? conversation.planningThread.scopeId
+              : null;
+
+          if (goalScopeId) {
+            const ownedGoal = await tx.studyFolder.findFirst({
+              where: { id: goalScopeId, userId, status: 'active' },
+              select: { id: true },
+            });
+            if (!ownedGoal) throw new ConflictException('Learning goal is no longer active');
+          }
+
           await tx.task.createMany({
             data: [{
               id: action.proposalId,
@@ -567,7 +638,7 @@ export class PlanningService {
               description: action.description ?? null,
               status: 'todo',
               priority: action.priority || 'medium',
-              section: 'personal',
+              section: goalScopeId ? 'study' : 'personal',
               estimatedMinutes: action.estimatedMinutes ?? null,
               dueDate: action.dueDate ? new Date(action.dueDate) : null,
               scheduleSource: 'ai',
@@ -580,6 +651,14 @@ export class PlanningService {
             select: { id: true },
           });
           if (!task) throw new ConflictException('Task proposal id is already in use');
+
+          if (goalScopeId) {
+            await tx.studyFolderTask.createMany({
+              data: [{ folderId: goalScopeId, taskId: task.id }],
+              skipDuplicates: true,
+            });
+          }
+
           createdTaskIds.push(task.id);
           continue;
         }
