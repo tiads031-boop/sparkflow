@@ -306,7 +306,7 @@ flowchart TD
     H --> I["VNext Plan Web/PWA/Android acceptance"]\n    I --> K["VNext M4 / Phase 15 M4 / Study Mode / Phase 14 next batch"]\n    K --> J["Phase 13 Local Codex Bridge"]
 ```
 
-### 当前批次：Phase 15 M3 生产收尾 + Issue #31 剩余真实验收
+### 当前批次：Issue #31 真实验收 + VNext Plan M1–M3 生产/真机验收
 
 1. ✅ 腾讯云 API 已部署 `master@99ebb3c`；Git HEAD / image / public health buildSha 已对齐。
 2. ✅ 生产 PostgreSQL 20 migrations up to date，包含 M2/M3/StudyFolder。
@@ -315,7 +315,7 @@ flowchart TD
 5. Android 安装 `sparkflow-5835e3223748-debug.apk`，复测登录、Session、Insight/Action、SchoolImport 和窄屏交互。
 6. Web 真账号完成真实教务导入/replay，并完成 Planner Preview → Apply → Undo。
 7. 验证一次客户端未知/超时结果 → requestId 查询恢复路径。
-8. 上述真实链路通过后，再选择 Phase 15 M4、Study Mode 或 Phase 14 余项作为下一产品批次。
+8. 发布并验收 VNext Plan：五项主导航、四时间视图、课程周次、Planner Preview → Apply → Undo，覆盖 Web/PWA/Android。\n9. 上述真实链路通过后，再选择 VNext M4、Phase 15 M4、Study Mode 或 Phase 14 余项作为下一产品批次。
 
 ---
 
