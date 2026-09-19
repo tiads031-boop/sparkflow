@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-20 | **代码基线**：`master@dc90a61e`
+> **最后更新**：2026-09-20 | **代码基线**：`master@301955c7`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,7 +8,7 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4–M7 与 M8.1–M8.3 已进入 `master@dc90a61e`；当前只保留 M8.4 显式附件 AI 转录/摘要与最新主线的生产/PWA/Android 验收 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4–M8 主体代码/CI 已进入 `master@301955c7`；当前只保留最新 master 的生产部署、PWA/Android 真机验收与真实账号闭环 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
@@ -23,7 +23,7 @@
 | 文件 | 范围 | 状态 | 说明 |
 |---|---|---|---|
 | [vnext-information-architecture-plan-workspace.md](vnext-information-architecture-plan-workspace.md) | VNext 信息架构、五工作空间、Plan 四视图、课程/任务/Planner 统一投影 | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合并；Web Production `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，五项导航/M3 bundle 已静态核验；Android M3 Release `android-7145ba0ea3d2` 已生成 |
-| [vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md) | VNext M4–M8：AI 调度中枢、目标学习、课程变动、多模态记录、通知/设置/任务表单重整 | ✅ M4–M7，🚧 M8 收尾 | PR #66/#68/#69 完成学习目标；#70–#73 完成课程 override/AI/周期模板；#74 多模态记录；#77 通知偏好；#78 设置视觉/外观。仅剩显式附件 AI 处理与真机/PWA 验收 |
+| [vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md) | VNext M4–M8：AI 调度中枢、目标学习、课程变动、多模态记录、通知/设置/任务表单重整 | ✅ 代码/CI 完成，🚧 验收 | PR #80 完成显式音频转写/摘要；#81 完成显式图片/视频 AI 理解。当前只剩生产同步与 PWA/Android 真机验收 |
 | [../study-mode/README.md](../study-mode/README.md) | 旧 Study Mode 方案 | ⚠️ 历史参考 | M1 已实现，但“Study 关联 Course”的产品方向已被 VNext M6 替代；后续学习以独立 AI 目标规划为准 |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 / Local Codex Bridge | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后再启动；不进入云端 API/数据库控制链 |
 
@@ -58,7 +58,7 @@
 | PR #70–#73 VNext M7 | ✅ 已合并 | 单次课程 override、Undo、AI 自然语言变动、周期 Course 模板变更；均经 Preview/Apply/Undo |
 | PR #74 VNext M8.1 | ✅ 已合并 | Inspiration 私有图片/音频/视频附件与语音录制/媒体预览 |
 | PR #77 VNext M8.2 | ✅ 已合并 | 账户级任务/课程通知偏好、安静时段、时区与测试通知 |
-| PR #78 VNext M8.3 | ✅ 已合并 | Settings 视觉收尾与跟随系统/浅色/深色外观；`master@dc90a61e` |
+| PR #78 VNext M8.3 | ✅ 已合并 | Settings 视觉收尾与跟随系统/浅色/深色外观；`master@301955c7` |
 
 
 ## 活跃执行 Issue
