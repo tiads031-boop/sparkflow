@@ -4,6 +4,7 @@ import { useAppStore } from '../store/appStore';
 import type { CalendarEvent, CourseNote, Task } from '../types';
 import { buildLinkedCourseTask, normalizeLinkedTaskStatus } from '../utils/courseTaskLink';
 import CourseChangeSheet from './CourseChangeSheet';
+import PlannerSheet from './planner/PlannerSheet';
 
 // ════════════════════════════════════════════════════
 // Props
@@ -106,6 +107,7 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
   const [convertingNoteId, setConvertingNoteId] = useState<string | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [changeEvent, setChangeEvent] = useState<CalendarEvent | null | undefined>(undefined);
+  const [aiCoursePlannerOpen, setAiCoursePlannerOpen] = useState(false);
 
   // ⚠️ useMemo 必须在 early return 之前，保证 hooks 调用顺序一致
   const { thisWeekEvents, otherEvents } = useMemo(() => {
@@ -292,13 +294,22 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
             {c._count?.notes || c.notes?.length || 0} 个课程任务
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => setChangeEvent(null)}
-          className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-black text-[#242424]"
-        >
-          <PlusCircle size={14} /> 补课 / 新增一次课程
-        </button>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setAiCoursePlannerOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-[#242424]/85 px-4 py-2 text-xs font-black text-[#cae393]"
+          >
+            <Sparkles size={14} /> 和 AI 调整课程
+          </button>
+          <button
+            type="button"
+            onClick={() => setChangeEvent(null)}
+            className="inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-black text-[#242424]"
+          >
+            <PlusCircle size={14} /> 补课 / 新增一次课程
+          </button>
+        </div>
       </div>
 
       {/* Schedule (events list) */}
@@ -482,6 +493,22 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
           onApplied={async () => {
             await loadCourseDetail(c.id);
           }}
+        />
+      )}
+
+      {aiCoursePlannerOpen && (
+        <PlannerSheet
+          open
+          selectedDate={new Date()}
+          onClose={() => setAiCoursePlannerOpen(false)}
+          onApplied={async () => {
+            await loadCourseDetail(c.id);
+          }}
+          initialPrompt={`我想调整“${c.name}”的课程安排。请先根据当前真实课次确认我指的是哪一次；如果涉及换课，也可以查看我的其他课程课次。单次调课、停课、换课或补课先生成可确认草案，不要直接修改课表。`}
+          scopeType="course"
+          scopeId={c.id}
+          threadTitle={`${c.name} 课程调整`}
+          allowNewThread={false}
         />
       )}
 
