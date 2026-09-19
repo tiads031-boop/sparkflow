@@ -3,6 +3,19 @@ import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'crypto';
 import { InspirationMediaService } from './inspiration-media.service';
 
+const attachmentList = {
+  select: {
+    id: true,
+    inspirationId: true,
+    kind: true,
+    mimeType: true,
+    originalName: true,
+    sizeBytes: true,
+    createdAt: true,
+  },
+  orderBy: { createdAt: 'asc' as const },
+};
+
 function addDays(base: Date, days: number) {
   return new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
 }
@@ -20,7 +33,7 @@ export class InspirationsService {
       include: {
         _count: { select: { reflections: true } },
         task: { select: { id: true, title: true, status: true } },
-        attachments: { orderBy: { createdAt: 'asc' as const } },
+        attachments: attachmentList,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -32,7 +45,7 @@ export class InspirationsService {
       include: {
         reflections: { orderBy: { createdAt: 'desc' } },
         task: { select: { id: true, title: true, status: true } },
-        attachments: { orderBy: { createdAt: 'asc' } },
+        attachments: attachmentList,
       },
     });
   }
@@ -70,7 +83,7 @@ export class InspirationsService {
       include: {
         _count: { select: { reflections: true } },
         task: { select: { id: true, title: true, status: true } },
-        attachments: { orderBy: { createdAt: 'asc' as const } },
+        attachments: attachmentList,
       },
     });
   }
@@ -114,7 +127,7 @@ export class InspirationsService {
         include: {
           _count: { select: { reflections: true } },
           task: { select: { id: true, title: true, status: true } },
-          attachments: { orderBy: { createdAt: 'asc' } },
+          attachments: attachmentList,
         },
       });
     } catch (error) {
@@ -162,7 +175,7 @@ export class InspirationsService {
       include: {
         _count: { select: { reflections: true } },
         task: { select: { id: true, title: true, status: true } },
-        attachments: { orderBy: { createdAt: 'asc' as const } },
+        attachments: attachmentList,
       },
     });
   }
@@ -224,7 +237,7 @@ export class InspirationsService {
         include: {
           reflections: { orderBy: { createdAt: 'desc' as const } },
           task: { select: { id: true, title: true, status: true } },
-          attachments: { orderBy: { createdAt: 'asc' as const } },
+          attachments: attachmentList,
         },
         orderBy: [{ nextReviewAt: 'asc' }, { createdAt: 'asc' }],
         take: limit,
