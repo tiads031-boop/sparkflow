@@ -41,6 +41,7 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
   const [repeatEndDate, setRepeatEndDate] = useState('');
   const [moreOpen, setMoreOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useModalLifecycle(open, onClose);
 
@@ -68,6 +69,7 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
     setRepeatEndDate('');
     setMoreOpen(false);
     setSaving(false);
+    setError(null);
   }, [open]);
 
   if (!open) return null;
@@ -93,10 +95,13 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
   const submit = async (planAfterSave = false) => {
     if (!title.trim() || saving) return;
     setSaving(true);
+    setError(null);
     try {
       await onSave(buildParams());
       onClose();
       if (planAfterSave) onPlanWithAI?.();
+    } catch (err: any) {
+      setError(err?.message || '保存失败，请稍后重试');
     } finally {
       setSaving(false);
     }
@@ -271,6 +276,8 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
             </div>
           )}
         </div>
+
+        {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">{error}</p>}
 
         <div className="sticky bottom-0 mt-5 grid grid-cols-[1fr_1.25fr] gap-2 bg-[var(--sf-surface)] pt-3">
           <button
