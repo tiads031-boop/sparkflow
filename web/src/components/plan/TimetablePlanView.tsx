@@ -1,3 +1,6 @@
+import type { Course, Semester } from '../../types';
+import { courseOccursOnDate, getMonday, getSemesterWeekNumber } from './planProjection';
+
 const periods = [
   ['1', '08:00', '08:50'],
   ['2', '09:00', '09:50'],
@@ -9,21 +12,56 @@ const periods = [
   ['8', '16:40', '17:30'],
   ['9', '18:30', '19:20'],
   ['10', '19:30', '20:20'],
-];
+] as const;
 
-export default function TimetablePlanView({ selectedDate }: { selectedDate: Date }) {
-  const date = new Date(selectedDate.getTime());
-  const monday = new Date(date);
-  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+const ROW_HEIGHT = 72;
+
+function minutes(time: string) {
+  const [hour, minute] = time.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
+function coursePeriodRange(course: Course) {
+  if (!course.startTime || !course.endTime) return null;
+  const start = minutes(course.startTime);
+  const end = minutes(course.endTime);
+  const first = periods.findIndex(([, periodStart, periodEnd]) => start < minutes(periodEnd) && end > minutes(periodStart));
+  const last = [...periods].map((period, index) => ({ period, index })).reverse().find(({ period: [, periodStart, periodEnd] }) => start < minutes(periodEnd) && end > minutes(periodStart))?.index ?? -1;
+  if (first < 0 || last < first) return null;
+  return { first, last };
+}
+
+function cardBackground(color: string) {
+  return /^#[0-9a-f]{6}$/i.test(color) ? `${color}30` : '#eef2ff';
+}
+
+interface TimetablePlanViewProps {
+  selectedDate: Date;
+  courses: Course[];
+  semester?: Semester | null;
+  onCourseClick?: (courseId: string) => void;
+}
+
+export default function TimetablePlanView({ selectedDate, courses, semester, onCourseClick }: TimetablePlanViewProps) {
+  const monday = getMonday(selectedDate);
   const days = Array.from({ length: 7 }, (_, index) => {
     const day = new Date(monday);
     day.setDate(monday.getDate() + index);
     return day;
   });
+  const week = getSemesterWeekNumber(selectedDate, semester);
 
   return (
     <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
-      <div className="grid grid-cols-[52px_repeat(7,minmax(40px,1fr))] border-b border-black/5 px-2 py-3">
+      <div className="flex items-center justify-between border-b border-black/5 px-4 py-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--sf-text-tertiary)]">Timetable</p>
+          <h2 className="text-sm font-black text-[var(--sf-text-primary)]">{week ? `第 ${week} 周课程表` : '课程时间表'}</h2>
+        </div>
+        <span className="text-[9px] text-[var(--sf-text-tertiary)]">淡色 = 非本周</span>
+      </div>
+
+      <div className="grid grid-cols-[52px_repeat(7,minmax(40px,1fr))] border-b border-black/5 px-1.5 py-2">
         <div />
         {days.map((day) => (
           <div key={day.toISOString()} className="text-center">
@@ -32,19 +70,49 @@ export default function TimetablePlanView({ selectedDate }: { selectedDate: Date
           </div>
         ))}
       </div>
-      <div className="max-h-[58svh] overflow-auto">
-        {periods.map(([period, start, end]) => (
-          <div key={period} className="grid min-h-[72px] grid-cols-[52px_repeat(7,minmax(40px,1fr))] border-b border-black/5 px-2">
-            <div className="flex flex-col justify-center">
-              <strong className="text-lg leading-none text-[var(--sf-text-primary)]">{period}</strong>
-              <span className="mt-1 text-[8px] leading-3 text-[var(--sf-text-tertiary)]">{start}<br />{end}</span>
-            </div>
-            {days.map((day) => <div key={`${period}-${day.toISOString()}`} className="border-l border-black/[0.04]" />)}
+
+      <div className="max-h-[62svh] overflow-y-auto">
+        <div className="grid grid-cols-[52px_repeat(7,minmax(40px,1fr))] px-1.5">
+          <div>
+            {periods.map(([period, start, end]) => (
+              <div key={period} className="flex flex-col justify-center border-b border-black/5" style={{ height: ROW_HEIGHT }}>
+                <strong className="text-lg leading-none text-[var(--sf-text-primary)]">{period}</strong>
+                <span className="mt-1 text-[8px] leading-3 text-[var(--sf-text-tertiary)]">{start}<br />{end}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="border-t border-black/5 bg-[var(--sf-bg)] px-4 py-3 text-[10px] text-[var(--sf-text-tertiary)]">
-        时间表 M1 已按节次建立结构；单双周与 Course 卡片在 M2 按真实课程数据接入。
+
+          {days.map((day) => {
+            const weekday = day.getDay() || 7;
+            const dayCourses = courses.filter((course) => course.dayOfWeek === weekday && course.startTime && course.endTime);
+            return (
+              <div key={day.toISOString()} className="relative border-l border-black/[0.05]" style={{ height: periods.length * ROW_HEIGHT }}>
+                {periods.map(([period], index) => <span key={period} className="absolute left-0 right-0 border-b border-black/[0.05]" style={{ top: (index + 1) * ROW_HEIGHT }} />)}
+                {dayCourses.map((course) => {
+                  const range = coursePeriodRange(course);
+                  if (!range) return null;
+                  const active = courseOccursOnDate(course, day, semester);
+                  const top = range.first * ROW_HEIGHT + 3;
+                  const height = (range.last - range.first + 1) * ROW_HEIGHT - 6;
+                  return (
+                    <button
+                      key={course.id}
+                      type="button"
+                      onClick={() => onCourseClick?.(course.id)}
+                      className={`absolute left-0.5 right-0.5 overflow-hidden rounded-lg border-l-2 px-1 py-1 text-left shadow-sm ${active ? '' : 'opacity-35'}`}
+                      style={{ top, height, borderLeftColor: course.color, backgroundColor: cardBackground(course.color) }}
+                      title={course.name}
+                    >
+                      <span className="block break-words text-[8px] font-black leading-[10px] text-[#242424]">{course.name}</span>
+                      {height > 42 && (course.room || course.location) && <span className="mt-1 block break-words text-[7px] leading-[9px] text-gray-500">@{course.room || course.location}</span>}
+                      {!active && <span className="absolute bottom-1 left-1 text-[7px] font-bold text-gray-500">非本周</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
