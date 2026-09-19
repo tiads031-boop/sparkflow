@@ -71,6 +71,7 @@ describe('planning response parser', () => {
           priority: 'medium',
           estimatedMinutes: 20,
           dueDate: '2026-09-20T10:00:00.000Z',
+          milestoneTitle: '基础建立',
         },
         {
           type: 'update_task',
@@ -79,6 +80,7 @@ describe('planning response parser', () => {
           changes: {
             priority: 'high',
             estimatedMinutes: 90,
+            milestoneTitle: '强化训练',
           },
         },
       ],
@@ -96,10 +98,12 @@ describe('planning response parser', () => {
       type: 'create_task',
       title: '拿快递',
       estimatedMinutes: 20,
+      milestoneTitle: '基础建立',
     }));
     expect(result.actions[1]).toEqual(expect.objectContaining({
       type: 'update_task',
       taskId: 'task-1',
+      changes: expect.objectContaining({ milestoneTitle: '强化训练' }),
     }));
   });
 
