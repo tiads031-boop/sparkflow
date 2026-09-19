@@ -85,6 +85,7 @@ export interface PlanningTaskSnapshot {
   scheduledStart: string | null;
   scheduledEnd: string | null;
   scheduleLocked: boolean;
+  project: string | null;
 }
 
 export type PlanningActionDraft =
@@ -107,6 +108,7 @@ export type PlanningActionDraft =
         priority?: 'high' | 'medium' | 'low';
         estimatedMinutes?: number | null;
         dueDate?: string | null;
+        milestoneTitle?: string | null;
       };
     };
 
