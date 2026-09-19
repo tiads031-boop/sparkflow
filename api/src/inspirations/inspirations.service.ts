@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'crypto';
 import { InspirationMediaService } from './inspiration-media.service';
+import { AudioTranscriptionService } from '../ai/audio-transcription.service';
 
 const attachmentList = {
   select: {
@@ -11,6 +12,7 @@ const attachmentList = {
     mimeType: true,
     originalName: true,
     sizeBytes: true,
+    transcript: true,
     createdAt: true,
   },
   orderBy: { createdAt: 'asc' as const },
@@ -25,6 +27,7 @@ export class InspirationsService {
   constructor(
     private prisma: PrismaService,
     private readonly media: InspirationMediaService,
+    private readonly audioTranscription: AudioTranscriptionService,
   ) {}
 
   findAll(userId: string, status?: string) {
@@ -146,6 +149,61 @@ export class InspirationsService {
     });
     if (!attachment) throw new NotFoundException('Attachment not found');
     return attachment;
+  }
+
+  async transcribeAttachment(
+    id: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    const attachment = await this.prisma.inspirationAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        inspirationId: id,
+        inspiration: { userId },
+      },
+    });
+    if (!attachment) throw new NotFoundException('Attachment not found');
+    if (attachment.kind !== 'audio') {
+      throw new BadRequestException('只有语音 / 音频附件可以转写');
+    }
+
+    if (attachment.transcript?.trim()) {
+      return {
+        attachmentId: attachment.id,
+        transcript: attachment.transcript,
+        reused: true,
+      };
+    }
+
+    const buffer = await this.media.read(attachment.storageKey);
+    const result = await this.audioTranscription.transcribe({
+      buffer,
+      size: attachment.sizeBytes,
+      mimetype: attachment.mimeType,
+    });
+
+    const updated = await this.prisma.inspirationAttachment.update({
+      where: { id: attachment.id },
+      data: { transcript: result.text },
+      select: {
+        id: true,
+        inspirationId: true,
+        kind: true,
+        mimeType: true,
+        originalName: true,
+        sizeBytes: true,
+        transcript: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      attachmentId: updated.id,
+      transcript: updated.transcript!,
+      model: result.model,
+      reused: false,
+    };
   }
 
   async update(id: string, userId: string, data: {
