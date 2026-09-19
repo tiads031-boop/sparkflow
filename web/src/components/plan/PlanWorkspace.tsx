@@ -12,6 +12,7 @@ import { readLastPlanView, writeLastPlanView } from './planPreferences';
 import { buildPlannerPreviewItems, getMonday, getSemesterWeekNumber, localDateKey, type PlanItem } from './planProjection';
 import { usePlanItems } from './usePlanItems';
 import { useAppStore } from '../../store/appStore';
+import { readUserPreferences } from '../../utils/userPreferences';
 
 type PlanSection = 'calendar' | 'tasks';
 type TaskView = 'list' | 'quadrant';
@@ -61,7 +62,11 @@ export default function PlanWorkspace({
   const semesters = useAppStore((state) => state.semesters);
   const activeSemesterId = useAppStore((state) => state.activeSemesterId);
   const [section, setSection] = useState<PlanSection>(initialSection);
-  const [taskView, setTaskView] = useState<TaskView>(() => initialTaskView ?? readTaskView());
+  const quadrantEnabled = readUserPreferences().quadrantEnabled;
+  const [taskView, setTaskView] = useState<TaskView>(() => {
+    const requested = initialTaskView ?? readTaskView();
+    return requested === 'quadrant' && !quadrantEnabled ? 'list' : requested;
+  });
   const [view, setView] = useState<PlanView>(() => initialPlanView ?? readLastPlanView());
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
 
@@ -244,14 +249,16 @@ export default function PlanWorkspace({
                 >
                   <ListTodo size={14} /><span className="text-[10px] font-bold">列表</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setTaskView('quadrant'); writeTaskView('quadrant'); }}
-                  className={`flex h-8 items-center gap-1 rounded-lg px-2 ${taskView === 'quadrant' ? 'bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm' : 'text-[var(--sf-text-tertiary)]'}`}
-                  aria-label="四象限视图"
-                >
-                  <Grid2X2 size={14} /><span className="text-[10px] font-bold">四象限</span>
-                </button>
+                {quadrantEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => { setTaskView('quadrant'); writeTaskView('quadrant'); }}
+                    className={`flex h-8 items-center gap-1 rounded-lg px-2 ${taskView === 'quadrant' ? 'bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm' : 'text-[var(--sf-text-tertiary)]'}`}
+                    aria-label="四象限视图"
+                  >
+                    <Grid2X2 size={14} /><span className="text-[10px] font-bold">四象限</span>
+                  </button>
+                )}
               </div>
             </div>
             {taskView === 'list'
