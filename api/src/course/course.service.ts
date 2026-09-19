@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import type { Prisma } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -94,6 +95,78 @@ type CourseChangeConflict = {
   startTime: string;
   endTime: string;
 };
+
+type CourseEventState = {
+  eventId: string;
+  existed: boolean;
+  courseId: string | null;
+  title: string;
+  eventType: string;
+  startTime: string;
+  endTime: string;
+  isAllDay: boolean;
+  recurrenceRule: string | null;
+  isOverride: boolean;
+  color: string;
+  location: string | null;
+  scheduleLocked: boolean;
+  overrideType: string | null;
+  overrideOriginalStart: string | null;
+  overrideGroupId: string | null;
+};
+
+function courseEventState(event: any, existed = true): CourseEventState {
+  return {
+    eventId: event.id,
+    existed,
+    courseId: event.courseId || null,
+    title: event.title,
+    eventType: event.eventType,
+    startTime: event.startTime instanceof Date ? event.startTime.toISOString() : String(event.startTime),
+    endTime: event.endTime instanceof Date ? event.endTime.toISOString() : String(event.endTime),
+    isAllDay: Boolean(event.isAllDay),
+    recurrenceRule: event.recurrenceRule || null,
+    isOverride: Boolean(event.isOverride),
+    color: event.color,
+    location: event.location || null,
+    scheduleLocked: Boolean(event.scheduleLocked),
+    overrideType: event.overrideType || null,
+    overrideOriginalStart: event.overrideOriginalStart
+      ? (event.overrideOriginalStart instanceof Date
+          ? event.overrideOriginalStart.toISOString()
+          : String(event.overrideOriginalStart))
+      : null,
+    overrideGroupId: event.overrideGroupId || null,
+  };
+}
+
+function readCourseEventStates(value: unknown): CourseEventState[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const candidate = item as Record<string, unknown>;
+    if (
+      typeof candidate.eventId !== 'string' ||
+      typeof candidate.existed !== 'boolean' ||
+      typeof candidate.title !== 'string' ||
+      typeof candidate.eventType !== 'string' ||
+      typeof candidate.startTime !== 'string' ||
+      typeof candidate.endTime !== 'string' ||
+      typeof candidate.isAllDay !== 'boolean' ||
+      typeof candidate.isOverride !== 'boolean' ||
+      typeof candidate.color !== 'string' ||
+      typeof candidate.scheduleLocked !== 'boolean'
+    ) return [];
+    return [candidate as unknown as CourseEventState];
+  });
+}
+
+function sameCourseEventState(event: any, expected: CourseEventState) {
+  return JSON.stringify(courseEventState(event, true)) === JSON.stringify({
+    ...expected,
+    existed: true,
+  });
+}
 
 @Injectable()
 export class CourseService {
@@ -431,7 +504,9 @@ export class CourseService {
       }
 
       const overrideGroupId = data.type === 'swap' ? randomUUID() : null;
-      const applied = [];
+      const applied: any[] = [];
+      const beforeState: CourseEventState[] = [];
+      const afterState: CourseEventState[] = [];
 
       for (const change of preview.changes) {
         if (change.action === 'create') {
@@ -440,7 +515,7 @@ export class CourseService {
           });
           if (!course || !change.to) throw new NotFoundException('Course not found');
 
-          applied.push(await tx.calendarEvent.create({
+          const created = await tx.calendarEvent.create({
             data: {
               userId,
               courseId: course.id,
@@ -455,7 +530,13 @@ export class CourseService {
               overrideGroupId: null,
               scheduleLocked: true,
             },
-          }));
+          });
+          beforeState.push({
+            ...courseEventState(created, false),
+            existed: false,
+          });
+          afterState.push(courseEventState(created));
+          applied.push(created);
           continue;
         }
 
@@ -465,9 +546,10 @@ export class CourseService {
         });
         if (!current) throw new NotFoundException('CalendarEvent not found');
 
+        beforeState.push(courseEventState(current));
         const originalStart = current.overrideOriginalStart || current.startTime;
         if (change.action === 'cancel') {
-          applied.push(await tx.calendarEvent.update({
+          const updated = await tx.calendarEvent.update({
             where: { id: current.id },
             data: {
               isOverride: true,
@@ -476,12 +558,14 @@ export class CourseService {
               overrideGroupId: null,
               scheduleLocked: true,
             },
-          }));
+          });
+          afterState.push(courseEventState(updated));
+          applied.push(updated);
           continue;
         }
 
         if (!change.to) throw new BadRequestException('Target occurrence is missing');
-        applied.push(await tx.calendarEvent.update({
+        const updated = await tx.calendarEvent.update({
           where: { id: current.id },
           data: {
             startTime: new Date(change.to.startTime),
@@ -493,15 +577,106 @@ export class CourseService {
             overrideGroupId,
             scheduleLocked: true,
           },
-        }));
+        });
+        afterState.push(courseEventState(updated));
+        applied.push(updated);
       }
 
+      const plan = await tx.schedulePlan.create({
+        data: {
+          userId,
+          planType: 'course',
+          status: 'applied',
+          beforeState: beforeState as unknown as Prisma.InputJsonValue,
+          afterState: afterState as unknown as Prisma.InputJsonValue,
+        },
+      });
+
       return {
+        planId: plan.id,
         type: data.type,
         appliedCount: applied.length,
         overrideGroupId,
         events: applied,
       };
+    }, { isolationLevel: 'Serializable', timeout: 15000 });
+  }
+
+  async undoCourseChange(userId: string, planId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const plan = await tx.schedulePlan.findFirst({
+        where: { id: planId, userId },
+      });
+      if (!plan) throw new NotFoundException('Course change plan not found');
+      if (plan.planType !== 'course') {
+        throw new ConflictException('This plan is not a course change');
+      }
+      if (plan.status !== 'applied') {
+        throw new ConflictException('Course change has already been undone');
+      }
+
+      const beforeState = readCourseEventStates(plan.beforeState);
+      const afterState = readCourseEventStates(plan.afterState);
+      if (!afterState.length || beforeState.length !== afterState.length) {
+        throw new ConflictException('Course change history is incomplete');
+      }
+
+      const currentEvents = await tx.calendarEvent.findMany({
+        where: {
+          userId,
+          id: { in: afterState.map((item) => item.eventId) },
+        },
+      });
+      const currentById = new Map(currentEvents.map((event) => [event.id, event]));
+      for (const expected of afterState) {
+        const current = currentById.get(expected.eventId);
+        if (!current || !sameCourseEventState(current, expected)) {
+          throw new ConflictException(
+            'A course occurrence changed after apply; undo was cancelled',
+          );
+        }
+      }
+
+      let restoredCount = 0;
+      for (const previous of beforeState) {
+        if (!previous.existed) {
+          await tx.calendarEvent.delete({
+            where: { id: previous.eventId, userId },
+          });
+          restoredCount += 1;
+          continue;
+        }
+
+        await tx.calendarEvent.update({
+          where: { id: previous.eventId, userId },
+          data: {
+            courseId: previous.courseId,
+            title: previous.title,
+            eventType: previous.eventType,
+            startTime: new Date(previous.startTime),
+            endTime: new Date(previous.endTime),
+            isAllDay: previous.isAllDay,
+            recurrenceRule: previous.recurrenceRule,
+            isOverride: previous.isOverride,
+            color: previous.color,
+            location: previous.location,
+            scheduleLocked: previous.scheduleLocked,
+            overrideType: previous.overrideType,
+            overrideOriginalStart: previous.overrideOriginalStart
+              ? new Date(previous.overrideOriginalStart)
+              : null,
+            overrideGroupId: previous.overrideGroupId,
+          },
+        });
+        restoredCount += 1;
+      }
+
+      await tx.schedulePlan.update({
+        where: { id: plan.id },
+        data: { status: 'undone' },
+      });
+
+      return { planId: plan.id, restoredCount };
     }, { isolationLevel: 'Serializable', timeout: 15000 });
   }
 
