@@ -1,7 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'crypto';
 import { InspirationMediaService } from './inspiration-media.service';
+import { VoiceTranscriptionService } from '../planning/voice-transcription.service';
+import { AI_PROVIDER, type AIProvider } from '../ai/ai-provider';
 
 const attachmentList = {
   select: {
@@ -11,6 +19,8 @@ const attachmentList = {
     mimeType: true,
     originalName: true,
     sizeBytes: true,
+    transcript: true,
+    aiSummary: true,
     createdAt: true,
   },
   orderBy: { createdAt: 'asc' as const },
@@ -25,6 +35,8 @@ export class InspirationsService {
   constructor(
     private prisma: PrismaService,
     private readonly media: InspirationMediaService,
+    private readonly voice: VoiceTranscriptionService,
+    @Inject(AI_PROVIDER) private readonly ai: AIProvider,
   ) {}
 
   findAll(userId: string, status?: string) {
@@ -146,6 +158,74 @@ export class InspirationsService {
     });
     if (!attachment) throw new NotFoundException('Attachment not found');
     return attachment;
+  }
+
+  async transcribeAttachment(
+    id: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    const attachment = await this.getAttachment(id, attachmentId, userId);
+    if (attachment.kind !== 'audio') {
+      throw new BadRequestException('当前只支持音频附件转写');
+    }
+
+    const buffer = await this.media.read(attachment.storageKey);
+    const result = await this.voice.transcribeBuffer(buffer, attachment.mimeType);
+
+    return this.prisma.inspirationAttachment.update({
+      where: { id: attachment.id },
+      data: {
+        transcript: result.text,
+        aiSummary: null,
+      },
+      select: attachmentList.select,
+    });
+  }
+
+  async summarizeAttachment(
+    id: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    const attachment = await this.prisma.inspirationAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        inspirationId: id,
+        inspiration: { userId },
+      },
+      include: {
+        inspiration: {
+          select: {
+            title: true,
+            contentText: true,
+          },
+        },
+      },
+    });
+    if (!attachment) throw new NotFoundException('Attachment not found');
+    if (!attachment.transcript?.trim()) {
+      throw new BadRequestException('请先转写音频，再生成摘要');
+    }
+
+    let summary: string;
+    try {
+      summary = await this.ai.summarizeText({
+        text: attachment.transcript,
+        context: [
+          attachment.inspiration.title,
+          attachment.inspiration.contentText,
+        ].filter(Boolean).join('\n').slice(0, 1000),
+      });
+    } catch {
+      throw new ServiceUnavailableException('AI 摘要暂时不可用，请稍后重试');
+    }
+
+    return this.prisma.inspirationAttachment.update({
+      where: { id: attachment.id },
+      data: { aiSummary: summary },
+      select: attachmentList.select,
+    });
   }
 
   async update(id: string, userId: string, data: {
