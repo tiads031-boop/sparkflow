@@ -280,6 +280,7 @@ model PlanningThread {
   preferences Json     @default("[]")
   strategy    Json     @default("[]")
   assumptions Json     @default("[]")
+  evidence    Json     @default("[]")
   revision    Int      @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { BrainCircuit, CalendarPlus, CheckSquare, Focus, Lightbulb, X } from 'lucide-react';
+import { BrainCircuit, CalendarPlus, CheckSquare, Clock3, Focus, Lightbulb, X } from 'lucide-react';
 import { createInspiration } from '../../api/inspirations';
 
-export type QuickAddAction = 'task' | 'schedule' | 'spark' | 'focus' | 'planner';
+export type QuickAddAction = 'task' | 'schedule' | 'spark' | 'temporary' | 'focus' | 'planner';
 
 interface QuickAddSheetProps {
   open: boolean;
@@ -14,8 +14,9 @@ const actions = [
   { id: 'task', label: '新建任务', icon: CheckSquare, enabled: true },
   { id: 'schedule', label: '新建日程', icon: CalendarPlus, enabled: true },
   { id: 'spark', label: '随手记', icon: Lightbulb, enabled: true },
+  { id: 'temporary', label: '临时安排', icon: Clock3, enabled: true },
+  { id: 'planner', label: 'AI 规划与调整', icon: BrainCircuit, enabled: true },
   { id: 'focus', label: '开始专注', icon: Focus, enabled: true },
-  { id: 'planner', label: 'AI 帮我安排', icon: BrainCircuit, enabled: true },
 ] as const;
 
 export default function QuickAddSheet({ open, onClose, onSelect }: QuickAddSheetProps) {

@@ -91,6 +91,7 @@ export default function App() {
   const [editingScheduleTask, setEditingScheduleTask] = useState<Task | null>(null);
   const [focusOpen, setFocusOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [plannerSeed, setPlannerSeed] = useState('');
   const [plannerPreview, setPlannerPreview] = useState<PlannerPreview | null>(null);
   const activeWorkspace = workspaceTabForRoute(activeTab) ?? 'today';
   const isPlanRoute = activeTab === 'plan' || activeTab === 'tasks' || activeTab === 'board' || activeTab === 'timeline';
@@ -170,7 +171,13 @@ export default function App() {
       setFocusOpen(true);
       return;
     }
+    if (action === 'temporary') {
+      setPlannerSeed('我有一件临时事情需要安排：');
+      setPlannerOpen(true);
+      return;
+    }
     if (action === 'planner') {
+      setPlannerSeed('');
       setPlannerOpen(true);
       return;
     }
@@ -347,7 +354,7 @@ export default function App() {
                   setViewingCourseId(courseId);
                   setActiveTab('courses');
                 }}
-                onPlanner={() => setPlannerOpen(true)}
+                onPlanner={() => { setPlannerSeed(''); setPlannerOpen(true); }}
                 onQuickAdd={() => setQuickAddOpen(true)}
                 plannerPreview={plannerPreview}
                 initialSection={activeTab === 'tasks' || activeTab === 'board' ? 'tasks' : 'calendar'}
@@ -423,7 +430,10 @@ export default function App() {
               throw err;
             }
           }}
-          onPlanWithAI={() => setPlannerOpen(true)}
+          onPlanWithAI={() => {
+            setPlannerSeed('请帮我安排刚刚创建的任务，并先确认还有哪些重要约束需要了解。');
+            setPlannerOpen(true);
+          }}
         />
         <DarkFrostedModal
           config={{
@@ -457,6 +467,7 @@ export default function App() {
           onClose={() => setPlannerOpen(false)}
           onApplied={loadTasks}
           onPreviewChange={setPlannerPreview}
+          initialPrompt={plannerSeed}
         />
     </AppShell>
   );

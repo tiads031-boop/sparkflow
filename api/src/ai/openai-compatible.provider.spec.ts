@@ -25,6 +25,38 @@ describe('planning response parser', () => {
     expect(result.openQuestions).toEqual(['考试目标是哪一次？']);
   });
 
+  it('parses bounded research requests for external facts', () => {
+    const result = toPlanningTurn({
+      reply: '我先核实本次考试的官方时间。',
+      readiness: 'clarify',
+      summary: '考试时间需要外部核验。',
+      openQuestions: [],
+      researchQueries: [
+        {
+          query: '2026 exam official schedule',
+          reason: 'The exam date changes the whole timeline',
+          highImpact: true,
+          preferOfficial: true,
+        },
+      ],
+      context: {
+        brief: [{ key: 'goal', value: '通过考试', status: 'confirmed' }],
+        constraints: [],
+        preferences: [],
+        strategy: [],
+        assumptions: [],
+      },
+    });
+
+    expect(result.researchQueries).toEqual([
+      expect.objectContaining({
+        query: '2026 exam official schedule',
+        highImpact: true,
+        preferOfficial: true,
+      }),
+    ]);
+  });
+
   it('rejects an incomplete response instead of wiping an existing context section', () => {
     expect(() => toPlanningTurn({
       reply: '继续',

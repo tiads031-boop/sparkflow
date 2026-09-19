@@ -11,10 +11,12 @@ import {
   AI_PROVIDER,
   type AIProvider,
   type PlanningContextSnapshot,
+  type PlanningEvidenceItem,
   type PlanningFact,
   type PlanningFactStatus,
 } from '../ai/ai-provider';
 import { PrismaService } from '../prisma/prisma.service';
+import { WebResearchService } from '../research/web-research.service';
 
 const SCOPE_TYPES = new Set(['general', 'goal', 'day', 'task', 'course']);
 const FACT_STATUSES = new Set<PlanningFactStatus>(['confirmed', 'inferred', 'assumed']);
@@ -88,12 +90,64 @@ function contextFromThread(thread: {
 function json(value: PlanningFact[]): Prisma.InputJsonValue {
   return value as unknown as Prisma.InputJsonValue;
 }
+function readEvidence(value: unknown): PlanningEvidenceItem[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const candidate = item as Record<string, unknown>;
+    const sourceType = candidate.sourceType;
+    if (
+      typeof candidate.id !== 'string' ||
+      typeof candidate.query !== 'string' ||
+      typeof candidate.title !== 'string' ||
+      typeof candidate.url !== 'string' ||
+      typeof candidate.domain !== 'string' ||
+      typeof candidate.snippet !== 'string' ||
+      typeof candidate.fetchedAt !== 'string' ||
+      typeof candidate.expiresAt !== 'string' ||
+      typeof candidate.highImpact !== 'boolean' ||
+      !['official', 'primary', 'secondary', 'community', 'unknown'].includes(String(sourceType))
+    ) return [];
+    return [{
+      id: candidate.id,
+      query: candidate.query,
+      title: candidate.title,
+      url: candidate.url,
+      domain: candidate.domain,
+      snippet: candidate.snippet,
+      sourceType: sourceType as PlanningEvidenceItem['sourceType'],
+      fetchedAt: candidate.fetchedAt,
+      expiresAt: candidate.expiresAt,
+      highImpact: candidate.highImpact,
+    }];
+  });
+}
+
+function mergeEvidence(
+  existing: PlanningEvidenceItem[],
+  incoming: PlanningEvidenceItem[],
+): PlanningEvidenceItem[] {
+  const byUrl = new Map<string, PlanningEvidenceItem>();
+  for (const item of [...existing, ...incoming]) byUrl.set(item.url, item);
+  return [...byUrl.values()]
+    .sort((a, b) => b.fetchedAt.localeCompare(a.fetchedAt))
+    .slice(0, 30);
+}
+
+function freshEvidence(items: PlanningEvidenceItem[], now = new Date()) {
+  return items.filter((item) => {
+    const expiresAt = new Date(item.expiresAt);
+    return !Number.isNaN(expiresAt.getTime()) && expiresAt > now;
+  });
+}
+
 
 @Injectable()
 export class PlanningService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AI_PROVIDER) private readonly ai: AIProvider,
+    private readonly research: WebResearchService,
   ) {}
 
   async createThread(
@@ -224,13 +278,62 @@ export class PlanningService {
       { role: 'assistant' as const, content: row.aiResponse },
     ]);
 
+    const previousEvidence = freshEvidence(readEvidence(thread.evidence));
+    let evidenceUsed = previousEvidence;
+    let researchAdded: PlanningEvidenceItem[] = [];
+    let researchStatus: 'not-needed' | 'used' | 'unavailable' | 'failed' = 'not-needed';
     let result;
+
     try {
       result = await this.ai.generatePlanningTurn({
         message,
         context: contextFromThread(thread),
         recentMessages,
+        evidence: previousEvidence,
+        researchAllowed: this.research.isConfigured(),
+        researchUnavailableReason: this.research.isConfigured()
+          ? undefined
+          : 'Web research provider is not configured',
       });
+
+      if (result.researchQueries.length > 0) {
+        if (!this.research.isConfigured()) {
+          researchStatus = 'unavailable';
+          result = await this.ai.generatePlanningTurn({
+            message,
+            context: contextFromThread(thread),
+            recentMessages,
+            evidence: previousEvidence,
+            researchAllowed: false,
+            researchUnavailableReason: 'Web research provider is not configured',
+          });
+        } else {
+          try {
+            researchAdded = await this.research.research(result.researchQueries);
+            evidenceUsed = mergeEvidence(previousEvidence, researchAdded);
+            researchStatus = researchAdded.length > 0 ? 'used' : 'failed';
+            result = await this.ai.generatePlanningTurn({
+              message,
+              context: contextFromThread(thread),
+              recentMessages,
+              evidence: evidenceUsed,
+              researchAllowed: false,
+              researchUnavailableReason:
+                researchAdded.length > 0 ? undefined : 'Search returned no usable evidence',
+            });
+          } catch {
+            researchStatus = 'failed';
+            result = await this.ai.generatePlanningTurn({
+              message,
+              context: contextFromThread(thread),
+              recentMessages,
+              evidence: previousEvidence,
+              researchAllowed: false,
+              researchUnavailableReason: 'Web research failed for this turn',
+            });
+          }
+        }
+      }
     } catch {
       throw new ServiceUnavailableException('AI planning is temporarily unavailable');
     }
@@ -242,6 +345,7 @@ export class PlanningService {
       strategy: normalizeFacts(result.context.strategy),
       assumptions: normalizeFacts(result.context.assumptions),
     };
+    const persistedEvidence = mergeEvidence(readEvidence(thread.evidence), researchAdded);
 
     const updatedThread = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.planningThread.updateMany({
@@ -257,6 +361,7 @@ export class PlanningService {
           preferences: json(nextContext.preferences),
           strategy: json(nextContext.strategy),
           assumptions: json(nextContext.assumptions),
+          evidence: persistedEvidence as unknown as Prisma.InputJsonValue,
           revision: { increment: 1 },
         },
       });
@@ -277,6 +382,9 @@ export class PlanningService {
             summary: result.summary,
             model: this.ai.modelName,
             basedOnRevision: data.expectedRevision,
+            researchStatus,
+            researchProvider: this.research.providerName,
+            evidenceIds: researchAdded.map((item) => item.id),
           } as Prisma.InputJsonValue,
         },
       });
@@ -291,6 +399,11 @@ export class PlanningService {
       readiness: result.readiness,
       openQuestions: result.openQuestions,
       summary: result.summary,
+      research: {
+        status: researchStatus,
+        provider: this.research.providerName,
+        evidence: researchAdded,
+      },
       planningContext: contextFromThread(updatedThread),
     };
   }
