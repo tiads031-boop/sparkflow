@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-19
-> **代码同步基线**：`master@7145ba0`
+> **代码同步基线**：`master@e883b9a3`
 
 ---
 
@@ -132,7 +132,8 @@ PR #48/#49/#50 已完成 M1–M3 代码与 CI：
 - task-backed CalendarEvent 与 Course fallback 在投影层去重，不新增数据库事实源。
 - 学期起止日期与 Course.weeks 用于周次/“非本周”判断；缺少可靠学期上下文时不强行隐藏课程。
 - Planner Preview 可作为虚线临时时间块显示在 Week / Agenda；Apply 后由真实 Task 排程替代，Undo 后恢复。
-- 当前仅能称为代码/CI 已完成；尚需 Vercel Production、PWA 与 Android 真机验收后再进入 M4 拖拽/过滤增强。
+- Web Production 已从 `master@e883b9a3` 源码显式发布到 READY 部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e`，`fish-life.cc.cd` HTTP 200；生产 bundle 已静态核到五项导航与 M3 Preview 文案。
+- Android VNext M3 Release `android-7145ba0ea3d2` 已生成；Web 真账号/PWA 与 Android 真机交互仍未验收，完成前不进入 M4 拖拽/过滤增强。
 
 ### Planner / AI 安排
 
@@ -245,7 +246,7 @@ M1 运行时代码已通过 PR #45 合入并部署；StudyFolder migration、API
 | Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
 | Phase 15 | 🚧 M1–M3 已实现，真实链路收尾 | M1–M3 Web/API 已对齐 `99ebb3c`；真实 Qwen 与 Android/Planner 链路仍需验收 |
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
-| VNext Plan | 🚧 M1–M3 代码/CI 已完成 | PR #48/#49/#50 已合入 `master@7145ba0`；待 Web/PWA/Android 真实验收，M4 暂不启动 |
+| VNext Plan | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合入；Web Production 已发布并静态冒烟，Android M3 APK `android-7145ba0ea3d2` 已生成；真实账号与真机验收前 M4 暂不启动 |
 
 ---
 
@@ -272,6 +273,9 @@ M1 运行时代码已通过 PR #45 合入并部署；StudyFolder migration、API
 - ✅ PR #48：VNext M1，固定五项导航 + Plan 四视图壳层。
 - ✅ PR #49：VNext M2，真实 Task/Course/CalendarEvent/Study Task 统一投影。
 - ✅ PR #50：VNext M3，Planner Preview 时间块 → Apply → Undo 视图闭环；Web/API CI 全绿。
+- ✅ VNext Web Production：部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，aliases 包含 `fish-life.cc.cd`；首页 200，生产 bundle 核到五项导航与 M3 Preview 文案。
+- ✅ Android VNext M3 构建：Release `android-7145ba0ea3d2`，asset `sparkflow-7145ba0ea3d2-debug.apk`。
+- ⚠️ 本次 Vercel 由 GitHub codeload 源码手工发布，deployment `meta` 为空；尝试仅补 Git metadata 的第二次部署被 Hobby 每日 deployment 限额拒绝。功能部署已成功，本蓝图/NEXT 记录 `e883b9a3 → dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 的发布映射。
 - ✅ PR #27：旧 Phase 12 安全测试分支已关闭，由 #28/#29/#30/#36 覆盖。
 - 🚧 Issue #31：当前 Phase 12 生产验收主线。
 - ⏭ Issue #26：Issue #31 稳定后进入 Phase 14 Timeline 收口。
@@ -287,7 +291,7 @@ M1 运行时代码已通过 PR #45 合入并部署；StudyFolder migration、API
 | P0 | Android 之前存在 Web 正常/App 登录失败 | Capacitor CORS 已修；API/Bundle 地址 CI gate；Release 可追溯 | 最新 Release 真机登录、Session 和导入通过 |
 | P0 | Planner 生产 schema/闭环未证实 | SchedulePlan migration 在 fresh PG CI 成功 | 真账号 Preview → Apply → Undo |
 | P1 | HTTP 未知结果恢复仍缺端到端证据 | 前端按 requestId 查询 + 服务端 replay；真实 PG 已验证最终状态 | 模拟客户端超时/断连后查询并恢复已提交结果 |
-| ✅ | Vercel Hobby deployment 日配额 | GitHub CI 独立；Git 自动 deployments 已关闭；Production 已显式发布 `99ebb3c` | 后续保持一批次一次 Web 发布，避免重新触发配额噪声 |
+| P1 | Vercel Hobby deployment 日配额 / 本次 Git metadata 缺失 | GitHub CI 独立；Git 自动 deployments 已关闭；VNext Production 首次手工发布已成功，仓库记录 SHA→deployment 映射 | 等额度恢复后的下一次正常 Git 可追溯发布自然覆盖；不为补 metadata 重复消耗当日 deployment |
 | P1 | Issue #26 Timeline M3 未重做 | 当前主线仍保留 Gantt | 最新 master 上通过多来源、移动端、DST/边界验收 |
 
 ---
@@ -303,19 +307,22 @@ flowchart TD
     E --> F["✅ M2 explainable Insight code/API"]
     F --> G["✅ 发布 99ebb3c + API/Web 对齐"]
     G --> H["Issue #31 remaining Web/Android/Planner acceptance"]
-    H --> I["VNext Plan Web/PWA/Android acceptance"]\n    I --> K["VNext M4 / Phase 15 M4 / Study Mode / Phase 14 next batch"]\n    K --> J["Phase 13 Local Codex Bridge"]
+    H --> I["VNext Plan Web/PWA/Android acceptance"]
+    I --> K["VNext M4 / Phase 15 M4 / Study Mode / Phase 14 next batch"]
+    K --> J["Phase 13 Local Codex Bridge"]
 ```
 
 ### 当前批次：Issue #31 真实验收 + VNext Plan M1–M3 生产/真机验收
 
 1. ✅ 腾讯云 API 已部署 `master@99ebb3c`；Git HEAD / image / public health buildSha 已对齐。
 2. ✅ 生产 PostgreSQL 20 migrations up to date，包含 M2/M3/StudyFolder。
-3. ✅ `master@99ebb3c` Web Production 已显式发布并绑定 `fish-life.cc.cd`。
+3. ✅ VNext Web Production 已显式发布：`dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY 并绑定 `fish-life.cc.cd`；本次源码来自 GitHub `master@e883b9a3`，公网首页 200，发布后一小时 Vercel 无 runtime error。
 4. 🚧 使用已接通的真实 Qwen Provider 执行多卡片 → Insight → 用户确认 Task 的成功率、延迟、来源真实性与失败恢复验收。
-5. Android 安装 `sparkflow-5835e3223748-debug.apk`，复测登录、Session、Insight/Action、SchoolImport 和窄屏交互。
+5. Android 安装 VNext M3 `sparkflow-7145ba0ea3d2-debug.apk`，复测登录、Session、五项底栏、四时间视图、Insight/Action、SchoolImport 和窄屏交互。
 6. Web 真账号完成真实教务导入/replay，并完成 Planner Preview → Apply → Undo。
 7. 验证一次客户端未知/超时结果 → requestId 查询恢复路径。
-8. 发布并验收 VNext Plan：五项主导航、四时间视图、课程周次、Planner Preview → Apply → Undo，覆盖 Web/PWA/Android。\n9. 上述真实链路通过后，再选择 VNext M4、Phase 15 M4、Study Mode 或 Phase 14 余项作为下一产品批次。
+8. ✅ VNext Plan Web 已发布并完成公开静态冒烟；🚧 继续以真实账号验收五项主导航、四时间视图、课程周次、Planner Preview → Apply → Undo，并在 Android 真机复验。
+9. 上述真实链路通过后，再选择 VNext M4、Phase 15 M4、Study Mode 或 Phase 14 余项作为下一产品批次。
 
 ---
 

@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-19 | **代码基线**：`master@7145ba0`
+> **最后更新**：2026-09-19 | **代码基线**：`master@e883b9a3`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -10,21 +10,21 @@
 |---|---|
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，腾讯云运行 `master@99ebb3c`；公网 `/api/health.buildSha` 与仓库一致；生产库 20 个 migrations 全部 up to date，包含 `20260919130000_add_study_folders` |
-| Web | Vercel 项目 `sparkflow031`；Production `fish-life.cc.cd` 已显式发布 `master@99ebb3c`，部署状态 READY，首页 HTTP 200 |
-| GitHub | `master@7145ba0`；VNext Plan M1–M3（PR #48/#49/#50）已合并并通过 CI；Phase 15 M1/M2/M3、Study Mode M1 与 Qwen 稳定性补丁均已在 master |
+| Web | Vercel 项目 `sparkflow031`；2026-09-19 已从 GitHub `master@e883b9a3` 源码显式发布 Production，部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 为 READY，`fish-life.cc.cd` HTTP 200；生产 bundle 已核到五项导航与 M3 Planner Preview 文案 |
+| GitHub | `master@e883b9a3`；VNext Plan M1–M3（功能基线 `7145ba0`，PR #48/#49/#50）已合并并通过 CI；PR #51 已同步方案事实源 |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
-| 最新 APK | Release `android-5835e3223748`；`sparkflow-5835e3223748-debug.apk`；对应 `master@5835e322`，Android CI 成功 |
-| 部署噪声 | Vercel Hobby 已触发 `api-deployments-free-per-day`（>100/day）；这不是代码失败。Git 自动 deployments 已在当前治理分支关闭，后续采用 CI 后显式 Production 发布 |
+| 最新功能 APK | Release `android-7145ba0ea3d2`；`sparkflow-7145ba0ea3d2-debug.apk`；对应 VNext M3 功能提交 `7145ba0ea3d2`，Android CI 成功；之后 `e883b9a3` 仅改文档，未触发 APK |
+| 部署噪声 | Vercel Hobby 已触发 `api-deployments-free-per-day`（>100/day）；本次首个 Production 发布成功，随后仅为补 Git metadata 的第二次部署被额度拒绝，这不是代码失败。当前部署 `meta` 为空，因此以本文件记录的 `e883b9a3 → dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 映射作为本次手工发布证据 |
 
 ## 近期总原则
 
 1. **Phase 15 M1/M2/M3 代码均已进入 master；不要再重复实现 Capture、Insight 或 Insight→Task。**
 2. **当前第一收口项是已发布版本的真实账号验收：Study Mode CRUD、M2/M3 Insight→Task、教务导入、Planner 与未知结果恢复。**
 3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 稳定性修复已随 `99ebb3c` API 镜像上线，下一步复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
-4. **腾讯云 API 已部署到 `99ebb3c`，20 个 migrations 已应用；Web Production 已同步到同一提交。**
-5. **Android 继续以 commit-stamped Release 做真机验收；最新包为 `android-5835e3223748`。**
-6. **VNext Plan M1–M3 已进入 master，但尚未等同于生产/真机完成；下一步优先做 VNext Web/PWA/Android 真实验收，再决定是否进入 M4 拖拽/过滤增强。**
+4. **腾讯云 API 仍运行 `99ebb3c`（VNext M1–M3 未改 API）；Web Production 已发布 VNext `master@e883b9a3`，公网首页 200 且未发现发布后一小时 Vercel runtime error。**
+5. **Android 继续以 commit-stamped Release 做真机验收；当前 VNext M3 包为 `android-7145ba0ea3d2`。**
+6. **VNext Plan M1–M3 已进入 master 且 Web Production 已完成静态发布/冒烟；仍需真实账号操作与 Android 真机验收，之后再决定是否进入 M4 拖拽/过滤增强。**
 
 ---
 
@@ -86,7 +86,7 @@
 
 使用最新 GitHub Release APK：
 
-- [ ] 安装最新 Release `sparkflow-5835e3223748-debug.apk`（或之后同机制生成的更新包）。
+- [ ] 安装 VNext M3 Release `sparkflow-7145ba0ea3d2-debug.apk`（或之后同机制生成的更新包）。
 - [ ] 登录成功；确认此前 CORS 分叉已消失。
 - [ ] Session 刷新/重启后恢复。
 - [ ] SchoolImport / 文件降级 → 返回 SparkFlow → 预览 → 导入。
@@ -152,9 +152,10 @@
 - [x] PR #49 / M2：Task / Course / CalendarEvent / Study Task 统一前端投影；真实月/周/日程/时间表；课程周次与重复来源去重。
 - [x] PR #50 / M3：Planner Preview 以临时时间块叠加到 Week / Agenda；Apply 后转为真实 Task 排程；Undo 恢复；未修改 Planner API 契约。
 - [x] 三批均通过 Web build/tests 与现有 API/fresh PostgreSQL CI。
-- [ ] Vercel Production 发布最新 master。
+- [x] Vercel Production 已从 `master@e883b9a3` 源码显式发布：`dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，`fish-life.cc.cd` HTTP 200；bundle 静态核验包含“今天 / 计划 / 记录 / 学习 / 我的”和 M3“返回计划查看时间块预览”。
 - [ ] Web/PWA 真实账号：Month / Week / Agenda / Timetable + Planner Preview → Apply → Undo。
-- [ ] Android 最新 commit-stamped APK：360px、safe-area、底栏、周视图密度、课表、Planner 闭环。
+- [x] Android VNext M3 commit-stamped APK 已生成：Release `android-7145ba0ea3d2` / `sparkflow-7145ba0ea3d2-debug.apk`。
+- [ ] Android 真机：360px、safe-area、底栏、周视图密度、课表、Planner 闭环。
 - [ ] M4（拖拽、过滤、视觉细化）仅在上述真实验收稳定后启动。
 
 核心约束继续保持：PlanItem 只是一层前端视图模型；Task / Course / CalendarEvent / Planner / Focus 仍为现有事实源，不创建第二套 Schedule/StudySchedule。
