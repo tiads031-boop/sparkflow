@@ -74,6 +74,19 @@ export class InspirationsController {
     );
   }
 
+  @Post(':id/attachments/:attachmentId/transcribe')
+  transcribeAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.inspirationsService.transcribeAttachment(
+      id,
+      attachmentId,
+      userId,
+    );
+  }
+
   @Get(':id/attachments/:attachmentId/file')
   async attachmentFile(
     @Param('id') id: string,
