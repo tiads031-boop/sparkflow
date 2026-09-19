@@ -405,7 +405,7 @@ export default function PlannerSheet({
       ));
       setSelectedActionIds([]);
       setActionMessage(
-        `已应用 ${result.appliedActionIds.length} 项操作：新增 ${result.createdTaskIds.length} 个任务，更新 ${result.updatedTaskIds.length} 个任务。`,
+        `已应用 ${result.appliedActionIds.length} 项操作：新增 ${result.createdTaskIds.length} 个任务，更新 ${result.updatedTaskIds.length} 个任务，修改 ${result.updatedGoalIds.length} 个学习目标。`,
       );
       await onApplied();
       const refreshed = await getPlanningThread(thread.id);
@@ -922,16 +922,33 @@ export default function PlannerSheet({
                         action.estimatedMinutes ? `${action.estimatedMinutes} 分钟` : null,
                         action.dueDate ? `截止：${new Date(action.dueDate).toLocaleString('zh-CN')}` : null,
                       ].filter(Boolean)
-                    : [
-                        action.changes.milestoneTitle !== undefined
-                          ? `阶段 → ${action.changes.milestoneTitle || '待整理'}`
-                          : null,
-                        action.changes.priority ? `优先级 → ${action.changes.priority}` : null,
-                        action.changes.estimatedMinutes !== undefined ? `时长 → ${action.changes.estimatedMinutes ?? '未设置'} 分钟` : null,
-                        action.changes.dueDate !== undefined
-                          ? `截止 → ${action.changes.dueDate ? new Date(action.changes.dueDate).toLocaleString('zh-CN') : '清除'}`
-                          : null,
-                      ].filter(Boolean);
+                    : action.type === 'update_task'
+                      ? [
+                          action.changes.milestoneTitle !== undefined
+                            ? `阶段 → ${action.changes.milestoneTitle || '待整理'}`
+                            : null,
+                          action.changes.priority ? `优先级 → ${action.changes.priority}` : null,
+                          action.changes.estimatedMinutes !== undefined ? `时长 → ${action.changes.estimatedMinutes ?? '未设置'} 分钟` : null,
+                          action.changes.dueDate !== undefined
+                            ? `截止 → ${action.changes.dueDate ? new Date(action.changes.dueDate).toLocaleString('zh-CN') : '清除'}`
+                            : null,
+                        ].filter(Boolean)
+                      : [
+                          action.changes.name ? `目标 → ${action.changes.name}` : null,
+                          action.changes.description !== undefined
+                            ? `目标说明 → ${action.changes.description || '清空'}`
+                            : null,
+                        ].filter(Boolean);
+                  const actionLabel = action.type === 'create_task'
+                    ? '新增任务'
+                    : action.type === 'update_task'
+                      ? '修改任务'
+                      : '修改学习目标';
+                  const actionTitle = action.type === 'create_task'
+                    ? action.title
+                    : action.type === 'update_task'
+                      ? action.taskTitle
+                      : action.goalTitle;
                   return (
                     <button
                       type="button"
@@ -948,10 +965,10 @@ export default function PlannerSheet({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="text-[9px] font-black uppercase tracking-[0.12em] text-[#72804f]">
-                          {action.type === 'create_task' ? '新增任务' : '修改任务'}
+                          {actionLabel}
                         </span>
                         <strong className="mt-0.5 block text-xs text-[#242424]">
-                          {action.type === 'create_task' ? action.title : action.taskTitle}
+                          {actionTitle}
                         </strong>
                         {action.type === 'create_task' && action.description && (
                           <span className="mt-1 block text-[10px] leading-4 text-gray-500">{action.description}</span>
