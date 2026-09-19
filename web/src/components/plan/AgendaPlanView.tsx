@@ -37,7 +37,7 @@ export default function AgendaPlanView({ selectedDate, items, onItemClick }: Age
                 type="button"
                 key={item.id}
                 onClick={() => onItemClick?.(item)}
-                className={`relative flex w-full items-stretch gap-3 rounded-2xl px-2 py-2.5 text-left transition-transform active:scale-[0.99] ${active ? 'bg-[#eaf4d6]' : 'bg-[var(--sf-bg)]'} ${item.completed ? 'opacity-50' : ''}`}
+                className={`relative flex w-full items-stretch gap-3 rounded-2xl px-2 py-2.5 text-left transition-transform active:scale-[0.99] ${item.preview ? 'border border-dashed border-[#8b7fbc] bg-[#eeeafd]' : active ? 'bg-[#eaf4d6]' : 'bg-[var(--sf-bg)]'} ${item.completed ? 'opacity-50' : ''}`}
               >
                 <span className="relative z-10 w-8 shrink-0 pt-1 text-right text-[9px] font-black text-[var(--sf-text-secondary)]">
                   {start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -50,9 +50,10 @@ export default function AgendaPlanView({ selectedDate, items, onItemClick }: Age
                     {item.locked && <LockKeyhole size={10} className="shrink-0 text-[var(--sf-text-tertiary)]" />}
                   </span>
                   <span className="mt-0.5 block text-[9px] text-[var(--sf-text-tertiary)]">
-                    {typeLabel(item)} · {start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}–{end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    {item.preview ? 'AI 预览' : typeLabel(item)} · {start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}–{end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
                     {item.location ? ` · ${item.location}` : ''}
                   </span>
+                  {item.preview && item.reason && <span className="mt-1 block line-clamp-2 text-[9px] text-[#6d638e]">{item.reason}</span>}
                 </span>
               </button>
             );
