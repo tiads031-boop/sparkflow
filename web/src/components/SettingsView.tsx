@@ -9,22 +9,17 @@ import {
   Cloud,
   Database,
   Download,
-  FolderPlus,
   Grid2X2,
   Info,
-  Link,
   Loader2,
   Lock,
   LogOut,
   Plus,
-  RefreshCw,
   ShieldCheck,
   SlidersHorizontal,
   Smartphone,
   Trash2,
-  Unlink,
   Upload,
-  User,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { SparkFlowProfession, SparkFlowStatusNeed } from '../store/appStore';
