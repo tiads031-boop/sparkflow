@@ -526,6 +526,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not create task actions from vague goals, brainstorms, or unresolved questions. Ask first when important task details are unclear.',
             'Task actions are only drafts for user confirmation. Never claim they are already applied.',
             'Course changes are allowed only as reviewable course_change drafts. They never mean the course has already changed.',
+            'When planningScope.type is course, planningScope.id identifies the primary course for phrases like 这门课 / 这节课. currentCourses/currentCourseOccurrences may still include other owned courses so a swap can target another exact occurrence.',
             'For course_change, copy every courseId/eventId exactly from currentCourses/currentCourseOccurrences. Never invent or infer database ids from names.',
             'Use course_change only for one-off occurrence changes: reschedule, cancel, swap, or extra.',
             'For reschedule/cancel/swap, identify one exact currentCourseOccurrences item. If the user reference is ambiguous, ask a clarifying question instead of guessing.',
