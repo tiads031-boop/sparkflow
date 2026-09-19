@@ -112,6 +112,10 @@ export default function PlannerSheet({
   onApplied,
   onPreviewChange,
   initialPrompt = '',
+  scopeType = 'general',
+  scopeId,
+  threadTitle,
+  allowNewThread = true,
 }: {
   open: boolean;
   selectedDate: Date;
@@ -119,6 +123,10 @@ export default function PlannerSheet({
   onApplied: () => Promise<void>;
   onPreviewChange?: (preview: PlannerPreview | null) => void;
   initialPrompt?: string;
+  scopeType?: 'general' | 'goal' | 'day' | 'task' | 'course';
+  scopeId?: string;
+  threadTitle?: string;
+  allowNewThread?: boolean;
 }) {
   const [thread, setThread] = useState<PlanningThreadDetail | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
@@ -166,7 +174,7 @@ export default function PlannerSheet({
     setLoadingThread(true);
     setTurnMessage('');
     try {
-      const threads = await listPlanningThreads();
+      const threads = await listPlanningThreads(scopeType, scopeId);
       if (!threads.length) {
         setThread(null);
         setReadiness(null);
@@ -202,7 +210,7 @@ export default function PlannerSheet({
     } finally {
       setLoadingThread(false);
     }
-  }, []);
+  }, [scopeType, scopeId]);
 
   useEffect(() => {
     if (!open) return;
@@ -252,7 +260,11 @@ export default function PlannerSheet({
 
   const ensureThread = async (seed: string) => {
     if (thread) return thread;
-    const created = await createPlanningThread(seed.slice(0, 36));
+    const created = await createPlanningThread(
+      threadTitle || seed.slice(0, 36),
+      scopeType,
+      scopeId,
+    );
     const detail = await getPlanningThread(created.id);
     setThread(detail);
     return detail;
@@ -313,7 +325,11 @@ export default function PlannerSheet({
     if (turnBusy) return;
     setLoadingThread(true);
     try {
-      const created = await createPlanningThread('新的规划');
+      const created = await createPlanningThread(
+        threadTitle || '新的规划',
+        scopeType,
+        scopeId,
+      );
       const detail = await getPlanningThread(created.id);
       setThread(detail);
       setReadiness(null);
@@ -592,17 +608,19 @@ export default function PlannerSheet({
                 <span className="text-[9px] font-black uppercase tracking-[0.16em]">AI Planning</span>
               </div>
               <h2 className="truncate text-base font-black text-[var(--sf-text-primary)]">
-                {thread?.title || 'AI 规划与调整'}
+                {thread?.title || threadTitle || (scopeType === 'goal' ? 'AI 学习目标规划' : 'AI 规划与调整')}
               </h2>
             </div>
-            <button
-              type="button"
-              onClick={() => void startNewPlanning()}
-              disabled={loadingThread || turnBusy}
-              className="flex h-9 items-center gap-1 rounded-full bg-[var(--sf-bg)] px-3 text-[10px] font-bold disabled:opacity-40"
-            >
-              <Plus size={13} /> 新规划
-            </button>
+            {allowNewThread && (
+              <button
+                type="button"
+                onClick={() => void startNewPlanning()}
+                disabled={loadingThread || turnBusy}
+                className="flex h-9 items-center gap-1 rounded-full bg-[var(--sf-bg)] px-3 text-[10px] font-bold disabled:opacity-40"
+              >
+                <Plus size={13} /> 新规划
+              </button>
+            )}
           </div>
         </header>
 
@@ -616,16 +634,26 @@ export default function PlannerSheet({
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-[1.4rem] bg-[#f1eefb] text-[#6f63a8]">
                 <Sparkles size={24} />
               </div>
-              <h3 className="mt-5 text-center text-2xl font-black">先告诉我你想解决什么。</h3>
+              <h3 className="mt-5 text-center text-2xl font-black">
+                {scopeType === 'goal' ? '把目标讲清楚，再一起拆成能执行的计划。' : '先告诉我你想解决什么。'}
+              </h3>
               <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-6 text-[var(--sf-text-secondary)]">
-                我会根据你的回答继续追问真正影响计划的问题；需要当前外部信息时，会先联网核实，再形成规划依据。
+                {scopeType === 'goal'
+                  ? '我会尽量了解你的成功标准、当前水平、资源、时间预算、偏好与取舍；需要考试规则或最新要求时，会先联网核实。'
+                  : '我会根据你的回答继续追问真正影响计划的问题；需要当前外部信息时，会先联网核实，再形成规划依据。'}
               </p>
               <div className="mx-auto mt-6 grid max-w-sm gap-2">
-                {[
-                  '我想准备一项考试，帮我从现在开始规划',
-                  '这周突然多了几件事，帮我重新安排',
-                  '我有个长期目标，但不知道应该怎么拆',
-                ].map((example) => (
+                {(scopeType === 'goal'
+                  ? [
+                      '先问我需要了解的问题，不要急着生成计划',
+                      '帮我检查这个目标有没有遗漏的重要约束',
+                      '根据现在的信息先给出阶段和可执行任务',
+                    ]
+                  : [
+                      '我想准备一项考试，帮我从现在开始规划',
+                      '这周突然多了几件事，帮我重新安排',
+                      '我有个长期目标，但不知道应该怎么拆',
+                    ]).map((example) => (
                   <button
                     type="button"
                     key={example}

@@ -62,12 +62,29 @@ export class StudyService {
     return { courseIds: courses, taskIds: tasks };
   }
 
-  private present(folder: FolderWithRelations) {
+  private present(
+    folder: FolderWithRelations,
+    planningThread?: {
+      id: string;
+      revision: number;
+      updatedAt: Date;
+      _count: { conversations: number; schedulePlans: number };
+    } | null,
+  ) {
     const { courses, tasks, ...attributes } = folder;
     return {
       ...attributes,
       courses: courses.map((link) => link.course),
       tasks: tasks.map((link) => link.task),
+      planningThread: planningThread
+        ? {
+            id: planningThread.id,
+            revision: planningThread.revision,
+            updatedAt: planningThread.updatedAt,
+            conversationCount: planningThread._count.conversations,
+            schedulePlanCount: planningThread._count.schedulePlans,
+          }
+        : null,
     };
   }
 
@@ -77,7 +94,32 @@ export class StudyService {
       include: folderInclude,
       orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
     });
-    return folders.map((folder) => this.present(folder));
+
+    const goalIds = folders.map((folder) => folder.id);
+    const threads = goalIds.length
+      ? await this.prisma.planningThread.findMany({
+          where: {
+            userId,
+            scopeType: 'goal',
+            scopeId: { in: goalIds },
+            status: 'active',
+          },
+          orderBy: { updatedAt: 'desc' },
+          include: {
+            _count: { select: { conversations: true, schedulePlans: true } },
+          },
+        })
+      : [];
+    const threadByGoalId = new Map<string, typeof threads[number]>();
+    for (const thread of threads) {
+      if (thread.scopeId && !threadByGoalId.has(thread.scopeId)) {
+        threadByGoalId.set(thread.scopeId, thread);
+      }
+    }
+
+    return folders.map((folder) =>
+      this.present(folder, threadByGoalId.get(folder.id) || null),
+    );
   }
 
   async findOne(id: string, userId: string) {
@@ -85,8 +127,22 @@ export class StudyService {
       where: { id, userId },
       include: folderInclude,
     });
-    if (!folder) throw new NotFoundException('学习文件夹不存在');
-    return this.present(folder);
+    if (!folder) throw new NotFoundException('学习目标不存在');
+
+    const planningThread = await this.prisma.planningThread.findFirst({
+      where: {
+        userId,
+        scopeType: 'goal',
+        scopeId: id,
+        status: 'active',
+      },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        _count: { select: { conversations: true, schedulePlans: true } },
+      },
+    });
+
+    return this.present(folder, planningThread);
   }
 
   async create(userId: string, input: StudyFolderInput) {
@@ -162,7 +218,7 @@ export class StudyService {
       where: { id, userId },
       select: { id: true },
     });
-    if (!folder) throw new NotFoundException('学习文件夹不存在');
+    if (!folder) throw new NotFoundException('学习目标不存在');
     const updated = await this.prisma.studyFolder.update({
       where: { id },
       data: { status },
@@ -176,7 +232,7 @@ export class StudyService {
       where: { id, userId },
       select: { id: true },
     });
-    if (!folder) throw new NotFoundException('学习文件夹不存在');
+    if (!folder) throw new NotFoundException('学习目标不存在');
     return this.prisma.studyFolder.delete({ where: { id } });
   }
 }
