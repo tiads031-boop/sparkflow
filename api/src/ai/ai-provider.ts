@@ -88,6 +88,56 @@ export interface PlanningTaskSnapshot {
   project: string | null;
 }
 
+export interface PlanningCourseSnapshot {
+  id: string;
+  name: string;
+  teacher: string | null;
+  room: string | null;
+  location: string | null;
+  dayOfWeek: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  semesterId: string | null;
+}
+
+export interface PlanningCourseOccurrenceSnapshot {
+  id: string;
+  courseId: string;
+  courseName: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+  overrideType: string | null;
+  overrideOriginalStart: string | null;
+}
+
+export type PlanningCourseChangeRequest =
+  | {
+      type: 'reschedule';
+      eventId: string;
+      startTime: string;
+      endTime: string;
+      location?: string | null;
+    }
+  | {
+      type: 'cancel';
+      eventId: string;
+    }
+  | {
+      type: 'extra';
+      courseId: string;
+      startTime: string;
+      endTime: string;
+      location?: string | null;
+      title?: string;
+    }
+  | {
+      type: 'swap';
+      eventId: string;
+      otherEventId: string;
+    };
+
 export type PlanningActionDraft =
   | {
       type: 'create_task';
@@ -118,6 +168,12 @@ export type PlanningActionDraft =
         name?: string;
         description?: string | null;
       };
+    }
+  | {
+      type: 'course_change';
+      courseName: string;
+      otherCourseName?: string;
+      change: PlanningCourseChangeRequest;
     };
 
 export type PlanningActionProposal = PlanningActionDraft & {
@@ -166,6 +222,8 @@ export interface PlanningTurnInput {
   context: PlanningContextSnapshot;
   recentMessages: PlanningConversationMessage[];
   currentTasks?: PlanningTaskSnapshot[];
+  currentCourses?: PlanningCourseSnapshot[];
+  currentCourseOccurrences?: PlanningCourseOccurrenceSnapshot[];
   planningScope?: PlanningScopeSnapshot;
   goalExecution?: PlanningGoalExecutionSnapshot;
   currentTime?: string;

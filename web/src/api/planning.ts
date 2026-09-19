@@ -73,6 +73,37 @@ export type PlanningActionProposal =
         name?: string;
         description?: string | null;
       };
+    }
+  | {
+      proposalId: string;
+      type: 'course_change';
+      courseName: string;
+      otherCourseName?: string;
+      change:
+        | {
+            type: 'reschedule';
+            eventId: string;
+            startTime: string;
+            endTime: string;
+            location?: string | null;
+          }
+        | {
+            type: 'cancel';
+            eventId: string;
+          }
+        | {
+            type: 'extra';
+            courseId: string;
+            startTime: string;
+            endTime: string;
+            location?: string | null;
+            title?: string;
+          }
+        | {
+            type: 'swap';
+            eventId: string;
+            otherEventId: string;
+          };
     };
 
 export interface PlanningConversationRow {
@@ -223,6 +254,7 @@ export function applyPlanningActions(
     createdTaskIds: string[];
     updatedTaskIds: string[];
     updatedGoalIds: string[];
+    externalActionIds: string[];
   }>(
     `/planning/threads/${threadId}/actions/apply`,
     { conversationId, proposalIds },
