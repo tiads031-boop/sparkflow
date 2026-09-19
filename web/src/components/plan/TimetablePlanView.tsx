@@ -1,5 +1,3 @@
-import type { DateLike } from './planTypes';
-
 const periods = [
   ['1', '08:00', '08:50'],
   ['2', '09:00', '09:50'],
@@ -13,8 +11,8 @@ const periods = [
   ['10', '19:30', '20:20'],
 ];
 
-export default function TimetablePlanView({ selectedDate }: { selectedDate: DateLike }) {
-  const date = new Date(selectedDate);
+export default function TimetablePlanView({ selectedDate }: { selectedDate: Date }) {
+  const date = new Date(selectedDate.getTime());
   const monday = new Date(date);
   monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
   const days = Array.from({ length: 7 }, (_, index) => {
