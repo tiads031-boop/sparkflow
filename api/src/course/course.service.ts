@@ -1179,12 +1179,13 @@ export class CourseService {
 
     let weeks = this.extractCourseWeeks(course.weeks);
     if (!weeks.length) {
-      weeks = [...new Set(
-        allCourseEvents
-          .filter((event: any) => !event.isOverride)
-          .map((event: any) => this.semesterWeekForDate(semesterStart, event.startTime))
-          .filter((week: number | null): week is number => Boolean(week && week > 0)),
-      )].sort((a, b) => a - b);
+      const derivedWeeks: number[] = [];
+      for (const event of allCourseEvents as any[]) {
+        if (event.isOverride) continue;
+        const week = this.semesterWeekForDate(semesterStart, event.startTime);
+        if (typeof week === 'number' && week > 0) derivedWeeks.push(week);
+      }
+      weeks = [...new Set<number>(derivedWeeks)].sort((a, b) => a - b);
     }
 
     const regularFutureEvents = allCourseEvents.filter((event: any) => (
