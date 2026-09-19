@@ -28,6 +28,7 @@ export interface AIProvider {
   readonly modelName: string;
   generateInsights(input: InsightGenerationInput): Promise<GeneratedInsight[]>;
   generatePlanningTurn(input: PlanningTurnInput): Promise<PlanningTurnResult>;
+  summarizeText(input: { text: string; context?: string }): Promise<string>;
 }
 
 export const AI_PROVIDER = Symbol('AI_PROVIDER');

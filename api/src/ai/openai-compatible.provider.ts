@@ -545,6 +545,74 @@ export class OpenAICompatibleProvider implements AIProvider {
     return toGeneratedInsights(extractJsonObject(content));
   }
 
+  async summarizeText(input: { text: string; context?: string }): Promise<string> {
+    const text = input.text.trim();
+    if (!text) throw new Error('Summary text is empty');
+
+    const key = this.apiKey();
+    if (!key) throw new Error('AI provider is not configured');
+
+    const baseUrl = this.baseUrl();
+    const isQwenPlatform = /dashscope\.aliyuncs\.com/i.test(baseUrl);
+    const requestBody: Record<string, unknown> = {
+      model: this.modelName,
+      temperature: 0.15,
+      max_tokens: 700,
+      messages: [
+        {
+          role: 'system',
+          content: [
+            'Summarize a user-owned personal capture without inventing facts.',
+            'Use the same dominant language as the source text.',
+            'Keep the summary concise and useful for later review.',
+            'Preserve concrete decisions, dates, names, commitments, questions, and action ideas when present.',
+            'Do not turn suggestions into confirmed facts.',
+            'Return only the summary text, with no preamble.',
+          ].join('\n'),
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            context: input.context?.trim().slice(0, 500) || null,
+            text: text.slice(0, 12000),
+          }),
+        },
+      ],
+    };
+
+    if (isQwenPlatform) {
+      requestBody.enable_thinking = false;
+    }
+
+    let response: Response | undefined;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+        body: JSON.stringify(requestBody),
+      });
+
+      if (response.ok) break;
+      if (attempt === 0 && RETRYABLE_PROVIDER_STATUSES.has(response.status)) {
+        await sleep(retryDelayMs(response));
+        continue;
+      }
+      throw new Error(`AI provider request failed (${response.status})`);
+    }
+
+    if (!response?.ok) throw new Error('AI provider request failed');
+    const payload = await response.json() as {
+      choices?: Array<{ message?: { content?: string | null } }>;
+    };
+    const content = payload.choices?.[0]?.message?.content?.trim();
+    if (!content) throw new Error('AI provider returned an empty summary');
+    return content.slice(0, 4000);
+  }
+
   async generatePlanningTurn(input: PlanningTurnInput): Promise<PlanningTurnResult> {
     const key = this.apiKey();
     if (!key) throw new Error('AI provider is not configured');

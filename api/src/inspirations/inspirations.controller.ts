@@ -92,6 +92,32 @@ export class InspirationsController {
     });
   }
 
+  @Post(':id/attachments/:attachmentId/transcribe')
+  transcribeAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.inspirationsService.transcribeAttachment(
+      id,
+      attachmentId,
+      userId,
+    );
+  }
+
+  @Post(':id/attachments/:attachmentId/summary')
+  summarizeAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.inspirationsService.summarizeAttachment(
+      id,
+      attachmentId,
+      userId,
+    );
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUserId() userId: string) {
     return this.inspirationsService.findOne(id, userId);

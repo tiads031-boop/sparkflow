@@ -73,12 +73,20 @@ export class VoiceTranscriptionService {
 
   async transcribe(file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('Audio file is required');
-    const { mimetype, size } = validatePlanningAudio(file);
+    return this.transcribeBuffer(file.buffer, file.mimetype);
+  }
+
+  async transcribeBuffer(buffer: Buffer, mimetype: string) {
+    const validated = validatePlanningAudio({
+      buffer,
+      size: buffer.length,
+      mimetype,
+    });
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException('Voice transcription is not configured');
     }
 
-    const dataUrl = `data:${mimetype};base64,${file.buffer.toString('base64')}`;
+    const dataUrl = `data:${validated.mimetype};base64,${buffer.toString('base64')}`;
     if (Buffer.byteLength(dataUrl, 'utf8') > 10 * 1024 * 1024) {
       throw new BadRequestException('Encoded audio exceeds transcription limit');
     }
@@ -132,7 +140,7 @@ export class VoiceTranscriptionService {
     return {
       text: content.trim().slice(0, 6000),
       model: this.model(),
-      bytes: size,
+      bytes: validated.size,
     };
   }
 }

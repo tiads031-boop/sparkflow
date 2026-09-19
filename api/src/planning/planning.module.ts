@@ -9,6 +9,6 @@ import { VoiceTranscriptionService } from './voice-transcription.service';
   imports: [AiModule, ResearchModule],
   controllers: [PlanningController],
   providers: [PlanningService, VoiceTranscriptionService],
-  exports: [PlanningService],
+  exports: [PlanningService, VoiceTranscriptionService],
 })
 export class PlanningModule {}

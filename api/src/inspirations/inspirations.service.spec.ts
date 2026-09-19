@@ -4,14 +4,40 @@ function mediaMock() {
   return {
     persist: jest.fn().mockResolvedValue([]),
     removeMany: jest.fn().mockResolvedValue(undefined),
+    read: jest.fn().mockResolvedValue(Buffer.from('audio')),
   };
+}
+
+function voiceMock() {
+  return {
+    transcribeBuffer: jest.fn().mockResolvedValue({
+      text: '明天下午整理项目计划。',
+      model: 'qwen3-asr-flash',
+      bytes: 5,
+    }),
+  };
+}
+
+function aiMock() {
+  return {
+    summarizeText: jest.fn().mockResolvedValue('明天下午需要整理项目计划。'),
+  };
+}
+
+function serviceWith(prisma: unknown, media = mediaMock(), voice = voiceMock(), ai = aiMock()) {
+  return new InspirationsService(
+    prisma as never,
+    media as never,
+    voice as never,
+    ai as never,
+  );
 }
 
 describe('InspirationsService Phase 15 M1 + M8', () => {
   it('creates a manual record with a next-day review candidate', async () => {
     const create = jest.fn(({ data }) => data);
     const prisma = { inspiration: { create } };
-    const service = new InspirationsService(prisma as never, mediaMock() as never);
+    const service = serviceWith(prisma);
 
     const before = Date.now();
     const result = await service.create({
@@ -40,7 +66,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       attachments: data.attachments.create,
     }));
     const prisma = { inspiration: { create } };
-    const service = new InspirationsService(prisma as never, media as never);
+    const service = serviceWith(prisma, media);
     const file = {
       buffer: Buffer.from('png'),
       size: 3,
@@ -73,7 +99,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       inspirationReflection: { create: reflectionCreate },
       $transaction,
     };
-    const service = new InspirationsService(prisma as never, mediaMock() as never);
+    const service = serviceWith(prisma);
 
     await service.addReflection('inspiration-1', 'user-1', 'Preview 也应该能撤销');
 
@@ -108,7 +134,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       inspiration: { findFirst },
       task: { create },
     };
-    const service = new InspirationsService(prisma as never, mediaMock() as never);
+    const service = serviceWith(prisma);
 
     const result = await service.createTaskFromInspiration('inspiration-1', 'user-1');
 
@@ -141,7 +167,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
     };
     const media = mediaMock();
-    const service = new InspirationsService(prisma as never, media as never);
+    const service = serviceWith(prisma, media);
 
     await service.remove('inspiration-1', 'user-1');
 
@@ -153,4 +179,148 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       'inspiration-1/b.webm',
     ]);
   });
+
+  it('explicitly transcribes an owned audio attachment and clears a stale summary', async () => {
+    const media = mediaMock();
+    const voice = voiceMock();
+    const update = jest.fn(({ data }) => ({
+      id: 'attachment-1',
+      inspirationId: 'inspiration-1',
+      kind: 'audio',
+      mimeType: 'audio/webm',
+      originalName: 'memo.webm',
+      sizeBytes: 5,
+      transcript: data.transcript,
+      aiSummary: data.aiSummary,
+      createdAt: new Date(),
+    }));
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'attachment-1',
+          inspirationId: 'inspiration-1',
+          kind: 'audio',
+          mimeType: 'audio/webm',
+          storageKey: 'inspiration-1/attachment-1.webm',
+          sizeBytes: 5,
+          aiSummary: '旧摘要',
+        }),
+        update,
+      },
+    };
+    const service = serviceWith(prisma, media, voice);
+
+    const result = await service.transcribeAttachment(
+      'inspiration-1',
+      'attachment-1',
+      'user-1',
+    );
+
+    expect(media.read).toHaveBeenCalledWith('inspiration-1/attachment-1.webm');
+    expect(voice.transcribeBuffer).toHaveBeenCalledWith(
+      Buffer.from('audio'),
+      'audio/webm',
+    );
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'attachment-1' },
+      data: {
+        transcript: '明天下午整理项目计划。',
+        aiSummary: null,
+      },
+    }));
+    expect(result.transcript).toBe('明天下午整理项目计划。');
+    expect(result.aiSummary).toBeNull();
+  });
+
+  it('rejects AI transcription for non-audio attachments', async () => {
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'attachment-image',
+          inspirationId: 'inspiration-1',
+          kind: 'image',
+          mimeType: 'image/png',
+          storageKey: 'inspiration-1/a.png',
+          sizeBytes: 5,
+        }),
+      },
+    };
+    const service = serviceWith(prisma);
+
+    await expect(service.transcribeAttachment(
+      'inspiration-1',
+      'attachment-image',
+      'user-1',
+    )).rejects.toThrow('当前只支持音频附件转写');
+  });
+
+  it('summarizes only a persisted transcript from an owned attachment', async () => {
+    const ai = aiMock();
+    const update = jest.fn(({ data }) => ({
+      id: 'attachment-1',
+      inspirationId: 'inspiration-1',
+      kind: 'audio',
+      mimeType: 'audio/webm',
+      originalName: 'memo.webm',
+      sizeBytes: 5,
+      transcript: '讨论了下周项目计划和两个风险。',
+      aiSummary: data.aiSummary,
+      createdAt: new Date(),
+    }));
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'attachment-1',
+          inspirationId: 'inspiration-1',
+          kind: 'audio',
+          mimeType: 'audio/webm',
+          storageKey: 'inspiration-1/a.webm',
+          sizeBytes: 5,
+          transcript: '讨论了下周项目计划和两个风险。',
+          inspiration: {
+            title: '项目语音记录',
+            contentText: '会后随手记',
+          },
+        }),
+        update,
+      },
+    };
+    const service = serviceWith(prisma, mediaMock(), voiceMock(), ai);
+
+    await service.summarizeAttachment(
+      'inspiration-1',
+      'attachment-1',
+      'user-1',
+    );
+
+    expect(ai.summarizeText).toHaveBeenCalledWith({
+      text: '讨论了下周项目计划和两个风险。',
+      context: '项目语音记录\n会后随手记',
+    });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { aiSummary: '明天下午需要整理项目计划。' },
+    }));
+  });
+
+  it('requires a transcript before generating an attachment summary', async () => {
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'attachment-1',
+          inspirationId: 'inspiration-1',
+          kind: 'audio',
+          transcript: null,
+          inspiration: { title: null, contentText: null },
+        }),
+      },
+    };
+    const service = serviceWith(prisma);
+
+    await expect(service.summarizeAttachment(
+      'inspiration-1',
+      'attachment-1',
+      'user-1',
+    )).rejects.toThrow('请先转写音频，再生成摘要');
+  });
+
 });
