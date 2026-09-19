@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Archive,
+  ArrowLeft,
   BrainCircuit,
   CheckCircle2,
+  Circle,
   Clock3,
   Focus,
   GraduationCap,
@@ -47,6 +49,43 @@ function goalProgress(goal: StudyFolder) {
     done,
     percent: total ? Math.round((done / total) * 100) : 0,
   };
+}
+
+function goalMilestones(goal: StudyFolder) {
+  const groups = new Map<string, Task[]>();
+  for (const task of goal.tasks) {
+    const title = task.project?.trim() || '待整理';
+    const current = groups.get(title) || [];
+    current.push(task);
+    groups.set(title, current);
+  }
+
+  return [...groups.entries()].map(([title, tasks]) => {
+    const sortedTasks = [...tasks].sort((a, b) => {
+      if (isDone(a) !== isDone(b)) return isDone(a) ? 1 : -1;
+      return (a.dueDate || '9999').localeCompare(b.dueDate || '9999');
+    });
+    const done = tasks.filter(isDone).length;
+    const dueDates = tasks.map((task) => task.dueDate).filter((value): value is string => Boolean(value));
+    return {
+      title,
+      tasks: sortedTasks,
+      done,
+      total: tasks.length,
+      nextDue: dueDates.sort()[0],
+    };
+  }).sort((a, b) => {
+    if (a.title === '待整理') return 1;
+    if (b.title === '待整理') return -1;
+    return (a.nextDue || '9999').localeCompare(b.nextDue || '9999');
+  });
+}
+
+function planningSeed(goal: StudyFolder) {
+  const background = goal.description?.trim()
+    ? `我目前补充的背景是：${goal.description.trim()}。`
+    : '';
+  return `我想把“${goal.name}”作为一个长期学习目标。${background}请先尽可能了解我的成功标准、当前水平、可用资源、每周时间预算、偏好和取舍；如果计划依赖考试时间、报名规则、官方大纲、目标要求或资源版本，请先联网核实。不要急着一次性给完计划，先从高影响问题开始了解我；信息足够后，请按阶段/里程碑拆成可执行任务。`;
 }
 
 function GoalDialog({
@@ -177,37 +216,44 @@ function GoalDialog({
 
 function GoalCard({
   goal,
+  onOpen,
   onPlan,
   onEdit,
   onArchive,
 }: {
   goal: StudyFolder;
+  onOpen: () => void;
   onPlan: () => void;
   onEdit: () => void;
   onArchive: () => void;
 }) {
   const progress = goalProgress(goal);
+  const milestones = goalMilestones(goal);
+
   return (
     <article
       className="rounded-[1.7rem] border border-black/[0.05] p-4 shadow-sm"
       style={{ backgroundColor: `${goal.color}20` }}
     >
       <div className="flex items-start gap-3">
-        <div
+        <button
+          type="button"
+          onClick={onOpen}
           className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-[#242424]"
           style={{ backgroundColor: goal.color }}
+          aria-label="查看学习路线"
         >
           <Target size={19} />
-        </div>
+        </button>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
+            <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
               <h3 className="truncate text-sm font-black text-[#242424]">{goal.name}</h3>
               <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-gray-500">
                 {goal.description || '还没有补充背景，AI 会在规划时继续了解。'}
               </p>
-            </div>
+            </button>
             <button
               type="button"
               onClick={onEdit}
@@ -233,14 +279,25 @@ function GoalCard({
 
           <div className="mt-3 flex flex-wrap gap-1.5 text-[9px] font-bold">
             <span className="rounded-full bg-white/80 px-2.5 py-1 text-gray-500">
+              {milestones.filter((item) => item.title !== '待整理').length} 个阶段
+            </span>
+            <span className="rounded-full bg-white/80 px-2.5 py-1 text-gray-500">
               {goal.tasks.length} 个任务
             </span>
             <span className="rounded-full bg-white/80 px-2.5 py-1 text-gray-500">
               {goal.planningThread
-                ? `AI 上下文 r${goal.planningThread.revision} · ${goal.planningThread.conversationCount} 轮`
+                ? `AI r${goal.planningThread.revision} · ${goal.planningThread.conversationCount} 轮`
                 : '尚未建立 AI 规划'}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={onOpen}
+            className="mt-3 text-[10px] font-black text-[#655a90]"
+          >
+            查看学习路线 →
+          </button>
         </div>
       </div>
 
@@ -261,10 +318,192 @@ function GoalCard({
           className={`${goal.status === 'archived' ? 'flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold' : 'grid h-10 w-10 place-items-center rounded-full'} bg-white/80 text-gray-500`}
           aria-label={goal.status === 'archived' ? '恢复目标' : '归档目标'}
         >
-          {goal.status === 'archived' ? <><RotateCcw size={14} />恢复目标</> : <Archive size={14} />}
+          {goal.status === 'archived'
+            ? <><RotateCcw size={14} />恢复目标</>
+            : <Archive size={14} />}
         </button>
       </div>
     </article>
+  );
+}
+
+function GoalRoadmap({
+  goal,
+  onBack,
+  onPlan,
+  onStartFocus,
+}: {
+  goal: StudyFolder;
+  onBack: () => void;
+  onPlan: () => void;
+  onStartFocus: () => void;
+}) {
+  const progress = goalProgress(goal);
+  const milestones = goalMilestones(goal);
+
+  return (
+    <div className="animate-page-enter pb-24">
+      <header className="mb-4 flex items-start gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white shadow-sm"
+          aria-label="返回学习目标"
+        >
+          <ArrowLeft size={17} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7b6eae]">
+            Learning Roadmap
+          </p>
+          <h1 className="mt-1 truncate text-xl font-black text-[#242424]">{goal.name}</h1>
+        </div>
+      </header>
+
+      <section
+        className="rounded-[1.8rem] p-5 shadow-sm"
+        style={{ backgroundColor: `${goal.color}25` }}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl"
+            style={{ backgroundColor: goal.color }}
+          >
+            <Target size={19} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-black text-[#242424]">目标进度</h2>
+            <p className="mt-1 text-xs leading-5 text-gray-500">
+              {goal.description || 'AI 会继续通过对话完善成功标准和执行策略。'}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-[10px] font-bold text-gray-500">
+            <span>{progress.done} / {progress.total} 个任务完成</span>
+            <span>{progress.percent}%</span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/80">
+            <div
+              className="h-full rounded-full bg-[#242424]"
+              style={{ width: `${progress.percent}%` }}
+            />
+          </div>
+        </div>
+
+        {goal.status === 'active' && (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onPlan}
+              className="flex items-center justify-center gap-2 rounded-full bg-[#242424] py-2.5 text-xs font-black text-[#cae393]"
+            >
+              <BrainCircuit size={13} /> 继续 AI 规划
+            </button>
+            <button
+              type="button"
+              onClick={onStartFocus}
+              className="flex items-center justify-center gap-2 rounded-full bg-white/80 py-2.5 text-xs font-bold text-gray-600"
+            >
+              <Focus size={13} /> 开始专注
+            </button>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-4 rounded-[2rem] bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-sm font-black text-[#242424]">阶段 / 里程碑</h2>
+          <p className="mt-1 text-[10px] leading-4 text-gray-400">
+            阶段来自 AI 任务草案的 milestoneTitle，落库时复用 Task.project；这里不复制 Task 数据。
+          </p>
+        </div>
+
+        {milestones.length ? (
+          <div className="space-y-4">
+            {milestones.map((milestone, index) => (
+              <article
+                key={milestone.title}
+                className="rounded-[1.5rem] border border-black/[0.05] bg-[#fafafa] p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e5e2f3] text-[10px] font-black text-[#5a4f86]">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-sm font-black text-[#242424]">{milestone.title}</h3>
+                        <p className="mt-0.5 text-[9px] text-gray-400">
+                          {milestone.done}/{milestone.total} 完成
+                          {milestone.nextDue
+                            ? ` · 最近截止 ${new Date(milestone.nextDue).toLocaleDateString('zh-CN')}`
+                            : ''}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-white px-2 py-1 text-[9px] font-bold text-gray-400">
+                        {milestone.total ? Math.round((milestone.done / milestone.total) * 100) : 0}%
+                      </span>
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      {milestone.tasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className={`flex items-start gap-2 rounded-2xl bg-white px-3 py-2.5 ${isDone(task) ? 'opacity-50' : ''}`}
+                        >
+                          {isDone(task)
+                            ? <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-[#87a54d]" />
+                            : <Circle size={14} className="mt-0.5 shrink-0 text-gray-300" />}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-[#242424]">{task.title}</p>
+                            <p className="mt-0.5 text-[9px] text-gray-400">
+                              {task.estimatedMinutes || task.duration
+                                ? `${task.estimatedMinutes || task.duration} 分钟`
+                                : '未设置时长'}
+                              {task.dueDate
+                                ? ` · 截止 ${new Date(task.dueDate).toLocaleDateString('zh-CN')}`
+                                : ''}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-[1.5rem] bg-[#f4f4f6] px-5 py-8 text-center">
+            <Sparkles size={20} className="mx-auto text-[#8b7fbc]" />
+            <p className="mt-3 text-sm font-black text-[#242424]">还没有形成学习路线</p>
+            <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-gray-400">
+              和 AI 把成功标准、当前水平与时间预算聊清楚后，让它按阶段生成可确认的任务。
+            </p>
+            {goal.status === 'active' && (
+              <button
+                type="button"
+                onClick={onPlan}
+                className="mt-4 rounded-full bg-[#242424] px-4 py-2.5 text-xs font-black text-[#cae393]"
+              >
+                继续完善目标
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-4 rounded-[1.6rem] border border-dashed border-[#b0a8db]/50 bg-[#f7f5fc] p-4">
+        <p className="text-xs font-bold text-[#4f4675]">持续规划上下文</p>
+        <p className="mt-1 text-[10px] leading-4 text-[#756f8d]">
+          {goal.planningThread
+            ? `当前 revision ${goal.planningThread.revision}，已进行 ${goal.planningThread.conversationCount} 轮规划对话。后续调整会继续沿用仍有效的目标、约束、偏好、策略和外部依据。`
+            : '这个目标还没有 Planning Context。开始 AI 规划后会建立并持续复用。'}
+        </p>
+      </section>
+    </div>
   );
 }
 
@@ -284,6 +523,7 @@ export default function StudyWorkspace({
   const [editingGoal, setEditingGoal] = useState<StudyFolder | null | undefined>(undefined);
   const [planningGoal, setPlanningGoal] = useState<StudyFolder | null>(null);
   const [plannerSeed, setPlannerSeed] = useState('');
+  const [roadmapGoalId, setRoadmapGoalId] = useState<string | null>(null);
 
   const loadGoals = async () => {
     setLoading(true);
@@ -318,9 +558,13 @@ export default function StudyWorkspace({
   const visibleGoals = goals.filter((goal) => (
     showArchived ? goal.status === 'archived' : goal.status === 'active'
   ));
+  const roadmapGoal = roadmapGoalId
+    ? goals.find((goal) => goal.id === roadmapGoalId) || null
+    : null;
 
-  const today = new Date();
+  const todayKey = new Date().toDateString();
   const todayTasks = useMemo(() => {
+    const today = new Date();
     const byId = new Map<string, Task>();
     for (const goal of activeGoals) {
       for (const task of goal.tasks) {
@@ -337,10 +581,10 @@ export default function StudyWorkspace({
       const bTime = b.scheduledStart || b.dueDate || '';
       return aTime.localeCompare(bTime);
     });
-  }, [activeGoals, today.toDateString()]);
+  }, [activeGoals, todayKey]);
 
-  const openGoalPlanning = (goal: StudyFolder, seed = '') => {
-    setPlannerSeed(seed);
+  const openGoalPlanning = (goal: StudyFolder, seed?: string) => {
+    setPlannerSeed(seed ?? (goal.planningThread ? '' : planningSeed(goal)));
     setPlanningGoal(goal);
   };
 
@@ -361,14 +605,7 @@ export default function StudyWorkspace({
     });
     setEditingGoal(undefined);
     await loadGoals();
-
-    const background = input.description?.trim()
-      ? `我目前补充的背景是：${input.description.trim()}。`
-      : '';
-    openGoalPlanning(
-      created,
-      `我想把“${created.name}”作为一个长期学习目标。${background}请先尽可能了解我的成功标准、当前水平、可用资源、每周时间预算、偏好和取舍；如果计划依赖考试时间、报名规则、官方大纲、目标要求或资源版本，请先联网核实。不要急着一次性给完计划，先从高影响问题开始了解我。`,
-    );
+    openGoalPlanning(created, planningSeed(created));
   };
 
   const toggleArchive = async (goal: StudyFolder) => {
@@ -388,174 +625,186 @@ export default function StudyWorkspace({
   };
 
   return (
-    <div className="animate-page-enter pb-24">
-      <header className="mb-5 rounded-[2rem] bg-[#242424] p-5 text-white shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#cae393]">
-              AI Learning Goals
-            </p>
-            <h1 className="mt-1 text-2xl font-black">学习，不再从“选一门课”开始。</h1>
-            <p className="mt-2 max-w-md text-xs leading-5 text-white/60">
-              先说清你想达到什么。AI 会持续了解你的现状和约束，必要时联网核实，再把目标拆成真正能执行的任务与时间安排。
-            </p>
-          </div>
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#cae393] text-[#242424]">
-            <GraduationCap size={21} />
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-[1.35fr_1fr] gap-2">
-          <button
-            type="button"
-            onClick={() => setEditingGoal(null)}
-            className="flex items-center justify-center gap-2 rounded-full bg-[#cae393] py-3 text-sm font-black text-[#242424] active:scale-[0.99]"
-          >
-            <Plus size={15} /> 新学习目标
-          </button>
-          <button
-            type="button"
-            onClick={onStartFocus}
-            className="flex items-center justify-center gap-2 rounded-full bg-white/10 py-3 text-sm font-black text-white active:scale-[0.99]"
-          >
-            <Focus size={15} /> 开始专注
-          </button>
-        </div>
-      </header>
-
-      {error && (
-        <div className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
-          {error}
-        </div>
-      )}
-
-      <div className="mb-4 grid grid-cols-2 gap-3">
-        <div className="rounded-[1.6rem] bg-white p-4 shadow-sm">
-          <Target size={17} className="text-[#8b7fbc]" />
-          <p className="mt-3 text-2xl font-black text-[#242424]">{activeGoals.length}</p>
-          <p className="text-[10px] text-gray-400">进行中的学习目标</p>
-        </div>
-        <div className="rounded-[1.6rem] bg-[#e5e2f3] p-4 shadow-sm">
-          <Clock3 size={17} className="text-[#5a4f86]" />
-          <p className="mt-3 text-2xl font-black text-[#242424]">
-            {totalFocusMinutes}
-            <span className="ml-1 text-xs text-gray-500">分钟</span>
-          </p>
-          <p className="text-[10px] text-gray-500">今日专注 · {todayCount} 次</p>
-        </div>
-      </div>
-
-      <section className="mb-4 rounded-[2rem] bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-black text-[#242424]">今天的学习执行</h2>
-            <p className="mt-0.5 text-[10px] text-gray-400">只来自学习目标里的共享 Task，不再混入课程。</p>
-          </div>
-          <CheckCircle2 size={18} className="text-[#8b7fbc]" />
-        </div>
-
-        <div className="space-y-2">
-          {todayTasks.length ? todayTasks.slice(0, 6).map((task) => (
-            <div
-              key={task.id}
-              className="flex items-center gap-3 rounded-2xl bg-[#f4f4f6] px-3 py-3"
-            >
-              <span className="h-2.5 w-2.5 rounded-full bg-[#cae393]" />
-              <span className="min-w-0 flex-1 truncate text-xs font-bold text-[#242424]">
-                {task.title}
-              </span>
-              <span className="text-[10px] text-gray-400">
-                {task.estimatedMinutes || task.duration || 25} 分钟
-              </span>
-            </div>
-          )) : (
-            <p className="rounded-2xl bg-[#f4f4f6] px-4 py-6 text-center text-xs leading-5 text-gray-400">
-              今天还没有来自学习目标的执行任务。进入任一目标与 AI 继续规划，确认后的任务会出现在这里。
-            </p>
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-[2rem] bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-black text-[#242424]">
-              {showArchived ? '已归档目标' : '学习目标'}
-            </h2>
-            <button
-              type="button"
-              onClick={() => setShowArchived((value) => !value)}
-              className="mt-1 text-[10px] font-bold text-[#8b7fbc]"
-            >
-              {showArchived ? '返回进行中目标' : '查看已归档目标'}
-            </button>
-          </div>
-          {!showArchived && (
-            <button
-              type="button"
-              onClick={() => setEditingGoal(null)}
-              className="flex items-center gap-1 rounded-full bg-[#242424] px-3 py-2 text-xs font-bold text-[#cae393]"
-            >
-              <Plus size={13} /> 新建
-            </button>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="animate-spin text-gray-400" />
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {visibleGoals.map((goal) => (
-              <GoalCard
-                key={goal.id}
-                goal={goal}
-                onPlan={() => openGoalPlanning(goal)}
-                onEdit={() => setEditingGoal(goal)}
-                onArchive={() => void toggleArchive(goal)}
-              />
-            ))}
-
-            {!visibleGoals.length && (
-              <div className="rounded-[1.6rem] bg-[#f4f4f6] px-5 py-10 text-center">
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white">
-                  <Target size={20} className="text-[#8b7fbc]" />
-                </div>
-                <p className="mt-3 text-sm font-black text-[#242424]">
-                  {showArchived ? '还没有已归档目标' : '从一个真正想实现的目标开始'}
+    <>
+      {roadmapGoal ? (
+        <GoalRoadmap
+          goal={roadmapGoal}
+          onBack={() => setRoadmapGoalId(null)}
+          onPlan={() => openGoalPlanning(roadmapGoal)}
+          onStartFocus={onStartFocus}
+        />
+      ) : (
+        <div className="animate-page-enter pb-24">
+          <header className="mb-5 rounded-[2rem] bg-[#242424] p-5 text-white shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#cae393]">
+                  AI Learning Goals
                 </p>
-                {!showArchived && (
-                  <>
-                    <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-gray-400">
-                      不需要先选课程，也不用先知道完整路线。先告诉 AI 你想达到什么。
+                <h1 className="mt-1 text-2xl font-black">学习，不再从“选一门课”开始。</h1>
+                <p className="mt-2 max-w-md text-xs leading-5 text-white/60">
+                  先说清你想达到什么。AI 会持续了解你的现状和约束，必要时联网核实，再把目标拆成阶段、任务与真实时间安排。
+                </p>
+              </div>
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#cae393] text-[#242424]">
+                <GraduationCap size={21} />
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-[1.35fr_1fr] gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingGoal(null)}
+                className="flex items-center justify-center gap-2 rounded-full bg-[#cae393] py-3 text-sm font-black text-[#242424] active:scale-[0.99]"
+              >
+                <Plus size={15} /> 新学习目标
+              </button>
+              <button
+                type="button"
+                onClick={onStartFocus}
+                className="flex items-center justify-center gap-2 rounded-full bg-white/10 py-3 text-sm font-black text-white active:scale-[0.99]"
+              >
+                <Focus size={15} /> 开始专注
+              </button>
+            </div>
+          </header>
+
+          {error && (
+            <div className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div className="rounded-[1.6rem] bg-white p-4 shadow-sm">
+              <Target size={17} className="text-[#8b7fbc]" />
+              <p className="mt-3 text-2xl font-black text-[#242424]">{activeGoals.length}</p>
+              <p className="text-[10px] text-gray-400">进行中的学习目标</p>
+            </div>
+            <div className="rounded-[1.6rem] bg-[#e5e2f3] p-4 shadow-sm">
+              <Clock3 size={17} className="text-[#5a4f86]" />
+              <p className="mt-3 text-2xl font-black text-[#242424]">
+                {totalFocusMinutes}
+                <span className="ml-1 text-xs text-gray-500">分钟</span>
+              </p>
+              <p className="text-[10px] text-gray-500">今日专注 · {todayCount} 次</p>
+            </div>
+          </div>
+
+          <section className="mb-4 rounded-[2rem] bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-black text-[#242424]">今天的学习执行</h2>
+                <p className="mt-0.5 text-[10px] text-gray-400">只来自学习目标里的共享 Task，不再混入课程。</p>
+              </div>
+              <CheckCircle2 size={18} className="text-[#8b7fbc]" />
+            </div>
+
+            <div className="space-y-2">
+              {todayTasks.length ? todayTasks.slice(0, 6).map((task) => (
+                <div
+                  key={task.id}
+                  className="flex items-center gap-3 rounded-2xl bg-[#f4f4f6] px-3 py-3"
+                >
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#cae393]" />
+                  <span className="min-w-0 flex-1 truncate text-xs font-bold text-[#242424]">
+                    {task.title}
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    {task.estimatedMinutes || task.duration || 25} 分钟
+                  </span>
+                </div>
+              )) : (
+                <p className="rounded-2xl bg-[#f4f4f6] px-4 py-6 text-center text-xs leading-5 text-gray-400">
+                  今天还没有来自学习目标的执行任务。进入任一目标与 AI 继续规划，确认后的任务会出现在这里。
+                </p>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-[2rem] bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-black text-[#242424]">
+                  {showArchived ? '已归档目标' : '学习目标'}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowArchived((value) => !value)}
+                  className="mt-1 text-[10px] font-bold text-[#8b7fbc]"
+                >
+                  {showArchived ? '返回进行中目标' : '查看已归档目标'}
+                </button>
+              </div>
+              {!showArchived && (
+                <button
+                  type="button"
+                  onClick={() => setEditingGoal(null)}
+                  className="flex items-center gap-1 rounded-full bg-[#242424] px-3 py-2 text-xs font-bold text-[#cae393]"
+                >
+                  <Plus size={13} /> 新建
+                </button>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="animate-spin text-gray-400" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {visibleGoals.map((goal) => (
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    onOpen={() => setRoadmapGoalId(goal.id)}
+                    onPlan={() => openGoalPlanning(goal)}
+                    onEdit={() => setEditingGoal(goal)}
+                    onArchive={() => void toggleArchive(goal)}
+                  />
+                ))}
+
+                {!visibleGoals.length && (
+                  <div className="rounded-[1.6rem] bg-[#f4f4f6] px-5 py-10 text-center">
+                    <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-white">
+                      <Target size={20} className="text-[#8b7fbc]" />
+                    </div>
+                    <p className="mt-3 text-sm font-black text-[#242424]">
+                      {showArchived ? '还没有已归档目标' : '从一个真正想实现的目标开始'}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setEditingGoal(null)}
-                      className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#242424] px-4 py-2.5 text-xs font-black text-[#cae393]"
-                    >
-                      <BrainCircuit size={13} /> 和 AI 制定目标
-                    </button>
-                  </>
+                    {!showArchived && (
+                      <>
+                        <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-gray-400">
+                          不需要先选课程，也不用先知道完整路线。先告诉 AI 你想达到什么。
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setEditingGoal(null)}
+                          className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#242424] px-4 py-2.5 text-xs font-black text-[#cae393]"
+                        >
+                          <BrainCircuit size={13} /> 和 AI 制定目标
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             )}
-          </div>
-        )}
-      </section>
+          </section>
 
-      <div className="mt-4 rounded-2xl border border-dashed border-[#b0a8db]/50 bg-[#f7f5fc] px-4 py-3">
-        <div className="flex items-start gap-2">
-          <Sparkles size={14} className="mt-0.5 shrink-0 text-[#6f63a8]" />
-          <div>
-            <p className="text-xs font-bold text-[#4f4675]">学习目标与课程已经分开</p>
-            <p className="mt-1 text-[10px] leading-4 text-[#756f8d]">
-              课程继续在“计划/课程”里作为真实课表管理；这里只处理你主动想达成的学习目标。AI 生成的执行项仍然是普通 Task，因此会进入今天、计划、提醒与专注。
-            </p>
+          <div className="mt-4 rounded-2xl border border-dashed border-[#b0a8db]/50 bg-[#f7f5fc] px-4 py-3">
+            <div className="flex items-start gap-2">
+              <Sparkles size={14} className="mt-0.5 shrink-0 text-[#6f63a8]" />
+              <div>
+                <p className="text-xs font-bold text-[#4f4675]">学习目标与课程已经分开</p>
+                <p className="mt-1 text-[10px] leading-4 text-[#756f8d]">
+                  课程继续在“计划/课程”里作为真实课表管理；这里只处理你主动想达成的学习目标。AI 生成的执行项仍然是普通 Task，因此会进入今天、计划、提醒与专注。
+                </p>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {editingGoal !== undefined && (
         <GoalDialog
@@ -582,6 +831,6 @@ export default function StudyWorkspace({
           allowNewThread={false}
         />
       )}
-    </div>
+    </>
   );
 }
