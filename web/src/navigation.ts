@@ -1,6 +1,7 @@
 import type { ActiveTab, ToggleableNavTab, WorkspaceTab } from './types';
 
-export type NavigationIcon = 'today' | 'plan' | 'records' | 'profile' | 'tasks' | 'board' | 'timeline' | 'courses' | 'study' | 'sparks' | 'settings';
+export type NavigationIcon = 'today' | 'tasks' | 'board' | 'timeline' | 'courses' | 'study' | 'sparks' | 'settings';
+export type WorkspaceNavigationIcon = 'today' | 'plan' | 'records' | 'study' | 'profile';
 
 export interface NavigationItem {
   id: ActiveTab;
@@ -11,12 +12,19 @@ export interface NavigationItem {
   defaultVisible: boolean;
 }
 
-export const workspaceNavigationRegistry: readonly NavigationItem[] = [
-  { id: 'today', label: '今天', description: '今日节奏与下一步', icon: 'today', toggleable: false, defaultVisible: true },
-  { id: 'plan', label: '计划', description: '日历、待办与 AI 安排', icon: 'plan', toggleable: false, defaultVisible: true },
-  { id: 'records', label: '记录', description: '随手记、回顾与洞察', icon: 'records', toggleable: false, defaultVisible: true },
-  { id: 'study', label: '学习', description: '课程、文件夹与学习工作区', icon: 'study', toggleable: false, defaultVisible: true },
-  { id: 'profile', label: '我的', description: '账户、同步与设置', icon: 'profile', toggleable: false, defaultVisible: true },
+export interface WorkspaceNavigationItem {
+  id: WorkspaceTab;
+  label: string;
+  description: string;
+  icon: WorkspaceNavigationIcon;
+}
+
+export const workspaceNavigationRegistry: readonly WorkspaceNavigationItem[] = [
+  { id: 'today', label: '今天', description: '今日节奏与下一步', icon: 'today' },
+  { id: 'plan', label: '计划', description: '日历、待办与 AI 安排', icon: 'plan' },
+  { id: 'records', label: '记录', description: '随手记、回顾与洞察', icon: 'records' },
+  { id: 'study', label: '学习', description: '课程、文件夹与学习工作区', icon: 'study' },
+  { id: 'profile', label: '我的', description: '账户、同步与设置', icon: 'profile' },
 ] as const;
 
 export const navigationRegistry: readonly NavigationItem[] = [
