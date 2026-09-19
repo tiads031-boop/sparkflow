@@ -6,6 +6,22 @@ import './index.css'
 import App from './App.tsx'
 import ErrorBoundary from './ErrorBoundary.tsx'
 import AuthGate from './components/AuthGate.tsx'
+import {
+  applyAppearancePreference,
+  readUserPreferences,
+} from './utils/userPreferences.ts'
+
+const applyCurrentAppearance = () => {
+  applyAppearancePreference(readUserPreferences().appearance);
+};
+
+applyCurrentAppearance();
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('sparkflow:preferences-changed', applyCurrentAppearance);
+  const appearanceQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
+  appearanceQuery?.addEventListener?.('change', applyCurrentAppearance);
+}
 
 // Register Service Worker for Web Push + offline cache
 if ('serviceWorker' in navigator) {
