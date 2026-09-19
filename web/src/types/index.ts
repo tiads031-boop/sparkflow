@@ -215,6 +215,33 @@ export interface CourseFormData {
 }
 
 // ════════════════════════════════════════════════════
+// Study Mode
+// ════════════════════════════════════════════════════
+
+export interface StudyFolder {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string | null;
+  icon: string;
+  color: string;
+  status: 'active' | 'archived';
+  courses: Course[];
+  tasks: Task[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudyFolderInput {
+  name?: string;
+  description?: string | null;
+  icon?: string;
+  color?: string;
+  courseIds?: string[];
+  taskIds?: string[];
+}
+
+// ════════════════════════════════════════════════════
 // UI State
 // ════════════════════════════════════════════════════
 
@@ -227,6 +254,7 @@ export type ActiveTab =
   | 'board'
   | 'sparks'
   | 'courses'
+  | 'study'
   | 'settings';
 
 export type ToggleableNavTab = Exclude<ActiveTab, 'settings'>;

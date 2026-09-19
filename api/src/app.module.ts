@@ -19,6 +19,7 @@ import { SessionAuthGuard } from './common/guards/session-auth.guard';
 import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { StudyModule } from './study/study.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AppService } from './app.service';
     ScheduleModule.forRoot(),
     PushModule,
     GoogleCalendarModule,
+    StudyModule,
   ],
   controllers: [AppController],
   providers: [

@@ -194,13 +194,13 @@
 
 ---
 
-## 7. Study Mode（候选主线，Phase 15 M1 稳定后评估启动）
+## 7. Study Mode（M1 代码完成，待生产验收）
 
-当前状态：方案、路线图与九张参考设计图已通过 PR #25 合入 master，但运行时代码尚未实施。
+当前状态：方案、路线图与九张参考设计图已通过 PR #25 合入 master；M1 已完成 Study Mode 入口与开关、Study Home、二级导航、StudyFolder 数据模型/API，以及课程/任务关联。上线前仍需应用新增 migration，并以真实账户完成 Web/PWA/Android 移动端验收。
 
 建议顺序：
 
-1. **M1：Study Mode 壳层 + Study Home + StudyFolder**
+1. **M1：Study Mode 壳层 + Study Home + StudyFolder** — ✅ 代码完成，🚧 生产验收
 2. **M2：ReviewPlan / ReviewRecord + 固定间隔复习闭环**
 3. **M3：StudyHabit / 周计划 / 热力图**
 4. **M4：模板 / PDF / 年度统计导出**

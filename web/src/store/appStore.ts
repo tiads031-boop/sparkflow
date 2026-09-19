@@ -30,4 +30,6 @@ export type {
   CourseNote,
   CourseFormData,
   Semester,
+  StudyFolder,
+  StudyFolderInput,
 } from '../types';

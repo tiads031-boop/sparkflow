@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import {
   Home, CheckSquare, Calendar as CalendarIcon, Zap,
-  LayoutGrid, BookOpen, Settings,
+  LayoutGrid, BookOpen, Settings, GraduationCap,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
 import type { NavOrder, NavVisibility } from './types';
@@ -26,6 +26,8 @@ import ScheduleEditor, { type ScheduleDraft } from './components/schedule/Schedu
 import FocusSession from './components/focus/FocusSession';
 import PlannerSheet from './components/planner/PlannerSheet';
 
+const StudyWorkspace = lazy(() => import('./components/study/StudyWorkspace'));
+
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
   try {
@@ -41,6 +43,7 @@ const navIconMap = {
   board: LayoutGrid,
   timeline: CalendarIcon,
   courses: BookOpen,
+  study: GraduationCap,
   sparks: Zap,
   settings: Settings,
 } as const;
@@ -377,6 +380,11 @@ export default function App() {
               onSparkClick={(s) => handleOpenDetail(s, 'spark')}
               onAddClick={() => handleOpenCreate('spark')}
             />
+          )}
+          {activeTab === 'study' && (
+            <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开学习空间…</div>}>
+              <StudyWorkspace onStartFocus={() => setFocusOpen(true)} />
+            </Suspense>
           )}
           {activeTab === 'settings' && <SettingsView />}
         {/* Modals */}
