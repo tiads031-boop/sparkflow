@@ -14,10 +14,14 @@ import {
   Loader2,
   Lock,
   LogOut,
+  Monitor,
+  Moon,
+  Palette,
   Plus,
   ShieldCheck,
   SlidersHorizontal,
   Smartphone,
+  Sun,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -36,8 +40,10 @@ import {
   writeCustomTaskSections,
 } from '../utils/taskSections';
 import {
+  applyAppearancePreference,
   readUserPreferences,
   updateUserPreferences,
+  type AppearancePreference,
   type UserPreferences,
 } from '../utils/userPreferences';
 import {
@@ -51,6 +57,7 @@ import CourseWebDavBackup from './CourseWebDavBackup';
 
 type SettingsPage =
   | 'home'
+  | 'appearance'
   | 'task'
   | 'notifications'
   | 'connections'
@@ -130,14 +137,14 @@ function PageHeader({
       <button
         type="button"
         onClick={onBack}
-        className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white shadow-sm"
+        className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm"
         aria-label="返回"
       >
         <ArrowLeft size={17} />
       </button>
       <div className="min-w-0">
-        <h1 className="text-xl font-black text-[#242424]">{title}</h1>
-        {subtitle && <p className="mt-1 text-xs leading-5 text-gray-400">{subtitle}</p>}
+        <h1 className="text-xl font-black text-[var(--sf-text-primary)]">{title}</h1>
+        {subtitle && <p className="mt-1 text-xs leading-5 text-[var(--sf-text-tertiary)]">{subtitle}</p>}
       </div>
     </header>
   );
@@ -152,10 +159,10 @@ function Group({
 }) {
   return (
     <section className="mb-5">
-      <h2 className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">
+      <h2 className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">
         {title}
       </h2>
-      <div className="overflow-hidden rounded-[1.6rem] bg-white shadow-sm">{children}</div>
+      <div className="overflow-hidden rounded-[1.6rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] shadow-sm">{children}</div>
     </section>
   );
 }
@@ -180,17 +187,17 @@ function SettingRow({
       type="button"
       onClick={onClick}
       disabled={!onClick || disabled}
-      className="flex w-full items-center gap-3 border-b border-black/[0.04] px-4 py-3.5 text-left last:border-b-0 disabled:cursor-default"
+      className="flex w-full items-center gap-3 border-b border-[var(--sf-divider)] px-4 py-3.5 text-left last:border-b-0 disabled:cursor-default"
     >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-[#f3f4ef] text-[#242424]">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-[var(--sf-bg)] text-[var(--sf-text-primary)]">
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <strong className="block text-sm font-bold text-[#242424]">{title}</strong>
-        {description && <span className="mt-0.5 block text-[10px] leading-4 text-gray-400">{description}</span>}
+        <strong className="block text-sm font-bold text-[var(--sf-text-primary)]">{title}</strong>
+        {description && <span className="mt-0.5 block text-[10px] leading-4 text-[var(--sf-text-tertiary)]">{description}</span>}
       </span>
-      {value && <span className="max-w-[38%] truncate text-xs font-medium text-gray-400">{value}</span>}
-      {onClick && !disabled && <ChevronRight size={16} className="shrink-0 text-gray-300" />}
+      {value && <span className="max-w-[38%] truncate text-xs font-medium text-[var(--sf-text-tertiary)]">{value}</span>}
+      {onClick && !disabled && <ChevronRight size={16} className="shrink-0 text-[var(--sf-text-tertiary)] opacity-60" />}
     </button>
   );
 }
@@ -221,7 +228,7 @@ function Toggle({
 }
 
 function InlineCard({ children }: { children: ReactNode }) {
-  return <div className="rounded-[1.6rem] bg-white p-4 shadow-sm">{children}</div>;
+  return <div className="rounded-[1.6rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 shadow-sm">{children}</div>;
 }
 
 export default function SettingsView() {
@@ -343,6 +350,9 @@ export default function SettingsView() {
   const savePreferences = (patch: Partial<UserPreferences>) => {
     const next = updateUserPreferences(patch);
     setPreferences(next);
+    if (patch.appearance !== undefined) {
+      applyAppearancePreference(next.appearance);
+    }
   };
 
   const saveNotificationPreference = async (
@@ -539,6 +549,106 @@ export default function SettingsView() {
       setIsChangingPassword(false);
     }
   };
+
+  if (page === 'appearance') {
+    const appearanceOptions: Array<{
+      id: AppearancePreference;
+      title: string;
+      description: string;
+      icon: ReactNode;
+    }> = [
+      {
+        id: 'system',
+        title: '跟随系统',
+        description: '自动跟随设备的浅色 / 深色外观。',
+        icon: <Monitor size={18} />,
+      },
+      {
+        id: 'light',
+        title: '浅色',
+        description: '始终使用明亮、清晰的 SparkFlow 界面。',
+        icon: <Sun size={18} />,
+      },
+      {
+        id: 'dark',
+        title: '深色',
+        description: '降低夜间亮度，使用深色 Token。',
+        icon: <Moon size={18} />,
+      },
+    ];
+
+    return (
+      <div className="animate-page-enter pb-24">
+        <PageHeader
+          title="外观"
+          subtitle="选择界面明暗模式；不影响任务、课程或账户数据。"
+          onBack={() => setPage('home')}
+        />
+
+        <div className="mb-4 overflow-hidden rounded-[1.9rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 shadow-sm">
+          <div className="rounded-[1.5rem] bg-[var(--sf-bg)] p-4">
+            <div className="flex items-center gap-2">
+              <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[var(--sf-surface)] text-[var(--sf-text-primary)]">
+                <Palette size={17} />
+              </span>
+              <div>
+                <p className="text-sm font-black text-[var(--sf-text-primary)]">SparkFlow 外观预览</p>
+                <p className="mt-0.5 text-[10px] text-[var(--sf-text-tertiary)]">
+                  当前：{preferences.appearance === 'system' ? '跟随系统' : preferences.appearance === 'dark' ? '深色' : '浅色'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+              <div className="rounded-2xl bg-[var(--sf-surface)] px-3 py-3">
+                <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-[var(--sf-text-tertiary)]">Today</span>
+                <strong className="mt-1 block text-xs text-[var(--sf-text-primary)]">14:00 · 完成重点任务</strong>
+              </div>
+              <span className="grid h-full min-h-14 w-14 place-items-center rounded-2xl bg-[var(--sf-marker-green)] text-[#242424]">
+                <Check size={17} />
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {appearanceOptions.map((option) => {
+            const selected = preferences.appearance === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => savePreferences({ appearance: option.id })}
+                className={`flex w-full items-center gap-3 rounded-[1.5rem] border px-4 py-4 text-left transition ${
+                  selected
+                    ? 'border-[var(--sf-text-primary)] bg-[var(--sf-surface)]'
+                    : 'border-[var(--sf-border)] bg-[var(--sf-surface)]'
+                }`}
+              >
+                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${
+                  selected
+                    ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]'
+                    : 'bg-[var(--sf-bg)] text-[var(--sf-text-secondary)]'
+                }`}>
+                  {option.icon}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <strong className="block text-sm font-black text-[var(--sf-text-primary)]">{option.title}</strong>
+                  <span className="mt-0.5 block text-[10px] leading-4 text-[var(--sf-text-tertiary)]">{option.description}</span>
+                </span>
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
+                  selected
+                    ? 'border-[var(--sf-text-primary)] bg-[var(--sf-text-primary)] text-[var(--sf-surface)]'
+                    : 'border-[var(--sf-border)]'
+                }`}>
+                  {selected && <Check size={12} />}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
 
   if (page === 'task') {
     return (
@@ -1067,29 +1177,90 @@ export default function SettingsView() {
 
   return (
     <div className="animate-page-enter pb-24">
-      <header className="mb-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">SparkFlow</p>
-        <h1 className="mt-1 text-2xl font-black text-[#242424]">我的</h1>
+      <header className="mb-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--sf-text-tertiary)]">SparkFlow</p>
+        <div className="mt-1 flex items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-black text-[var(--sf-text-primary)]">我的</h1>
+            <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">偏好、连接、数据和账户都在这里。</p>
+          </div>
+          <span className="rounded-full bg-[var(--sf-surface)] px-3 py-1.5 text-[9px] font-bold text-[var(--sf-text-secondary)] shadow-sm">
+            {preferences.appearance === 'system' ? '系统外观' : preferences.appearance === 'dark' ? '深色' : '浅色'}
+          </span>
+        </div>
       </header>
 
       <button
         type="button"
         onClick={() => setPage('security')}
-        className="mb-5 flex w-full items-center gap-3 rounded-[1.8rem] bg-[#242424] p-4 text-left shadow-sm"
+        className="mb-3 w-full overflow-hidden rounded-[2rem] bg-[#242424] p-5 text-left shadow-sm"
       >
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#cae393] text-lg font-black text-[#242424]">
-          {(displayName || 'S').slice(0, 1).toUpperCase()}
-        </span>
-        <span className="min-w-0 flex-1">
-          <strong className="block truncate text-base font-black text-white">{displayName || 'SparkFlow 用户'}</strong>
-          <span className="mt-1 block truncate text-[10px] text-white/50">
-            {[...professions.map((item) => professionLabels[item]), ...statusNeeds.map((item) => statusLabels[item])].join(' · ') || '管理账户与安全'}
+        <div className="flex items-center gap-3">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#cae393] text-xl font-black text-[#242424]">
+            {(displayName || 'S').slice(0, 1).toUpperCase()}
           </span>
-        </span>
-        <ChevronRight size={17} className="text-white/35" />
+          <span className="min-w-0 flex-1">
+            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-[#cae393]">Account</span>
+            <strong className="mt-0.5 block truncate text-lg font-black text-white">{displayName || 'SparkFlow 用户'}</strong>
+            <span className="mt-1 block truncate text-[10px] text-white/50">
+              {[...professions.map((item) => professionLabels[item]), ...statusNeeds.map((item) => statusLabels[item])].join(' · ') || '管理账户与安全'}
+            </span>
+          </span>
+          <ChevronRight size={17} className="text-white/35" />
+        </div>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <span className="rounded-2xl bg-white/[0.07] px-3 py-2.5">
+            <span className="block text-[9px] text-white/40">通知</span>
+            <strong className="mt-0.5 block text-[10px] text-white">{pushEnabled ? '已开启' : '未开启'}</strong>
+          </span>
+          <span className="rounded-2xl bg-white/[0.07] px-3 py-2.5">
+            <span className="block text-[9px] text-white/40">Google</span>
+            <strong className="mt-0.5 block text-[10px] text-white">{isConnected ? '已连接' : '未连接'}</strong>
+          </span>
+          <span className="rounded-2xl bg-white/[0.07] px-3 py-2.5">
+            <span className="block text-[9px] text-white/40">推送通道</span>
+            <strong className="mt-0.5 block truncate text-[10px] text-white">{pushEnabled ? pushChannel.toUpperCase() : '—'}</strong>
+          </span>
+        </div>
       </button>
 
+      <div className="mb-5 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setPage('appearance')}
+          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
+        >
+          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#f4f2fb] text-[#665a91]">
+            <Palette size={16} />
+          </span>
+          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">外观</strong>
+          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">
+            {preferences.appearance === 'system' ? '跟随系统' : preferences.appearance === 'dark' ? '深色模式' : '浅色模式'}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setPage('notifications')}
+          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
+        >
+          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#eef6dc] text-[#526339]">
+            <Bell size={16} />
+          </span>
+          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">提醒</strong>
+          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">
+            {pushEnabled ? '设备通知已开启' : '设备通知未开启'}
+          </span>
+        </button>
+      </div>
+
       <Group title="偏好">
+        <SettingRow
+          icon={<Palette size={17} />}
+          title="外观"
+          description="跟随系统、浅色或深色"
+          value={preferences.appearance === 'system' ? '跟随系统' : preferences.appearance === 'dark' ? '深色' : '浅色'}
+          onClick={() => setPage('appearance')}
+        />
         <SettingRow
           icon={<SlidersHorizontal size={17} />}
           title="计划与任务"
@@ -1140,10 +1311,10 @@ export default function SettingsView() {
         />
       </Group>
 
-      <div className="rounded-2xl border border-dashed border-[#cae393] bg-[#f5f8ee] px-4 py-3">
-        <p className="text-xs font-bold text-[#465235]">账户偏好逐步统一到服务端</p>
-        <p className="mt-1 text-[10px] leading-4 text-[#657050]">
-          通知提醒已经跨 PWA / Android 共用；仍只展示已经有真实后端能力的设置，避免出现“能开但不生效”的选项。
+      <div className="rounded-[1.5rem] border border-dashed border-[var(--sf-border)] bg-[var(--sf-surface)] px-4 py-3">
+        <p className="text-xs font-bold text-[var(--sf-text-primary)]">只展示真实可用的设置</p>
+        <p className="mt-1 text-[10px] leading-4 text-[var(--sf-text-tertiary)]">
+          通知偏好已经跨 PWA / Android 共用；外观立即作用到当前设备。AI 模型与搜索源仍由服务端管理，因此这里不放“看起来能改、实际不生效”的 AI 开关。
         </p>
       </div>
     </div>
