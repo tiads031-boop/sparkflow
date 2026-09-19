@@ -38,22 +38,23 @@ function ceilToQuarter(date: Date) {
   return result;
 }
 
-export function buildSchedule(
+export function buildScheduleInWindows(
   tasks: readonly PlannerTaskInput[],
   occupied: readonly BusyInterval[],
-  availabilityStart: Date,
-  availabilityEnd: Date,
+  availabilityWindows: readonly BusyInterval[],
 ): { proposals: PlannerProposal[]; unscheduledTaskIds: string[] } {
-  const busy = occupied
-    .filter(
-      (item) => item.end > availabilityStart && item.start < availabilityEnd,
-    )
-    .map((item) => ({
-      start: new Date(
-        Math.max(item.start.getTime(), availabilityStart.getTime()),
-      ),
-      end: new Date(Math.min(item.end.getTime(), availabilityEnd.getTime())),
-    }));
+  const windows = availabilityWindows
+    .filter((window) => window.end > window.start)
+    .map((window) => ({
+      start: new Date(window.start),
+      end: new Date(window.end),
+    }))
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  const busy = occupied.map((item) => ({
+    start: new Date(item.start),
+    end: new Date(item.end),
+  }));
   const proposals: PlannerProposal[] = [];
   const unscheduledTaskIds: string[] = [];
   const ordered = [...tasks].sort(
@@ -70,34 +71,47 @@ export function buildSchedule(
       240,
       Math.max(15, Math.round(task.durationMinutes || 30)),
     );
-    let cursor = ceilToQuarter(availabilityStart);
     let placed = false;
-    while (cursor < availabilityEnd) {
-      const end = new Date(cursor.getTime() + durationMinutes * 60_000);
-      if (end > availabilityEnd || (task.dueAt && end > task.dueAt)) break;
-      const conflict = busy.find((item) => overlaps(cursor, end, item));
-      if (!conflict) {
-        const reason =
-          task.priority === 'high'
-            ? '优先安排高优先级任务'
-            : task.dueAt
-              ? '按截止时间优先安排'
-              : '放入最早完整空档';
-        proposals.push({
-          taskId: task.id,
-          title: task.title,
-          start: cursor.toISOString(),
-          end: end.toISOString(),
-          durationMinutes,
-          taskUpdatedAt: task.updatedAt.toISOString(),
-          reason,
-        });
-        busy.push({ start: cursor, end });
-        placed = true;
-        break;
+
+    for (const window of windows) {
+      if (task.dueAt && window.start >= task.dueAt) continue;
+      let cursor = ceilToQuarter(window.start);
+
+      while (cursor < window.end) {
+        const end = new Date(cursor.getTime() + durationMinutes * 60_000);
+        if (end > window.end || (task.dueAt && end > task.dueAt)) break;
+
+        const conflict = busy
+          .filter((item) => overlaps(cursor, end, item))
+          .sort((a, b) => a.end.getTime() - b.end.getTime())[0];
+
+        if (!conflict) {
+          const reason =
+            task.priority === 'high'
+              ? '优先安排高优先级任务'
+              : task.dueAt
+                ? '按截止时间优先安排'
+                : '放入最早完整空档';
+          proposals.push({
+            taskId: task.id,
+            title: task.title,
+            start: cursor.toISOString(),
+            end: end.toISOString(),
+            durationMinutes,
+            taskUpdatedAt: task.updatedAt.toISOString(),
+            reason,
+          });
+          busy.push({ start: cursor, end });
+          placed = true;
+          break;
+        }
+
+        cursor = ceilToQuarter(conflict.end);
       }
-      cursor = ceilToQuarter(conflict.end);
+
+      if (placed) break;
     }
+
     if (!placed) unscheduledTaskIds.push(task.id);
   }
 
@@ -105,6 +119,18 @@ export function buildSchedule(
     proposals: proposals.sort((a, b) => a.start.localeCompare(b.start)),
     unscheduledTaskIds,
   };
+}
+
+export function buildSchedule(
+  tasks: readonly PlannerTaskInput[],
+  occupied: readonly BusyInterval[],
+  availabilityStart: Date,
+  availabilityEnd: Date,
+): { proposals: PlannerProposal[]; unscheduledTaskIds: string[] } {
+  return buildScheduleInWindows(tasks, occupied, [{
+    start: availabilityStart,
+    end: availabilityEnd,
+  }]);
 }
 
 export function hasOverlap(intervals: readonly BusyInterval[]) {
