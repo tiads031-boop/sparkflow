@@ -64,6 +64,50 @@ export interface CourseChangeCandidate extends CalendarEvent {
   course: Pick<Course, 'id' | 'name' | 'color' | 'room' | 'teacher'>;
 }
 
+export interface CourseTemplateChangeRequest {
+  courseId: string;
+  effectiveFrom: string;
+  changes: {
+    dayOfWeek?: number;
+    startTime?: string;
+    endTime?: string;
+    room?: string | null;
+    location?: string | null;
+  };
+}
+
+export interface CourseTemplateState {
+  courseId: string;
+  dayOfWeek: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  room: string | null;
+  location: string | null;
+}
+
+export interface CourseTemplateChangePreview {
+  courseId: string;
+  courseName: string;
+  effectiveFrom: string;
+  before: CourseTemplateState;
+  after: CourseTemplateState;
+  generatedOccurrences: Array<{
+    week: number;
+    startTime: string;
+    endTime: string;
+    location: string | null;
+  }>;
+  preservedOverrideCount: number;
+  conflicts: Array<{
+    occurrenceIndex: number;
+    sourceType: 'calendar' | 'task';
+    id: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+  }>;
+}
+
 export interface CourseImportSource {
   system: string;
   schoolId: string;
@@ -286,6 +330,45 @@ export async function undoCourseChange(
   planId: string,
 ): Promise<{ planId: string; restoredCount: number }> {
   const res = await apiRequest(`${BASE}/changes/${encodeURIComponent(planId)}/undo`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+
+// ── 周期课程模板变更（“以后都这样”） ──
+
+export async function previewCourseTemplateChange(
+  data: CourseTemplateChangeRequest,
+): Promise<CourseTemplateChangePreview> {
+  const res = await apiRequest(`${BASE}/templates/preview`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function applyCourseTemplateChange(
+  data: CourseTemplateChangeRequest,
+): Promise<{
+  planId: string;
+  courseId: string;
+  courseName: string;
+  effectiveFrom: string;
+  replacedCount: number;
+  generatedCount: number;
+}> {
+  const res = await apiRequest(`${BASE}/templates/apply`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function undoCourseTemplateChange(
+  planId: string,
+): Promise<{ planId: string; courseId: string; restoredCount: number }> {
+  const res = await apiRequest(`${BASE}/templates/${encodeURIComponent(planId)}/undo`, {
     method: 'POST',
   });
   return res.json();
