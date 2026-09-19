@@ -194,7 +194,7 @@ export class PlanningService {
     if (scopeType === 'goal') {
       if (!scopeId) throw new BadRequestException('Goal planning requires scopeId');
       const ownedGoal = await this.prisma.studyFolder.findFirst({
-        where: { id: scopeId, userId },
+        where: { id: scopeId, userId, status: 'active' },
         select: { id: true, name: true },
       });
       if (!ownedGoal) throw new NotFoundException('Learning goal not found');
@@ -432,6 +432,8 @@ export class PlanningService {
             context: contextFromThread(thread),
             recentMessages,
             currentTasks,
+            currentTime: currentTime.toISOString(),
+            timeZone,
             evidence: previousEvidence,
             researchAllowed: false,
             researchUnavailableReason: 'Web research provider is not configured',
