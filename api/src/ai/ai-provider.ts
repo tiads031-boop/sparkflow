@@ -110,6 +110,14 @@ export type PlanningActionDraft =
         dueDate?: string | null;
         milestoneTitle?: string | null;
       };
+    }
+  | {
+      type: 'update_goal';
+      goalTitle: string;
+      changes: {
+        name?: string;
+        description?: string | null;
+      };
     };
 
 export type PlanningActionProposal = PlanningActionDraft & {
@@ -135,12 +143,31 @@ export interface PlanningScopeSnapshot {
   title: string | null;
 }
 
+export interface PlanningGoalMilestoneExecution {
+  title: string;
+  totalTasks: number;
+  completedTasks: number;
+  overdueTasks: number;
+}
+
+export interface PlanningGoalExecutionSnapshot {
+  totalTasks: number;
+  completedTasks: number;
+  activeTasks: number;
+  overdueTasks: number;
+  completedLast7Days: number;
+  focusMinutesLast7Days: number;
+  recentlyCompletedTitles: string[];
+  milestones: PlanningGoalMilestoneExecution[];
+}
+
 export interface PlanningTurnInput {
   message: string;
   context: PlanningContextSnapshot;
   recentMessages: PlanningConversationMessage[];
   currentTasks?: PlanningTaskSnapshot[];
   planningScope?: PlanningScopeSnapshot;
+  goalExecution?: PlanningGoalExecutionSnapshot;
   currentTime?: string;
   timeZone?: string;
   evidence?: PlanningEvidenceItem[];

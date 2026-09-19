@@ -64,6 +64,15 @@ export type PlanningActionProposal =
         dueDate?: string | null;
         milestoneTitle?: string | null;
       };
+    }
+  | {
+      proposalId: string;
+      type: 'update_goal';
+      goalTitle: string;
+      changes: {
+        name?: string;
+        description?: string | null;
+      };
     };
 
 export interface PlanningConversationRow {
@@ -213,6 +222,7 @@ export function applyPlanningActions(
     appliedActionIds: string[];
     createdTaskIds: string[];
     updatedTaskIds: string[];
+    updatedGoalIds: string[];
   }>(
     `/planning/threads/${threadId}/actions/apply`,
     { conversationId, proposalIds },

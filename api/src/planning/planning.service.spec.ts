@@ -1,4 +1,55 @@
-import { PlanningService } from './planning.service';
+import { buildGoalExecutionSnapshot, PlanningService } from './planning.service';
+
+describe('goal execution snapshot', () => {
+  it('derives progress, overdue work, focus and milestone stats from existing facts', () => {
+    const now = new Date('2026-09-20T12:00:00.000Z');
+    const snapshot = buildGoalExecutionSnapshot([
+      {
+        title: '基础阅读',
+        status: 'done',
+        dueDate: new Date('2026-09-18T12:00:00.000Z'),
+        completedAt: new Date('2026-09-19T10:00:00.000Z'),
+        project: '基础建立',
+      },
+      {
+        title: '错题整理',
+        status: 'todo',
+        dueDate: new Date('2026-09-19T12:00:00.000Z'),
+        completedAt: null,
+        project: '强化训练',
+      },
+      {
+        title: '本周模拟',
+        status: 'in_progress',
+        dueDate: new Date('2026-09-22T12:00:00.000Z'),
+        completedAt: null,
+        project: '强化训练',
+      },
+    ], 85, now);
+
+    expect(snapshot).toEqual(expect.objectContaining({
+      totalTasks: 3,
+      completedTasks: 1,
+      activeTasks: 2,
+      overdueTasks: 1,
+      completedLast7Days: 1,
+      focusMinutesLast7Days: 85,
+      recentlyCompletedTitles: ['基础阅读'],
+    }));
+    expect(snapshot.milestones).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        title: '基础建立',
+        totalTasks: 1,
+        completedTasks: 1,
+      }),
+      expect.objectContaining({
+        title: '强化训练',
+        totalTasks: 2,
+        overdueTasks: 1,
+      }),
+    ]));
+  });
+});
 
 describe('PlanningService goal scope', () => {
   it('reuses the active planning thread for the same owned learning goal', async () => {
@@ -177,6 +228,83 @@ describe('PlanningService goal scope', () => {
       },
       data: { project: '强化训练' },
     });
+    expect(conversationUpdate).toHaveBeenCalled();
+  });
+
+  it('applies an explicit goal change only to the current active goal and syncs the thread title', async () => {
+    const goalUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const threadUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const conversationUpdate = jest.fn().mockResolvedValue({});
+
+    const tx = {
+      studyFolder: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'goal-1' }),
+        updateMany: goalUpdateMany,
+      },
+      planningThread: {
+        updateMany: threadUpdateMany,
+      },
+      task: {
+        updateMany: jest.fn(),
+      },
+      aIConversation: {
+        update: conversationUpdate,
+      },
+    };
+
+    const prisma = {
+      aIConversation: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'conversation-goal',
+          context: {
+            actions: [{
+              proposalId: 'proposal-goal',
+              type: 'update_goal',
+              goalTitle: '通过法考',
+              changes: {
+                name: '2027 年通过法考',
+                description: '调整为更长周期准备。',
+              },
+            }],
+            appliedActionIds: [],
+          },
+          planningThread: {
+            scopeType: 'goal',
+            scopeId: 'goal-1',
+          },
+        }),
+      },
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+
+    const service = new PlanningService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await service.applyActions('user-1', 'thread-1', {
+      conversationId: 'conversation-goal',
+      proposalIds: ['proposal-goal'],
+    });
+
+    expect(goalUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'goal-1', userId: 'user-1', status: 'active' },
+      data: {
+        name: '2027 年通过法考',
+        description: '调整为更长周期准备。',
+      },
+    });
+    expect(threadUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'thread-1',
+        userId: 'user-1',
+        scopeType: 'goal',
+        scopeId: 'goal-1',
+      },
+      data: { title: '2027 年通过法考' },
+    });
+    expect(result.updatedGoalIds).toEqual(['goal-1']);
     expect(conversationUpdate).toHaveBeenCalled();
   });
 
