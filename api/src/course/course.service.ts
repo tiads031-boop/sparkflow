@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -6,6 +6,7 @@ import * as os from 'os';
 import * as ical from 'node-ical';
 import { parseCourseBackup } from './course-backup';
 import { parseCourseImport, previewCourseImport, type ParsedCourseImport } from './course-import';
+import { randomUUID } from 'crypto';
 
 interface CourseCreateData {
   userId: string;
@@ -42,6 +43,57 @@ interface NoteData {
   body: string;
   pinned?: boolean;
 }
+
+type CourseChangeRequest =
+  | {
+      type: 'reschedule';
+      eventId: string;
+      startTime: string;
+      endTime: string;
+      location?: string | null;
+    }
+  | {
+      type: 'cancel';
+      eventId: string;
+    }
+  | {
+      type: 'extra';
+      courseId: string;
+      startTime: string;
+      endTime: string;
+      location?: string | null;
+      title?: string;
+    }
+  | {
+      type: 'swap';
+      eventId: string;
+      otherEventId: string;
+    };
+
+type CourseChangePoint = {
+  startTime: string;
+  endTime: string;
+  location: string | null;
+};
+
+type CourseChangePreviewItem = {
+  action: 'update' | 'cancel' | 'create';
+  eventId: string | null;
+  courseId: string;
+  courseName: string;
+  title: string;
+  from: CourseChangePoint | null;
+  to: CourseChangePoint | null;
+};
+
+type CourseChangeConflict = {
+  changeIndex: number;
+  sourceType: 'calendar' | 'task';
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+};
 
 @Injectable()
 export class CourseService {
@@ -351,7 +403,12 @@ export class CourseService {
     if (!event) throw new NotFoundException('CalendarEvent not found');
 
     const { room, ...eventData } = data;
-    const updateData: any = { ...eventData, isOverride: true };
+    const updateData: any = {
+      ...eventData,
+      isOverride: true,
+      overrideType: event.overrideType || 'reschedule',
+      overrideOriginalStart: event.overrideOriginalStart || event.startTime,
+    };
     if (room !== undefined) updateData.location = room;
     if (data.startTime) updateData.startTime = new Date(data.startTime);
     if (data.endTime) updateData.endTime = new Date(data.endTime);
@@ -360,6 +417,335 @@ export class CourseService {
       where: { id: eventId, userId },
       data: updateData,
     });
+  }
+
+  async previewCourseChange(userId: string, data: CourseChangeRequest) {
+    return this.buildCourseChangePreview(this.prisma, userId, data);
+  }
+
+  async applyCourseChange(userId: string, data: CourseChangeRequest) {
+    return this.prisma.$transaction(async (tx) => {
+      const preview = await this.buildCourseChangePreview(tx, userId, data);
+      if (preview.conflicts.length > 0) {
+        throw new ConflictException('课程变动与现有日程冲突，请重新调整后再确认');
+      }
+
+      const overrideGroupId = data.type === 'swap' ? randomUUID() : null;
+      const applied = [];
+
+      for (const change of preview.changes) {
+        if (change.action === 'create') {
+          const course = await tx.course.findFirst({
+            where: { id: change.courseId, userId },
+          });
+          if (!course || !change.to) throw new NotFoundException('Course not found');
+
+          applied.push(await tx.calendarEvent.create({
+            data: {
+              userId,
+              courseId: course.id,
+              title: change.title,
+              eventType: 'course',
+              startTime: new Date(change.to.startTime),
+              endTime: new Date(change.to.endTime),
+              color: course.color,
+              location: change.to.location,
+              isOverride: true,
+              overrideType: 'extra',
+              overrideGroupId: null,
+              scheduleLocked: true,
+            },
+          }));
+          continue;
+        }
+
+        if (!change.eventId) throw new BadRequestException('Course occurrence is missing');
+        const current = await tx.calendarEvent.findFirst({
+          where: { id: change.eventId, userId },
+        });
+        if (!current) throw new NotFoundException('CalendarEvent not found');
+
+        const originalStart = current.overrideOriginalStart || current.startTime;
+        if (change.action === 'cancel') {
+          applied.push(await tx.calendarEvent.update({
+            where: { id: current.id },
+            data: {
+              isOverride: true,
+              overrideType: 'cancel',
+              overrideOriginalStart: originalStart,
+              overrideGroupId: null,
+              scheduleLocked: true,
+            },
+          }));
+          continue;
+        }
+
+        if (!change.to) throw new BadRequestException('Target occurrence is missing');
+        applied.push(await tx.calendarEvent.update({
+          where: { id: current.id },
+          data: {
+            startTime: new Date(change.to.startTime),
+            endTime: new Date(change.to.endTime),
+            location: change.to.location,
+            isOverride: true,
+            overrideType: data.type === 'swap' ? 'swap' : 'reschedule',
+            overrideOriginalStart: originalStart,
+            overrideGroupId,
+            scheduleLocked: true,
+          },
+        }));
+      }
+
+      return {
+        type: data.type,
+        appliedCount: applied.length,
+        overrideGroupId,
+        events: applied,
+      };
+    }, { isolationLevel: 'Serializable', timeout: 15000 });
+  }
+
+  async listCourseChangeCandidates(userId: string, start?: string, end?: string) {
+    const now = new Date();
+    const rangeStart = start ? this.parseCourseChangeDate(start, 'start') : now;
+    const rangeEnd = end
+      ? this.parseCourseChangeDate(end, 'end')
+      : new Date(rangeStart.getTime() + 30 * 24 * 60 * 60 * 1000);
+    if (rangeEnd <= rangeStart) throw new BadRequestException('end must be after start');
+
+    return this.prisma.calendarEvent.findMany({
+      where: {
+        userId,
+        courseId: { not: null },
+        startTime: { gte: rangeStart, lt: rangeEnd },
+      },
+      orderBy: { startTime: 'asc' },
+      include: {
+        course: {
+          select: { id: true, name: true, color: true, room: true, teacher: true },
+        },
+      },
+    });
+  }
+
+  private parseCourseChangeDate(value: string, label: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) throw new BadRequestException(`${label} is invalid`);
+    return date;
+  }
+
+  private async buildCourseChangePreview(
+    db: any,
+    userId: string,
+    data: CourseChangeRequest,
+  ): Promise<{
+    type: CourseChangeRequest['type'];
+    changes: CourseChangePreviewItem[];
+    conflicts: CourseChangeConflict[];
+  }> {
+    if (!data || !['reschedule', 'cancel', 'extra', 'swap'].includes(data.type)) {
+      throw new BadRequestException('Unsupported course change type');
+    }
+
+    const point = (event: {
+      startTime: Date;
+      endTime: Date;
+      location?: string | null;
+    }): CourseChangePoint => ({
+      startTime: event.startTime.toISOString(),
+      endTime: event.endTime.toISOString(),
+      location: event.location || null,
+    });
+
+    const assertRange = (start: Date, end: Date) => {
+      if (end <= start) throw new BadRequestException('endTime must be after startTime');
+      if (end.getTime() - start.getTime() > 12 * 60 * 60 * 1000) {
+        throw new BadRequestException('A course occurrence cannot exceed 12 hours');
+      }
+    };
+
+    const changes: CourseChangePreviewItem[] = [];
+    const excludeEventIds: string[] = [];
+
+    if (data.type === 'extra') {
+      const course = await db.course.findFirst({ where: { id: data.courseId, userId } });
+      if (!course) throw new NotFoundException('Course not found');
+      const start = this.parseCourseChangeDate(data.startTime, 'startTime');
+      const end = this.parseCourseChangeDate(data.endTime, 'endTime');
+      assertRange(start, end);
+      changes.push({
+        action: 'create',
+        eventId: null,
+        courseId: course.id,
+        courseName: course.name,
+        title: data.title?.trim().slice(0, 200) || course.name,
+        from: null,
+        to: {
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          location: data.location?.trim() || course.room || course.location || null,
+        },
+      });
+    } else {
+      const event = await db.calendarEvent.findFirst({
+        where: { id: data.eventId, userId },
+        include: { course: true },
+      });
+      if (!event || !event.courseId || !event.course) {
+        throw new NotFoundException('Course occurrence not found');
+      }
+      if (event.overrideType === 'cancel') {
+        throw new ConflictException('This course occurrence is already cancelled');
+      }
+      excludeEventIds.push(event.id);
+
+      if (data.type === 'cancel') {
+        changes.push({
+          action: 'cancel',
+          eventId: event.id,
+          courseId: event.courseId,
+          courseName: event.course.name,
+          title: event.title,
+          from: point(event),
+          to: null,
+        });
+      } else if (data.type === 'reschedule') {
+        const start = this.parseCourseChangeDate(data.startTime, 'startTime');
+        const end = this.parseCourseChangeDate(data.endTime, 'endTime');
+        assertRange(start, end);
+        changes.push({
+          action: 'update',
+          eventId: event.id,
+          courseId: event.courseId,
+          courseName: event.course.name,
+          title: event.title,
+          from: point(event),
+          to: {
+            startTime: start.toISOString(),
+            endTime: end.toISOString(),
+            location: data.location === undefined
+              ? event.location || null
+              : data.location?.trim() || null,
+          },
+        });
+      } else {
+        if (data.otherEventId === event.id) {
+          throw new BadRequestException('Cannot swap a course occurrence with itself');
+        }
+        const other = await db.calendarEvent.findFirst({
+          where: { id: data.otherEventId, userId },
+          include: { course: true },
+        });
+        if (!other || !other.courseId || !other.course) {
+          throw new NotFoundException('Other course occurrence not found');
+        }
+        if (other.overrideType === 'cancel') {
+          throw new ConflictException('The other course occurrence is cancelled');
+        }
+        excludeEventIds.push(other.id);
+
+        changes.push(
+          {
+            action: 'update',
+            eventId: event.id,
+            courseId: event.courseId,
+            courseName: event.course.name,
+            title: event.title,
+            from: point(event),
+            to: {
+              startTime: other.startTime.toISOString(),
+              endTime: other.endTime.toISOString(),
+              location: other.location || null,
+            },
+          },
+          {
+            action: 'update',
+            eventId: other.id,
+            courseId: other.courseId,
+            courseName: other.course.name,
+            title: other.title,
+            from: point(other),
+            to: {
+              startTime: event.startTime.toISOString(),
+              endTime: event.endTime.toISOString(),
+              location: event.location || null,
+            },
+          },
+        );
+      }
+    }
+
+    const conflicts: CourseChangeConflict[] = [];
+    for (let index = 0; index < changes.length; index += 1) {
+      const target = changes[index].to;
+      if (!target) continue;
+      const start = new Date(target.startTime);
+      const end = new Date(target.endTime);
+
+      const [events, tasks] = await Promise.all([
+        db.calendarEvent.findMany({
+          where: {
+            userId,
+            startTime: { lt: end },
+            endTime: { gt: start },
+            ...(excludeEventIds.length ? { id: { notIn: excludeEventIds } } : {}),
+          },
+          select: {
+            id: true,
+            taskId: true,
+            title: true,
+            startTime: true,
+            endTime: true,
+            overrideType: true,
+          },
+        }),
+        db.task.findMany({
+          where: {
+            userId,
+            status: { notIn: ['done', 'cancelled'] },
+            scheduledStart: { lt: end },
+            scheduledEnd: { gt: start },
+          },
+          select: {
+            id: true,
+            title: true,
+            scheduledStart: true,
+            scheduledEnd: true,
+          },
+        }),
+      ]);
+
+      const activeEvents = events.filter((item: { overrideType?: string | null }) => item.overrideType !== 'cancel');
+      const eventTaskIds = new Set(
+        activeEvents
+          .map((item: { taskId?: string | null }) => item.taskId)
+          .filter((value: string | null | undefined): value is string => Boolean(value)),
+      );
+
+      for (const item of activeEvents) {
+        conflicts.push({
+          changeIndex: index,
+          sourceType: 'calendar',
+          id: item.id,
+          title: item.title,
+          startTime: item.startTime.toISOString(),
+          endTime: item.endTime.toISOString(),
+        });
+      }
+      for (const item of tasks) {
+        if (eventTaskIds.has(item.id) || !item.scheduledStart || !item.scheduledEnd) continue;
+        conflicts.push({
+          changeIndex: index,
+          sourceType: 'task',
+          id: item.id,
+          title: item.title,
+          startTime: item.scheduledStart.toISOString(),
+          endTime: item.scheduledEnd.toISOString(),
+        });
+      }
+    }
+
+    return { type: data.type, changes, conflicts };
   }
 
   // ==================== 课程任务（兼容既有 notes 路径） ====================
@@ -423,9 +809,27 @@ export class CourseService {
       ? instances.filter(inst => inst.start >= semester.startDate && inst.end <= semesterLastDay)
       : instances;
 
-    // 批量创建
+    const overrides = await this.prisma.calendarEvent.findMany({
+      where: {
+        courseId: course.id,
+        userId: course.userId,
+        isOverride: true,
+        overrideOriginalStart: { not: null },
+      },
+      select: { overrideOriginalStart: true },
+    });
+    const suppressedStarts = new Set(
+      overrides
+        .map((event) => event.overrideOriginalStart?.getTime())
+        .filter((value): value is number => typeof value === 'number'),
+    );
+    const generatedInstances = boundedInstances.filter(
+      (inst) => !suppressedStarts.has(inst.start.getTime()),
+    );
+
+    // 批量创建；已存在单次 override 的原 occurrence 不再重新生成。
     await this.prisma.calendarEvent.createMany({
-      data: boundedInstances.map((inst) => ({
+      data: generatedInstances.map((inst) => ({
         userId: course.userId,
         courseId: course.id,
         title: course.name,
