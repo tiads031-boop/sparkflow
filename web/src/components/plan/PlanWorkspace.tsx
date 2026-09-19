@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { CalendarDays, Columns3, ListTodo, Loader2 } from 'lucide-react';
+import { CalendarDays, Grid2X2, ListTodo, Loader2 } from 'lucide-react';
 import type { PlannerPreview, PlanView, Task } from '../../types';
-import BoardView from '../BoardView';
 import TasksView from '../TasksView';
+import QuadrantView from '../QuadrantView';
 import AgendaPlanView from './AgendaPlanView';
 import MonthPlanView from './MonthPlanView';
 import PlanHeader from './PlanHeader';
@@ -14,7 +14,7 @@ import { usePlanItems } from './usePlanItems';
 import { useAppStore } from '../../store/appStore';
 
 type PlanSection = 'calendar' | 'tasks';
-type TaskView = 'list' | 'board';
+type TaskView = 'list' | 'quadrant';
 
 interface PlanWorkspaceProps {
   tasks: Task[];
@@ -32,6 +32,18 @@ function formatShortDate(date: Date) {
   return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
 }
 
+const PLAN_TASK_VIEW_KEY = 'sparkflow.planTaskView';
+
+function readTaskView(): TaskView {
+  if (typeof window === 'undefined') return 'list';
+  return window.localStorage.getItem(PLAN_TASK_VIEW_KEY) === 'quadrant' ? 'quadrant' : 'list';
+}
+
+function writeTaskView(view: TaskView) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(PLAN_TASK_VIEW_KEY, view);
+}
+
 export default function PlanWorkspace({
   tasks,
   onTaskClick,
@@ -40,7 +52,7 @@ export default function PlanWorkspace({
   onQuickAdd,
   plannerPreview,
   initialSection = 'calendar',
-  initialTaskView = 'list',
+  initialTaskView,
   initialPlanView,
 }: PlanWorkspaceProps) {
   const selectedDate = useAppStore((state) => state.selectedDate);
@@ -49,7 +61,7 @@ export default function PlanWorkspace({
   const semesters = useAppStore((state) => state.semesters);
   const activeSemesterId = useAppStore((state) => state.activeSemesterId);
   const [section, setSection] = useState<PlanSection>(initialSection);
-  const [taskView, setTaskView] = useState<TaskView>(initialTaskView);
+  const [taskView, setTaskView] = useState<TaskView>(() => initialTaskView ?? readTaskView());
   const [view, setView] = useState<PlanView>(() => initialPlanView ?? readLastPlanView());
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
 
@@ -224,17 +236,27 @@ export default function PlanWorkspace({
                 <h2 className="text-sm font-black text-[var(--sf-text-primary)]">待办工作区</h2>
               </div>
               <div className="flex rounded-xl bg-[var(--sf-bg)] p-1">
-                <button type="button" onClick={() => setTaskView('list')} className={`grid h-8 w-8 place-items-center rounded-lg ${taskView === 'list' ? 'bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm' : 'text-[var(--sf-text-tertiary)]'}`} aria-label="列表视图">
-                  <ListTodo size={15} />
+                <button
+                  type="button"
+                  onClick={() => { setTaskView('list'); writeTaskView('list'); }}
+                  className={`flex h-8 items-center gap-1 rounded-lg px-2 ${taskView === 'list' ? 'bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm' : 'text-[var(--sf-text-tertiary)]'}`}
+                  aria-label="列表视图"
+                >
+                  <ListTodo size={14} /><span className="text-[10px] font-bold">列表</span>
                 </button>
-                <button type="button" onClick={() => setTaskView('board')} className={`grid h-8 w-8 place-items-center rounded-lg ${taskView === 'board' ? 'bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm' : 'text-[var(--sf-text-tertiary)]'}`} aria-label="看板视图">
-                  <Columns3 size={15} />
+                <button
+                  type="button"
+                  onClick={() => { setTaskView('quadrant'); writeTaskView('quadrant'); }}
+                  className={`flex h-8 items-center gap-1 rounded-lg px-2 ${taskView === 'quadrant' ? 'bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm' : 'text-[var(--sf-text-tertiary)]'}`}
+                  aria-label="四象限视图"
+                >
+                  <Grid2X2 size={14} /><span className="text-[10px] font-bold">四象限</span>
                 </button>
               </div>
             </div>
             {taskView === 'list'
               ? <TasksView tasks={tasks} onTaskClick={onTaskClick} />
-              : <BoardView tasks={tasks} onTaskClick={onTaskClick} />}
+              : <QuadrantView tasks={tasks} onTaskClick={onTaskClick} />}
           </section>
         )}
       </div>
