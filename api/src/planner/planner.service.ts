@@ -300,6 +300,7 @@ export class PlannerService {
       proposals: ApplyProposal[];
       planningThreadId?: string;
       planningThreadRevision?: number;
+      blockedIntervals?: Array<{ start: string; end: string }>;
     },
   ) {
     if (!Array.isArray(data.proposals) || data.proposals.length === 0)
@@ -309,6 +310,14 @@ export class PlannerService {
     const ids = data.proposals.map((proposal) => proposal.taskId);
     if (new Set(ids).size !== ids.length)
       throw new BadRequestException('A task can only appear once in a plan');
+
+    const blockedIntervals = (data.blockedIntervals || []).slice(0, 5).map((interval) => {
+      const start = parseDate(interval.start, 'blockedInterval.start');
+      const end = parseDate(interval.end, 'blockedInterval.end');
+      if (end <= start)
+        throw new BadRequestException('Blocked interval end must be after start');
+      return { start, end };
+    });
 
     return this.prisma.$transaction(async (tx) => {
       let planningThreadId: string | null = null;
@@ -401,6 +410,7 @@ export class PlannerService {
             ? []
             : [{ start: event.startTime, end: event.endTime }],
         ),
+        ...blockedIntervals,
       ];
       if (
         proposalIntervals.some((proposal) =>
