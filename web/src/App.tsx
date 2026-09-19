@@ -12,6 +12,8 @@ import CourseIntegrationsRuntime from './components/CourseIntegrationsRuntime';
 import CourseDetailView from './components/CourseDetailView';
 import SettingsView from './components/SettingsView';
 import { importIcs } from './api/courses';
+import { getNotificationPreferences } from './api/push';
+import { updateUserPreferences } from './utils/userPreferences';
 import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
 import TaskSheet from './components/TaskSheet';
 import { normalizeTaskSection } from './utils/taskSections';
@@ -103,6 +105,15 @@ export default function App() {
     checkGoogleStatus();
     loadCourses();
     loadSemesters();
+    void getNotificationPreferences()
+      .then((serverPreferences) => {
+        updateUserPreferences({
+          defaultReminderMinutes: serverPreferences.defaultReminderMinutes,
+        });
+      })
+      .catch(() => {
+        // Notification preference hydration is best-effort; local cache remains usable.
+      });
   }, [loadTasks, loadPomodoroStats, checkPushStatus, checkGoogleStatus, loadCourses, loadSemesters]);
 
   // ── Capacitor 生命周期：APP 从后台恢复时刷新关键状态 ──

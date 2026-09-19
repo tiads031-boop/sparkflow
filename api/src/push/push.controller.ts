@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Delete, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Body } from '@nestjs/common';
 import { PushService } from './push.service';
 import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
+import type { NotificationPreferences } from './push-preferences';
 
 @Controller('push')
 export class PushController {
@@ -11,6 +12,21 @@ export class PushController {
   getVapidPublicKey() {
     const key = this.pushService.getVapidPublicKey();
     return { publicKey: key };
+  }
+
+  /** 当前账户的通知偏好。 */
+  @Get('preferences')
+  getPreferences(@CurrentUserId() userId: string) {
+    return this.pushService.getNotificationPreferences(userId);
+  }
+
+  /** 更新当前账户的通知偏好；只接受已知字段。 */
+  @Patch('preferences')
+  updatePreferences(
+    @CurrentUserId() userId: string,
+    @Body() patch: Partial<NotificationPreferences>,
+  ) {
+    return this.pushService.updateNotificationPreferences(userId, patch);
   }
 
   /**

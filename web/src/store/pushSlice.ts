@@ -112,6 +112,15 @@ export const createPushSlice: StateCreator<AppState, [], [], PushSlice> = (set) 
             vibration: true,
           });
           await PushNotifications.createChannel({
+            id: 'sparkflow-courses',
+            name: '课程提醒',
+            description: '即将开始的课程提醒',
+            importance: 4,
+            visibility: 1,
+            lights: true,
+            vibration: true,
+          });
+          await PushNotifications.createChannel({
             id: 'sparkflow-test',
             name: '推送测试',
             description: 'Sparkflow 推送诊断通道',
