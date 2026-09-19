@@ -36,6 +36,13 @@ import type { PlannerPreview, PlannerReplanPreview } from '../../types';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
 import { usePlanningVoiceInput } from '../../hooks/usePlanningVoiceInput';
 import PlanningContextEditor from './PlanningContextEditor';
+import {
+  applyCourseChange,
+  previewCourseChange,
+  undoCourseChange,
+  type CourseChangePreview,
+  type CourseChangeRequest,
+} from '../../api/courses';
 
 function dateInput(date: Date) {
   const year = date.getFullYear();
@@ -70,6 +77,19 @@ function statusLabel(status: 'confirmed' | 'inferred' | 'assumed') {
   if (status === 'confirmed') return '已确认';
   if (status === 'inferred') return 'AI 推断';
   return '暂时假设';
+}
+
+type CourseChangeAction = Extract<PlanningActionProposal, { type: 'course_change' }>;
+
+function courseChangeTypeLabel(type: CourseChangeAction['change']['type']) {
+  if (type === 'reschedule') return '调课';
+  if (type === 'cancel') return '停课';
+  if (type === 'swap') return '换课';
+  return '补课';
+}
+
+function courseChangeRequest(action: CourseChangeAction): CourseChangeRequest {
+  return action.change;
 }
 
 function ContextSection({
@@ -145,6 +165,13 @@ export default function PlannerSheet({
   const [actionBusy, setActionBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
 
+  const [activeCourseProposalId, setActiveCourseProposalId] = useState<string | null>(null);
+  const [courseChangePreview, setCourseChangePreview] = useState<CourseChangePreview | null>(null);
+  const [courseChangeBusy, setCourseChangeBusy] = useState(false);
+  const [courseChangeMessage, setCourseChangeMessage] = useState('');
+  const [courseChangePlanId, setCourseChangePlanId] = useState<string | null>(null);
+  const [lastAppliedCourseAction, setLastAppliedCourseAction] = useState<CourseChangeAction | null>(null);
+
   const [replanRequests, setReplanRequests] = useState<PlanningReplanRequest[]>([]);
   const [activeReplanRequestId, setActiveReplanRequestId] = useState<string | null>(null);
   const [replanPreview, setReplanPreview] = useState<PlannerReplanPreview | null>(null);
@@ -200,7 +227,16 @@ export default function PlannerSheet({
       );
       setActionConversationId(pendingActions.length ? latestConversation?.id || null : null);
       setActionProposals(pendingActions);
-      setSelectedActionIds(pendingActions.map((action) => action.proposalId));
+      setSelectedActionIds(
+        pendingActions
+          .filter((action) => action.type !== 'course_change')
+          .map((action) => action.proposalId),
+      );
+      setActiveCourseProposalId(null);
+      setCourseChangePreview(null);
+      setCourseChangePlanId(null);
+      setCourseChangeMessage('');
+      setLastAppliedCourseAction(null);
       setReplanRequests(latestContext?.replanRequests || []);
       setActiveReplanRequestId(null);
       setReplanPreview(null);
@@ -221,6 +257,11 @@ export default function PlannerSheet({
     setSchedulerOpen(false);
     setScheduleMessage('');
     setActionMessage('');
+    setActiveCourseProposalId(null);
+    setCourseChangePreview(null);
+    setCourseChangePlanId(null);
+    setCourseChangeMessage('');
+    setLastAppliedCourseAction(null);
     setReplanMessage('');
     setActiveReplanRequestId(null);
     setReplanPreview(null);
@@ -299,8 +340,17 @@ export default function PlannerSheet({
         : detail.evidence || []);
       setActionConversationId(result.actions.length ? result.conversationId : null);
       setActionProposals(result.actions);
-      setSelectedActionIds(result.actions.map((action) => action.proposalId));
+      setSelectedActionIds(
+        result.actions
+          .filter((action) => action.type !== 'course_change')
+          .map((action) => action.proposalId),
+      );
       setActionMessage('');
+      setActiveCourseProposalId(null);
+      setCourseChangePreview(null);
+      setCourseChangePlanId(null);
+      setCourseChangeMessage('');
+      setLastAppliedCourseAction(null);
       setReplanRequests(result.replanRequests || []);
       setActiveReplanRequestId(null);
       setReplanPreview(null);
@@ -338,6 +388,11 @@ export default function PlannerSheet({
       setActionProposals([]);
       setSelectedActionIds([]);
       setActionMessage('');
+      setActiveCourseProposalId(null);
+      setCourseChangePreview(null);
+      setCourseChangePlanId(null);
+      setCourseChangeMessage('');
+      setLastAppliedCourseAction(null);
       setReplanRequests([]);
       setActiveReplanRequestId(null);
       setReplanPreview(null);
