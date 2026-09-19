@@ -103,6 +103,42 @@ describe('planning response parser', () => {
     }));
   });
 
+  it('parses bounded temporary-conflict replan requests', () => {
+    const result = toPlanningTurn({
+      reply: '下午临时有事，我先给你生成一个重排预览。',
+      readiness: 'ready',
+      summary: '需要移动冲突时段内的可移动任务。',
+      openQuestions: [],
+      researchQueries: [],
+      actions: [],
+      replanRequests: [
+        {
+          title: '下午临时冲突',
+          blockedStart: '2026-09-20T06:00:00.000Z',
+          blockedEnd: '2026-09-20T08:00:00.000Z',
+          planningStart: '2026-09-20T00:00:00.000Z',
+          planningEnd: '2026-09-21T14:00:00.000Z',
+          reason: '用户明确表示该时段无法执行原计划。',
+        },
+      ],
+      context: {
+        brief: [],
+        constraints: [],
+        preferences: [],
+        strategy: [],
+        assumptions: [],
+      },
+    });
+
+    expect(result.replanRequests).toEqual([
+      expect.objectContaining({
+        title: '下午临时冲突',
+        blockedStart: '2026-09-20T06:00:00.000Z',
+        blockedEnd: '2026-09-20T08:00:00.000Z',
+      }),
+    ]);
+  });
+
   it('rejects an incomplete response instead of wiping an existing context section', () => {
     expect(() => toPlanningTurn({
       reply: '继续',
