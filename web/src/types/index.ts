@@ -228,6 +228,13 @@ export interface StudyFolder {
   status: 'active' | 'archived';
   courses: Course[];
   tasks: Task[];
+  planningThread?: {
+    id: string;
+    revision: number;
+    updatedAt: string;
+    conversationCount: number;
+    schedulePlanCount: number;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }
