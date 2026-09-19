@@ -7,6 +7,7 @@ import type {
   InsightType,
   PlanningFact,
   PlanningFactStatus,
+  PlanningResearchRequest,
   PlanningTurnInput,
   PlanningTurnResult,
 } from './ai-provider';
@@ -67,6 +68,24 @@ function toPlanningFacts(value: unknown): PlanningFact[] {
   });
 }
 
+function toResearchQueries(value: unknown): PlanningResearchRequest[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 3).flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const candidate = item as Record<string, unknown>;
+    if (typeof candidate.query !== 'string' || typeof candidate.reason !== 'string') return [];
+    const query = candidate.query.trim().slice(0, 300);
+    const reason = candidate.reason.trim().slice(0, 500);
+    if (!query || !reason) return [];
+    return [{
+      query,
+      reason,
+      highImpact: candidate.highImpact === true,
+      preferOfficial: candidate.preferOfficial !== false,
+    }];
+  });
+}
+
 export function toPlanningTurn(value: unknown): PlanningTurnResult {
   if (!value || typeof value !== 'object') throw new Error('AI planning response is invalid');
   const candidate = value as Record<string, unknown>;
@@ -108,6 +127,7 @@ export function toPlanningTurn(value: unknown): PlanningTurnResult {
     summary: typeof candidate.summary === 'string'
       ? candidate.summary.trim().slice(0, 1000)
       : '',
+    researchQueries: toResearchQueries(candidate.researchQueries),
   };
 }
 
@@ -245,9 +265,15 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Preserve previously confirmed facts unless the user explicitly changes them.',
             'Distinguish confirmed user facts, inferred interpretations, and temporary assumptions.',
             'strategy must explain the currently chosen planning approach and why it fits the known context.',
-            'Do not invent external facts such as exam dates, official rules, opening hours, prices, or travel times. Those will be handled by a separate research layer.',
+            'Do not invent external facts such as exam dates, official rules, opening hours, prices, travel times, or current product requirements.',
+            'If the plan materially depends on current external facts and the supplied evidence is insufficient, request web research.',
+            'Request at most 3 focused searches. Mark highImpact true when an incorrect fact could change eligibility, deadlines, cost, travel feasibility, or the plan itself.',
+            'Prefer official/first-party sources for high-impact facts.',
+            'When evidence is provided, distinguish user facts from external evidence. Do not silently convert external search results into confirmed personal facts.',
+            'If evidence conflicts or is weak, say so in the reply and keep readiness clarify when the unresolved fact materially affects the plan.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            'Return researchQueries as [] when no search is needed.',
             'Return the complete updated context, not only a patch.',
             'Reply in the language used by the user.',
           ].join('\n'),
@@ -261,6 +287,9 @@ export class OpenAICompatibleProvider implements AIProvider {
           content: JSON.stringify({
             message: input.message,
             currentPlanningContext: input.context,
+            researchAllowed: input.researchAllowed !== false,
+            researchUnavailableReason: input.researchUnavailableReason || null,
+            evidence: input.evidence || [],
           }),
         },
       ],
