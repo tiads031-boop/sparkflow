@@ -11,6 +11,7 @@ function record(id: string, day: number) {
     tags: [],
     createdAt: new Date(`2026-09-${String(day).padStart(2, '0')}T00:00:00.000Z`),
     reflections: [],
+    attachments: [],
   };
 }
 
@@ -92,4 +93,46 @@ describe('InsightsService Phase 15 M2', () => {
 
     await expect(service.generate('user-1')).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
+
+  it('uses explicitly generated audio transcripts as insight text without overwriting record content', async () => {
+    const first = {
+      ...record('inspiration-audio-1', 17),
+      contentText: null,
+      attachments: [{ id: 'audio-1', transcript: '我发现上午学习法律效率更高。' }],
+    };
+    const second = {
+      ...record('inspiration-audio-2', 18),
+      contentText: null,
+      attachments: [{ id: 'audio-2', transcript: '上午做案例题时更容易保持专注。' }],
+    };
+    const prisma = {
+      inspiration: { findMany: jest.fn().mockResolvedValue([first, second]) },
+      insight: {
+        create: jest.fn(({ data }) => Promise.resolve({ id: 'insight-audio', ...data })),
+      },
+      $transaction: jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
+    };
+    const ai = {
+      modelName: 'test-model',
+      generateInsights: jest.fn().mockResolvedValue([{
+        title: '上午更适合高强度学习',
+        body: '两条语音记录都提到了上午效率。',
+        type: 'theme',
+        sourceIds: ['inspiration-audio-1', 'inspiration-audio-2'],
+      }]),
+    };
+    const service = new InsightsService(prisma as never, ai as never);
+
+    await service.generate('user-1');
+
+    expect(ai.generateInsights).toHaveBeenCalledWith({
+      records: expect.arrayContaining([
+        expect.objectContaining({
+          id: 'inspiration-audio-1',
+          contentText: expect.stringContaining('[语音转写 1]'),
+        }),
+      ]),
+    });
+  });
+
 });
