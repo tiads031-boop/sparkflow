@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-19 | **代码基线**：`master@73e5f779`
+> **最后更新**：2026-09-19 | **代码基线**：`master@735944fd`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,7 +8,7 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext Plan M1–M3 已发布到 Web Production；功能基线 `7145ba0`，仓库 `master@e883b9a3`；当前剩真实账号与 Android 真机验收，再决定 M4 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4.1–M4.4 已通过 PR #55/#56 进入 `master@735944fd`；当前下一步是 M4.5 Settings，随后进入 M5 AI 规划与调整 2.0 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
@@ -23,7 +23,7 @@
 | 文件 | 范围 | 状态 | 说明 |
 |---|---|---|---|
 | [vnext-information-architecture-plan-workspace.md](vnext-information-architecture-plan-workspace.md) | VNext 信息架构、五工作空间、Plan 四视图、课程/任务/Planner 统一投影 | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合并；Web Production `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，五项导航/M3 bundle 已静态核验；Android M3 Release `android-7145ba0ea3d2` 已生成 |
-| [vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md) | VNext M4–M8：AI 调度中枢、目标学习、课程变动、多模态记录、通知/设置/任务表单重整 | ✅ 方案完成，⏭ 下一产品主线 | 用户已明确 Study 与 Course 解耦；AI 安排改为对话式；支持临时安排、调/换/停/补课、手机同屏四象限、Today 极简、多模态随手记；M4 先修 Push 用户隔离 |
+| [vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md) | VNext M4–M8：AI 调度中枢、目标学习、课程变动、多模态记录、通知/设置/任务表单重整 | 🚧 M4.1–M4.4 已完成 | PR #55：通知隔离 + Today 极简；PR #56：新建 Task Sheet + 手机同屏四象限；下一步 M4.5 Settings，然后 M5 对话式 AI + 语音 + Planning Context + Web Research |
 | [../study-mode/README.md](../study-mode/README.md) | 旧 Study Mode 方案 | ⚠️ 历史参考 | M1 已实现，但“Study 关联 Course”的产品方向已被 VNext M6 替代；后续学习以独立 AI 目标规划为准 |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 / Local Codex Bridge | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后再启动；不进入云端 API/数据库控制链 |
 

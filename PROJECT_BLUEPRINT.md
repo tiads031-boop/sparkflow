@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-19
-> **代码同步基线**：`master@73e5f779`
+> **代码同步基线**：`master@735944fd`
 
 ---
 
@@ -258,7 +258,7 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API
 | Phase 15 | 🚧 M1–M3 已实现，真实链路收尾 | M1–M3 Web/API 已对齐 `99ebb3c`；真实 Qwen 与 Android/Planner 链路仍需验收 |
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合入；Web Production 已发布并静态冒烟，Android M3 APK `android-7145ba0ea3d2` 已生成；真实账号与真机验收前 M4 暂不启动 |
-| VNext AI Orchestration | ✅ M4–M8 方案完成，⏭ 下一产品主线 | 学习与课程解耦；对话式 AI 规划/调整；临时安排；课程 override；同屏四象限；Today 极简；多模态记录；设置/通知/Task Sheet 重做 |
+| VNext AI Orchestration | 🚧 M4.1–M4.4 已完成 | PR #55：安全提醒 + Today 极简；PR #56：统一新建 Task Sheet + 手机同屏四象限；当前下一步 M4.5 Settings，然后 M5 对话式 AI/语音/持续 Planning Context/Web Research |
 
 ---
 
@@ -285,6 +285,9 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API
 - ✅ PR #48：VNext M1，固定五项导航 + Plan 四视图壳层。
 - ✅ PR #49：VNext M2，真实 Task/Course/CalendarEvent/Study Task 统一投影。
 - ✅ PR #50：VNext M3，Planner Preview 时间块 → Apply → Undo 视图闭环；Web/API CI 全绿。
+- ✅ PR #54：AI-first VNext M4–M8 完整方案，包含自适应访谈、持续 Planning Context、语音输入与 Web Research。
+- ✅ PR #55：M4.1/M4.2，按用户隔离通知、reminderAt 优先、持久化 delivery key，以及 Today 极简。
+- ✅ PR #56：M4.3/M4.4，统一新建 Task Sheet，Plan 待办列表/四象限切换，手机 2×2 同屏。
 - ✅ VNext Web Production：部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，aliases 包含 `fish-life.cc.cd`；首页 200，生产 bundle 核到五项导航与 M3 Preview 文案。
 - ✅ Android VNext M3 构建：Release `android-7145ba0ea3d2`，asset `sparkflow-7145ba0ea3d2-debug.apk`。
 - ⚠️ 本次 Vercel 由 GitHub codeload 源码手工发布，deployment `meta` 为空；尝试仅补 Git metadata 的第二次部署被 Hobby 每日 deployment 限额拒绝。功能部署已成功，本蓝图/NEXT 记录 `e883b9a3 → dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 的发布映射。
@@ -304,7 +307,7 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API
 | P0 | Planner 生产 schema/闭环未证实 | SchedulePlan migration 在 fresh PG CI 成功 | 真账号 Preview → Apply → Undo |
 | P1 | HTTP 未知结果恢复仍缺端到端证据 | 前端按 requestId 查询 + 服务端 replay；真实 PG 已验证最终状态 | 模拟客户端超时/断连后查询并恢复已提交结果 |
 | P1 | Vercel Hobby deployment 日配额 / 本次 Git metadata 缺失 | GitHub CI 独立；Git 自动 deployments 已关闭；VNext Production 首次手工发布已成功，仓库记录 SHA→deployment 映射 | 等额度恢复后的下一次正常 Git 可追溯发布自然覆盖；不为补 metadata 重复消耗当日 deployment |
-| P0 | Push 到期提醒未按用户隔离 | Web Push/FCM 订阅本身按 userId 保存，但当前 cron 先查全局 dueTasks 再遍历全部订阅 | M4.1 改为 task/user 分组，仅发送同 user subscriptions，并增加提醒防重复 |
+| ✅ | Push 到期提醒跨用户风险 | PR #55 已增加 user 分组、同 user subscriptions、server-only notification_deliveries 唯一 delivery key | 代码/migration/CI 已收口；生产 API 下一次部署应用 migration |
 | P1 | Issue #26 Timeline M3 未重做 | 当前主线仍保留 Gantt | 最新 master 上通过多来源、移动端、DST/边界验收 |
 
 ---
