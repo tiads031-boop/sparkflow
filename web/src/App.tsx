@@ -13,6 +13,7 @@ import CourseDetailView from './components/CourseDetailView';
 import SettingsView from './components/SettingsView';
 import { importIcs } from './api/courses';
 import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
+import TaskSheet from './components/TaskSheet';
 import { normalizeTaskSection } from './utils/taskSections';
 import { workspaceNavigationRegistry, workspaceTabForRoute } from './navigation';
 import AppShell from './components/shell/AppShell';
@@ -411,8 +412,24 @@ export default function App() {
           )}
           {(activeTab === 'settings' || activeTab === 'profile') && <SettingsView />}
         {/* Modals */}
+        <TaskSheet
+          open={modalConfig.isOpen && modalConfig.mode === 'create' && modalConfig.context === 'task'}
+          onClose={handleCloseModal}
+          onSave={async (params) => {
+            try {
+              await handleSaveItem(params);
+            } catch (err: any) {
+              setAppMessage(err.message || '保存失败，请稍后重试');
+              throw err;
+            }
+          }}
+          onPlanWithAI={() => setPlannerOpen(true)}
+        />
         <DarkFrostedModal
-          config={modalConfig}
+          config={{
+            ...modalConfig,
+            isOpen: modalConfig.isOpen && !(modalConfig.mode === 'create' && modalConfig.context === 'task'),
+          }}
           onClose={handleCloseModal}
           onSave={(params) => {
             handleSaveItem(params).catch((err: any) => {
