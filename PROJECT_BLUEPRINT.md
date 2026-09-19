@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-20
-> **代码同步基线**：`master@7405d3b7`
+> **代码同步基线**：`master@dc90a61e`
 
 ---
 
@@ -23,13 +23,13 @@ Phase 15 继续补齐：
 记录 → 回顾 → 洞察 → 行动 → Planner / Timeline / Focus
 ```
 
-Study Mode 作为建立在现有能力之上的学习工作区：
+学习工作区已升级为独立 AI 学习目标链路：
 
 ```text
-Folder → Today → Focus → Review → Schedule
+学习目标 → AI 访谈 / Research → 阶段 / 里程碑 → 共享 Task → Schedule / Focus → 执行反馈 → 增量调整
 ```
 
-三条链路共享 Task、Course、Calendar、Planner、Focus 等现有事实源，不建立互相隔离的第二套业务系统。
+这些链路继续共享 Task、Course、Calendar、Planner、Focus 等现有事实源；Study 不再把 Course 当作组成部分，也不建立第二套 Task/Calendar。
 
 ---
 
@@ -60,6 +60,9 @@ Folder → Today → Focus → Review → Schedule
 | 21 | 多模态记录 | Inspiration 为记录主事实，图片/音频/视频使用从属 Attachment 元数据 + 文件存储 | 保持记录可追溯，不把大文件直接塞入数据库，也不在上传时默认消耗 AI 额度 |
 | 22 | 持续规划上下文 | 原始对话保留在 AIConversation；新增最小 PlanningThread/Planning Context 保存用户已确认需求、约束、偏好、strategy、assumptions 与 revision；SchedulePlan 可回链上下文版本 | 避免每次重规划从长聊天重新推断，降低遗漏已确认约束、token 成本与不一致；Planning Context 不是第二套聊天记录 |
 | 23 | 规划可靠性 / Web Research | AI Provider 与 Search Provider 分离；新增 WebResearchService，首批 SearchProvider 可接自托管 SearXNG；高影响事实优先官方/第一方来源并保留 claim/url/sourceType/fetchedAt/expiresAt/confidence | 让计划使用当前可核实事实，同时避免把搜索结果直接当真；Research 结果进入 Planning Context evidence，过期/冲突时重新核验并向用户说明 |
+| 24 | 课程周期与单次变动 | 单次调课/换课/停课/补课使用 CalendarEvent occurrence override；“以后都改”使用 Course template Preview/Apply/Undo | 保留历史课次与单次例外，避免一次调整污染整学期模板 |
+| 25 | 通知偏好 | 任务/课程提醒、默认提前量、安静时段、时区保存在既有 `User.settings.notification`；NotificationDelivery 继续去重 | PWA/Android 共用账户偏好，同时避免再建第二套通知设置表 |
+| 26 | 外观 | “跟随系统 / 浅色 / 深色”使用现有前端 UserPreferences + CSS Token / `data-sf-theme` | 外观是设备 UI 偏好，不修改业务事实，也不引入无后端能力的假 AI 设置 |
 
 ---
 
@@ -140,12 +143,13 @@ PR #48/#49/#50 已完成 M1–M3 代码与 CI：
 - Web Production 已从 `master@e883b9a3` 源码显式发布到 READY 部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e`，`fish-life.cc.cd` HTTP 200；生产 bundle 已静态核到五项导航与 M3 Preview 文案。
 - Android VNext M3 Release `android-7145ba0ea3d2` 已生成；Web 真账号/PWA 与 Android 真机交互仍未验收，完成前不进入 M4 拖拽/过滤增强。
 
-### Planner / AI 安排
+### Planner / AI 规划与调整
 
-- Preview → Apply → Undo 已具备基础实现。
-- 确定性 Scheduler 为唯一时间决策层。
-- 下一阶段补充自然语言意图和“帮我顺延”。
-- `SchedulePlan`、Phase 15 与 Study Mode migrations 已在腾讯云生产库核验；当前生产共 20 migrations，schema up to date。
+- 对话式 AI PlanningThread / Planning Context、语音输入、SearXNG Web Research 已进入主线。
+- create/update Task、临时冲突增量重排、学习目标变化、课程单次/周期变更都先形成可审阅草案。
+- 确定性 Scheduler / CourseService 仍是具体时间与课程写入的唯一决策边界；AI 不直接改真实日程。
+- Task / Course 变更继续使用 Preview → Apply → Undo，并通过 SchedulePlan 保存可恢复快照。
+- 上述为仓库代码事实；最新 VNext migrations 尚需随最新 master 完成腾讯云生产部署/验收。
 
 ### Focus
 
@@ -232,15 +236,14 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API
 
 ### Study / 学习工作区
 
-旧 M1 StudyFolder 代码仍在运行，但产品方向已重定义：
+VNext M6 已进入主线：
 
-- Study 不再聚合/关联 Course；
-- StudyFolder 升级为“学习目标容器”；
-- AI 先围绕目标、期限、当前水平、可投入时间做必要追问；
-- 阶段与里程碑属于目标规划，真正执行项继续写共享 Task；
-- Course 保持独立学校课程系统。
-
-后续以 `docs/plans/vnext-ai-orchestration-study-course-capture.md` 的 M6 为准。
+- Study 新 UI 不再聚合/关联 Course；旧 StudyFolderCourse 仅保留兼容。
+- StudyFolder 作为“学习目标容器”，每个进行中目标可复用独立 PlanningThread。
+- AI 围绕成功标准、当前水平、资源、时间预算与取舍进行自适应访谈，并可复用 Web Research。
+- 阶段/里程碑由目标关联共享 Task 的 `project` 投影，不增加第二套 roadmap/task 表。
+- AI 创建的执行项仍是共享 Task；真实完成/逾期/Pomodoro 数据派生为下一轮重规划反馈。
+- 用户明确改变目标时先生成 `update_goal` 草案，确认后才更新目标。
 
 ---
 
@@ -258,7 +261,7 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API
 | Phase 15 | 🚧 M1–M3 已实现，真实链路收尾 | M1–M3 Web/API 已对齐 `99ebb3c`；真实 Qwen 与 Android/Planner 链路仍需验收 |
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合入；Web Production 已发布并静态冒烟，Android M3 APK `android-7145ba0ea3d2` 已生成；真实账号与真机验收前 M4 暂不启动 |
-| VNext AI Orchestration | ✅ M4/M5 代码与 CI 已完成，🚧 当前 M6 | PR #58：Settings；PR #59–#63：Planning Context、自适应访谈、Web Research、语音、可审阅 Task 操作与临时冲突增量重排；下一步进入独立 AI 学习目标 |
+| VNext AI Orchestration | ✅ M4–M7；🚧 M8 最后收口 | PR #59–#63 完成 AI Planning；#66/#68/#69 完成学习目标；#70–#73 完成课程变动；#74/#77/#78 完成多模态 Capture、通知偏好和 Settings/外观。剩余显式附件 AI 转录/摘要与 PWA/Android 真机验收 |
 
 ---
 
@@ -294,6 +297,16 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API
 - ✅ PR #61：M5.3，Qwen ASR 语音输入与可编辑 Planning Context。
 - ✅ PR #62：M5.4，对话 → 可审阅 create/update Task proposals，用户确认后才写入。
 - ✅ PR #63：M5.5，临时冲突增量重排；Scheduler 计算移动 Preview，Apply/Undo 沿用现有安全边界。
+- ✅ PR #66：M6.1，Study 重建为独立 AI 学习目标工作区与目标专属 PlanningThread。
+- ✅ PR #68：M6.2，阶段/里程碑通过共享 Task.project 投影，不新增第二套路线事实源。
+- ✅ PR #69：M6.3，执行反馈快照与显式学习目标变化。
+- ✅ PR #70：M7.1，课程单次调课/换课/停课/补课 occurrence override + Preview/Apply。
+- ✅ PR #71：M7.2，typed SchedulePlan 支持课程安全 Undo。
+- ✅ PR #72：M7.3，AI 自然语言课程变动复用 Course Preview/Apply/Undo。
+- ✅ PR #73：M7.4，周期 Course 模板变更与单次 override 严格分离并支持 Undo。
+- ✅ PR #74：M8.1，Inspiration 私有图片/音频/视频附件、语音录制与媒体预览。
+- ✅ PR #77：M8.2，账户级任务/课程提醒、安静时段、时区与测试通知。
+- ✅ PR #78：M8.3，Settings 视觉收尾与真实跟随系统/浅色/深色外观；主线到 `master@dc90a61e`。
 - ✅ VNext Web Production：部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，aliases 包含 `fish-life.cc.cd`；首页 200，生产 bundle 核到五项导航与 M3 Preview 文案。
 - ✅ Android VNext M3 构建：Release `android-7145ba0ea3d2`，asset `sparkflow-7145ba0ea3d2-debug.apk`。
 - ⚠️ 本次 Vercel 由 GitHub codeload 源码手工发布，deployment `meta` 为空；尝试仅补 Git metadata 的第二次部署被 Hobby 每日 deployment 限额拒绝。功能部署已成功，本蓝图/NEXT 记录 `e883b9a3 → dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 的发布映射。
@@ -332,9 +345,9 @@ flowchart TD
     H --> I["VNext Plan Web/PWA/Android acceptance"]
     I --> K["✅ VNext M4 notification/Today/Task/Quadrant/Settings"]
     K --> L["✅ M5 AI orchestration 2.0"]
-    L --> M["🚧 M6 AI learning goals"]
-    M --> N["M7 course overrides + AI"]
-    N --> O["M8 multimodal capture + notification/settings polish"]
+    L --> M["✅ M6 AI learning goals"]
+    M --> N["✅ M7 course overrides + AI"]
+    N --> O["🚧 M8 explicit media AI + PWA/Android acceptance"]
     O --> J["Phase 13 Local Codex Bridge"]
 ```
 

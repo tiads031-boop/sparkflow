@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-20 | **代码基线**：`master@7405d3b7`
+> **最后更新**：2026-09-20 | **代码基线**：`master@dc90a61e`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -11,7 +11,7 @@
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，腾讯云运行 `master@99ebb3c`；公网 `/api/health.buildSha` 与仓库一致；生产库 20 个 migrations 全部 up to date，包含 `20260919130000_add_study_folders` |
 | Web | Vercel 项目 `sparkflow031`；2026-09-19 已从 GitHub `master@e883b9a3` 源码显式发布 Production，部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 为 READY，`fish-life.cc.cd` HTTP 200；生产 bundle 已核到五项导航与 M3 Planner Preview 文案 |
-| GitHub | `master@7405d3b7`；M4.1–M4.5 与 M5.1–M5.5 已进入主线；PR #55–#63 均经过 Web/API CI，数据库改动同时通过 fresh PostgreSQL migration |
+| GitHub | `master@dc90a61e`；VNext M4–M7 已完成代码/CI；M8.1 多模态记录、M8.2 账户通知偏好、M8.3 设置视觉/外观已进入主线（PR #55–#78 的对应实现）；涉及 migration 的批次均通过 fresh PostgreSQL CI |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
 | 最新功能 APK | Release `android-7145ba0ea3d2`；`sparkflow-7145ba0ea3d2-debug.apk`；对应 VNext M3 功能提交 `7145ba0ea3d2`，Android CI 成功；之后 `e883b9a3` 仅改文档，未触发 APK |
@@ -162,7 +162,7 @@
 
 ---
 
-## 4.6 VNext M4–M8：AI 调度中枢与产品重整（🚧 M4/M5 已落地，当前进入 M6）
+## 4.6 VNext M4–M8：AI 调度中枢与产品重整（✅ M4–M7，🚧 M8 收尾/验收）
 
 方案：[vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md)
 
@@ -174,9 +174,12 @@
 - [x] **M4.4 / 四象限**：PR #56 已将 Plan 待办切换为“列表 / 四象限”；手机端同屏 2×2，选择持久化；旧 Board 入口兼容映射到四象限。
 - [x] **M4.5 / Settings 新壳层**：PR #58 已把“我的/设置”重构为分组首页 + 二级设置页；四象限开关、默认提醒、Push 测试、Google/系统日历、数据备份、密码与诊断均保留真实能力。
 - [x] **M5 / AI 规划与调整 2.0**：PR #59–#63 已完成持续 PlanningThread/Context、AI 自适应访谈、SearXNG Web Research 证据层、Qwen 语音转写、规划依据可编辑、对话 → Task 操作草案、临时冲突增量重排，以及 Preview → Apply → Undo。AI 仍不直接写时间；具体排程继续由确定性 Scheduler 决定。
-- [ ] **M6 / 学习目标 AI（当前实施主线）**：Study 与 Course 完全解耦；长期目标绑定持续 Planning Context；AI 尽可能了解成功标准、当前水平、资源、时间预算、偏好与取舍，并可主动核实考试规则、官方大纲、报名/考试时间、目标要求与资源版本等当前信息，再拆阶段/里程碑/Task；后续冲突、执行效果、外部事实变化和目标变化沿用上下文增量调整。
-- [ ] **M7 / 课程灵活调整**：调课、换课、停课、补课；单次变动使用 CalendarEvent override，不静默修改 Course 周期模板；AI 可自然语言操作同一套 Preview/Apply/Undo。
-- [ ] **M8 / 多模态记录与设置收尾**：随手记支持文字/语音/图片/视频；附件从属 Inspiration；完善通知设置、安静时段、测试通知和设置页视觉。
+- [x] **M6 / 学习目标 AI**：PR #66/#68/#69 已完成 Study 与 Course 新 UI 解耦、目标专属 PlanningThread、阶段/里程碑投影、目标 Task 回链、执行反馈快照与显式目标变化；继续复用 M5 Web Research / 语音 / 增量重规划。
+- [x] **M7 / 课程灵活调整**：PR #70–#73 已完成单次调课/换课/停课/补课 occurrence override、Preview/Apply/Undo、AI 自然语言调整，以及“以后都改”类周期 Course 模板 Preview/Apply/Undo；单次变动与周期模板严格分离。
+- [x] **M8.1 / 多模态记录**：PR #74 已完成 Inspiration 私有图片/音频/视频附件、语音录制、受控读取与媒体预览；上传时不自动调用 AI。
+- [x] **M8.2 / 通知偏好**：PR #77 已完成账户级任务/课程提醒、默认提前量、安静时段、时区和测试通知；继续复用现有 `User.settings.notification`，未新增第二套设置表。
+- [x] **M8.3 / 设置视觉与外观**：PR #78 已完成“我的”设置中心视觉收尾与真实“跟随系统/浅色/深色”外观选择；不暴露无真实后端能力的 AI 假开关。
+- [ ] **M8.4 / 最后收口**：按需补“用户主动触发”的附件 AI 转录/摘要（不在上传时自动消耗 AI 额度），并完成 PWA / Android 麦克风、文件选择、私有附件播放、通知与深浅色真机验收。
 
 ### M5 实施记录 — ✅ 代码/CI 完成
 
@@ -186,6 +189,20 @@
 - PR #62 / M5.4：对话生成可审阅的 create_task / update_task 草案；服务端保存 proposal；用户逐项确认后才写入。
 - PR #63 / M5.5：临时冲突增量重排；AI 只提出 blocked/planning window，Scheduler 计算“原时间 → 新时间”，Apply 再次校验冲突并支持 Undo。
 - M5 全程保持：Task / Calendar / Course 事实源不变；AI 不绕过 Preview / Apply / Undo；锁定任务、课程和真实日历事件继续作为固定边界。
+
+### M6–M8 实施记录 — ✅ 主体代码/CI 完成
+
+- PR #66：Study 重建为独立 AI 学习目标工作区；每个目标复用持久 PlanningThread。
+- PR #68：学习目标路线按现有共享 Task 的 `project` 聚合阶段/里程碑，不新增第二套 roadmap/task 事实源。
+- PR #69：从真实 Task/Pomodoro 派生执行反馈，并支持用户明确确认后的 `update_goal`。
+- PR #70：课程单次调课/停课/换课/补课 occurrence override + 冲突 Preview/Apply。
+- PR #71：课程变动通过 typed SchedulePlan 支持安全 Undo。
+- PR #72：AI 自然语言课程变动复用同一 Course Preview/Apply/Undo；AI 不直接写 CalendarEvent。
+- PR #73：周期 Course 模板变更与单次 override 分流，并具备独立 Preview/Apply/Undo。
+- PR #74：Inspiration 私有多模态附件与录音/图片/视频 Capture。
+- PR #77：账户级任务/课程提醒偏好、安静时段、时区与测试通知。
+- PR #78：Settings 视觉收尾 + 跟随系统/浅色/深色外观；Web/API CI 全绿。
+- 当前仓库事实源已到 `master@dc90a61e`；这些代码状态不等于腾讯云 API、Vercel Production 或 Android 真机已经同步部署/验收。
 
 ### M4 第一优先级安全修复 — ✅ 已完成
 
