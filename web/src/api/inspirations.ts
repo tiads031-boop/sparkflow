@@ -120,6 +120,18 @@ export function summarizeInspirationAttachment(
   );
 }
 
+
+export function analyzeInspirationAttachment(
+  inspirationId: string,
+  attachmentId: string,
+) {
+  return api.post<InspirationAttachment>(
+    `/inspirations/${encodeURIComponent(inspirationId)}/attachments/${encodeURIComponent(attachmentId)}/analyze`,
+    {},
+    { throwOnError: true, timeoutMs: 105_000 },
+  );
+}
+
 export function updateInspiration(id: string, data: Partial<Pick<InspirationRecord, 'title' | 'description' | 'contentText' | 'sourceUrl' | 'sourceType' | 'tags'>>) {
   return patchJson<InspirationRecord>(`/inspirations/${encodeURIComponent(id)}`, data);
 }

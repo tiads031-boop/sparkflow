@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto';
 import { InspirationMediaService } from './inspiration-media.service';
 import { VoiceTranscriptionService } from '../planning/voice-transcription.service';
 import { AI_PROVIDER, type AIProvider } from '../ai/ai-provider';
+import { MediaUnderstandingService } from './media-understanding.service';
 
 const attachmentList = {
   select: {
@@ -37,6 +38,7 @@ export class InspirationsService {
     private readonly media: InspirationMediaService,
     private readonly voice: VoiceTranscriptionService,
     @Inject(AI_PROVIDER) private readonly ai: AIProvider,
+    private readonly mediaAI: MediaUnderstandingService,
   ) {}
 
   findAll(userId: string, status?: string) {
@@ -181,6 +183,77 @@ export class InspirationsService {
       },
       select: attachmentList.select,
     });
+  }
+
+  async analyzeAttachment(
+    id: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    const attachment = await this.prisma.inspirationAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        inspirationId: id,
+        inspiration: { userId },
+      },
+      include: {
+        inspiration: {
+          select: {
+            title: true,
+            contentText: true,
+          },
+        },
+      },
+    });
+    if (!attachment) throw new NotFoundException('Attachment not found');
+    if (!['image', 'video'].includes(attachment.kind)) {
+      throw new BadRequestException('当前附件请使用音频转写/摘要功能');
+    }
+
+    const context = [
+      attachment.inspiration.title,
+      attachment.inspiration.contentText,
+    ].filter(Boolean).join('\n').slice(0, 1000);
+    const buffer = await this.media.read(attachment.storageKey);
+
+    try {
+      if (attachment.kind === 'image') {
+        const result = await this.mediaAI.analyzeImage(
+          buffer,
+          attachment.mimeType,
+          context,
+        );
+        return this.prisma.inspirationAttachment.update({
+          where: { id: attachment.id },
+          data: {
+            aiSummary: result.summary,
+          },
+          select: attachmentList.select,
+        });
+      }
+
+      const result = await this.mediaAI.analyzeVideo(
+        buffer,
+        attachment.mimeType,
+        context,
+      );
+      return this.prisma.inspirationAttachment.update({
+        where: { id: attachment.id },
+        data: {
+          transcript: result.transcript,
+          aiSummary: result.summary,
+        },
+        select: attachmentList.select,
+      });
+    } catch (error) {
+      if (
+        error instanceof BadRequestException
+        || error instanceof ServiceUnavailableException
+      ) {
+        throw error;
+      }
+      throw new ServiceUnavailableException('多模态 AI 暂时不可用，请稍后重试');
+    }
   }
 
   async summarizeAttachment(
