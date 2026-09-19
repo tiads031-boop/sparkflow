@@ -9,10 +9,14 @@ import {
   ExternalLink,
   Globe2,
   Loader2,
+  Mic,
+  Pencil,
   Plus,
   RotateCcw,
   Send,
   Sparkles,
+  Square,
+  X,
 } from 'lucide-react';
 import { api } from '../../api/client';
 import {
@@ -20,12 +24,15 @@ import {
   getPlanningThread,
   listPlanningThreads,
   sendPlanningTurn,
+  updatePlanningContext,
   type PlanningContextSnapshot,
   type PlanningEvidenceItem,
   type PlanningThreadDetail,
 } from '../../api/planning';
 import type { PlannerPreview } from '../../types';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
+import { usePlanningVoiceInput } from '../../hooks/usePlanningVoiceInput';
+import PlanningContextEditor from './PlanningContextEditor';
 
 function dateInput(date: Date) {
   const year = date.getFullYear();
@@ -108,6 +115,9 @@ export default function PlannerSheet({
   const [readiness, setReadiness] = useState<'clarify' | 'ready' | null>(null);
   const [latestEvidence, setLatestEvidence] = useState<PlanningEvidenceItem[]>([]);
   const [contextOpen, setContextOpen] = useState(false);
+  const [contextEditing, setContextEditing] = useState(false);
+  const [contextSaving, setContextSaving] = useState(false);
+  const [contextError, setContextError] = useState('');
 
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [date, setDate] = useState(dateInput(selectedDate));
@@ -120,6 +130,11 @@ export default function PlannerSheet({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const close = useCallback(() => onClose(), [onClose]);
+  const handleVoiceTranscript = useCallback((text: string) => {
+    setMessageInput((current) => current.trim() ? `${current.trim()} ${text}` : text);
+    setTurnMessage('语音已转写，可以先修改文字，再发送给 AI。');
+  }, []);
+  const voice = usePlanningVoiceInput(handleVoiceTranscript);
   useModalLifecycle(open, close);
 
   const loadLatestThread = useCallback(async () => {
@@ -146,16 +161,21 @@ export default function PlannerSheet({
   }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      if (voice.state === 'recording') voice.cancel();
+      return;
+    }
     setDate(dateInput(selectedDate));
     setMessageInput(initialPrompt);
     setPreview(null);
     setPlanId(null);
     setSchedulerOpen(false);
     setScheduleMessage('');
+    setContextEditing(false);
+    setContextError('');
     onPreviewChange?.(null);
     void loadLatestThread();
-  }, [open, selectedDate, initialPrompt, loadLatestThread, onPreviewChange]);
+  }, [open, selectedDate, initialPrompt, loadLatestThread, onPreviewChange, voice.state, voice.cancel]);
 
   useEffect(() => {
     if (!open) return;
@@ -242,6 +262,35 @@ export default function PlannerSheet({
       setTurnMessage(error instanceof Error ? error.message : '创建新规划失败');
     } finally {
       setLoadingThread(false);
+    }
+  };
+
+  const savePlanningContext = async (
+    draft: Pick<
+      PlanningContextSnapshot,
+      'brief' | 'constraints' | 'preferences' | 'strategy' | 'assumptions'
+    >,
+  ) => {
+    if (!thread || contextSaving) return;
+    setContextSaving(true);
+    setContextError('');
+    try {
+      const updated = await updatePlanningContext(thread.id, thread.revision, draft);
+      setThread(updated);
+      setContextEditing(false);
+      clearPreview();
+      setSchedulerOpen(false);
+      setTurnMessage('规划依据已更新。后续 AI 会沿用这份修正后的上下文。');
+    } catch (error) {
+      setContextError(error instanceof Error ? error.message : '保存规划依据失败');
+      try {
+        const latest = await getPlanningThread(thread.id);
+        setThread(latest);
+      } catch {
+        // keep the current view if refresh also fails
+      }
+    } finally {
+      setContextSaving(false);
     }
   };
 
@@ -432,19 +481,51 @@ export default function PlannerSheet({
 
               {contextOpen && (
                 <div className="mt-2 space-y-4 rounded-[1.5rem] border border-black/[0.05] bg-white p-4">
-                  <ContextSection title="目标 / 当前状态" items={thread.planningContext.brief} />
-                  <ContextSection title="硬约束 / 软约束" items={thread.planningContext.constraints} />
-                  <ContextSection title="偏好" items={thread.planningContext.preferences} />
-                  <ContextSection title="当前策略" items={thread.planningContext.strategy} />
-                  <ContextSection title="暂时假设" items={thread.planningContext.assumptions} />
-                  {![
-                    ...thread.planningContext.brief,
-                    ...thread.planningContext.constraints,
-                    ...thread.planningContext.preferences,
-                    ...thread.planningContext.strategy,
-                    ...thread.planningContext.assumptions,
-                  ].length && (
-                    <p className="text-xs text-[var(--sf-text-tertiary)]">继续对话后，这里会逐步形成可持续的规划上下文。</p>
+                  {contextEditing ? (
+                    <PlanningContextEditor
+                      context={thread.planningContext}
+                      saving={contextSaving}
+                      onSave={(draft) => void savePlanningContext(draft)}
+                      onCancel={() => {
+                        setContextEditing(false);
+                        setContextError('');
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] leading-4 text-[var(--sf-text-tertiary)]">
+                          这里是 AI 后续调整计划时会继续沿用的依据。
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setContextEditing(true);
+                            setContextError('');
+                          }}
+                          className="ml-3 flex shrink-0 items-center gap-1 rounded-full bg-[var(--sf-bg)] px-3 py-1.5 text-[9px] font-bold"
+                        >
+                          <Pencil size={10} /> 编辑
+                        </button>
+                      </div>
+                      <ContextSection title="目标 / 当前状态" items={thread.planningContext.brief} />
+                      <ContextSection title="硬约束 / 软约束" items={thread.planningContext.constraints} />
+                      <ContextSection title="偏好" items={thread.planningContext.preferences} />
+                      <ContextSection title="当前策略" items={thread.planningContext.strategy} />
+                      <ContextSection title="暂时假设" items={thread.planningContext.assumptions} />
+                      {![
+                        ...thread.planningContext.brief,
+                        ...thread.planningContext.constraints,
+                        ...thread.planningContext.preferences,
+                        ...thread.planningContext.strategy,
+                        ...thread.planningContext.assumptions,
+                      ].length && (
+                        <p className="text-xs text-[var(--sf-text-tertiary)]">继续对话后，这里会逐步形成可持续的规划上下文。</p>
+                      )}
+                    </>
+                  )}
+                  {contextError && (
+                    <p className="rounded-2xl bg-red-50 px-3 py-2 text-xs text-red-600">{contextError}</p>
                   )}
                 </div>
               )}
@@ -576,6 +657,43 @@ export default function PlannerSheet({
         </div>
 
         <footer className="shrink-0 border-t border-black/[0.05] bg-[var(--sf-surface)] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3">
+          {voice.state === 'recording' && (
+            <div className="mb-2 flex items-center gap-2 rounded-2xl bg-red-50 px-3 py-2.5">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+              <span className="flex-1 text-xs font-bold text-red-700">
+                正在录音 · {Math.floor(voice.seconds / 60)}:{String(voice.seconds % 60).padStart(2, '0')}
+              </span>
+              <button
+                type="button"
+                onClick={voice.cancel}
+                className="grid h-8 w-8 place-items-center rounded-full bg-white text-red-400"
+                aria-label="取消录音"
+              >
+                <X size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={voice.stop}
+                className="flex h-8 items-center gap-1 rounded-full bg-red-600 px-3 text-[10px] font-bold text-white"
+              >
+                <Square size={10} fill="currentColor" /> 完成
+              </button>
+            </div>
+          )}
+          {voice.state === 'transcribing' && (
+            <div className="mb-2 flex items-center gap-2 rounded-2xl bg-[#f4f2fb] px-3 py-2.5 text-xs font-bold text-[#62578f]">
+              <Loader2 size={13} className="animate-spin" /> 正在转写语音，完成后会放回输入框供你修改…
+            </div>
+          )}
+          {voice.error && (
+            <button
+              type="button"
+              onClick={voice.clearError}
+              className="mb-2 w-full rounded-2xl bg-amber-50 px-3 py-2.5 text-left text-xs text-amber-800"
+            >
+              {voice.error}
+            </button>
+          )}
           <div className="flex items-end gap-2 rounded-[1.5rem] bg-[var(--sf-bg)] p-2">
             <textarea
               rows={1}
@@ -592,8 +710,18 @@ export default function PlannerSheet({
             />
             <button
               type="button"
+              onClick={() => void voice.start()}
+              disabled={!voice.supported || voice.state !== 'idle' || turnBusy || loadingThread}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[var(--sf-text-secondary)] disabled:opacity-30"
+              aria-label={voice.supported ? '语音输入' : '当前环境未配置语音输入'}
+              title={voice.supported ? '语音输入' : '当前环境未配置语音输入'}
+            >
+              <Mic size={16} />
+            </button>
+            <button
+              type="button"
               onClick={() => void sendMessage()}
-              disabled={!messageInput.trim() || turnBusy || loadingThread}
+              disabled={!messageInput.trim() || turnBusy || loadingThread || voice.state !== 'idle'}
               className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#242424] text-[#cae393] disabled:opacity-30"
               aria-label="发送给 AI"
             >
@@ -601,7 +729,7 @@ export default function PlannerSheet({
             </button>
           </div>
           <p className="mt-2 text-center text-[9px] text-[var(--sf-text-tertiary)]">
-            AI 会保留已确认的规划依据；外部事实可能变化，必要时会重新核实。
+            语音只用于本次转写，不保存原录音；发送前可编辑文字。AI 会继续沿用已确认的规划依据。
           </p>
         </footer>
       </section>
