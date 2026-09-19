@@ -13,6 +13,7 @@ import {
   type AIProvider,
   type PlanningActionProposal,
   type PlanningContextSnapshot,
+  type PlanningGoalExecutionSnapshot,
   type PlanningReplanRequest,
   type PlanningEvidenceItem,
   type PlanningFact,
@@ -162,6 +163,15 @@ function readActionProposals(value: unknown): PlanningActionProposal[] {
     ) {
       return [candidate as unknown as PlanningActionProposal];
     }
+
+    if (
+      candidate.type === 'update_goal' &&
+      typeof candidate.goalTitle === 'string' &&
+      candidate.changes &&
+      typeof candidate.changes === 'object'
+    ) {
+      return [candidate as unknown as PlanningActionProposal];
+    }
     return [];
   });
 }
@@ -170,6 +180,62 @@ function conversationContextObject(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
+}
+
+
+export function buildGoalExecutionSnapshot(
+  tasks: Array<{
+    title: string;
+    status: string;
+    dueDate: Date | null;
+    completedAt: Date | null;
+    project: string | null;
+  }>,
+  focusMinutesLast7Days: number,
+  now = new Date(),
+): PlanningGoalExecutionSnapshot {
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const completed = tasks.filter((task) => task.status === 'done');
+  const active = tasks.filter((task) => !['done', 'cancelled'].includes(task.status));
+  const overdue = active.filter((task) => task.dueDate && task.dueDate < now);
+  const recentlyCompleted = completed
+    .filter((task) => task.completedAt && task.completedAt >= sevenDaysAgo)
+    .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0));
+
+  const milestoneMap = new Map<string, {
+    totalTasks: number;
+    completedTasks: number;
+    overdueTasks: number;
+  }>();
+  for (const task of tasks) {
+    if (task.status === 'cancelled') continue;
+    const title = task.project?.trim() || '待整理';
+    const current = milestoneMap.get(title) || {
+      totalTasks: 0,
+      completedTasks: 0,
+      overdueTasks: 0,
+    };
+    current.totalTasks += 1;
+    if (task.status === 'done') current.completedTasks += 1;
+    if (!['done', 'cancelled'].includes(task.status) && task.dueDate && task.dueDate < now) {
+      current.overdueTasks += 1;
+    }
+    milestoneMap.set(title, current);
+  }
+
+  return {
+    totalTasks: tasks.filter((task) => task.status !== 'cancelled').length,
+    completedTasks: completed.length,
+    activeTasks: active.length,
+    overdueTasks: overdue.length,
+    completedLast7Days: recentlyCompleted.length,
+    focusMinutesLast7Days: Math.max(0, Math.round(focusMinutesLast7Days || 0)),
+    recentlyCompletedTitles: recentlyCompleted.slice(0, 5).map((task) => task.title),
+    milestones: [...milestoneMap.entries()].map(([title, counts]) => ({
+      title,
+      ...counts,
+    })),
+  };
 }
 
 
@@ -404,6 +470,46 @@ export class PlanningService {
       scheduledEnd: task.scheduledEnd?.toISOString() || null,
     }));
 
+    let goalExecution: PlanningGoalExecutionSnapshot | undefined;
+    if (thread.scopeType === 'goal' && thread.scopeId) {
+      const goalTasks = await this.prisma.task.findMany({
+        where: {
+          userId,
+          status: { not: 'cancelled' },
+          studyFolders: {
+            some: { folderId: thread.scopeId },
+          },
+        },
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          dueDate: true,
+          completedAt: true,
+          project: true,
+        },
+      });
+      const sevenDaysAgo = new Date(currentTime.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const focusAggregate = goalTasks.length
+        ? await this.prisma.pomodoroSession.aggregate({
+            where: {
+              userId,
+              taskId: { in: goalTasks.map((task) => task.id) },
+              status: 'completed',
+              endedAt: { gte: sevenDaysAgo },
+            },
+            _sum: { duration: true },
+          })
+        : { _sum: { duration: 0 } };
+
+      goalExecution = buildGoalExecutionSnapshot(
+        goalTasks,
+        focusAggregate._sum.duration || 0,
+        currentTime,
+      );
+    }
+
     const previousEvidence = freshEvidence(readEvidence(thread.evidence));
     let evidenceUsed = previousEvidence;
     let researchAdded: PlanningEvidenceItem[] = [];
@@ -420,6 +526,7 @@ export class PlanningService {
         id: thread.scopeId,
         title: thread.title,
       },
+      goalExecution,
       currentTime: currentTime.toISOString(),
       timeZone,
     };
@@ -479,6 +586,16 @@ export class PlanningService {
         actionProposals.push({
           ...action,
           taskTitle: currentTask?.title || action.taskTitle,
+          proposalId: randomUUID(),
+        });
+        continue;
+      }
+
+      if (action.type === 'update_goal') {
+        if (thread.scopeType !== 'goal' || !thread.scopeId) continue;
+        actionProposals.push({
+          ...action,
+          goalTitle: thread.title || action.goalTitle,
           proposalId: randomUUID(),
         });
         continue;
@@ -620,6 +737,7 @@ export class PlanningService {
     const result = await this.prisma.$transaction(async (tx) => {
       const createdTaskIds: string[] = [];
       const updatedTaskIds: string[] = [];
+      const updatedGoalIds: string[] = [];
 
       if (goalScopeId) {
         const ownedGoal = await tx.studyFolder.findFirst({
@@ -630,6 +748,34 @@ export class PlanningService {
       }
 
       for (const action of selected) {
+        if (action.type === 'update_goal') {
+          if (!goalScopeId) {
+            throw new BadRequestException('Goal updates require a goal-scoped planning thread');
+          }
+
+          const goalPatch: Prisma.StudyFolderUpdateManyMutationInput = {};
+          if (action.changes.name !== undefined) goalPatch.name = action.changes.name;
+          if (action.changes.description !== undefined) {
+            goalPatch.description = action.changes.description;
+          }
+
+          const updatedGoal = await tx.studyFolder.updateMany({
+            where: { id: goalScopeId, userId, status: 'active' },
+            data: goalPatch,
+          });
+          if (updatedGoal.count !== 1) {
+            throw new ConflictException('Learning goal is no longer active');
+          }
+          if (action.changes.name !== undefined) {
+            await tx.planningThread.updateMany({
+              where: { id: threadId, userId, scopeType: 'goal', scopeId: goalScopeId },
+              data: { title: action.changes.name },
+            });
+          }
+          updatedGoalIds.push(goalScopeId);
+          continue;
+        }
+
         if (action.type === 'create_task') {
 
           await tx.task.createMany({
@@ -710,6 +856,7 @@ export class PlanningService {
         appliedActionIds: selected.map((action) => action.proposalId),
         createdTaskIds,
         updatedTaskIds,
+        updatedGoalIds: [...new Set(updatedGoalIds)],
       };
     });
 
