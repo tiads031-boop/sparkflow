@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createReadStream } from 'fs';
-import { mkdir, unlink, writeFile } from 'fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
 import { basename, extname, join, resolve, sep } from 'path';
 import { randomUUID } from 'crypto';
 
@@ -146,6 +146,10 @@ export class InspirationMediaService {
 
   open(storageKey: string) {
     return createReadStream(this.absolutePath(storageKey));
+  }
+
+  read(storageKey: string) {
+    return readFile(this.absolutePath(storageKey));
   }
 
   absolutePath(storageKey: string) {
