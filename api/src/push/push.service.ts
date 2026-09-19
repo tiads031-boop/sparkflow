@@ -120,7 +120,7 @@ export class PushService implements OnModuleInit {
         settings: mergeNotificationSettings(
           user?.settings,
           next,
-        ) as Prisma.InputJsonValue,
+        ) as unknown as Prisma.InputJsonValue,
       },
     });
 
@@ -546,8 +546,7 @@ export class PushService implements OnModuleInit {
         body: pendingEvents
           .slice(0, 5)
           .map((event) => {
-            const location = (event as typeof event & { location?: string | null }).location;
-            return `${timeFormatter.format(event.startTime)} ${event.title}${location ? ` · ${location}` : ''}`;
+            return `${timeFormatter.format(event.startTime)} ${event.title}${event.location ? ` · ${event.location}` : ''}`;
           })
           .join('\n'),
       };
