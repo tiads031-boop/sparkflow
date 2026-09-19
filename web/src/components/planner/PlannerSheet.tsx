@@ -39,10 +39,15 @@ import { usePlanningVoiceInput } from '../../hooks/usePlanningVoiceInput';
 import PlanningContextEditor from './PlanningContextEditor';
 import {
   applyCourseChange,
+  applyCourseTemplateChange,
   previewCourseChange,
+  previewCourseTemplateChange,
   undoCourseChange,
+  undoCourseTemplateChange,
   type CourseChangePreview,
   type CourseChangeRequest,
+  type CourseTemplateChangePreview,
+  type CourseTemplateChangeRequest,
 } from '../../api/courses';
 
 function dateInput(date: Date) {
@@ -81,7 +86,8 @@ function statusLabel(status: 'confirmed' | 'inferred' | 'assumed') {
 }
 
 type CourseChangeAction = Extract<PlanningActionProposal, { type: 'course_change' }>;
-type DirectPlanningAction = Exclude<PlanningActionProposal, { type: 'course_change' }>;
+type CourseTemplateChangeAction = Extract<PlanningActionProposal, { type: 'course_template_change' }>;
+type DirectPlanningAction = Exclude<PlanningActionProposal, CourseChangeAction | CourseTemplateChangeAction>;
 
 function courseChangeTypeLabel(type: CourseChangeAction['change']['type']) {
   if (type === 'reschedule') return '调课';
@@ -92,6 +98,39 @@ function courseChangeTypeLabel(type: CourseChangeAction['change']['type']) {
 
 function courseChangeRequest(action: CourseChangeAction): CourseChangeRequest {
   return action.change;
+}
+
+function courseTemplateRequest(action: CourseTemplateChangeAction): CourseTemplateChangeRequest {
+  return {
+    courseId: action.courseId,
+    effectiveFrom: action.effectiveFrom,
+    changes: action.changes,
+  };
+}
+
+const courseDayLabels: Record<number, string> = {
+  1: '周一',
+  2: '周二',
+  3: '周三',
+  4: '周四',
+  5: '周五',
+  6: '周六',
+  7: '周日',
+};
+
+function templateStateLabel(state: {
+  dayOfWeek: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  room: string | null;
+  location: string | null;
+}) {
+  const day = state.dayOfWeek ? courseDayLabels[state.dayOfWeek] || `周${state.dayOfWeek}` : '日期未定';
+  const time = state.startTime && state.endTime
+    ? `${state.startTime}–${state.endTime}`
+    : '时间未定';
+  const place = state.room || state.location;
+  return `${day} · ${time}${place ? ` · ${place}` : ''}`;
 }
 
 function ContextSection({
@@ -174,6 +213,13 @@ export default function PlannerSheet({
   const [courseChangePlanId, setCourseChangePlanId] = useState<string | null>(null);
   const [lastAppliedCourseAction, setLastAppliedCourseAction] = useState<CourseChangeAction | null>(null);
 
+  const [activeTemplateProposalId, setActiveTemplateProposalId] = useState<string | null>(null);
+  const [templateChangePreview, setTemplateChangePreview] = useState<CourseTemplateChangePreview | null>(null);
+  const [templateChangeBusy, setTemplateChangeBusy] = useState(false);
+  const [templateChangeMessage, setTemplateChangeMessage] = useState('');
+  const [templateChangePlanId, setTemplateChangePlanId] = useState<string | null>(null);
+  const [lastAppliedTemplateAction, setLastAppliedTemplateAction] = useState<CourseTemplateChangeAction | null>(null);
+
   const [replanRequests, setReplanRequests] = useState<PlanningReplanRequest[]>([]);
   const [activeReplanRequestId, setActiveReplanRequestId] = useState<string | null>(null);
   const [replanPreview, setReplanPreview] = useState<PlannerReplanPreview | null>(null);
@@ -236,7 +282,7 @@ export default function PlannerSheet({
       setActionProposals(pendingActions);
       setSelectedActionIds(
         pendingActions
-          .filter((action) => action.type !== 'course_change')
+          .filter((action) => action.type !== 'course_change' && action.type !== 'course_template_change')
           .map((action) => action.proposalId),
       );
       setActiveCourseProposalId(null);
@@ -269,6 +315,11 @@ export default function PlannerSheet({
     setCourseChangePlanId(null);
     setCourseChangeMessage('');
     setLastAppliedCourseAction(null);
+    setActiveTemplateProposalId(null);
+    setTemplateChangePreview(null);
+    setTemplateChangePlanId(null);
+    setTemplateChangeMessage('');
+    setLastAppliedTemplateAction(null);
     setReplanMessage('');
     setActiveReplanRequestId(null);
     setReplanPreview(null);
@@ -300,10 +351,16 @@ export default function PlannerSheet({
   if (!open) return null;
 
   const directActionProposals = actionProposals.filter(
-    (action): action is DirectPlanningAction => action.type !== 'course_change',
+    (action): action is DirectPlanningAction => (
+      action.type !== 'course_change' &&
+      action.type !== 'course_template_change'
+    ),
   );
   const courseChangeProposals = actionProposals.filter(
     (action): action is CourseChangeAction => action.type === 'course_change',
+  );
+  const templateChangeProposals = actionProposals.filter(
+    (action): action is CourseTemplateChangeAction => action.type === 'course_template_change',
   );
 
   const clearPreview = () => {
@@ -356,7 +413,7 @@ export default function PlannerSheet({
       setActionProposals(result.actions);
       setSelectedActionIds(
         result.actions
-          .filter((action) => action.type !== 'course_change')
+          .filter((action) => action.type !== 'course_change' && action.type !== 'course_template_change')
           .map((action) => action.proposalId),
       );
       setActionMessage('');
@@ -365,6 +422,11 @@ export default function PlannerSheet({
       setCourseChangePlanId(null);
       setCourseChangeMessage('');
       setLastAppliedCourseAction(null);
+      setActiveTemplateProposalId(null);
+      setTemplateChangePreview(null);
+      setTemplateChangePlanId(null);
+      setTemplateChangeMessage('');
+      setLastAppliedTemplateAction(null);
       setReplanRequests(result.replanRequests || []);
       setActiveReplanRequestId(null);
       setReplanPreview(null);
@@ -407,6 +469,11 @@ export default function PlannerSheet({
       setCourseChangePlanId(null);
       setCourseChangeMessage('');
       setLastAppliedCourseAction(null);
+      setActiveTemplateProposalId(null);
+      setTemplateChangePreview(null);
+      setTemplateChangePlanId(null);
+      setTemplateChangeMessage('');
+      setLastAppliedTemplateAction(null);
       setReplanRequests([]);
       setActiveReplanRequestId(null);
       setReplanPreview(null);
