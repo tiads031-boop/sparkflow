@@ -20,6 +20,7 @@ import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { StudyModule } from './study/study.module';
+import { PlanningModule } from './planning/planning.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { StudyModule } from './study/study.module';
     PushModule,
     GoogleCalendarModule,
     StudyModule,
+    PlanningModule,
   ],
   controllers: [AppController],
   providers: [
