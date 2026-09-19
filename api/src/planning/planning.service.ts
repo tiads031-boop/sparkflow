@@ -376,6 +376,7 @@ export class PlanningService {
               message,
               context: contextFromThread(thread),
               recentMessages,
+              currentTasks,
               evidence: evidenceUsed,
               researchAllowed: false,
               researchUnavailableReason:
@@ -387,6 +388,7 @@ export class PlanningService {
               message,
               context: contextFromThread(thread),
               recentMessages,
+              currentTasks,
               evidence: previousEvidence,
               researchAllowed: false,
               researchUnavailableReason: 'Web research failed for this turn',
