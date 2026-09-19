@@ -6,17 +6,21 @@ import * as webpush from 'web-push';
 import * as admin from 'firebase-admin';
 import type { Prisma } from '@prisma/client';
 import {
-  buildReminderDeliveryKey,
   groupReminderTasksByUser,
-  reminderScheduledFor,
-  reminderWindow,
+  REMINDER_GRACE_MS,
   type ReminderTask,
 } from './push-reminder';
 import {
+  buildNotificationDeliveryKey,
+  courseReminderScheduledFor,
+  MAX_NOTIFICATION_LEAD_MINUTES,
   mergeNotificationSettings,
   normalizeNotificationPreferencesPatch,
   parseNotificationPreferences,
+  shouldDeliverCourseReminder,
   shouldDeliverReminder,
+  taskReminderScheduledFor,
+  type CourseReminderEvent,
   type NotificationPreferences,
 } from './push-preferences';
 
@@ -194,8 +198,10 @@ export class PushService implements OnModuleInit {
     if (!this.vapidReady && !this.fcmApp) return;
 
     const now = new Date();
-    const { dueEnd } = reminderWindow(now);
     const recentStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const dueEnd = new Date(
+      now.getTime() + MAX_NOTIFICATION_LEAD_MINUTES * 60_000,
+    );
 
     const reminderCandidates = await this.prisma.task.findMany({
       where: {
@@ -263,11 +269,22 @@ export class PushService implements OnModuleInit {
     });
     if (subs.length === 0) return;
 
-    const candidateKeys = subs.flatMap((sub) =>
-      (tasksByUser.get(sub.userId) || []).map((task) =>
-        buildReminderDeliveryKey(task, sub.id),
-      ),
-    );
+    const candidateKeys = subs.flatMap((sub) => {
+      const preferences = preferencesByUser.get(sub.userId)
+        || parseNotificationPreferences(undefined);
+      return (tasksByUser.get(sub.userId) || []).flatMap((task) => {
+        const scheduledFor = taskReminderScheduledFor(task, preferences);
+        return scheduledFor
+          ? [buildNotificationDeliveryKey(
+              'task',
+              task.userId,
+              task.id,
+              scheduledFor,
+              sub.id,
+            )]
+          : [];
+      });
+    });
 
     const existingDeliveries = candidateKeys.length
       ? await this.prisma.notificationDelivery.findMany({
@@ -284,9 +301,19 @@ export class PushService implements OnModuleInit {
 
     for (const sub of subs) {
       const userTasks = tasksByUser.get(sub.userId) || [];
-      const pendingTasks = userTasks.filter(
-        (task) => !deliveredKeys.has(buildReminderDeliveryKey(task, sub.id)),
-      );
+      const preferences = preferencesByUser.get(sub.userId)
+        || parseNotificationPreferences(undefined);
+      const pendingTasks = userTasks.filter((task) => {
+        const scheduledFor = taskReminderScheduledFor(task, preferences);
+        if (!scheduledFor) return false;
+        return !deliveredKeys.has(buildNotificationDeliveryKey(
+          'task',
+          task.userId,
+          task.id,
+          scheduledFor,
+          sub.id,
+        ));
+      });
       if (pendingTasks.length === 0) continue;
 
       const notification = {
@@ -366,15 +393,25 @@ export class PushService implements OnModuleInit {
       if (!sent) continue;
 
       await this.prisma.notificationDelivery.createMany({
-        data: pendingTasks.map((task) => ({
-          userId: task.userId,
-          sourceType: 'task',
-          sourceId: task.id,
-          subscriptionId: sub.id,
-          deliveryKey: buildReminderDeliveryKey(task, sub.id),
-          scheduledFor: reminderScheduledFor(task)!,
-          channel: sub.channel,
-        })),
+        data: pendingTasks.flatMap((task) => {
+          const scheduledFor = taskReminderScheduledFor(task, preferences);
+          if (!scheduledFor) return [];
+          return [{
+            userId: task.userId,
+            sourceType: 'task',
+            sourceId: task.id,
+            subscriptionId: sub.id,
+            deliveryKey: buildNotificationDeliveryKey(
+              'task',
+              task.userId,
+              task.id,
+              scheduledFor,
+              sub.id,
+            ),
+            scheduledFor,
+            channel: sub.channel,
+          }];
+        }),
         skipDuplicates: true,
       });
       deliveredTaskCount += pendingTasks.length;
@@ -384,6 +421,231 @@ export class PushService implements OnModuleInit {
     if (total > 0 || removed > 0) {
       this.logger.log(
         `Push cron: web=${webSent} fcm=${fcmSent} removed=${removed} reminders=${deliveredTaskCount} users=${userIds.length}`,
+      );
+    }
+  }
+
+  // ── 定时扫描：课程开始提醒 ──
+
+  @Cron('*/1 * * * *')
+  async notifyUpcomingCourses() {
+    if (!this.vapidReady && !this.fcmApp) return;
+
+    const now = new Date();
+    const rangeStart = new Date(now.getTime() - REMINDER_GRACE_MS);
+    const rangeEnd = new Date(
+      now.getTime() + MAX_NOTIFICATION_LEAD_MINUTES * 60_000,
+    );
+
+    const candidates = await this.prisma.calendarEvent.findMany({
+      where: {
+        courseId: { not: null },
+        startTime: { lte: rangeEnd },
+        endTime: { gt: rangeStart },
+        OR: [
+          { overrideType: null },
+          { overrideType: { not: 'cancel' } },
+        ],
+      },
+      select: {
+        id: true,
+        userId: true,
+        title: true,
+        startTime: true,
+        endTime: true,
+        location: true,
+      },
+      orderBy: { startTime: 'asc' },
+      take: 500,
+    });
+
+    if (!candidates.length) return;
+
+    const userIds = [...new Set(candidates.map((event) => event.userId))];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, settings: true },
+    });
+    const preferencesByUser = new Map(
+      users.map((user) => [
+        user.id,
+        parseNotificationPreferences(user.settings),
+      ]),
+    );
+
+    const eventsByUser = new Map<string, CourseReminderEvent[]>();
+    for (const event of candidates) {
+      const preferences = preferencesByUser.get(event.userId)
+        || parseNotificationPreferences(undefined);
+      if (!shouldDeliverCourseReminder(event, preferences, now)) continue;
+      const bucket = eventsByUser.get(event.userId) || [];
+      bucket.push(event);
+      eventsByUser.set(event.userId, bucket);
+    }
+    if (!eventsByUser.size) return;
+
+    const eligibleUserIds = [...eventsByUser.keys()];
+    const subs = await this.prisma.pushSubscription.findMany({
+      where: { userId: { in: eligibleUserIds } },
+    });
+    if (!subs.length) return;
+
+    const candidateKeys = subs.flatMap((sub) => {
+      const preferences = preferencesByUser.get(sub.userId)
+        || parseNotificationPreferences(undefined);
+      return (eventsByUser.get(sub.userId) || []).map((event) =>
+        buildNotificationDeliveryKey(
+          'course',
+          event.userId,
+          event.id,
+          courseReminderScheduledFor(event, preferences),
+          sub.id,
+        ),
+      );
+    });
+
+    const existingDeliveries = candidateKeys.length
+      ? await this.prisma.notificationDelivery.findMany({
+          where: { deliveryKey: { in: candidateKeys } },
+          select: { deliveryKey: true },
+        })
+      : [];
+    const deliveredKeys = new Set(
+      existingDeliveries.map((item) => item.deliveryKey),
+    );
+
+    let webSent = 0;
+    let fcmSent = 0;
+    let removed = 0;
+    let deliveredCourseCount = 0;
+
+    for (const sub of subs) {
+      const preferences = preferencesByUser.get(sub.userId)
+        || parseNotificationPreferences(undefined);
+      const pendingEvents = (eventsByUser.get(sub.userId) || []).filter((event) =>
+        !deliveredKeys.has(buildNotificationDeliveryKey(
+          'course',
+          event.userId,
+          event.id,
+          courseReminderScheduledFor(event, preferences),
+          sub.id,
+        )),
+      );
+      if (!pendingEvents.length) continue;
+
+      const timeFormatter = new Intl.DateTimeFormat('zh-CN', {
+        timeZone: preferences.timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      const notification = {
+        title: pendingEvents.length === 1
+          ? '课程提醒'
+          : `${pendingEvents.length} 节课程提醒`,
+        body: pendingEvents
+          .slice(0, 5)
+          .map((event) => {
+            const location = (event as typeof event & { location?: string | null }).location;
+            return `${timeFormatter.format(event.startTime)} ${event.title}${location ? ` · ${location}` : ''}`;
+          })
+          .join('\n'),
+      };
+
+      const webPayload = JSON.stringify({
+        ...notification,
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        data: { url: '/' },
+        tag: 'sparkflow-course-reminder',
+      });
+      const fcmPayload: admin.messaging.NotificationMessagePayload = {
+        title: notification.title,
+        body: notification.body,
+      };
+
+      let sent = false;
+      if (sub.channel === 'fcm') {
+        if (!this.fcmApp) continue;
+        try {
+          await this.fcmApp.messaging().send({
+            token: sub.endpoint,
+            notification: fcmPayload,
+            data: { url: '/' },
+            android: {
+              notification: {
+                channelId: 'sparkflow-courses',
+                icon: 'ic_stat_sparkflow',
+                color: '#b0a8db',
+              },
+            },
+          });
+          fcmSent += 1;
+          sent = true;
+        } catch (err: any) {
+          if (
+            err.code === 'messaging/registration-token-not-registered'
+            || err.code === 'messaging/invalid-argument'
+          ) {
+            await this.prisma.pushSubscription.delete({ where: { id: sub.id } });
+            removed += 1;
+          } else {
+            this.logger.warn(
+              `FCM course push failed for ${sub.id.slice(0, 8)}: ${err.message}`,
+            );
+          }
+        }
+      } else {
+        if (!this.vapidReady || !sub.p256dh || !sub.auth) continue;
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
+            },
+            webPayload,
+          );
+          webSent += 1;
+          sent = true;
+        } catch (err: any) {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            await this.prisma.pushSubscription.delete({ where: { id: sub.id } });
+            removed += 1;
+          } else {
+            this.logger.warn(
+              `Web course push failed for ${sub.id.slice(0, 8)}: ${err.message}`,
+            );
+          }
+        }
+      }
+
+      if (!sent) continue;
+
+      await this.prisma.notificationDelivery.createMany({
+        data: pendingEvents.map((event) => ({
+          userId: event.userId,
+          sourceType: 'course',
+          sourceId: event.id,
+          subscriptionId: sub.id,
+          deliveryKey: buildNotificationDeliveryKey(
+            'course',
+            event.userId,
+            event.id,
+            courseReminderScheduledFor(event, preferences),
+            sub.id,
+          ),
+          scheduledFor: courseReminderScheduledFor(event, preferences),
+          channel: sub.channel,
+        })),
+        skipDuplicates: true,
+      });
+      deliveredCourseCount += pendingEvents.length;
+    }
+
+    const total = webSent + fcmSent;
+    if (total > 0 || removed > 0) {
+      this.logger.log(
+        `Course push cron: web=${webSent} fcm=${fcmSent} removed=${removed} reminders=${deliveredCourseCount} users=${eligibleUserIds.length}`,
       );
     }
   }
