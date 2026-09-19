@@ -22,6 +22,7 @@
 
 | 文件 | 范围 | 状态 | 说明 |
 |---|---|---|---|
+| [vnext-information-architecture-plan-workspace.md](vnext-information-architecture-plan-workspace.md) | VNext 信息架构、五工作空间、Plan 四视图、课程/任务/Planner 统一投影 | ⬜ 方案完成，未排期 | 底部固定“今天 / 计划 / 记录 / 学习 / 我的”；Month / Week / Agenda / Timetable 共用现有 Task / Course / Calendar / Planner / Focus，不建立第二套事实源 |
 | [../study-mode/README.md](../study-mode/README.md) | Study Mode、Study Home、学习文件夹、复习闭环、习惯与导出 | ⬜ M0 完成 | PR #25 已合并；复用 Today / Task / Calendar / Planner / Focus / Course，不建立第二套事实源；实施拆分见 [roadmap](../study-mode/roadmap.md) |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 / Local Codex Bridge | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后再启动；不进入云端 API/数据库控制链 |
 
