@@ -1,5 +1,6 @@
+import { useEffect, useRef } from 'react';
 import type { Course, Semester } from '../../types';
-import { courseOccursOnDate, getMonday, getSemesterWeekNumber } from './planProjection';
+import { courseOccursOnDate, dedupeCoursesByOccurrence, getMonday, getSemesterWeekNumber, localDateKey } from './planProjection';
 
 const periods = [
   ['1', '08:00', '08:50'],
@@ -14,7 +15,7 @@ const periods = [
   ['10', '19:30', '20:20'],
 ] as const;
 
-const ROW_HEIGHT = 72;
+const ROW_HEIGHT = 76;
 
 function minutes(time: string) {
   const [hour, minute] = time.split(':').map(Number);
@@ -26,7 +27,10 @@ function coursePeriodRange(course: Course) {
   const start = minutes(course.startTime);
   const end = minutes(course.endTime);
   const first = periods.findIndex(([, periodStart, periodEnd]) => start < minutes(periodEnd) && end > minutes(periodStart));
-  const last = [...periods].map((period, index) => ({ period, index })).reverse().find(({ period: [, periodStart, periodEnd] }) => start < minutes(periodEnd) && end > minutes(periodStart))?.index ?? -1;
+  const last = [...periods]
+    .map((period, index) => ({ period, index }))
+    .reverse()
+    .find(({ period: [, periodStart, periodEnd] }) => start < minutes(periodEnd) && end > minutes(periodStart))?.index ?? -1;
   if (first < 0 || last < first) return null;
   return { first, last };
 }
@@ -50,6 +54,25 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
     return day;
   });
   const week = getSemesterWeekNumber(selectedDate, semester);
+  const selectedKey = localDateKey(selectedDate);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const semesterCourses = dedupeCoursesByOccurrence(
+    semester
+      ? courses.filter((course) => !course.semesterId || course.semesterId === semester.id)
+      : courses,
+  );
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    const selectedWeekday = selectedDate.getDay() || 7;
+    const selectedIndex = selectedWeekday - 1;
+    const timeColumnWidth = 56;
+    const dayWidth = (scroller.scrollWidth - timeColumnWidth) / 7;
+    const targetCenter = timeColumnWidth + (selectedIndex + 0.5) * dayWidth;
+    const maxLeft = scroller.scrollWidth - scroller.clientWidth;
+    scroller.scrollTo({ left: Math.max(0, Math.min(maxLeft, targetCenter - scroller.clientWidth / 2)) });
+  }, [selectedKey]);
 
   return (
     <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
@@ -61,57 +84,86 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
         <span className="text-[9px] text-[var(--sf-text-tertiary)]">淡色 = 非本周</span>
       </div>
 
-      <div className="grid grid-cols-[52px_repeat(7,minmax(40px,1fr))] border-b border-black/5 px-1.5 py-2">
-        <div />
-        {days.map((day) => (
-          <div key={day.toISOString()} className="text-center">
-            <p className="text-[9px] text-[var(--sf-text-tertiary)]">{'日一二三四五六'[day.getDay()]}</p>
-            <p className="text-xs font-black text-[var(--sf-text-primary)]">{day.getDate()}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="max-h-[62svh] overflow-y-auto">
-        <div className="grid grid-cols-[52px_repeat(7,minmax(40px,1fr))] px-1.5">
-          <div>
-            {periods.map(([period, start, end]) => (
-              <div key={period} className="flex flex-col justify-center border-b border-black/5" style={{ height: ROW_HEIGHT }}>
-                <strong className="text-lg leading-none text-[var(--sf-text-primary)]">{period}</strong>
-                <span className="mt-1 text-[8px] leading-3 text-[var(--sf-text-tertiary)]">{start}<br />{end}</span>
+      <div ref={scrollerRef} className="overflow-x-auto overscroll-x-contain">
+        <div className="min-w-[560px]">
+          <div className="grid grid-cols-[56px_repeat(7,minmax(68px,1fr))] border-b border-black/5 px-1.5 py-2">
+            <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" />
+            {days.map((day) => (
+              <div key={day.toISOString()} className="text-center">
+                <p className="text-[9px] text-[var(--sf-text-tertiary)]">{'日一二三四五六'[day.getDay()]}</p>
+                <p className="text-xs font-black text-[var(--sf-text-primary)]">{day.getDate()}</p>
               </div>
             ))}
           </div>
 
-          {days.map((day) => {
-            const weekday = day.getDay() || 7;
-            const dayCourses = courses.filter((course) => course.dayOfWeek === weekday && course.startTime && course.endTime);
-            return (
-              <div key={day.toISOString()} className="relative border-l border-black/[0.05]" style={{ height: periods.length * ROW_HEIGHT }}>
-                {periods.map(([period], index) => <span key={period} className="absolute left-0 right-0 border-b border-black/[0.05]" style={{ top: (index + 1) * ROW_HEIGHT }} />)}
-                {dayCourses.map((course) => {
-                  const range = coursePeriodRange(course);
-                  if (!range) return null;
-                  const active = courseOccursOnDate(course, day, semester);
-                  const top = range.first * ROW_HEIGHT + 3;
-                  const height = (range.last - range.first + 1) * ROW_HEIGHT - 6;
-                  return (
-                    <button
-                      key={course.id}
-                      type="button"
-                      onClick={() => onCourseClick?.(course.id)}
-                      className={`absolute left-0.5 right-0.5 overflow-hidden rounded-lg border-l-2 px-1 py-1 text-left shadow-sm ${active ? '' : 'opacity-35'}`}
-                      style={{ top, height, borderLeftColor: course.color, backgroundColor: cardBackground(course.color) }}
-                      title={course.name}
-                    >
-                      <span className="block break-words text-[8px] font-black leading-[10px] text-[#242424]">{course.name}</span>
-                      {height > 42 && (course.room || course.location) && <span className="mt-1 block break-words text-[7px] leading-[9px] text-gray-500">@{course.room || course.location}</span>}
-                      {!active && <span className="absolute bottom-1 left-1 text-[7px] font-bold text-gray-500">非本周</span>}
-                    </button>
-                  );
-                })}
+          <div className="max-h-[62svh] overflow-y-auto">
+            <div className="grid grid-cols-[56px_repeat(7,minmax(68px,1fr))] px-1.5">
+              <div className="sticky left-0 z-20 bg-[var(--sf-surface)]">
+                {periods.map(([period, start, end]) => (
+                  <div key={period} className="flex flex-col justify-center border-b border-black/5" style={{ height: ROW_HEIGHT }}>
+                    <strong className="text-lg leading-none text-[var(--sf-text-primary)]">{period}</strong>
+                    <span className="mt-1 text-[8px] leading-3 text-[var(--sf-text-tertiary)]">{start}<br />{end}</span>
+                  </div>
+                ))}
               </div>
-            );
-          })}
+
+              {days.map((day) => {
+                const weekday = day.getDay() || 7;
+                const dayCourses = semesterCourses.filter(
+                  (course) => course.dayOfWeek === weekday && course.startTime && course.endTime,
+                );
+
+                return (
+                  <div key={day.toISOString()} className="relative border-l border-black/[0.05]" style={{ height: periods.length * ROW_HEIGHT }}>
+                    {periods.map(([period], index) => (
+                      <span
+                        key={period}
+                        className="absolute left-0 right-0 border-b border-black/[0.05]"
+                        style={{ top: (index + 1) * ROW_HEIGHT }}
+                      />
+                    ))}
+
+                    {dayCourses.map((course) => {
+                      const range = coursePeriodRange(course);
+                      if (!range) return null;
+                      const active = courseOccursOnDate(course, day, semester);
+                      const top = range.first * ROW_HEIGHT + 3;
+                      const height = (range.last - range.first + 1) * ROW_HEIGHT - 6;
+                      const titleMaxHeight = height >= ROW_HEIGHT * 1.5 ? 55 : 33;
+
+                      return (
+                        <button
+                          key={course.id}
+                          type="button"
+                          onClick={() => onCourseClick?.(course.id)}
+                          className={`absolute left-1 right-1 overflow-hidden rounded-lg border-l-2 px-1.5 py-1.5 text-left shadow-sm ${active ? '' : 'opacity-35'}`}
+                          style={{ top, height, borderLeftColor: course.color, backgroundColor: cardBackground(course.color) }}
+                          title={course.name}
+                        >
+                          <span
+                            className="block overflow-hidden break-words text-[9px] font-black leading-[11px] text-[#242424]"
+                            style={{ maxHeight: titleMaxHeight }}
+                          >
+                            {course.name}
+                          </span>
+                          {height >= 64 && (course.room || course.location) && (
+                            <span className="mt-1 block truncate text-[8px] leading-[10px] text-gray-500">
+                              @{course.room || course.location}
+                            </span>
+                          )}
+                          {!active && (
+                            <span className="absolute bottom-1 left-1.5 rounded bg-white/70 px-1 text-[7px] font-bold text-gray-500">
+                              非本周
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </section>

@@ -98,6 +98,7 @@ export function courseOccursOnDate(course: Course, date: Date, semester?: Semest
   if (!course.dayOfWeek || course.dayOfWeek !== weekday) return false;
 
   if (semester) {
+    if (course.semesterId && course.semesterId !== semester.id) return false;
     const target = startOfLocalDay(date);
     const semesterStart = dateAtLocalMidnight(semester.startDate);
     const semesterEnd = dateAtLocalMidnight(semester.endDate);
@@ -110,6 +111,66 @@ export function courseOccursOnDate(course: Course, date: Date, semester?: Semest
   if (!semester) return true;
   const week = getSemesterWeekNumber(date, semester);
   return week !== null && course.weeks.includes(week);
+}
+
+function normalizeOccurrenceText(value?: string | null): string {
+  return (value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+export function courseOccurrenceKey(course: Course): string {
+  return [
+    course.semesterId || '',
+    normalizeOccurrenceText(course.name),
+    course.dayOfWeek || '',
+    course.startTime || '',
+    course.endTime || '',
+    normalizeOccurrenceText(course.room || course.location),
+  ].join('|');
+}
+
+export function dedupeCoursesByOccurrence(courses: Course[]): Course[] {
+  const unique = new Map<string, Course>();
+
+  for (const course of courses) {
+    const key = courseOccurrenceKey(course);
+    const existing = unique.get(key);
+    if (!existing) {
+      unique.set(key, course);
+      continue;
+    }
+
+    const existingWeeks = existing.weeks?.length ? existing.weeks : null;
+    const incomingWeeks = course.weeks?.length ? course.weeks : null;
+    unique.set(key, {
+      ...existing,
+      weeks: existingWeeks && incomingWeeks
+        ? [...new Set([...existingWeeks, ...incomingWeeks])].sort((a, b) => a - b)
+        : undefined,
+    });
+  }
+
+  return [...unique.values()];
+}
+
+function planCourseOccurrenceKey(item: PlanItem): string {
+  return [
+    normalizeOccurrenceText(item.title),
+    new Date(item.start).getTime(),
+    new Date(item.end).getTime(),
+    normalizeOccurrenceText(item.location),
+  ].join('|');
+}
+
+function dedupePlanCourseItems(items: PlanItem[]): PlanItem[] {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    if (item.kind !== 'course') return true;
+    const key = planCourseOccurrenceKey(item);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function combineLocalDateAndTime(date: Date, time: string): Date {
@@ -205,8 +266,9 @@ function buildCourseFallbackItems(
   );
 
   const items: PlanItem[] = [];
+  const uniqueCourses = dedupeCoursesByOccurrence(courses);
   for (let date = startOfLocalDay(range.start); date < range.end; date = addLocalDays(date, 1)) {
-    for (const course of courses) {
+    for (const course of uniqueCourses) {
       if (!course.startTime || !course.endTime || !courseOccursOnDate(course, date, semester)) continue;
       const dedupeKey = `${course.id}:${localDateKey(date)}`;
       if (existingCourseDays.has(dedupeKey)) continue;
@@ -245,7 +307,8 @@ export function buildPlanItems(input: {
     ...buildCourseFallbackItems(input.courses, input.calendarEvents, input.semester, input.range),
   ];
 
-  return items.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  return dedupePlanCourseItems(items)
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 
 export function buildPlannerPreviewItems(preview: PlannerPreview | null | undefined, tasks: Task[]): PlanItem[] {
