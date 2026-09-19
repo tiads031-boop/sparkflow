@@ -183,6 +183,17 @@ function readActionProposals(value: unknown): PlanningActionProposal[] {
     ) {
       return [candidate as unknown as PlanningActionProposal];
     }
+
+    if (
+      candidate.type === 'course_template_change' &&
+      typeof candidate.courseId === 'string' &&
+      typeof candidate.courseName === 'string' &&
+      typeof candidate.effectiveFrom === 'string' &&
+      candidate.changes &&
+      typeof candidate.changes === 'object'
+    ) {
+      return [candidate as unknown as PlanningActionProposal];
+    }
     return [];
   });
 }
@@ -702,6 +713,18 @@ export class PlanningService {
         continue;
       }
 
+      if (action.type === 'course_template_change') {
+        if (thread.scopeType === 'goal') continue;
+        const course = currentCourseById.get(action.courseId);
+        if (!course) continue;
+        actionProposals.push({
+          ...action,
+          courseName: course.name,
+          proposalId: randomUUID(),
+        });
+        continue;
+      }
+
       if (action.type === 'course_change') {
         if (thread.scopeType === 'goal') continue;
 
@@ -889,8 +912,8 @@ export class PlanningService {
       }
 
       for (const action of selected) {
-        if (action.type === 'course_change') {
-          // Course data is written only through Course Preview → Apply → Undo.
+        if (action.type === 'course_change' || action.type === 'course_template_change') {
+          // Course data is written only through Course/Template Preview → Apply → Undo.
           // This endpoint only records that the already-applied external proposal
           // is no longer pending in the PlanningThread conversation.
           externalActionIds.push(action.proposalId);
