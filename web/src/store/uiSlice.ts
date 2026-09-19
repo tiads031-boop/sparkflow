@@ -8,6 +8,7 @@ import {
   isToggleableNavTab,
   migrateNavigationId,
   toggleableNavTabs,
+  workspaceTabForRoute,
 } from '../navigation';
 
 const NAV_VISIBILITY_STORAGE_KEY = 'sparkflow.navVisibility';
@@ -80,6 +81,7 @@ function writeStoredNavOrder(navOrder: NavOrder) {
 }
 
 function isNavTabVisible(tab: ActiveTab, navVisibility: NavVisibility): boolean {
+  if (workspaceTabForRoute(tab) === tab) return true;
   return tab === 'settings' || navVisibility[tab as ToggleableNavTab];
 }
 

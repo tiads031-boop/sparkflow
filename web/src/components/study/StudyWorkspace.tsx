@@ -149,7 +149,7 @@ function FolderDialog({
   );
 }
 
-export default function StudyWorkspace({ onStartFocus }: { onStartFocus: () => void }) {
+export default function StudyWorkspace({ onStartFocus, onOpenCourses }: { onStartFocus: () => void; onOpenCourses?: () => void }) {
   const tasks = useAppStore((state) => state.tasks);
   const courses = useAppStore((state) => state.courses);
   const todayCount = useAppStore((state) => state.pomodoro.todayCount);
@@ -221,9 +221,14 @@ export default function StudyWorkspace({ onStartFocus }: { onStartFocus: () => v
           </div>
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#cae393] text-[#242424]"><GraduationCap size={21} /></div>
         </div>
-        <button type="button" onClick={onStartFocus} className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#cae393] py-3 text-sm font-black text-[#242424] active:scale-[0.99]">
-          开始专注 <ArrowRight size={15} />
-        </button>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button type="button" onClick={onStartFocus} className="flex items-center justify-center gap-2 rounded-full bg-[#cae393] py-3 text-sm font-black text-[#242424] active:scale-[0.99]">
+            开始专注 <ArrowRight size={15} />
+          </button>
+          <button type="button" onClick={onOpenCourses} className="flex items-center justify-center gap-2 rounded-full bg-white/10 py-3 text-sm font-black text-white active:scale-[0.99]">
+            课程管理 <BookOpen size={15} />
+          </button>
+        </div>
       </header>
 
       <nav aria-label="学习模式导航" className="mb-4 grid grid-cols-4 gap-1 rounded-2xl bg-white p-1.5 shadow-sm">

@@ -1,15 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
-  BookOpen,
   Calendar,
-  ChevronDown,
-  ChevronUp,
   Check,
-  CheckSquare,
   Download,
   FolderPlus,
-  Home,
   LayoutGrid,
   Link,
   Loader2,
@@ -24,16 +19,12 @@ import {
   LogOut,
   Unlink,
   Upload,
-  Zap,
-  GraduationCap,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type {
   SparkFlowProfession,
   SparkFlowStatusNeed,
 } from '../store/appStore';
-import type { ToggleableNavTab } from '../types';
-import { navigationRegistry } from '../navigation';
 import { exportSparkflowData, readSparkflowImportFile } from '../utils/dataPortability';
 import {
   presetTaskSections,
@@ -83,31 +74,6 @@ const defaultScopes: SyncScope[] = [
   { key: 'sparks', label: '灵感', description: '灵感卡片通常不同步', enabled: false },
 ];
 
-const navIconMap = {
-  today: Home,
-  tasks: CheckSquare,
-  board: LayoutGrid,
-  timeline: Calendar,
-  courses: BookOpen,
-  study: GraduationCap,
-  sparks: Zap,
-  settings: Settings,
-} as const;
-
-const navSettings: Array<{
-  key: ToggleableNavTab;
-  label: string;
-  description: string;
-  icon: typeof Home;
-}> = navigationRegistry
-  .filter((item): item is typeof item & { id: ToggleableNavTab } => item.toggleable)
-  .map((item) => ({
-    key: item.id,
-    label: item.label,
-    description: item.description,
-    icon: navIconMap[item.icon],
-  }));
-
 const professionLabels: Record<SparkFlowProfession, string> = {
   student: '学生', work: '工作 / 实习', developer: '开发',
   research: '科研', creator: '创作', other: '其他',
@@ -139,8 +105,6 @@ export default function SettingsView() {
   const loadTasks = useAppStore((s) => s.loadTasks);
   const navVisibility = useAppStore((s) => s.navVisibility);
   const navOrder = useAppStore((s) => s.navOrder);
-  const toggleNavVisibility = useAppStore((s) => s.toggleNavVisibility);
-  const moveNavItem = useAppStore((s) => s.moveNavItem);
   const displayName = useAppStore((s) => s.displayName);
   const professions = useAppStore((s) => s.professions);
   const statusNeeds = useAppStore((s) => s.statusNeeds);
@@ -165,10 +129,6 @@ export default function SettingsView() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   const canUseSystemCalendar = isSystemCalendarAvailable();
-  const orderedNavSettings = navOrder
-    .map((key) => navSettings.find((item) => item.key === key))
-    .filter((item): item is (typeof navSettings)[number] => Boolean(item));
-
   useEffect(() => {
     if (!canUseSystemCalendar) return;
     checkCalendarPermission().then(setHasLocalPermission).catch(() => setHasLocalPermission(false));
@@ -465,64 +425,19 @@ export default function SettingsView() {
           </div>
           <div>
             <h2 className="text-sm font-bold text-[#242424]">底部导航</h2>
-            <p className="text-[10px] text-gray-400">设置入口会始终保留</p>
+            <p className="text-[10px] text-gray-400">VNext 固定五个工作空间，旧导航偏好仅保留用于数据兼容</p>
           </div>
         </div>
-
-        <div className="space-y-2">
-          {orderedNavSettings.map((item, index) => {
-            const Icon = item.icon;
-            const enabled = navVisibility[item.key];
-            const isFirst = index === 0;
-            const isLast = index === orderedNavSettings.length - 1;
-
-            return (
-              <div
-                key={item.key}
-                className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-[#f4f4f6] transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#f4f4f6] flex items-center justify-center flex-shrink-0">
-                  <Icon size={15} className={enabled ? 'text-[#242424]' : 'text-gray-400'} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm text-[#242424] font-medium block">{item.label}</span>
-                  <span className="text-[10px] text-gray-400 block truncate">{item.description}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => moveNavItem(item.key, 'up')}
-                    disabled={isFirst}
-                    title="上移"
-                    className="w-7 h-7 rounded-full bg-white border border-gray-100 text-gray-400 flex items-center justify-center transition-colors hover:text-[#242424] hover:border-[#cae393] disabled:opacity-30 disabled:hover:text-gray-400 disabled:hover:border-gray-100"
-                  >
-                    <ChevronUp size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveNavItem(item.key, 'down')}
-                    disabled={isLast}
-                    title="下移"
-                    className="w-7 h-7 rounded-full bg-white border border-gray-100 text-gray-400 flex items-center justify-center transition-colors hover:text-[#242424] hover:border-[#cae393] disabled:opacity-30 disabled:hover:text-gray-400 disabled:hover:border-gray-100"
-                  >
-                    <ChevronDown size={14} />
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={enabled}
-                  onClick={() => toggleNavVisibility(item.key)}
-                  className={`w-11 h-6 rounded-full p-1 flex items-center transition-colors active:scale-95 ${
-                    enabled ? 'bg-[#cae393] justify-end' : 'bg-[#e5e2f3] justify-start'
-                  }`}
-                >
-                  <span className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                </button>
-              </div>
-            );
-          })}
+        <div className="grid grid-cols-5 gap-1 rounded-2xl bg-[#f4f4f6] p-2">
+          {['今天', '计划', '记录', '学习', '我的'].map((label) => (
+            <div key={label} className="rounded-xl bg-white px-1 py-2 text-center text-[10px] font-bold text-[#242424] shadow-sm">
+              {label}
+            </div>
+          ))}
         </div>
+        <p className="mt-3 text-[10px] leading-relaxed text-gray-400">
+          时间轴、待办和看板会收进“计划”；课程进入“学习”；账户、同步与设置进入“我的”。
+        </p>
       </div>
 
       <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-4 overflow-hidden">

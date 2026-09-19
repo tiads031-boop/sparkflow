@@ -12,25 +12,28 @@ interface AppShellProps {
   pushEnabled: boolean;
   pushSupported: boolean;
   onTogglePush: () => void;
+  immersive?: boolean;
 }
 
 export default function AppShell(props: AppShellProps) {
   return (
     <div className="min-h-svh font-sans bg-[var(--sf-bg)] flex justify-center">
       <div className="w-full h-svh flex flex-col overflow-hidden sm:max-w-lg sm:mx-auto">
-        <header className="px-5 pb-0 relative z-20 app-safe-top">
-          <AppHeader
-            onAddClick={props.onQuickAdd}
-            pushEnabled={props.pushEnabled}
-            pushSupported={props.pushSupported}
-            onTogglePush={props.onTogglePush}
-          />
-        </header>
+        {!props.immersive && (
+          <header className="px-5 pb-0 relative z-20 app-safe-top">
+            <AppHeader
+              onAddClick={props.onQuickAdd}
+              pushEnabled={props.pushEnabled}
+              pushSupported={props.pushSupported}
+              onTogglePush={props.onTogglePush}
+            />
+          </header>
+        )}
         <main
-          className="flex-1 overflow-y-auto hide-scrollbar px-5 relative"
+          className={`flex-1 overflow-y-auto hide-scrollbar relative ${props.immersive ? 'px-0' : 'px-5'}`}
           style={{
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 120px)',
-            scrollPaddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 120px)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
+            scrollPaddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
           }}
         >
           {props.children}

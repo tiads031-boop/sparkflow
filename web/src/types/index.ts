@@ -247,18 +247,33 @@ export interface StudyFolderInput {
 
 export type ChartView = 'day' | 'week' | 'month';
 
-export type ActiveTab =
+export type WorkspaceTab = 'today' | 'plan' | 'records' | 'study' | 'profile';
+
+export type LegacyActiveTab =
+  | 'timeline'
+  | 'tasks'
+  | 'board'
+  | 'sparks'
+  | 'courses'
+  | 'settings';
+
+export type ActiveTab = WorkspaceTab | LegacyActiveTab;
+
+/**
+ * Legacy customizable navigation preferences are kept for migration/export
+ * compatibility. VNext renders a fixed five-item workspace bar instead.
+ */
+export type ToggleableNavTab =
   | 'today'
   | 'timeline'
   | 'tasks'
   | 'board'
   | 'sparks'
   | 'courses'
-  | 'study'
-  | 'settings';
-
-export type ToggleableNavTab = Exclude<ActiveTab, 'settings'>;
+  | 'study';
 
 export type NavVisibility = Record<ToggleableNavTab, boolean>;
 
 export type NavOrder = ToggleableNavTab[];
+
+export type PlanView = 'month' | 'week' | 'agenda' | 'timetable';

@@ -6,6 +6,8 @@ import {
   isToggleableNavTab,
   migrateNavigationId,
   navigationRegistry,
+  workspaceNavigationRegistry,
+  workspaceTabForRoute,
 } from '../src/navigation.ts';
 
 test('legacy dashboard and calendar routes migrate to V5 routes', () => {
@@ -28,4 +30,30 @@ test('Phase 15 defaults expose records as a primary destination', () => {
   assert.equal(defaultNavVisibility.sparks, true);
   assert.equal(defaultNavVisibility.study, false);
   assert.equal(migrateNavigationId('study'), 'study');
+});
+
+
+test('VNext workspace navigation is fixed to five user-facing destinations', () => {
+  assert.deepEqual(
+    workspaceNavigationRegistry.map((item) => item.id),
+    ['today', 'plan', 'records', 'study', 'profile'],
+  );
+  assert.deepEqual(
+    workspaceNavigationRegistry.map((item) => item.label),
+    ['今天', '计划', '记录', '学习', '我的'],
+  );
+});
+
+test('legacy routes resolve into the matching VNext workspace without deleting compatibility ids', () => {
+  assert.equal(workspaceTabForRoute('timeline'), 'plan');
+  assert.equal(workspaceTabForRoute('tasks'), 'plan');
+  assert.equal(workspaceTabForRoute('board'), 'plan');
+  assert.equal(workspaceTabForRoute('calendar'), 'plan');
+  assert.equal(workspaceTabForRoute('sparks'), 'records');
+  assert.equal(workspaceTabForRoute('courses'), 'study');
+  assert.equal(workspaceTabForRoute('settings'), 'profile');
+  assert.equal(workspaceTabForRoute('unknown-route'), null);
+
+  assert.equal(migrateNavigationId('calendar'), 'timeline');
+  assert.equal(migrateNavigationId('courses'), 'courses');
 });

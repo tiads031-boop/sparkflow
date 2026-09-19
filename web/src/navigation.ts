@@ -1,6 +1,7 @@
-import type { ActiveTab, ToggleableNavTab } from './types';
+import type { ActiveTab, ToggleableNavTab, WorkspaceTab } from './types';
 
 export type NavigationIcon = 'today' | 'tasks' | 'board' | 'timeline' | 'courses' | 'study' | 'sparks' | 'settings';
+export type WorkspaceNavigationIcon = 'today' | 'plan' | 'records' | 'study' | 'profile';
 
 export interface NavigationItem {
   id: ActiveTab;
@@ -10,6 +11,21 @@ export interface NavigationItem {
   toggleable: boolean;
   defaultVisible: boolean;
 }
+
+export interface WorkspaceNavigationItem {
+  id: WorkspaceTab;
+  label: string;
+  description: string;
+  icon: WorkspaceNavigationIcon;
+}
+
+export const workspaceNavigationRegistry: readonly WorkspaceNavigationItem[] = [
+  { id: 'today', label: '今天', description: '今日节奏与下一步', icon: 'today' },
+  { id: 'plan', label: '计划', description: '日历、待办与 AI 安排', icon: 'plan' },
+  { id: 'records', label: '记录', description: '随手记、回顾与洞察', icon: 'records' },
+  { id: 'study', label: '学习', description: '课程、文件夹与学习工作区', icon: 'study' },
+  { id: 'profile', label: '我的', description: '账户、同步与设置', icon: 'profile' },
+] as const;
 
 export const navigationRegistry: readonly NavigationItem[] = [
   { id: 'today', label: '今天', description: '今日节奏与概览', icon: 'today', toggleable: true, defaultVisible: true },
@@ -38,6 +54,27 @@ export const defaultNavVisibility = Object.fromEntries(
     navigationRegistry.find((item) => item.id === id)?.defaultVisible ?? false,
   ]),
 ) as Record<ToggleableNavTab, boolean>;
+
+const workspaceRouteMap: Record<string, WorkspaceTab> = {
+  dashboard: 'today',
+  today: 'today',
+  calendar: 'plan',
+  timeline: 'plan',
+  tasks: 'plan',
+  board: 'plan',
+  plan: 'plan',
+  sparks: 'records',
+  records: 'records',
+  courses: 'study',
+  study: 'study',
+  settings: 'profile',
+  profile: 'profile',
+};
+
+export function workspaceTabForRoute(value: unknown): WorkspaceTab | null {
+  if (typeof value !== 'string') return null;
+  return workspaceRouteMap[value] ?? null;
+}
 
 const legacyRouteMap: Record<string, ActiveTab> = {
   dashboard: 'today',
