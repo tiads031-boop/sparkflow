@@ -82,7 +82,6 @@ export interface PlanningThreadSummary {
 export interface PlanningThreadDetail extends PlanningThreadSummary {
   evidence: PlanningEvidenceItem[];
   conversations: PlanningConversationRow[];
-  actions: PlanningActionProposal[];
   planningContext: PlanningContextSnapshot;
 }
 
@@ -99,6 +98,7 @@ export interface PlanningTurnResponse {
     provider: string;
     evidence: PlanningEvidenceItem[];
   };
+  actions: PlanningActionProposal[];
   planningContext: PlanningContextSnapshot;
 }
 
