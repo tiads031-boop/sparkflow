@@ -358,7 +358,16 @@ export default function App() {
           {/* Course detail view (full page) */}
           {activeTab === 'courses' && viewingCourseId ? (
             <CourseTheme><CourseDetailView onBack={() => setViewingCourseId(null)} /></CourseTheme>
-          ) : activeTab === 'today' && <TodayView onTaskClick={handleEditSchedule} />}
+          ) : activeTab === 'today' && (
+            <TodayView
+              onTaskClick={handleEditSchedule}
+              onCourseClick={(courseId) => {
+                loadCourseDetail(courseId);
+                setViewingCourseId(courseId);
+                setActiveTab('courses');
+              }}
+            />
+          )}
           {activeTab === 'courses' && !viewingCourseId && (
             <CourseTheme>
             <CourseView
