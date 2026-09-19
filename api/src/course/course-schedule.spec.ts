@@ -204,4 +204,79 @@ describe('course schedule integration with existing event model', () => {
     expect(data[0].startTime).toEqual(new Date(2026, 8, 14, 8, 0, 0, 0));
   });
 
+
+  it('undoes an extra course occurrence only while the saved after-state still matches', async () => {
+    const current = {
+      id: 'extra-1',
+      userId: 'u',
+      courseId: 'c1',
+      title: '民法补课',
+      eventType: 'course',
+      startTime: new Date('2026-09-25T01:00:00.000Z'),
+      endTime: new Date('2026-09-25T02:30:00.000Z'),
+      isAllDay: false,
+      recurrenceRule: null,
+      isOverride: true,
+      color: '#cae393',
+      location: 'A101',
+      scheduleLocked: true,
+      overrideType: 'extra',
+      overrideOriginalStart: null,
+      overrideGroupId: null,
+    };
+    const before = [{
+      eventId: 'extra-1',
+      existed: false,
+      courseId: 'c1',
+      title: '民法补课',
+      eventType: 'course',
+      startTime: '2026-09-25T01:00:00.000Z',
+      endTime: '2026-09-25T02:30:00.000Z',
+      isAllDay: false,
+      recurrenceRule: null,
+      isOverride: true,
+      color: '#cae393',
+      location: 'A101',
+      scheduleLocked: true,
+      overrideType: 'extra',
+      overrideOriginalStart: null,
+      overrideGroupId: null,
+    }];
+    const after = [{ ...before[0], existed: true }];
+    const tx = {
+      schedulePlan: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'plan-1',
+          userId: 'u',
+          planType: 'course',
+          status: 'applied',
+          beforeState: before,
+          afterState: after,
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      calendarEvent: {
+        findMany: jest.fn().mockResolvedValue([current]),
+        delete: jest.fn().mockResolvedValue(current),
+        update: jest.fn(),
+      },
+    };
+    const prisma = {
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+    const service = new CourseService(prisma as unknown as PrismaService);
+
+    await expect(service.undoCourseChange('u', 'plan-1')).resolves.toEqual({
+      planId: 'plan-1',
+      restoredCount: 1,
+    });
+    expect(tx.calendarEvent.delete).toHaveBeenCalledWith({
+      where: { id: 'extra-1', userId: 'u' },
+    });
+    expect(tx.schedulePlan.update).toHaveBeenCalledWith({
+      where: { id: 'plan-1' },
+      data: { status: 'undone' },
+    });
+  });
+
 });
