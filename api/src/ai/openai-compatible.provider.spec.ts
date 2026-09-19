@@ -57,6 +57,52 @@ describe('planning response parser', () => {
     ]);
   });
 
+  it('parses reviewable create and update task actions', () => {
+    const result = toPlanningTurn({
+      reply: '我整理成两项操作，确认后再写入。',
+      readiness: 'ready',
+      summary: '准备创建一个任务并更新一个现有任务。',
+      openQuestions: [],
+      researchQueries: [],
+      actions: [
+        {
+          type: 'create_task',
+          title: '拿快递',
+          priority: 'medium',
+          estimatedMinutes: 20,
+          dueDate: '2026-09-20T10:00:00.000Z',
+        },
+        {
+          type: 'update_task',
+          taskId: 'task-1',
+          taskTitle: '民法论文',
+          changes: {
+            priority: 'high',
+            estimatedMinutes: 90,
+          },
+        },
+      ],
+      context: {
+        brief: [],
+        constraints: [],
+        preferences: [],
+        strategy: [],
+        assumptions: [],
+      },
+    });
+
+    expect(result.actions).toHaveLength(2);
+    expect(result.actions[0]).toEqual(expect.objectContaining({
+      type: 'create_task',
+      title: '拿快递',
+      estimatedMinutes: 20,
+    }));
+    expect(result.actions[1]).toEqual(expect.objectContaining({
+      type: 'update_task',
+      taskId: 'task-1',
+    }));
+  });
+
   it('rejects an incomplete response instead of wiping an existing context section', () => {
     expect(() => toPlanningTurn({
       reply: '继续',
