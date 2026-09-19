@@ -71,7 +71,8 @@ export class VoiceTranscriptionService {
     };
   }
 
-  async transcribe(file: Express.Multer.File) {
+  async transcribe(file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Audio file is required');
     const { mimetype, size } = validatePlanningAudio(file);
     if (!this.isConfigured()) {
       throw new ServiceUnavailableException('Voice transcription is not configured');
