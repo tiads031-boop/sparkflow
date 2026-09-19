@@ -1,10 +1,8 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
 import {
-  Home, CheckSquare, Calendar as CalendarIcon, Zap,
-  LayoutGrid, BookOpen, Settings, GraduationCap,
+  CalendarRange, GraduationCap, Home, UserRound, Zap,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
-import type { NavOrder, NavVisibility } from './types';
 import TasksView from './components/TasksView';
 import BoardView from './components/BoardView';
 import CalendarView from './components/CalendarView';
@@ -18,7 +16,7 @@ import SettingsView from './components/SettingsView';
 import { importIcs } from './api/courses';
 import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
 import { normalizeTaskSection } from './utils/taskSections';
-import { navigationRegistry } from './navigation';
+import { workspaceNavigationRegistry, workspaceTabForRoute } from './navigation';
 import AppShell from './components/shell/AppShell';
 import QuickAddSheet, { type QuickAddAction } from './components/shell/QuickAddSheet';
 import TodayView from './components/today/TodayView';
@@ -27,6 +25,7 @@ import FocusSession from './components/focus/FocusSession';
 import PlannerSheet from './components/planner/PlannerSheet';
 
 const StudyWorkspace = lazy(() => import('./components/study/StudyWorkspace'));
+const PlanWorkspace = lazy(() => import('./components/plan/PlanWorkspace'));
 
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
@@ -37,16 +36,19 @@ function isCapacitorNative(): boolean {
   }
 }
 
-const navIconMap = {
+const workspaceIconMap = {
   today: Home,
-  tasks: CheckSquare,
-  board: LayoutGrid,
-  timeline: CalendarIcon,
-  courses: BookOpen,
+  plan: CalendarRange,
+  records: Zap,
   study: GraduationCap,
-  sparks: Zap,
-  settings: Settings,
+  profile: UserRound,
 } as const;
+
+const workspaceNavItems = workspaceNavigationRegistry.map((item) => ({
+  id: item.id,
+  label: item.label,
+  icon: workspaceIconMap[item.icon as keyof typeof workspaceIconMap],
+}));
 
 function localDateBoundaryToIso(value: string | undefined, boundary: 'start' | 'end'): string | undefined {
   if (!value) return undefined;
@@ -56,23 +58,9 @@ function localDateBoundaryToIso(value: string | undefined, boundary: 'start' | '
   return date.toISOString();
 }
 
-function getOrderedNavItems(navOrder: NavOrder, navVisibility: NavVisibility) {
-  const navMap = new Map(navigationRegistry.map((item) => [item.id, item]));
-  const orderedToggleable = navOrder
-    .map((id) => navMap.get(id))
-    .filter((item) => !!item && item.toggleable && navVisibility[item.id as keyof typeof navVisibility])
-    .map((item) => ({ id: item!.id, label: item!.label, icon: navIconMap[item!.icon] }));
-  const settingsItem = navMap.get('settings');
-  return settingsItem
-    ? [...orderedToggleable, { id: settingsItem.id, label: settingsItem.label, icon: navIconMap[settingsItem.icon] }]
-    : orderedToggleable;
-}
-
 export default function App() {
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
-  const navVisibility = useAppStore((s) => s.navVisibility);
-  const navOrder = useAppStore((s) => s.navOrder);
   const selectedDate = useAppStore((s) => s.selectedDate);
   const tasks = useAppStore((s) => s.tasks);
   const sparks = useAppStore((s) => s.sparks);
@@ -104,7 +92,7 @@ export default function App() {
   const [editingScheduleTask, setEditingScheduleTask] = useState<Task | null>(null);
   const [focusOpen, setFocusOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
-  const visibleNavItems = getOrderedNavItems(navOrder, navVisibility);
+  const activeWorkspace = workspaceTabForRoute(activeTab) ?? 'today';
 
   useEffect(() => {
     loadTasks();
@@ -279,7 +267,7 @@ export default function App() {
           duration: duration || undefined,
         } as Task;
         await addTask(newTask);
-        setActiveTab('tasks');
+        setActiveTab('plan');
       }
       setAppMessage(null);
     } else {
@@ -299,7 +287,7 @@ export default function App() {
           rot: (Math.random() - 0.5) * 6,
           z: maxZ,
         });
-        setActiveTab('sparks');
+        setActiveTab('records');
       }
     }
   };
@@ -311,9 +299,10 @@ export default function App() {
 
   return (
     <AppShell
-      activeTab={activeTab}
+      activeTab={activeWorkspace}
       setActiveTab={setActiveTab}
-      navItems={visibleNavItems}
+      navItems={workspaceNavItems}
+      immersive={activeWorkspace === 'plan'}
       onQuickAdd={() => setQuickAddOpen(true)}
       pushEnabled={pushEnabled}
       pushSupported={pushSupported}
@@ -346,6 +335,16 @@ export default function App() {
           )}
           <CourseReminderRuntime />
           <CourseIntegrationsRuntime />
+          {activeTab === 'plan' && (
+            <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开计划空间…</div>}>
+              <PlanWorkspace
+                tasks={tasks}
+                onTaskClick={(task) => handleOpenDetail(task, 'task')}
+                onPlanner={() => setPlannerOpen(true)}
+                onQuickAdd={() => setQuickAddOpen(true)}
+              />
+            </Suspense>
+          )}
           {/* Course detail view (full page) */}
           {activeTab === 'courses' && viewingCourseId ? (
             <CourseTheme><CourseDetailView onBack={() => setViewingCourseId(null)} /></CourseTheme>
@@ -381,12 +380,20 @@ export default function App() {
               onAddClick={() => handleOpenCreate('spark')}
             />
           )}
+          {activeTab === 'records' && (
+            <SparksView
+              sparks={sparks}
+              setSparks={setSparks}
+              onSparkClick={(s) => handleOpenDetail(s, 'spark')}
+              onAddClick={() => handleOpenCreate('spark')}
+            />
+          )}
           {activeTab === 'study' && (
             <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开学习空间…</div>}>
               <StudyWorkspace onStartFocus={() => setFocusOpen(true)} />
             </Suspense>
           )}
-          {activeTab === 'settings' && <SettingsView />}
+          {(activeTab === 'settings' || activeTab === 'profile') && <SettingsView />}
         {/* Modals */}
         <DarkFrostedModal
           config={modalConfig}
