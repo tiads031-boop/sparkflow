@@ -3,6 +3,7 @@ import { BrainCircuit, CalendarClock, ChevronDown, ChevronUp, Clock3, X } from '
 import type { Task, TaskSection } from '../types';
 import type { SaveParams } from './DarkFrostedModal';
 import { useModalLifecycle } from './ui/useModalLifecycle';
+import { readUserPreferences } from '../utils/userPreferences';
 import {
   getTaskSectionPlaceholder,
   presetTaskSections,
@@ -213,7 +214,21 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
             <input
               type="datetime-local"
               value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                setDueDate(value);
+                if (!reminderAt && value) {
+                  const lead = readUserPreferences().defaultReminderMinutes;
+                  if (lead > 0) {
+                    const due = new Date(value);
+                    if (!Number.isNaN(due.getTime())) {
+                      const reminder = new Date(due.getTime() - lead * 60_000);
+                      const local = `${reminder.getFullYear()}-${String(reminder.getMonth() + 1).padStart(2, '0')}-${String(reminder.getDate()).padStart(2, '0')}T${String(reminder.getHours()).padStart(2, '0')}:${String(reminder.getMinutes()).padStart(2, '0')}`;
+                      setReminderAt(local);
+                    }
+                  }
+                }
+              }}
               className="w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm outline-none"
             />
           </label>
