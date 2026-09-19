@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-19 | **代码基线**：`master@99ebb3c`
+> **最后更新**：2026-09-19 | **代码基线**：`master@7145ba0`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -11,7 +11,7 @@
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，腾讯云运行 `master@99ebb3c`；公网 `/api/health.buildSha` 与仓库一致；生产库 20 个 migrations 全部 up to date，包含 `20260919130000_add_study_folders` |
 | Web | Vercel 项目 `sparkflow031`；Production `fish-life.cc.cd` 已显式发布 `master@99ebb3c`，部署状态 READY，首页 HTTP 200 |
-| GitHub | `master@99ebb3c`；Phase 15 M1/M2/M3 已合并；PR #45 已合并 Study Mode M1；PR #43 已合并 Qwen 洞察稳定性与 API 超时治理 |
+| GitHub | `master@7145ba0`；VNext Plan M1–M3（PR #48/#49/#50）已合并并通过 CI；Phase 15 M1/M2/M3、Study Mode M1 与 Qwen 稳定性补丁均已在 master |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
 | 最新 APK | Release `android-5835e3223748`；`sparkflow-5835e3223748-debug.apk`；对应 `master@5835e322`，Android CI 成功 |
@@ -24,7 +24,7 @@
 3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 稳定性修复已随 `99ebb3c` API 镜像上线，下一步复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
 4. **腾讯云 API 已部署到 `99ebb3c`，20 个 migrations 已应用；Web Production 已同步到同一提交。**
 5. **Android 继续以 commit-stamped Release 做真机验收；最新包为 `android-5835e3223748`。**
-6. **M3 Web + AI Provider 真实验收完成后，再在 Phase 15 M4 主动助手、Study Mode、Phase 14 余项之间选择下一产品批次。**
+6. **VNext Plan M1–M3 已进入 master，但尚未等同于生产/真机完成；下一步优先做 VNext Web/PWA/Android 真实验收，再决定是否进入 M4 拖拽/过滤增强。**
 
 ---
 
@@ -140,6 +140,24 @@
 - [ ] M5 Android Widget 最后实施，不阻塞 Web 主线。
 
 完成门槛：`今天 → 待办 → 时间轴 → AI 安排 → 专注 → 完成` 在 Web/PWA/Android 均有真实闭环验收。
+
+---
+
+## 4.5 VNext 信息架构与 Plan Workspace（M1–M3 ✅ 代码/CI，🚧 生产与真机验收）
+
+方案：[vnext-information-architecture-plan-workspace.md](vnext-information-architecture-plan-workspace.md)
+
+- [x] PR #47：详细信息架构与实施方案合入。
+- [x] PR #48 / M1：底部导航固定为“今天 / 计划 / 记录 / 学习 / 我的”；PlanWorkspace 与 Month / Week / Agenda / Timetable 壳层、旧入口兼容、视图记忆。
+- [x] PR #49 / M2：Task / Course / CalendarEvent / Study Task 统一前端投影；真实月/周/日程/时间表；课程周次与重复来源去重。
+- [x] PR #50 / M3：Planner Preview 以临时时间块叠加到 Week / Agenda；Apply 后转为真实 Task 排程；Undo 恢复；未修改 Planner API 契约。
+- [x] 三批均通过 Web build/tests 与现有 API/fresh PostgreSQL CI。
+- [ ] Vercel Production 发布最新 master。
+- [ ] Web/PWA 真实账号：Month / Week / Agenda / Timetable + Planner Preview → Apply → Undo。
+- [ ] Android 最新 commit-stamped APK：360px、safe-area、底栏、周视图密度、课表、Planner 闭环。
+- [ ] M4（拖拽、过滤、视觉细化）仅在上述真实验收稳定后启动。
+
+核心约束继续保持：PlanItem 只是一层前端视图模型；Task / Course / CalendarEvent / Planner / Focus 仍为现有事实源，不创建第二套 Schedule/StudySchedule。
 
 ---
 
