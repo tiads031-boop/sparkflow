@@ -35,6 +35,14 @@ const sourceInclude = {
           sourceType: true,
           tags: true,
           createdAt: true,
+          attachments: {
+            select: {
+              id: true,
+              kind: true,
+              transcript: true,
+            },
+            orderBy: { createdAt: 'asc' as const },
+          },
         },
       },
     },
@@ -85,6 +93,17 @@ export class InsightsService {
           orderBy: { createdAt: 'asc' },
           take: 8,
         },
+        attachments: {
+          where: {
+            kind: 'audio',
+            transcript: { not: null },
+          },
+          select: {
+            id: true,
+            transcript: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
       },
       orderBy: { createdAt: 'desc' },
       take: 40,
@@ -95,6 +114,7 @@ export class InsightsService {
       || Boolean(record.description?.trim())
       || Boolean(record.contentText?.trim())
       || record.reflections.some((reflection) => Boolean(reflection.body?.trim()))
+      || record.attachments.some((attachment) => Boolean(attachment.transcript?.trim()))
     ));
 
     if (textRecords.length < 2) {
@@ -108,7 +128,14 @@ export class InsightsService {
           id: record.id,
           title: record.title,
           description: record.description,
-          contentText: record.contentText,
+          contentText: [
+            record.contentText?.trim() || null,
+            ...record.attachments.flatMap((attachment, index) => (
+              attachment.transcript?.trim()
+                ? [`[语音转写 ${index + 1}]\n${attachment.transcript.trim()}`]
+                : []
+            )),
+          ].filter((value): value is string => Boolean(value)).join('\n\n') || null,
           tags: record.tags,
           createdAt: record.createdAt.toISOString(),
           reflections: record.reflections.map((reflection) => ({
