@@ -394,6 +394,7 @@ export class PlanningService {
         scheduledStart: true,
         scheduledEnd: true,
         scheduleLocked: true,
+        project: true,
       },
     });
     const currentTasks = currentTaskRows.map((task) => ({
@@ -611,24 +612,25 @@ export class PlanningService {
     const selected = actions.filter((action) => requestedIds.includes(action.proposalId));
     if (!selected.length) throw new BadRequestException('No matching action proposals');
 
+    const goalScopeId =
+      conversation.planningThread?.scopeType === 'goal'
+        ? conversation.planningThread.scopeId
+        : null;
+
     const result = await this.prisma.$transaction(async (tx) => {
       const createdTaskIds: string[] = [];
       const updatedTaskIds: string[] = [];
 
+      if (goalScopeId) {
+        const ownedGoal = await tx.studyFolder.findFirst({
+          where: { id: goalScopeId, userId, status: 'active' },
+          select: { id: true },
+        });
+        if (!ownedGoal) throw new ConflictException('Learning goal is no longer active');
+      }
+
       for (const action of selected) {
         if (action.type === 'create_task') {
-          const goalScopeId =
-            conversation.planningThread?.scopeType === 'goal'
-              ? conversation.planningThread.scopeId
-              : null;
-
-          if (goalScopeId) {
-            const ownedGoal = await tx.studyFolder.findFirst({
-              where: { id: goalScopeId, userId, status: 'active' },
-              select: { id: true },
-            });
-            if (!ownedGoal) throw new ConflictException('Learning goal is no longer active');
-          }
 
           await tx.task.createMany({
             data: [{
@@ -672,9 +674,18 @@ export class PlanningService {
         if (action.changes.dueDate !== undefined) {
           changes.dueDate = action.changes.dueDate ? new Date(action.changes.dueDate) : null;
         }
+        if (goalScopeId && action.changes.milestoneTitle !== undefined) {
+          changes.project = action.changes.milestoneTitle || null;
+        }
 
         const updated = await tx.task.updateMany({
-          where: { id: action.taskId, userId },
+          where: {
+            id: action.taskId,
+            userId,
+            ...(goalScopeId
+              ? { studyFolders: { some: { folderId: goalScopeId } } }
+              : {}),
+          },
           data: changes,
         });
         if (updated.count !== 1) throw new NotFoundException('Task to update was not found');
