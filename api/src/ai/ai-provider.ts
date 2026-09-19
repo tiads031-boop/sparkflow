@@ -83,6 +83,8 @@ export interface PlanningTaskSnapshot {
   dueDate: string | null;
   estimatedMinutes: number | null;
   scheduledStart: string | null;
+  scheduledEnd: string | null;
+  scheduleLocked: boolean;
 }
 
 export type PlanningActionDraft =
