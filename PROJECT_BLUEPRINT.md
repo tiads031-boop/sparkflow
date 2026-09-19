@@ -55,9 +55,10 @@ Folder → Today → Focus → Review → Schedule
 | 16 | Study / 学习工作区 | 与 Course 产品逻辑解耦；以 StudyFolder 作为学习目标容器，AI 通过目标访谈生成共享 Task / Calendar 安排 | 课程是学校课程事实，学习是目标规划场景；两者不应互相绑死，同时仍不建立第二套 Task/Calendar |
 | 17 | Local Codex Bridge | 独立本机 loopback Gateway，native Codex 为唯一执行事实源 | 不进入云端生产控制链，不建立第二套 runtime/transcript |
 | 18 | VNext 信息架构 / Plan | 一级导航固定为今天/计划/记录/学习/我的；Plan 通过前端 PlanItem 统一投影 Task/Course/CalendarEvent，Planner Preview 仅为临时视图态 | 降低入口膨胀与重复课表/日历风险，同时保持现有事实源和 Preview→Apply→Undo 用户控制 |
-| 19 | AI 调度中枢 | “AI 帮我安排”升级为支持文字 + 语音的对话式 AI 规划与调整；语音先转写并允许编辑，LLM 负责澄清/意图/解释，确定性 Scheduler 与现有 Task/Course/Calendar 负责事实写入 | 支持临时想法、目标规划、日程重排、课程变动，同时保持 Preview→Apply→Undo 与可复现约束；语音不能绕过确认 |
+| 19 | AI 调度中枢 | “AI 帮我安排”升级为支持文字 + 语音的对话式 AI 规划与调整；AI 自适应访谈并维护持续 Planning Context（confirmed/inferred/assumed、约束、偏好、strategy、revision），LLM 负责澄清/意图/解释，确定性 Scheduler 与现有 Task/Course/Calendar 负责事实写入 | 后续临时冲突、时间变化与目标变化默认做增量重规划，不从零猜历史；同时保持 Preview→Apply→Undo 与可复现约束，语音不能绕过确认 |
 | 20 | 课程单次变动 | Course 继续是周期模板；调课/换课/停课/补课通过 CalendarEvent override 表达，不静默改动未来周期 | 区分“这一次变动”和“以后都这样”，避免一次调课污染整学期 |
 | 21 | 多模态记录 | Inspiration 为记录主事实，图片/音频/视频使用从属 Attachment 元数据 + 文件存储 | 保持记录可追溯，不把大文件直接塞入数据库，也不在上传时默认消耗 AI 额度 |
+| 22 | 持续规划上下文 | 原始对话保留在 AIConversation；新增最小 PlanningThread/Planning Context 保存用户已确认需求、约束、偏好、strategy、assumptions 与 revision；SchedulePlan 可回链上下文版本 | 避免每次重规划从长聊天重新推断，降低遗漏已确认约束、token 成本与不一致；Planning Context 不是第二套聊天记录 |
 
 ---
 
