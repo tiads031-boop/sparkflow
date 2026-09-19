@@ -35,6 +35,7 @@ export class PlannerController {
       proposals: PlannerProposal[];
       planningThreadId?: string;
       planningThreadRevision?: number;
+      blockedIntervals?: Array<{ start: string; end: string }>;
     },
   ) {
     return this.plannerService.apply(userId, data);
