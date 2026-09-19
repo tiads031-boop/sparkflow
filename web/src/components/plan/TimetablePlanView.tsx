@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { Course, Semester } from '../../types';
 import { courseOccursOnDate, dedupeCoursesByOccurrence, getMonday, getSemesterWeekNumber } from './planProjection';
 
@@ -53,11 +54,25 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
     return day;
   });
   const week = getSemesterWeekNumber(selectedDate, semester);
+  const selectedKey = selectedDate.toISOString().slice(0, 10);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const semesterCourses = dedupeCoursesByOccurrence(
     semester
       ? courses.filter((course) => !course.semesterId || course.semesterId === semester.id)
       : courses,
   );
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    const selectedWeekday = selectedDate.getDay() || 7;
+    const selectedIndex = selectedWeekday - 1;
+    const timeColumnWidth = 56;
+    const dayWidth = (scroller.scrollWidth - timeColumnWidth) / 7;
+    const targetCenter = timeColumnWidth + (selectedIndex + 0.5) * dayWidth;
+    const maxLeft = scroller.scrollWidth - scroller.clientWidth;
+    scroller.scrollTo({ left: Math.max(0, Math.min(maxLeft, targetCenter - scroller.clientWidth / 2)) });
+  }, [selectedKey]);
 
   return (
     <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
@@ -69,7 +84,7 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
         <span className="text-[9px] text-[var(--sf-text-tertiary)]">淡色 = 非本周</span>
       </div>
 
-      <div className="overflow-x-auto overscroll-x-contain">
+      <div ref={scrollerRef} className="overflow-x-auto overscroll-x-contain">
         <div className="min-w-[560px]">
           <div className="grid grid-cols-[56px_repeat(7,minmax(68px,1fr))] border-b border-black/5 px-1.5 py-2">
             <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" />
