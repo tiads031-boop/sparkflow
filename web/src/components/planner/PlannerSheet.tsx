@@ -262,6 +262,11 @@ export default function PlannerSheet({
         setCourseChangePlanId(null);
         setCourseChangeMessage('');
         setLastAppliedCourseAction(null);
+        setActiveTemplateProposalId(null);
+        setTemplateChangePreview(null);
+        setTemplateChangePlanId(null);
+        setTemplateChangeMessage('');
+        setLastAppliedTemplateAction(null);
         setReplanRequests([]);
         setActiveReplanRequestId(null);
         setReplanPreview(null);
@@ -290,6 +295,11 @@ export default function PlannerSheet({
       setCourseChangePlanId(null);
       setCourseChangeMessage('');
       setLastAppliedCourseAction(null);
+      setActiveTemplateProposalId(null);
+      setTemplateChangePreview(null);
+      setTemplateChangePlanId(null);
+      setTemplateChangeMessage('');
+      setLastAppliedTemplateAction(null);
       setReplanRequests(latestContext?.replanRequests || []);
       setActiveReplanRequestId(null);
       setReplanPreview(null);
@@ -639,6 +649,93 @@ export default function PlannerSheet({
       setCourseChangeMessage(error instanceof Error ? error.message : '撤销课程变动失败');
     } finally {
       setCourseChangeBusy(false);
+    }
+  };
+
+  const generateTemplateChangePreview = async (action: CourseTemplateChangeAction) => {
+    if (templateChangeBusy || templateChangePlanId) return;
+    setTemplateChangeBusy(true);
+    setTemplateChangeMessage('');
+    setActiveTemplateProposalId(action.proposalId);
+    setTemplateChangePreview(null);
+    try {
+      const result = await previewCourseTemplateChange(courseTemplateRequest(action));
+      setTemplateChangePreview(result);
+      if (result.conflicts.length > 0) {
+        setTemplateChangeMessage(
+          `新周期规则会产生 ${result.conflicts.length} 个日程冲突。不会强行应用，请先调整规则或处理冲突。`,
+        );
+      }
+    } catch (error) {
+      setTemplateChangePreview(null);
+      setTemplateChangeMessage(error instanceof Error ? error.message : '生成课程模板预览失败');
+    } finally {
+      setTemplateChangeBusy(false);
+    }
+  };
+
+  const applyTemplateChangeProposal = async (action: CourseTemplateChangeAction) => {
+    if (
+      !thread ||
+      !actionConversationId ||
+      activeTemplateProposalId !== action.proposalId ||
+      !templateChangePreview ||
+      templateChangePreview.conflicts.length > 0 ||
+      templateChangeBusy
+    ) return;
+
+    setTemplateChangeBusy(true);
+    setTemplateChangeMessage('');
+    try {
+      const result = await applyCourseTemplateChange(courseTemplateRequest(action));
+      setTemplateChangePlanId(result.planId);
+      setLastAppliedTemplateAction(action);
+      setActionProposals((current) => current.filter(
+        (proposal) => proposal.proposalId !== action.proposalId,
+      ));
+      setActiveTemplateProposalId(null);
+      setTemplateChangePreview(null);
+      setTemplateChangeMessage(
+        `周期课表已更新：替换 ${result.replacedCount} 个未来普通课次，生成 ${result.generatedCount} 个新课次。已有单次 override 保持不动。`,
+      );
+      await onApplied();
+
+      try {
+        await applyPlanningActions(
+          thread.id,
+          actionConversationId,
+          [action.proposalId],
+        );
+        const refreshed = await getPlanningThread(thread.id);
+        setThread(refreshed);
+      } catch {
+        setTemplateChangeMessage(
+          '课程模板已经成功应用，但 AI 草案状态同步失败。请不要重复确认同一条模板草案。',
+        );
+      }
+    } catch (error) {
+      setTemplateChangeMessage(error instanceof Error ? error.message : '应用课程模板修改失败');
+    } finally {
+      setTemplateChangeBusy(false);
+    }
+  };
+
+  const undoAppliedTemplateChange = async () => {
+    if (!templateChangePlanId || templateChangeBusy) return;
+    setTemplateChangeBusy(true);
+    setTemplateChangeMessage('');
+    try {
+      const result = await undoCourseTemplateChange(templateChangePlanId);
+      setTemplateChangePlanId(null);
+      setLastAppliedTemplateAction(null);
+      setTemplateChangeMessage(
+        `已撤销周期课表修改，恢复 ${result.restoredCount} 个原未来课次。`,
+      );
+      await onApplied();
+    } catch (error) {
+      setTemplateChangeMessage(error instanceof Error ? error.message : '撤销课程模板修改失败');
+    } finally {
+      setTemplateChangeBusy(false);
     }
   };
 
