@@ -476,6 +476,91 @@ export default function PlannerSheet({
     }
   };
 
+  const generateCourseChangePreview = async (action: CourseChangeAction) => {
+    if (courseChangeBusy || courseChangePlanId) return;
+    setCourseChangeBusy(true);
+    setCourseChangeMessage('');
+    setActiveCourseProposalId(action.proposalId);
+    setCourseChangePreview(null);
+    try {
+      const result = await previewCourseChange(courseChangeRequest(action));
+      setCourseChangePreview(result);
+      if (result.conflicts.length > 0) {
+        setCourseChangeMessage(
+          `发现 ${result.conflicts.length} 个真实日程冲突。当前不会强行应用，请先让 AI 或手动调整目标时间。`,
+        );
+      }
+    } catch (error) {
+      setCourseChangePreview(null);
+      setCourseChangeMessage(error instanceof Error ? error.message : '生成课程变动预览失败');
+    } finally {
+      setCourseChangeBusy(false);
+    }
+  };
+
+  const applyCourseChangeProposal = async (action: CourseChangeAction) => {
+    if (
+      !thread ||
+      !actionConversationId ||
+      activeCourseProposalId !== action.proposalId ||
+      !courseChangePreview ||
+      courseChangePreview.conflicts.length > 0 ||
+      courseChangeBusy
+    ) return;
+
+    setCourseChangeBusy(true);
+    setCourseChangeMessage('');
+    try {
+      const result = await applyCourseChange(courseChangeRequest(action));
+      setCourseChangePlanId(result.planId);
+      setLastAppliedCourseAction(action);
+      setActionProposals((current) => current.filter(
+        (proposal) => proposal.proposalId !== action.proposalId,
+      ));
+      setActiveCourseProposalId(null);
+      setCourseChangePreview(null);
+      setCourseChangeMessage(
+        `已应用 ${courseChangeTypeLabel(action.change.type)}，共更新 ${result.appliedCount} 个课程实例。关闭前可以撤销。`,
+      );
+      await onApplied();
+
+      try {
+        await applyPlanningActions(
+          thread.id,
+          actionConversationId,
+          [action.proposalId],
+        );
+        const refreshed = await getPlanningThread(thread.id);
+        setThread(refreshed);
+      } catch {
+        setCourseChangeMessage(
+          `课程变动已经成功应用，但 AI 草案状态同步失败。请不要重复确认同一条草案；重新对话后会重新读取真实课表。`,
+        );
+      }
+    } catch (error) {
+      setCourseChangeMessage(error instanceof Error ? error.message : '应用课程变动失败');
+    } finally {
+      setCourseChangeBusy(false);
+    }
+  };
+
+  const undoAppliedCourseChange = async () => {
+    if (!courseChangePlanId || courseChangeBusy) return;
+    setCourseChangeBusy(true);
+    setCourseChangeMessage('');
+    try {
+      const result = await undoCourseChange(courseChangePlanId);
+      setCourseChangePlanId(null);
+      setLastAppliedCourseAction(null);
+      setCourseChangeMessage(`已撤销本次课程变动，恢复 ${result.restoredCount} 个课程实例。`);
+      await onApplied();
+    } catch (error) {
+      setCourseChangeMessage(error instanceof Error ? error.message : '撤销课程变动失败');
+    } finally {
+      setCourseChangeBusy(false);
+    }
+  };
+
   const generateReplanPreview = async (request: PlanningReplanRequest) => {
     if (replanBusy) return;
     setReplanBusy(true);
