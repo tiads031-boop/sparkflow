@@ -401,18 +401,24 @@ export class PlanningService {
     }
 
     const validTaskIds = new Set(currentTasks.map((task) => task.id));
-    const actionProposals: PlanningActionProposal[] = result.actions.flatMap((action) => {
+    const actionProposals: PlanningActionProposal[] = [];
+    for (const action of result.actions) {
       if (action.type === 'update_task') {
-        if (!validTaskIds.has(action.taskId)) return [];
+        if (!validTaskIds.has(action.taskId)) continue;
         const currentTask = currentTasks.find((task) => task.id === action.taskId);
-        return [{
+        actionProposals.push({
           ...action,
           taskTitle: currentTask?.title || action.taskTitle,
           proposalId: randomUUID(),
-        }];
+        });
+        continue;
       }
-      return [{ ...action, proposalId: randomUUID() }];
-    });
+
+      actionProposals.push({
+        ...action,
+        proposalId: randomUUID(),
+      });
+    }
 
     const nextContext = {
       brief: normalizeFacts(result.context.brief),
