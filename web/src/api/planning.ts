@@ -30,6 +30,30 @@ export interface PlanningEvidenceItem {
   highImpact: boolean;
 }
 
+export type PlanningActionProposal =
+  | {
+      proposalId: string;
+      type: 'create_task';
+      title: string;
+      description?: string | null;
+      priority?: 'high' | 'medium' | 'low';
+      estimatedMinutes?: number | null;
+      dueDate?: string | null;
+    }
+  | {
+      proposalId: string;
+      type: 'update_task';
+      taskId: string;
+      taskTitle: string;
+      changes: {
+        title?: string;
+        description?: string | null;
+        priority?: 'high' | 'medium' | 'low';
+        estimatedMinutes?: number | null;
+        dueDate?: string | null;
+      };
+    };
+
 export interface PlanningConversationRow {
   id: string;
   userMessage: string;
@@ -38,6 +62,8 @@ export interface PlanningConversationRow {
     readiness?: 'clarify' | 'ready';
     researchStatus?: 'not-needed' | 'used' | 'unavailable' | 'failed';
     evidenceIds?: string[];
+    actions?: PlanningActionProposal[];
+    appliedActionIds?: string[];
   } | null;
   createdAt: string;
 }
@@ -61,6 +87,7 @@ export interface PlanningThreadDetail extends PlanningThreadSummary {
 
 export interface PlanningTurnResponse {
   threadId: string;
+  conversationId: string;
   revision: number;
   assistantMessage: string;
   readiness: 'clarify' | 'ready';
@@ -71,6 +98,7 @@ export interface PlanningTurnResponse {
     provider: string;
     evidence: PlanningEvidenceItem[];
   };
+  actions: PlanningActionProposal[];
   planningContext: PlanningContextSnapshot;
 }
 
@@ -136,5 +164,22 @@ export function transcribePlanningAudio(blob: Blob) {
     '/planning/voice/transcribe',
     form,
     { throwOnError: true, timeoutMs: 75_000 },
+  );
+}
+
+
+export function applyPlanningActions(
+  threadId: string,
+  conversationId: string,
+  proposalIds: string[],
+) {
+  return api.post<{
+    appliedActionIds: string[];
+    createdTaskIds: string[];
+    updatedTaskIds: string[];
+  }>(
+    `/planning/threads/${threadId}/actions/apply`,
+    { conversationId, proposalIds },
+    { throwOnError: true },
   );
 }

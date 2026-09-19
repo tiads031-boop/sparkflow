@@ -75,10 +75,47 @@ export interface PlanningEvidenceItem {
   highImpact: boolean;
 }
 
+export interface PlanningTaskSnapshot {
+  id: string;
+  title: string;
+  description: string | null;
+  priority: string;
+  dueDate: string | null;
+  estimatedMinutes: number | null;
+  scheduledStart: string | null;
+}
+
+export type PlanningActionDraft =
+  | {
+      type: 'create_task';
+      title: string;
+      description?: string | null;
+      priority?: 'high' | 'medium' | 'low';
+      estimatedMinutes?: number | null;
+      dueDate?: string | null;
+    }
+  | {
+      type: 'update_task';
+      taskId: string;
+      taskTitle: string;
+      changes: {
+        title?: string;
+        description?: string | null;
+        priority?: 'high' | 'medium' | 'low';
+        estimatedMinutes?: number | null;
+        dueDate?: string | null;
+      };
+    };
+
+export type PlanningActionProposal = PlanningActionDraft & {
+  proposalId: string;
+};
+
 export interface PlanningTurnInput {
   message: string;
   context: PlanningContextSnapshot;
   recentMessages: PlanningConversationMessage[];
+  currentTasks?: PlanningTaskSnapshot[];
   evidence?: PlanningEvidenceItem[];
   researchAllowed?: boolean;
   researchUnavailableReason?: string;
@@ -91,4 +128,5 @@ export interface PlanningTurnResult {
   openQuestions: string[];
   summary: string;
   researchQueries: PlanningResearchRequest[];
+  actions: PlanningActionDraft[];
 }

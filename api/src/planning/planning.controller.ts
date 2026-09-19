@@ -71,6 +71,15 @@ export class PlanningController {
     return this.planningService.turn(userId, id, data);
   }
 
+  @Post('threads/:id/actions/apply')
+  applyActions(
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Body() data: { conversationId: string; proposalIds: string[] },
+  ) {
+    return this.planningService.applyActions(userId, id, data);
+  }
+
   @Post('threads/:id/close')
   close(@CurrentUserId() userId: string, @Param('id') id: string) {
     return this.planningService.closeThread(userId, id);
