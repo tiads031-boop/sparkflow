@@ -161,7 +161,7 @@ Web / PWA / Android
 | API | NestJS、Node.js 22 |
 | 数据库 | PostgreSQL、Prisma |
 | 日历 | FullCalendar、Google Calendar API、Android 本地日历 |
-| 部署 | Vercel（Web）+ Docker / Nginx（API 与数据库） |
+| 部署 | 腾讯云 Nginx（Web/PWA）+ Docker / Nginx（API 与数据库） |
 
 ---
 
