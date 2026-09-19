@@ -568,7 +568,7 @@ export default function PlannerSheet({
   };
 
   const generateCourseChangePreview = async (action: CourseChangeAction) => {
-    if (courseChangeBusy || courseChangePlanId) return;
+    if (courseChangeBusy || courseChangePlanId || templateChangePlanId) return;
     setCourseChangeBusy(true);
     setCourseChangeMessage('');
     setActiveCourseProposalId(action.proposalId);
@@ -653,7 +653,7 @@ export default function PlannerSheet({
   };
 
   const generateTemplateChangePreview = async (action: CourseTemplateChangeAction) => {
-    if (templateChangeBusy || templateChangePlanId) return;
+    if (templateChangeBusy || templateChangePlanId || courseChangePlanId) return;
     setTemplateChangeBusy(true);
     setTemplateChangeMessage('');
     setActiveTemplateProposalId(action.proposalId);
@@ -1269,7 +1269,7 @@ export default function PlannerSheet({
                         <button
                           type="button"
                           onClick={() => void generateCourseChangePreview(action)}
-                          disabled={courseChangeBusy || Boolean(courseChangePlanId)}
+                          disabled={courseChangeBusy || Boolean(courseChangePlanId) || Boolean(templateChangePlanId)}
                           className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#2d2940] py-3 text-xs font-bold text-white disabled:opacity-40"
                         >
                           {courseChangeBusy ? <Loader2 size={14} className="animate-spin" /> : <CalendarClock size={14} />}
@@ -1389,6 +1389,185 @@ export default function PlannerSheet({
                   className="rounded-full bg-[#242424] py-3 text-xs font-black text-[#cae393] disabled:opacity-40"
                 >
                   保留变动
+                </button>
+              </div>
+            </div>
+          )}
+
+          {templateChangeProposals.length > 0 && (
+            <div className="mt-5 rounded-[1.7rem] border border-[#f1c97b]/55 bg-[#fffaf0] p-4">
+              <div className="mb-3">
+                <div className="flex items-center gap-2">
+                  <CalendarClock size={15} className="text-[#9a6c23]" />
+                  <h3 className="text-sm font-black text-[#3d3221]">周期课表修改</h3>
+                </div>
+                <p className="mt-1 text-[10px] leading-4 text-[#826f51]">
+                  这是“以后都这样”的 Course 模板修改，不是本周单次调课。只重建生效时间之后的普通周期课次，历史课次和单次 override 保留。
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {templateChangeProposals.map((action) => {
+                  const active = activeTemplateProposalId === action.proposalId;
+                  const requested = [
+                    action.changes.dayOfWeek
+                      ? `星期 → ${courseDayLabels[action.changes.dayOfWeek] || action.changes.dayOfWeek}`
+                      : null,
+                    action.changes.startTime ? `开始 → ${action.changes.startTime}` : null,
+                    action.changes.endTime ? `结束 → ${action.changes.endTime}` : null,
+                    action.changes.room !== undefined ? `教室 → ${action.changes.room || '清空'}` : null,
+                    action.changes.location !== undefined ? `地点 → ${action.changes.location || '清空'}` : null,
+                  ].filter(Boolean);
+
+                  return (
+                    <article
+                      key={action.proposalId}
+                      className="rounded-[1.5rem] border border-black/[0.05] bg-white p-4"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9a6c23]">
+                        Recurring Course Template
+                      </span>
+                      <strong className="mt-1 block text-sm text-[#3d3221]">{action.courseName}</strong>
+                      <span className="mt-1 block text-[10px] leading-4 text-gray-400">
+                        从 {dateTimeLabel(action.effectiveFrom)} 生效
+                      </span>
+                      {requested.length > 0 && (
+                        <span className="mt-1 block text-[10px] leading-4 text-[#826f51]">
+                          {requested.join(' · ')}
+                        </span>
+                      )}
+
+                      {!active && (
+                        <button
+                          type="button"
+                          onClick={() => void generateTemplateChangePreview(action)}
+                          disabled={templateChangeBusy || Boolean(templateChangePlanId) || Boolean(courseChangePlanId)}
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#3d3221] py-3 text-xs font-bold text-white disabled:opacity-40"
+                        >
+                          {templateChangeBusy ? <Loader2 size={14} className="animate-spin" /> : <CalendarClock size={14} />}
+                          预览未来周期变化
+                        </button>
+                      )}
+
+                      {active && templateChangePreview && (
+                        <div className="mt-3 space-y-2">
+                          <div className="rounded-2xl bg-[#fffaf0] px-3 py-3 text-[10px] leading-5">
+                            <span className="block text-gray-400">
+                              原规则：{templateStateLabel(templateChangePreview.before)}
+                            </span>
+                            <strong className="block text-[#8a611f]">
+                              新规则：{templateStateLabel(templateChangePreview.after)}
+                            </strong>
+                            <span className="block text-gray-400">
+                              将生成 {templateChangePreview.generatedOccurrences.length} 个未来普通课次
+                              {templateChangePreview.preservedOverrideCount
+                                ? ` · 保留 ${templateChangePreview.preservedOverrideCount} 个单次 override`
+                                : ''}
+                            </span>
+                          </div>
+
+                          {templateChangePreview.generatedOccurrences.length > 0 && (
+                            <div className="space-y-1 rounded-2xl bg-[#f8f8f8] px-3 py-3">
+                              {templateChangePreview.generatedOccurrences.slice(0, 4).map((item) => (
+                                <p key={`${item.week}-${item.startTime}`} className="text-[10px] text-gray-500">
+                                  第 {item.week} 周 · {dateTimeLabel(item.startTime)} → {dateTimeLabel(item.endTime)}
+                                  {item.location ? ` · ${item.location}` : ''}
+                                </p>
+                              ))}
+                              {templateChangePreview.generatedOccurrences.length > 4 && (
+                                <p className="text-[9px] text-gray-400">
+                                  另有 {templateChangePreview.generatedOccurrences.length - 4} 个未来课次
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {templateChangePreview.conflicts.length > 0 && (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-3">
+                              <strong className="text-[10px] text-red-700">新周期规则存在冲突</strong>
+                              <div className="mt-1.5 space-y-1">
+                                {templateChangePreview.conflicts.slice(0, 8).map((item, index) => (
+                                  <p
+                                    key={`${item.sourceType}-${item.id}-${index}`}
+                                    className="text-[10px] leading-4 text-red-600"
+                                  >
+                                    {item.title} · {dateTimeLabel(item.startTime)} → {dateTimeLabel(item.endTime)}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveTemplateProposalId(null);
+                                setTemplateChangePreview(null);
+                                setTemplateChangeMessage('');
+                              }}
+                              disabled={templateChangeBusy}
+                              className="rounded-full bg-[#f4f4f6] py-3 text-xs font-bold text-gray-500 disabled:opacity-40"
+                            >
+                              暂不处理
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void applyTemplateChangeProposal(action)}
+                              disabled={templateChangeBusy || templateChangePreview.conflicts.length > 0}
+                              className="flex items-center justify-center gap-2 rounded-full bg-[#f1c97b] py-3 text-xs font-black text-[#3d3221] disabled:opacity-40"
+                            >
+                              {templateChangeBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                              确认修改周期
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+
+              {templateChangeMessage && !templateChangePlanId && (
+                <p className="mt-3 rounded-xl bg-white px-3 py-2 text-xs text-[#826f51]">
+                  {templateChangeMessage}
+                </p>
+              )}
+            </div>
+          )}
+
+          {templateChangePlanId && lastAppliedTemplateAction && (
+            <div className="mt-4 rounded-[1.6rem] border border-[#f1c97b]/60 bg-[#fffaf0] p-4">
+              <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9a6c23]">
+                周期课表已修改
+              </span>
+              <strong className="mt-1 block text-sm text-[#3d3221]">
+                {lastAppliedTemplateAction.courseName}
+              </strong>
+              {templateChangeMessage && (
+                <p className="mt-1 text-[10px] leading-4 text-[#826f51]">{templateChangeMessage}</p>
+              )}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => void undoAppliedTemplateChange()}
+                  disabled={templateChangeBusy}
+                  className="flex items-center justify-center gap-2 rounded-full bg-white py-3 text-xs font-bold text-[#8a611f] disabled:opacity-40"
+                >
+                  {templateChangeBusy ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  撤销周期修改
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTemplateChangePlanId(null);
+                    setLastAppliedTemplateAction(null);
+                    setTemplateChangeMessage('');
+                  }}
+                  disabled={templateChangeBusy}
+                  className="rounded-full bg-[#3d3221] py-3 text-xs font-black text-white disabled:opacity-40"
+                >
+                  保留新周期
                 </button>
               </div>
             </div>
