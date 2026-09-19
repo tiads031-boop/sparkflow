@@ -7,6 +7,7 @@ import {
   Check,
   Loader2,
   PlusCircle,
+  RotateCcw,
   X,
 } from 'lucide-react';
 import type { CalendarEvent, CourseDetail } from '../types';
@@ -14,6 +15,7 @@ import {
   applyCourseChange,
   fetchCourseChangeCandidates,
   previewCourseChange,
+  undoCourseChange,
   type CourseChangeCandidate,
   type CourseChangePreview,
   type CourseChangeRequest,
@@ -89,6 +91,7 @@ export default function CourseChangeSheet({
   const [candidates, setCandidates] = useState<CourseChangeCandidate[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [preview, setPreview] = useState<CourseChangePreview | null>(null);
+  const [appliedPlanId, setAppliedPlanId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -168,16 +171,33 @@ export default function CourseChangeSheet({
   };
 
   const apply = async () => {
-    if (!preview || preview.conflicts.length || busy) return;
+    if (!preview || preview.conflicts.length || busy || appliedPlanId) return;
     setBusy(true);
     setMessage('');
     try {
       const result = await applyCourseChange(buildRequest());
-      setMessage(`已应用 ${result.appliedCount} 个课程实例变动。`);
+      setAppliedPlanId(result.planId);
+      setMessage(`已应用 ${result.appliedCount} 个课程实例变动。你可以在关闭前撤销这次变动。`);
       await onApplied();
-      onClose();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '应用课程变动失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const undo = async () => {
+    if (!appliedPlanId || busy) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await undoCourseChange(appliedPlanId);
+      setAppliedPlanId(null);
+      setPreview(null);
+      setMessage(`已撤销本次课程变动，恢复 ${result.restoredCount} 个课程实例。`);
+      await onApplied();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '撤销课程变动失败');
     } finally {
       setBusy(false);
     }
@@ -229,6 +249,7 @@ export default function CourseChangeSheet({
                 key={item.id}
                 type="button"
                 onClick={() => setMode(item.id)}
+                disabled={Boolean(appliedPlanId)}
                 className={`flex items-center justify-center gap-1.5 rounded-2xl px-3 py-2.5 text-xs font-bold ${
                   mode === item.id
                     ? 'bg-[#242424] text-white'
@@ -259,6 +280,7 @@ export default function CourseChangeSheet({
                 type="datetime-local"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
+                disabled={Boolean(appliedPlanId)}
                 className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm outline-none"
               />
             </label>
@@ -268,6 +290,7 @@ export default function CourseChangeSheet({
                 type="datetime-local"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
+                disabled={Boolean(appliedPlanId)}
                 className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm outline-none"
               />
             </label>
@@ -276,6 +299,7 @@ export default function CourseChangeSheet({
               <input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
+                disabled={Boolean(appliedPlanId)}
                 placeholder="教室 / 地点"
                 className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm outline-none"
               />
@@ -297,6 +321,7 @@ export default function CourseChangeSheet({
                     type="button"
                     key={item.id}
                     onClick={() => setOtherEventId(item.id)}
+                    disabled={Boolean(appliedPlanId)}
                     className={`w-full rounded-2xl border px-3 py-3 text-left ${
                       otherEventId === item.id
                         ? 'border-[#9fbd61] bg-[#f7faef]'
@@ -378,25 +403,47 @@ export default function CourseChangeSheet({
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setPreview(null)}
-                disabled={busy}
-                className="rounded-full bg-[#f4f4f6] py-3 text-xs font-bold text-gray-500"
-              >
-                返回修改
-              </button>
-              <button
-                type="button"
-                onClick={() => void apply()}
-                disabled={busy || preview.conflicts.length > 0}
-                className="flex items-center justify-center gap-2 rounded-full bg-[#cae393] py-3 text-xs font-black text-[#242424] disabled:opacity-40"
-              >
-                {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                确认应用
-              </button>
-            </div>
+            {!appliedPlanId ? (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreview(null)}
+                  disabled={busy}
+                  className="rounded-full bg-[#f4f4f6] py-3 text-xs font-bold text-gray-500"
+                >
+                  返回修改
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void apply()}
+                  disabled={busy || preview.conflicts.length > 0}
+                  className="flex items-center justify-center gap-2 rounded-full bg-[#cae393] py-3 text-xs font-black text-[#242424] disabled:opacity-40"
+                >
+                  {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  确认应用
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => void undo()}
+                  disabled={busy}
+                  className="flex items-center justify-center gap-2 rounded-full bg-[#f4f4f6] py-3 text-xs font-bold text-[#5d557b] disabled:opacity-40"
+                >
+                  {busy ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  撤销本次变动
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={busy}
+                  className="rounded-full bg-[#242424] py-3 text-xs font-black text-[#cae393] disabled:opacity-40"
+                >
+                  完成
+                </button>
+              </div>
+            )}
           </div>
         )}
 
