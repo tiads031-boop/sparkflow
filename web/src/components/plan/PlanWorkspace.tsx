@@ -19,6 +19,9 @@ interface PlanWorkspaceProps {
   onTaskClick: (task: Task) => void;
   onPlanner: () => void;
   onQuickAdd: () => void;
+  initialSection?: PlanSection;
+  initialTaskView?: TaskView;
+  initialPlanView?: PlanView;
 }
 
 export default function PlanWorkspace({
@@ -26,11 +29,14 @@ export default function PlanWorkspace({
   onTaskClick,
   onPlanner,
   onQuickAdd,
+  initialSection = 'calendar',
+  initialTaskView = 'list',
+  initialPlanView,
 }: PlanWorkspaceProps) {
   const selectedDate = useAppStore((state) => state.selectedDate);
-  const [section, setSection] = useState<PlanSection>('calendar');
-  const [taskView, setTaskView] = useState<TaskView>('list');
-  const [view, setView] = useState<PlanView>(() => readLastPlanView());
+  const [section, setSection] = useState<PlanSection>(initialSection);
+  const [taskView, setTaskView] = useState<TaskView>(initialTaskView);
+  const [view, setView] = useState<PlanView>(() => initialPlanView ?? readLastPlanView());
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
 
   const selectView = (next: PlanView) => {
