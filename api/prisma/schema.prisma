@@ -26,6 +26,7 @@ model User {
   calendarEvents         CalendarEvent[]
   aiConversations        AIConversation[]
   pushSubscriptions      PushSubscription[]
+  notificationDeliveries NotificationDelivery[]
   courses                Course[]
   courseNotes            CourseNote[]
   semesters              Semester[]
@@ -438,6 +439,24 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+model NotificationDelivery {
+  id             String   @id @default(uuid())
+  userId         String
+  sourceType     String
+  sourceId       String
+  subscriptionId String
+  deliveryKey    String   @unique
+  scheduledFor   DateTime
+  deliveredAt    DateTime @default(now())
+  channel        String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deliveredAt])
+  @@index([sourceType, sourceId])
+  @@map("notification_deliveries")
 }
 
 model GoogleToken {
