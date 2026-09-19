@@ -25,6 +25,7 @@ import {
   Unlink,
   Upload,
   Zap,
+  GraduationCap,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type {
@@ -88,6 +89,7 @@ const navIconMap = {
   board: LayoutGrid,
   timeline: Calendar,
   courses: BookOpen,
+  study: GraduationCap,
   sparks: Zap,
   settings: Settings,
 } as const;

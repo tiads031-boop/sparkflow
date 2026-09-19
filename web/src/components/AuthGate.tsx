@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   Zap,
   Calendar as CalendarIcon,
+  GraduationCap,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type {
@@ -60,6 +61,7 @@ const navigationIconMap = {
   board: LayoutGrid,
   timeline: CalendarIcon,
   courses: BookOpen,
+  study: GraduationCap,
   sparks: Sparkles,
   settings: Home,
 } as const;

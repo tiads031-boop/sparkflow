@@ -26,4 +26,6 @@ test('Phase 15 defaults expose records as a primary destination', () => {
   assert.deepEqual(defaultNavOrder.slice(0, 5), ['today', 'timeline', 'tasks', 'courses', 'sparks']);
   assert.equal(defaultNavVisibility.board, false);
   assert.equal(defaultNavVisibility.sparks, true);
+  assert.equal(defaultNavVisibility.study, false);
+  assert.equal(migrateNavigationId('study'), 'study');
 });
