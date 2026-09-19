@@ -1,125 +1,123 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Lightbulb, Lock, MapPin } from 'lucide-react';
-import { api, DEFAULT_USER_ID } from '../../api/client';
-import { getReviewQueue } from '../../api/inspirations';
+import { BookOpen, CalendarDays, CheckSquare2, Lock, MapPin, Sparkles } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
-import type { CalendarEvent, ScheduleItem, Task } from '../../types';
-import { computeFreeSlots } from '../../utils/freeSlots';
-import { projectScheduleItems } from '../../utils/scheduleProjection';
-import FreeTimeCard from './FreeTimeCard';
-import RhythmDial from './RhythmDial';
-import TodayProgress from './TodayProgress';
-import WeekStrip from './WeekStrip';
+import type { Task } from '../../types';
+import { localDateKey, type PlanItem } from '../plan/planProjection';
+import { usePlanItems } from '../plan/usePlanItems';
 
-function dayRange(date: Date) {
-  const start = new Date(date); start.setHours(0, 0, 0, 0);
-  const end = new Date(date); end.setHours(23, 59, 59, 999);
-  return { start, end };
+function sourceMeta(item: PlanItem) {
+  if (item.kind === 'course') return { label: '课程', Icon: BookOpen };
+  if (item.kind === 'study-task') return { label: '学习', Icon: Sparkles };
+  if (item.kind === 'task') return { label: item.scheduleSource === 'ai' ? 'AI 安排' : '任务', Icon: CheckSquare2 };
+  return { label: '日程', Icon: CalendarDays };
 }
 
-export default function TodayView({ onTaskClick }: { onTaskClick: (task: Task) => void }) {
+export default function TodayView({
+  onTaskClick,
+  onCourseClick,
+}: {
+  onTaskClick: (task: Task) => void;
+  onCourseClick?: (courseId: string) => void;
+}) {
   const tasks = useAppStore((state) => state.tasks);
-  const selectedDate = useAppStore((state) => state.selectedDate);
-  const setSelectedDate = useAppStore((state) => state.setSelectedDate);
-  const setActiveTab = useAppStore((state) => state.setActiveTab);
-  const [eventResult, setEventResult] = useState<{ key: string; events: CalendarEvent[] }>({ key: '', events: [] });
-  const [reviewDue, setReviewDue] = useState(0);
   const [now, setNow] = useState(() => new Date());
-  const { start, end } = useMemo(() => dayRange(selectedDate), [selectedDate]);
-  const rangeKey = `${start.toISOString()}:${end.toISOString()}`;
+  const todayKey = localDateKey(now);
+  const today = useMemo(() => {
+    const date = new Date(now);
+    date.setHours(12, 0, 0, 0);
+    return date;
+  }, [todayKey]);
+  const planData = usePlanItems(today, 'agenda');
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    api.get<CalendarEvent[]>(`/calendar?userId=${DEFAULT_USER_ID}&start=${start.toISOString()}&end=${end.toISOString()}`, { fallback: [] })
-      .then((result) => { if (!cancelled) setEventResult({ key: rangeKey, events: result }); })
-      .catch(() => { if (!cancelled) setEventResult({ key: rangeKey, events: [] }); });
-    return () => { cancelled = true; };
-  }, [start, end, rangeKey]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadReviewDue = () => {
-      getReviewQueue(1)
-        .then((result) => { if (!cancelled) setReviewDue(result.total); })
-        .catch(() => { if (!cancelled) setReviewDue(0); });
-    };
-    loadReviewDue();
-    window.addEventListener('sparkflow:records-changed', loadReviewDue);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('sparkflow:records-changed', loadReviewDue);
-    };
-  }, []);
-
-  const items = useMemo(() => {
-    const events = eventResult.key === rangeKey ? eventResult.events : [];
-    return projectScheduleItems(tasks, events).filter((item) => {
-      const itemStart = new Date(item.start);
-      const itemEnd = new Date(item.end);
-      return itemStart <= end && itemEnd >= start;
-    });
-  }, [tasks, eventResult, rangeKey, start, end]);
-  const [availableStart, availableEnd] = useMemo(() => {
-    const rangeStart = new Date(start); rangeStart.setHours(6);
-    const rangeEnd = new Date(start); rangeEnd.setHours(24);
-    return [rangeStart, rangeEnd];
-  }, [start]);
-  const slots = useMemo(() => computeFreeSlots(items, availableStart, availableEnd, 15), [items, availableStart, availableEnd]);
-  const referenceNow = selectedDate.toDateString() === now.toDateString() ? now : availableStart;
-
-  const selectItem = (item: ScheduleItem) => {
-    if (!item.taskId) return;
-    const task = tasks.find((candidate) => candidate.id === item.taskId);
-    if (task) onTaskClick(task);
-  };
-
-  const startReview = () => {
-    setActiveTab('sparks');
-    window.setTimeout(() => window.dispatchEvent(new CustomEvent('sparkflow:start-review')), 0);
+  const selectItem = (item: PlanItem) => {
+    if (item.taskId) {
+      const task = tasks.find((candidate) => candidate.id === item.taskId);
+      if (task) onTaskClick(task);
+      return;
+    }
+    if (item.courseId) onCourseClick?.(item.courseId);
   };
 
   return (
-    <div className="animate-page-enter space-y-4 pb-4">
-      <div>
-        <h1 className="text-xl font-bold">{selectedDate.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}</h1>
-        <p className="text-xs text-[var(--sf-text-tertiary)]">{selectedDate.toLocaleDateString('zh-CN', { weekday: 'long' })}</p>
-      </div>
-      <WeekStrip selectedDate={selectedDate} onSelect={setSelectedDate} />
-      {reviewDue > 0 && (
-        <button
-          type="button"
-          onClick={startReview}
-          className="flex w-full items-center gap-3 rounded-[var(--sf-radius-lg)] bg-[#f2f0e8] p-4 text-left shadow-sm"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#cae393] text-[#242424]"><Lightbulb size={18} /></span>
-          <span className="min-w-0 flex-1">
-            <strong className="block text-sm text-[#242424]">有 {reviewDue} 条记录等你重新看看</strong>
-            <span className="mt-1 block text-xs text-[#242424]/55">隔一天再看，有些想法会变得更清楚。</span>
+    <div className="animate-page-enter pb-5">
+      <header className="mb-5">
+        <h1 className="text-2xl font-black text-[var(--sf-text-primary)]">今天</h1>
+        <p className="mt-1 text-xs font-medium text-[var(--sf-text-tertiary)]">
+          {today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+        </p>
+      </header>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-black text-[var(--sf-text-primary)]">今日安排</h2>
+          <span className="text-[10px] font-semibold text-[var(--sf-text-tertiary)]">
+            {planData.items.length} 项
           </span>
-          <ArrowRight size={16} className="shrink-0 text-[#242424]/50" />
-        </button>
-      )}
-      <section className="rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-4">
-        <RhythmDial items={items} now={referenceNow} onSelect={selectItem} />
-      </section>
-      <FreeTimeCard slots={slots} now={referenceNow} />
-      <TodayProgress items={items} />
-      <section className="space-y-2">
-        <h2 className="text-sm font-bold">今日安排</h2>
-        {items.length === 0 && <p className="rounded-[var(--sf-radius-md)] bg-[var(--sf-surface)] p-4 text-sm text-[var(--sf-text-secondary)]">今天还没有安排，留一点空白也很好。</p>}
-        {items.map((item) => (
-          <button type="button" key={item.id} onClick={() => selectItem(item)} className="flex w-full items-center gap-3 rounded-[var(--sf-radius-sm)] bg-[var(--sf-surface)] p-3 text-left">
-            <span className="h-9 w-1 rounded-full" style={{ backgroundColor: item.color }} />
-            <span className="min-w-0 flex-1"><strong className="block truncate text-sm">{item.title}</strong><span className="text-xs text-[var(--sf-text-tertiary)]">{new Date(item.start).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })} · {item.durationMinutes} 分钟</span></span>
-            {item.location && <MapPin size={13} className="text-[var(--sf-text-tertiary)]" />}
-            {item.locked && <Lock size={13} className="text-[var(--sf-text-tertiary)]" />}
-          </button>
-        ))}
+        </div>
+
+        {planData.error && (
+          <div className="mb-3 rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
+            外部日历暂时加载失败，本地任务和课程仍会继续显示。
+          </div>
+        )}
+
+        {planData.loading && planData.items.length === 0 ? (
+          <div className="rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] px-4 py-8 text-center text-sm text-[var(--sf-text-tertiary)]">
+            正在加载今日安排…
+          </div>
+        ) : planData.items.length === 0 ? (
+          <div className="rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] px-4 py-8 text-center text-sm text-[var(--sf-text-secondary)]">
+            今天还没有安排
+          </div>
+        ) : (
+          <div className="relative space-y-2 before:absolute before:bottom-4 before:left-[50px] before:top-4 before:w-px before:bg-black/[0.06]">
+            {planData.items.map((item) => {
+              const start = new Date(item.start);
+              const end = new Date(item.end);
+              const active = start <= now && end > now;
+              const { label, Icon } = sourceMeta(item);
+              const clickable = Boolean(item.taskId || item.courseId);
+
+              return (
+                <button
+                  type="button"
+                  key={item.id}
+                  onClick={() => selectItem(item)}
+                  disabled={!clickable}
+                  className={`relative flex w-full items-stretch gap-3 rounded-[var(--sf-radius-md)] px-2 py-3 text-left transition-transform ${active ? 'bg-[#eef6dc]' : 'bg-[var(--sf-surface)]'} ${clickable ? 'active:scale-[0.99]' : 'cursor-default'} ${item.completed ? 'opacity-50' : ''}`}
+                >
+                  <span className="relative z-10 w-9 shrink-0 pt-1 text-right text-[10px] font-black text-[var(--sf-text-secondary)]">
+                    {start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </span>
+                  <span
+                    className="relative z-10 mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-[var(--sf-bg)] shadow-sm"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <strong className="truncate text-sm text-[var(--sf-text-primary)]">{item.title}</strong>
+                      {item.locked && <Lock size={11} className="shrink-0 text-[var(--sf-text-tertiary)]" />}
+                    </span>
+                    <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-[var(--sf-text-tertiary)]">
+                      <span className="inline-flex items-center gap-1"><Icon size={10} />{label}</span>
+                      <span>
+                        {start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        {'–'}
+                        {end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                      </span>
+                      {item.location && <span className="inline-flex max-w-full items-center gap-1 truncate"><MapPin size={10} />{item.location}</span>}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

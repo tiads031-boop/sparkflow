@@ -4,6 +4,13 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import * as webpush from 'web-push';
 import * as admin from 'firebase-admin';
+import {
+  buildReminderDeliveryKey,
+  groupReminderTasksByUser,
+  reminderScheduledFor,
+  reminderWindow,
+  type ReminderTask,
+} from './push-reminder';
 
 interface WebPushSub {
   endpoint: string;
@@ -147,55 +154,101 @@ export class PushService implements OnModuleInit {
     if (!this.vapidReady && !this.fcmApp) return;
 
     const now = new Date();
-    const window = new Date(now.getTime() + 30 * 60 * 1000);
+    const { reminderStart, dueEnd } = reminderWindow(now);
 
     const dueTasks = await this.prisma.task.findMany({
       where: {
-        dueDate: { lte: window, gte: now },
         status: { notIn: ['done', 'cancelled'] },
+        OR: [
+          {
+            reminderAt: {
+              gte: reminderStart,
+              lte: now,
+            },
+          },
+          {
+            reminderAt: null,
+            dueDate: {
+              gte: now,
+              lte: dueEnd,
+            },
+          },
+        ],
       },
-      select: { title: true, dueDate: true },
-      orderBy: { dueDate: 'asc' },
-      take: 5,
-    });
+      select: {
+        id: true,
+        userId: true,
+        title: true,
+        dueDate: true,
+        reminderAt: true,
+      },
+      orderBy: [
+        { reminderAt: 'asc' },
+        { dueDate: 'asc' },
+      ],
+      take: 100,
+    }) as ReminderTask[];
 
     if (dueTasks.length === 0) return;
 
-    const subs = await this.prisma.pushSubscription.findMany();
+    const tasksByUser = groupReminderTasksByUser(dueTasks);
+    const userIds = [...tasksByUser.keys()];
+    const subs = await this.prisma.pushSubscription.findMany({
+      where: { userId: { in: userIds } },
+    });
     if (subs.length === 0) return;
 
-    const taskTitles = dueTasks.map((t) => {
-      const date = t.dueDate
-        ? new Date(t.dueDate).toISOString().slice(0, 10)
-        : '';
-      return `${t.title} (${date})`;
-    });
+    const candidateKeys = subs.flatMap((sub) =>
+      (tasksByUser.get(sub.userId) || []).map((task) =>
+        buildReminderDeliveryKey(task, sub.id),
+      ),
+    );
 
-    const notification = {
-      title: `${dueTasks.length} tasks due soon`,
-      body: taskTitles.join('\n'),
-    };
-
-    const webPayload = JSON.stringify({
-      ...notification,
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
-      data: { url: '/' },
-      tag: 'sparkflow-due',
-    });
-
-    const fcmPayload: admin.messaging.NotificationMessagePayload = {
-      title: notification.title,
-      body: notification.body,
-    };
+    const existingDeliveries = candidateKeys.length
+      ? await this.prisma.notificationDelivery.findMany({
+          where: { deliveryKey: { in: candidateKeys } },
+          select: { deliveryKey: true },
+        })
+      : [];
+    const deliveredKeys = new Set(existingDeliveries.map((item) => item.deliveryKey));
 
     let webSent = 0;
     let fcmSent = 0;
     let removed = 0;
+    let deliveredTaskCount = 0;
 
     for (const sub of subs) {
+      const userTasks = tasksByUser.get(sub.userId) || [];
+      const pendingTasks = userTasks.filter(
+        (task) => !deliveredKeys.has(buildReminderDeliveryKey(task, sub.id)),
+      );
+      if (pendingTasks.length === 0) continue;
+
+      const notification = {
+        title: pendingTasks.length === 1 ? '任务提醒' : `${pendingTasks.length} 个任务提醒`,
+        body: pendingTasks
+          .map((task) => task.title)
+          .slice(0, 5)
+          .join('\n'),
+      };
+
+      const webPayload = JSON.stringify({
+        ...notification,
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        data: { url: '/' },
+        tag: 'sparkflow-task-reminder',
+      });
+
+      const fcmPayload: admin.messaging.NotificationMessagePayload = {
+        title: notification.title,
+        body: notification.body,
+      };
+
+      let sent = false;
+
       if (sub.channel === 'fcm') {
-        // ── FCM 通道 ──
+        if (!this.fcmApp) continue;
         try {
           const msg: admin.messaging.Message = {
             token: sub.endpoint,
@@ -209,8 +262,9 @@ export class PushService implements OnModuleInit {
               },
             },
           };
-          await this.fcmApp!.messaging().send(msg);
+          await this.fcmApp.messaging().send(msg);
           fcmSent++;
+          sent = true;
         } catch (err: any) {
           if (
             err.code === 'messaging/registration-token-not-registered' ||
@@ -223,7 +277,6 @@ export class PushService implements OnModuleInit {
           }
         }
       } else {
-        // ── Web Push 通道 ──
         if (!this.vapidReady || !sub.p256dh || !sub.auth) continue;
         try {
           await webpush.sendNotification(
@@ -234,6 +287,7 @@ export class PushService implements OnModuleInit {
             webPayload,
           );
           webSent++;
+          sent = true;
         } catch (err: any) {
           if (err.statusCode === 410 || err.statusCode === 404) {
             await this.prisma.pushSubscription.delete({ where: { id: sub.id } });
@@ -243,12 +297,28 @@ export class PushService implements OnModuleInit {
           }
         }
       }
+
+      if (!sent) continue;
+
+      await this.prisma.notificationDelivery.createMany({
+        data: pendingTasks.map((task) => ({
+          userId: task.userId,
+          sourceType: 'task',
+          sourceId: task.id,
+          subscriptionId: sub.id,
+          deliveryKey: buildReminderDeliveryKey(task, sub.id),
+          scheduledFor: reminderScheduledFor(task)!,
+          channel: sub.channel,
+        })),
+        skipDuplicates: true,
+      });
+      deliveredTaskCount += pendingTasks.length;
     }
 
     const total = webSent + fcmSent;
     if (total > 0 || removed > 0) {
       this.logger.log(
-        `Push cron: web=${webSent} fcm=${fcmSent} removed=${removed} tasks=${dueTasks.length}`,
+        `Push cron: web=${webSent} fcm=${fcmSent} removed=${removed} reminders=${deliveredTaskCount} users=${userIds.length}`,
       );
     }
   }
