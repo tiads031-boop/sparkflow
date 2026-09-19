@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { LockKeyhole, Sparkles } from 'lucide-react';
 import type { PlanItem } from './planProjection';
 import { itemsForLocalDay, localDateKey } from './planProjection';
@@ -34,10 +35,24 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
     return day;
   });
   const now = new Date();
+  const selectedKey = localDateKey(date);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+    const selectedIndex = days.findIndex((day) => localDateKey(day) === selectedKey);
+    if (selectedIndex < 0) return;
+    const timeColumnWidth = 48;
+    const dayWidth = (scroller.scrollWidth - timeColumnWidth) / 7;
+    const targetCenter = timeColumnWidth + (selectedIndex + 0.5) * dayWidth;
+    const maxLeft = scroller.scrollWidth - scroller.clientWidth;
+    scroller.scrollTo({ left: Math.max(0, Math.min(maxLeft, targetCenter - scroller.clientWidth / 2)) });
+  }, [selectedKey]);
 
   return (
     <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
-      <div className="overflow-x-auto overscroll-x-contain">
+      <div ref={scrollerRef} className="overflow-x-auto overscroll-x-contain">
         <div className="min-w-[560px]">
           <div className="grid grid-cols-[48px_repeat(7,minmax(68px,1fr))] border-b border-black/5 px-1.5 py-2">
             <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" />
