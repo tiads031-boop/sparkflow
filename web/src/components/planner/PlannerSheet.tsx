@@ -28,10 +28,11 @@ import {
   updatePlanningContext,
   type PlanningActionProposal,
   type PlanningContextSnapshot,
+  type PlanningReplanRequest,
   type PlanningEvidenceItem,
   type PlanningThreadDetail,
 } from '../../api/planning';
-import type { PlannerPreview } from '../../types';
+import type { PlannerPreview, PlannerReplanPreview } from '../../types';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
 import { usePlanningVoiceInput } from '../../hooks/usePlanningVoiceInput';
 import PlanningContextEditor from './PlanningContextEditor';
@@ -49,6 +50,16 @@ function localIso(date: string, time: string) {
 
 function timeLabel(value: string) {
   return new Date(value).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+function dateTimeLabel(value: string) {
+  return new Date(value).toLocaleString('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
@@ -126,6 +137,13 @@ export default function PlannerSheet({
   const [actionBusy, setActionBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
 
+  const [replanRequests, setReplanRequests] = useState<PlanningReplanRequest[]>([]);
+  const [activeReplanRequestId, setActiveReplanRequestId] = useState<string | null>(null);
+  const [replanPreview, setReplanPreview] = useState<PlannerReplanPreview | null>(null);
+  const [replanBusy, setReplanBusy] = useState(false);
+  const [replanMessage, setReplanMessage] = useState('');
+  const [replanPlanId, setReplanPlanId] = useState<string | null>(null);
+
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [date, setDate] = useState(dateInput(selectedDate));
   const [startTime, setStartTime] = useState('08:00');
@@ -156,6 +174,10 @@ export default function PlannerSheet({
         setActionConversationId(null);
         setActionProposals([]);
         setSelectedActionIds([]);
+        setReplanRequests([]);
+        setActiveReplanRequestId(null);
+        setReplanPreview(null);
+        setReplanPlanId(null);
         return;
       }
       const detail = await getPlanningThread(threads[0].id);
@@ -171,6 +193,10 @@ export default function PlannerSheet({
       setActionConversationId(pendingActions.length ? latestConversation?.id || null : null);
       setActionProposals(pendingActions);
       setSelectedActionIds(pendingActions.map((action) => action.proposalId));
+      setReplanRequests(latestContext?.replanRequests || []);
+      setActiveReplanRequestId(null);
+      setReplanPreview(null);
+      setReplanPlanId(null);
     } catch (error) {
       setTurnMessage(error instanceof Error ? error.message : '读取规划上下文失败');
     } finally {
@@ -187,6 +213,10 @@ export default function PlannerSheet({
     setSchedulerOpen(false);
     setScheduleMessage('');
     setActionMessage('');
+    setReplanMessage('');
+    setActiveReplanRequestId(null);
+    setReplanPreview(null);
+    setReplanPlanId(null);
     setContextEditing(false);
     setContextError('');
     onPreviewChange?.(null);
@@ -235,6 +265,10 @@ export default function PlannerSheet({
     setTurnBusy(true);
     setTurnMessage('');
     clearPreview();
+    setActiveReplanRequestId(null);
+    setReplanPreview(null);
+    setReplanPlanId(null);
+    setReplanMessage('');
     setSchedulerOpen(false);
 
     try {
@@ -255,6 +289,11 @@ export default function PlannerSheet({
       setActionProposals(result.actions);
       setSelectedActionIds(result.actions.map((action) => action.proposalId));
       setActionMessage('');
+      setReplanRequests(result.replanRequests || []);
+      setActiveReplanRequestId(null);
+      setReplanPreview(null);
+      setReplanPlanId(null);
+      setReplanMessage('');
 
       if (result.research.status === 'used') {
         setTurnMessage(`已联网核实 ${result.research.evidence.length} 个来源。`);
@@ -283,6 +322,11 @@ export default function PlannerSheet({
       setActionProposals([]);
       setSelectedActionIds([]);
       setActionMessage('');
+      setReplanRequests([]);
+      setActiveReplanRequestId(null);
+      setReplanPreview(null);
+      setReplanPlanId(null);
+      setReplanMessage('');
       setMessageInput('');
       setTurnMessage('');
       clearPreview();
@@ -358,6 +402,98 @@ export default function PlannerSheet({
       setActionMessage(error instanceof Error ? error.message : '应用任务操作失败');
     } finally {
       setActionBusy(false);
+    }
+  };
+
+  const generateReplanPreview = async (request: PlanningReplanRequest) => {
+    if (replanBusy) return;
+    setReplanBusy(true);
+    setReplanMessage('');
+    setReplanPlanId(null);
+    setActiveReplanRequestId(request.requestId);
+    try {
+      const result = await api.post<PlannerReplanPreview>(
+        '/planner/replan/preview',
+        {
+          blockedStart: request.blockedStart,
+          blockedEnd: request.blockedEnd,
+          planningStart: request.planningStart,
+          planningEnd: request.planningEnd,
+        },
+        { throwOnError: true, timeoutMs: 45_000 },
+      );
+      setReplanPreview(result);
+      onPreviewChange?.(result);
+      if (!result.affectedTaskIds.length) {
+        setReplanMessage('这个冲突时段没有压到可移动任务，当前日程无需重排。');
+      } else if (!result.proposals.length) {
+        setReplanMessage(
+          `有 ${result.affectedTaskIds.length} 项任务受影响，但当前可用范围没有足够空档。`,
+        );
+      } else if (result.unscheduledTaskIds.length) {
+        setReplanMessage(
+          `已找到 ${result.proposals.length} 项新位置，另有 ${result.unscheduledTaskIds.length} 项暂时放不下。`,
+        );
+      }
+    } catch (error) {
+      setReplanPreview(null);
+      onPreviewChange?.(null);
+      setReplanMessage(error instanceof Error ? error.message : '生成重排预览失败');
+    } finally {
+      setReplanBusy(false);
+    }
+  };
+
+  const applyReplan = async (request: PlanningReplanRequest) => {
+    if (
+      !thread ||
+      !replanPreview?.proposals.length ||
+      activeReplanRequestId !== request.requestId ||
+      replanBusy
+    ) return;
+    setReplanBusy(true);
+    setReplanMessage('');
+    try {
+      const result = await api.post<{ planId: string; appliedCount: number }>(
+        '/planner/apply',
+        {
+          proposals: replanPreview.proposals,
+          planningThreadId: thread.id,
+          planningThreadRevision: thread.revision,
+          blockedIntervals: [replanPreview.blockedRange],
+        },
+        { throwOnError: true },
+      );
+      setReplanPlanId(result.planId);
+      setReplanMessage(`已移动 ${result.appliedCount} 项任务；固定课程、日历事件和锁定任务保持不动。`);
+      await onApplied();
+      onPreviewChange?.(null);
+    } catch (error) {
+      setReplanMessage(error instanceof Error ? error.message : '应用重排失败');
+    } finally {
+      setReplanBusy(false);
+    }
+  };
+
+  const undoReplan = async () => {
+    if (!replanPlanId || replanBusy) return;
+    setReplanBusy(true);
+    setReplanMessage('');
+    try {
+      const result = await api.post<{ restoredCount: number }>(
+        `/planner/${replanPlanId}/undo`,
+        undefined,
+        { throwOnError: true },
+      );
+      setReplanPlanId(null);
+      setReplanPreview(null);
+      onPreviewChange?.(null);
+      setReplanMessage(`已撤销这次重排，恢复 ${result.restoredCount} 项任务原时间。`);
+      await onApplied();
+    } catch (error) {
+      setReplanMessage(error instanceof Error ? error.message : '撤销重排失败');
+    } finally {
+      setReplanBusy(false);
     }
   };
 
@@ -633,6 +769,111 @@ export default function PlannerSheet({
             <p className="mt-4 rounded-2xl bg-[var(--sf-bg)] px-4 py-3 text-xs text-[var(--sf-text-secondary)]">
               {turnMessage}
             </p>
+          )}
+
+          {replanRequests.length > 0 && (
+            <div className="mt-5 space-y-3">
+              {replanRequests.map((request) => {
+                const active = activeReplanRequestId === request.requestId;
+                return (
+                  <div
+                    key={request.requestId}
+                    className="rounded-[1.7rem] border border-[#b0a8db]/35 bg-[#f7f5fc] p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#756aa8]">
+                          增量重排
+                        </span>
+                        <h3 className="mt-1 text-sm font-black text-[#2d2940]">{request.title}</h3>
+                        <p className="mt-1 text-[10px] leading-4 text-[#756f8d]">{request.reason}</p>
+                      </div>
+                      <Sparkles size={16} className="mt-0.5 shrink-0 text-[#756aa8]" />
+                    </div>
+
+                    <div className="mt-3 grid gap-2 rounded-2xl bg-white p-3 text-[10px]">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-gray-400">临时冲突</span>
+                        <strong className="text-right text-[#2d2940]">
+                          {dateTimeLabel(request.blockedStart)} → {dateTimeLabel(request.blockedEnd)}
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-gray-400">允许重排范围</span>
+                        <strong className="text-right text-[#2d2940]">
+                          {dateTimeLabel(request.planningStart)} → {dateTimeLabel(request.planningEnd)}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {!active && (
+                      <button
+                        type="button"
+                        onClick={() => void generateReplanPreview(request)}
+                        disabled={replanBusy}
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#2d2940] py-3 text-xs font-bold text-white disabled:opacity-40"
+                      >
+                        {replanBusy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                        计算重排预览
+                      </button>
+                    )}
+
+                    {active && replanPreview && (
+                      <div className="mt-3 space-y-2">
+                        {replanPreview.proposals.map((proposal) => (
+                          <article key={proposal.taskId} className="rounded-2xl bg-white px-3 py-3">
+                            <strong className="block text-xs text-[#2d2940]">{proposal.title}</strong>
+                            <div className="mt-1.5 grid gap-1 text-[10px]">
+                              <span className="text-gray-400">
+                                原时间：{proposal.originalStart ? dateTimeLabel(proposal.originalStart) : '未记录'}
+                                {proposal.originalEnd ? ` → ${dateTimeLabel(proposal.originalEnd)}` : ''}
+                              </span>
+                              <span className="font-bold text-[#756aa8]">
+                                新时间：{dateTimeLabel(proposal.start)} → {dateTimeLabel(proposal.end)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[9px] text-gray-400">{proposal.reason}</p>
+                          </article>
+                        ))}
+
+                        {replanPreview.unscheduledTaskIds.length > 0 && (
+                          <p className="rounded-xl bg-amber-50 px-3 py-2 text-[10px] text-amber-800">
+                            {replanPreview.unscheduledTaskIds.length} 项受影响任务当前无法放入允许范围。
+                          </p>
+                        )}
+
+                        {!replanPlanId && replanPreview.proposals.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => void applyReplan(request)}
+                            disabled={replanBusy}
+                            className="flex w-full items-center justify-center gap-2 rounded-full bg-[#b0a8db] py-3 text-xs font-black text-white disabled:opacity-40"
+                          >
+                            {replanBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                            确认移动 {replanPreview.proposals.length} 项
+                          </button>
+                        )}
+
+                        {replanPlanId && (
+                          <button
+                            type="button"
+                            onClick={() => void undoReplan()}
+                            disabled={replanBusy}
+                            className="flex w-full items-center justify-center gap-2 rounded-full bg-white py-3 text-xs font-bold text-[#5f5687] disabled:opacity-40"
+                          >
+                            <RotateCcw size={14} /> 撤销本次重排
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {active && replanMessage && (
+                      <p className="mt-3 rounded-xl bg-white px-3 py-2 text-xs text-[#625a82]">{replanMessage}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {actionProposals.length > 0 && (
