@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User, Sparkles, Search, Tag, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User, Sparkles, Search, Tag, ClipboardCheck, CalendarClock, PlusCircle } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import type { CourseNote, Task } from '../types';
+import type { CalendarEvent, CourseNote, Task } from '../types';
 import { buildLinkedCourseTask, normalizeLinkedTaskStatus } from '../utils/courseTaskLink';
+import CourseChangeSheet from './CourseChangeSheet';
 
 // ════════════════════════════════════════════════════
 // Props
@@ -104,6 +105,7 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
   const [taskSearch, setTaskSearch] = useState('');
   const [convertingNoteId, setConvertingNoteId] = useState<string | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+  const [changeEvent, setChangeEvent] = useState<CalendarEvent | null | undefined>(undefined);
 
   // ⚠️ useMemo 必须在 early return 之前，保证 hooks 调用顺序一致
   const { thisWeekEvents, otherEvents } = useMemo(() => {
@@ -229,6 +231,15 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
+  const overrideLabel = (event: CalendarEvent) => {
+    if (event.overrideType === 'cancel') return '已停课';
+    if (event.overrideType === 'swap') return '已换课';
+    if (event.overrideType === 'reschedule') return '已调课';
+    if (event.overrideType === 'extra') return '补课';
+    if (event.isOverride) return '已调整';
+    return null;
+  };
+
   return (
     <div className="animate-page-enter pb-24">
       {/* Back button */}
@@ -270,7 +281,7 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
         </div>
 
         {/* Stats pills */}
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-4 flex-wrap">
           <span className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-medium">
             {c._count?.events || c.events?.length || 0} 次课
           </span>
@@ -281,6 +292,13 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
             {c._count?.notes || c.notes?.length || 0} 个课程任务
           </span>
         </div>
+        <button
+          type="button"
+          onClick={() => setChangeEvent(null)}
+          className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-black text-[#242424]"
+        >
+          <PlusCircle size={14} /> 补课 / 新增一次课程
+        </button>
       </div>
 
       {/* Schedule (events list) */}
@@ -297,39 +315,55 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
                 <span className="text-[10px] text-gray-400 ml-auto">{thisWeekEvents.length} 节</span>
               </div>
               <div className="space-y-1.5">
-                {thisWeekEvents.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="flex items-center gap-3 py-3 px-4 rounded-2xl transition-all duration-300"
-                    style={{
-                      background: `${c.color || '#b0a8db'}12`,
-                      boxShadow: `0 0 0 1px ${c.color || '#b0a8db'}20, 0 2px 8px ${c.color || '#b0a8db'}10`,
-                    }}
-                  >
+                {thisWeekEvents.map((ev) => {
+                  const label = overrideLabel(ev);
+                  const cancelled = ev.overrideType === 'cancel';
+                  return (
                     <div
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      key={ev.id}
+                      className={`flex items-center gap-3 py-3 px-4 rounded-2xl transition-all duration-300 ${cancelled ? 'opacity-55' : ''}`}
                       style={{
-                        backgroundColor: c.color || '#b0a8db',
-                        boxShadow: `0 0 0 3px ${c.color || '#b0a8db'}30`,
-                      }}
-                    />
-                    <span className="text-xs text-[#242424] w-16 font-semibold">
-                      {formatEventDate(ev.startTime)}
-                    </span>
-                    <span className="text-sm text-[#242424] font-bold">
-                      {formatEventTime(ev.startTime)} - {formatEventTime(ev.endTime)}
-                    </span>
-                    <span
-                      className="ml-auto text-[9px] px-2 py-0.5 rounded-full font-medium flex-shrink-0"
-                      style={{
-                        background: `${c.color || '#b0a8db'}30`,
-                        color: '#242424',
+                        background: `${c.color || '#b0a8db'}12`,
+                        boxShadow: `0 0 0 1px ${c.color || '#b0a8db'}20, 0 2px 8px ${c.color || '#b0a8db'}10`,
                       }}
                     >
-                      本周
-                    </span>
-                  </div>
-                ))}
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{
+                          backgroundColor: c.color || '#b0a8db',
+                          boxShadow: `0 0 0 3px ${c.color || '#b0a8db'}30`,
+                        }}
+                      />
+                      <span className="text-xs text-[#242424] w-16 font-semibold">
+                        {formatEventDate(ev.startTime)}
+                      </span>
+                      <span className={`text-sm text-[#242424] font-bold ${cancelled ? 'line-through' : ''}`}>
+                        {formatEventTime(ev.startTime)} - {formatEventTime(ev.endTime)}
+                      </span>
+                      <span className="ml-auto flex items-center gap-1">
+                        <span
+                          className="text-[9px] px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                          style={{
+                            background: `${c.color || '#b0a8db'}30`,
+                            color: '#242424',
+                          }}
+                        >
+                          {label || '本周'}
+                        </span>
+                        {!cancelled && (
+                          <button
+                            type="button"
+                            onClick={() => setChangeEvent(ev)}
+                            className="grid h-7 w-7 place-items-center rounded-full bg-white/80 text-gray-500"
+                            aria-label={`调整${c.name} ${formatEventDate(ev.startTime)}`}
+                          >
+                            <CalendarClock size={12} />
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -344,28 +378,44 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
                 </div>
               )}
               <div className="space-y-2 max-h-64 overflow-y-auto hide-scrollbar">
-                {otherEvents.map(({ event: ev, isPast }) => (
-                  <div
-                    key={ev.id}
-                    className={`flex items-center gap-3 py-2.5 px-3 rounded-xl bg-[#f4f4f6] ${
-                      isPast ? 'opacity-55 grayscale' : ''
-                    }`}
-                  >
+                {otherEvents.map(({ event: ev, isPast }) => {
+                  const label = overrideLabel(ev);
+                  const cancelled = ev.overrideType === 'cancel';
+                  return (
                     <div
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: c.color || '#b0a8db' }}
-                    />
-                    <span className="text-xs text-gray-500 w-16">{formatEventDate(ev.startTime)}</span>
-                    <span className="text-sm text-[#242424] font-medium">
-                      {formatEventTime(ev.startTime)} - {formatEventTime(ev.endTime)}
-                    </span>
-                    {isPast && (
-                      <span className="ml-auto text-[9px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-400">
-                        已上过
+                      key={ev.id}
+                      className={`flex items-center gap-3 py-2.5 px-3 rounded-xl bg-[#f4f4f6] ${
+                        isPast || cancelled ? 'opacity-55' : ''
+                      }`}
+                    >
+                      <div
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: c.color || '#b0a8db' }}
+                      />
+                      <span className="text-xs text-gray-500 w-16">{formatEventDate(ev.startTime)}</span>
+                      <span className={`text-sm text-[#242424] font-medium ${cancelled ? 'line-through' : ''}`}>
+                        {formatEventTime(ev.startTime)} - {formatEventTime(ev.endTime)}
                       </span>
-                    )}
-                  </div>
-                ))}
+                      <span className="ml-auto flex items-center gap-1">
+                        {(label || isPast) && (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-400">
+                            {label || '已上过'}
+                          </span>
+                        )}
+                        {!isPast && !cancelled && (
+                          <button
+                            type="button"
+                            onClick={() => setChangeEvent(ev)}
+                            className="grid h-7 w-7 place-items-center rounded-full bg-white text-gray-500"
+                            aria-label={`调整${c.name} ${formatEventDate(ev.startTime)}`}
+                          >
+                            <CalendarClock size={12} />
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -422,6 +472,17 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
             ))}
           </div>
         </div>
+      )}
+
+      {changeEvent !== undefined && (
+        <CourseChangeSheet
+          course={c}
+          event={changeEvent}
+          onClose={() => setChangeEvent(undefined)}
+          onApplied={async () => {
+            await loadCourseDetail(c.id);
+          }}
+        />
       )}
 
       {/* Course tasks */}
