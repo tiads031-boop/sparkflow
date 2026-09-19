@@ -4,6 +4,17 @@ function mediaMock() {
   return {
     persist: jest.fn().mockResolvedValue([]),
     removeMany: jest.fn().mockResolvedValue(undefined),
+    read: jest.fn().mockResolvedValue(Buffer.from('voice')),
+  };
+}
+
+function audioMock() {
+  return {
+    transcribe: jest.fn().mockResolvedValue({
+      text: '这是转写后的语音内容',
+      model: 'qwen3-asr-flash',
+      bytes: 5,
+    }),
   };
 }
 
@@ -11,7 +22,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
   it('creates a manual record with a next-day review candidate', async () => {
     const create = jest.fn(({ data }) => data);
     const prisma = { inspiration: { create } };
-    const service = new InspirationsService(prisma as never, mediaMock() as never);
+    const service = new InspirationsService(prisma as never, mediaMock() as never, audioMock() as never);
 
     const before = Date.now();
     const result = await service.create({
@@ -40,7 +51,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       attachments: data.attachments.create,
     }));
     const prisma = { inspiration: { create } };
-    const service = new InspirationsService(prisma as never, media as never);
+    const service = new InspirationsService(prisma as never, media as never, audioMock() as never);
     const file = {
       buffer: Buffer.from('png'),
       size: 3,
@@ -73,7 +84,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       inspirationReflection: { create: reflectionCreate },
       $transaction,
     };
-    const service = new InspirationsService(prisma as never, mediaMock() as never);
+    const service = new InspirationsService(prisma as never, mediaMock() as never, audioMock() as never);
 
     await service.addReflection('inspiration-1', 'user-1', 'Preview 也应该能撤销');
 
@@ -108,7 +119,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       inspiration: { findFirst },
       task: { create },
     };
-    const service = new InspirationsService(prisma as never, mediaMock() as never);
+    const service = new InspirationsService(prisma as never, mediaMock() as never, audioMock() as never);
 
     const result = await service.createTaskFromInspiration('inspiration-1', 'user-1');
 
@@ -141,7 +152,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
     };
     const media = mediaMock();
-    const service = new InspirationsService(prisma as never, media as never);
+    const service = new InspirationsService(prisma as never, media as never, audioMock() as never);
 
     await service.remove('inspiration-1', 'user-1');
 
@@ -153,4 +164,97 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       'inspiration-1/b.webm',
     ]);
   });
+
+  it('transcribes an owned audio attachment once and persists the reusable transcript', async () => {
+    const media = mediaMock();
+    const audio = audioMock();
+    const attachmentUpdate = jest.fn().mockResolvedValue({
+      id: 'audio-1',
+      inspirationId: 'inspiration-1',
+      kind: 'audio',
+      mimeType: 'audio/webm',
+      originalName: 'voice.webm',
+      sizeBytes: 5,
+      transcript: '这是转写后的语音内容',
+      createdAt: new Date(),
+    });
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'audio-1',
+          inspirationId: 'inspiration-1',
+          kind: 'audio',
+          mimeType: 'audio/webm',
+          originalName: 'voice.webm',
+          storageKey: 'inspiration-1/audio-1.webm',
+          sizeBytes: 5,
+          transcript: null,
+        }),
+        update: attachmentUpdate,
+      },
+    };
+    const service = new InspirationsService(
+      prisma as never,
+      media as never,
+      audio as never,
+    );
+
+    const result = await service.transcribeAttachment(
+      'inspiration-1',
+      'audio-1',
+      'user-1',
+    );
+
+    expect(media.read).toHaveBeenCalledWith('inspiration-1/audio-1.webm');
+    expect(audio.transcribe).toHaveBeenCalledWith({
+      buffer: Buffer.from('voice'),
+      size: 5,
+      mimetype: 'audio/webm',
+    });
+    expect(attachmentUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'audio-1' },
+      data: { transcript: '这是转写后的语音内容' },
+    }));
+    expect(result).toEqual(expect.objectContaining({
+      attachmentId: 'audio-1',
+      transcript: '这是转写后的语音内容',
+      reused: false,
+    }));
+  });
+
+  it('reuses an existing audio transcript without calling ASR again', async () => {
+    const media = mediaMock();
+    const audio = audioMock();
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'audio-1',
+          inspirationId: 'inspiration-1',
+          kind: 'audio',
+          mimeType: 'audio/webm',
+          storageKey: 'inspiration-1/audio-1.webm',
+          sizeBytes: 5,
+          transcript: '已有转写',
+        }),
+      },
+    };
+    const service = new InspirationsService(
+      prisma as never,
+      media as never,
+      audio as never,
+    );
+
+    await expect(service.transcribeAttachment(
+      'inspiration-1',
+      'audio-1',
+      'user-1',
+    )).resolves.toEqual({
+      attachmentId: 'audio-1',
+      transcript: '已有转写',
+      reused: true,
+    });
+    expect(media.read).not.toHaveBeenCalled();
+    expect(audio.transcribe).not.toHaveBeenCalled();
+  });
+
 });
