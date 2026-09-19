@@ -389,7 +389,7 @@ export default function App() {
           )}
           {activeTab === 'study' && (
             <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开学习空间…</div>}>
-              <StudyWorkspace onStartFocus={() => setFocusOpen(true)} />
+              <StudyWorkspace onStartFocus={() => setFocusOpen(true)} onOpenCourses={() => setActiveTab('courses')} />
             </Suspense>
           )}
           {(activeTab === 'settings' || activeTab === 'profile') && <SettingsView />}
