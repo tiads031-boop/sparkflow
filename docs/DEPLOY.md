@@ -59,7 +59,10 @@ printf 'SparkFlow API image built from %s\n' "$BUILD_SHA"
 DATABASE_URL=postgresql://sparkflow_app:DB_PASSWORD@sparkflow-postgres:5432/sparkflow?schema=public
 PORT=3001
 CORS_ORIGIN=https://fish-life.cc.cd
+INSPIRATION_UPLOAD_DIR=/data/inspiration-attachments
 ```
+
+`/opt/sparkflow/api-data:/data` 已经是 API 的持久化数据卷。M8 多模态随手记把图片、语音和视频写到 `/data/inspiration-attachments`；不要把该目录放在容器临时层，否则重建 API 容器会丢附件。附件不会由 Nginx 直接公开，读取必须经过 SparkFlow 会话鉴权。
 
 ## 3. 启动 / 更新 API
 
