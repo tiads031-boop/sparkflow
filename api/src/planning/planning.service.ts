@@ -268,6 +268,35 @@ export class PlanningService {
     const title = data.title?.trim().slice(0, 120) || null;
     const scopeId = data.scopeId?.trim().slice(0, 200) || null;
 
+    if (scopeType === 'course') {
+      if (!scopeId) throw new BadRequestException('Course planning requires scopeId');
+      const ownedCourse = await this.prisma.course.findFirst({
+        where: { id: scopeId, userId },
+        select: { id: true, name: true },
+      });
+      if (!ownedCourse) throw new NotFoundException('Course not found');
+
+      const existing = await this.prisma.planningThread.findFirst({
+        where: {
+          userId,
+          scopeType: 'course',
+          scopeId,
+          status: 'active',
+        },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (existing) return existing;
+
+      return this.prisma.planningThread.create({
+        data: {
+          userId,
+          title: title || `${ownedCourse.name} 课程调整`,
+          scopeType,
+          scopeId,
+        },
+      });
+    }
+
     if (scopeType === 'goal') {
       if (!scopeId) throw new BadRequestException('Goal planning requires scopeId');
       const ownedGoal = await this.prisma.studyFolder.findFirst({
@@ -484,12 +513,7 @@ export class PlanningService {
     let currentCourses: PlanningCourseSnapshot[] = [];
     let currentCourseOccurrences: PlanningCourseOccurrenceSnapshot[] = [];
     if (thread.scopeType !== 'goal') {
-      const courseWhere = {
-        userId,
-        ...(thread.scopeType === 'course' && thread.scopeId
-          ? { id: thread.scopeId }
-          : {}),
-      };
+      const courseWhere = { userId };
       const occurrenceRangeStart = new Date(currentTime.getTime() - 14 * 24 * 60 * 60 * 1000);
       const occurrenceRangeEnd = new Date(currentTime.getTime() + 90 * 24 * 60 * 60 * 1000);
 
@@ -514,9 +538,6 @@ export class PlanningService {
           where: {
             userId,
             courseId: { not: null },
-            ...(thread.scopeType === 'course' && thread.scopeId
-              ? { courseId: thread.scopeId }
-              : {}),
             OR: [
               {
                 startTime: {
