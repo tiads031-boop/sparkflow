@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-20 | **代码基线**：`master@dc90a61e`
+> **最后更新**：2026-09-20 | **代码基线**：`master@301955c7`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -11,7 +11,7 @@
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，腾讯云运行 `master@99ebb3c`；公网 `/api/health.buildSha` 与仓库一致；生产库 20 个 migrations 全部 up to date，包含 `20260919130000_add_study_folders` |
 | Web | Vercel 项目 `sparkflow031`；2026-09-19 已从 GitHub `master@e883b9a3` 源码显式发布 Production，部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 为 READY，`fish-life.cc.cd` HTTP 200；生产 bundle 已核到五项导航与 M3 Planner Preview 文案 |
-| GitHub | `master@dc90a61e`；VNext M4–M7 已完成代码/CI；M8.1 多模态记录、M8.2 账户通知偏好、M8.3 设置视觉/外观已进入主线（PR #55–#78 的对应实现）；涉及 migration 的批次均通过 fresh PostgreSQL CI |
+| GitHub | `master@301955c7`；VNext M4–M8 主体代码/CI 已完成。PR #80 增加显式音频转写/摘要，PR #81 增加显式图片信息提取与视频语音转写+画面摘要；上传附件本身仍不自动调用 AI。涉及 migration 的批次均通过 fresh PostgreSQL CI |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
 | 最新功能 APK | Release `android-7145ba0ea3d2`；`sparkflow-7145ba0ea3d2-debug.apk`；对应 VNext M3 功能提交 `7145ba0ea3d2`，Android CI 成功；之后 `e883b9a3` 仅改文档，未触发 APK |
@@ -20,7 +20,7 @@
 ## 近期总原则
 
 1. **Phase 15 M1/M2/M3 代码均已进入 master；不要再重复实现 Capture、Insight 或 Insight→Task。**
-2. **当前第一收口项是已发布版本的真实账号验收：Study Mode CRUD、M2/M3 Insight→Task、教务导入、Planner 与未知结果恢复。**
+2. **当前第一收口项已切换为最新 `master@301955c7` 的部署与真实账号/真机验收；不要再继续重复实现 M4–M8 已完成能力。**
 3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 稳定性修复已随 `99ebb3c` API 镜像上线，下一步复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
 4. **腾讯云 API 仍运行 `99ebb3c`（VNext M1–M3 未改 API）；Web Production 已发布 VNext `master@e883b9a3`，公网首页 200 且未发现发布后一小时 Vercel runtime error。**
 5. **Android 继续以 commit-stamped Release 做真机验收；当前 VNext M3 包为 `android-7145ba0ea3d2`。**
@@ -162,7 +162,7 @@
 
 ---
 
-## 4.6 VNext M4–M8：AI 调度中枢与产品重整（✅ M4–M7，🚧 M8 收尾/验收）
+## 4.6 VNext M4–M8：AI 调度中枢与产品重整（✅ 代码/CI 完成，🚧 生产/PWA/Android 验收）
 
 方案：[vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md)
 
@@ -179,7 +179,7 @@
 - [x] **M8.1 / 多模态记录**：PR #74 已完成 Inspiration 私有图片/音频/视频附件、语音录制、受控读取与媒体预览；上传时不自动调用 AI。
 - [x] **M8.2 / 通知偏好**：PR #77 已完成账户级任务/课程提醒、默认提前量、安静时段、时区和测试通知；继续复用现有 `User.settings.notification`，未新增第二套设置表。
 - [x] **M8.3 / 设置视觉与外观**：PR #78 已完成“我的”设置中心视觉收尾与真实“跟随系统/浅色/深色”外观选择；不暴露无真实后端能力的 AI 假开关。
-- [ ] **M8.4 / 最后收口**：按需补“用户主动触发”的附件 AI 转录/摘要（不在上传时自动消耗 AI 额度），并完成 PWA / Android 麦克风、文件选择、私有附件播放、通知与深浅色真机验收。
+- [x] **M8.4 / 显式附件 AI**：PR #80 已完成音频“转写 → 摘要”；PR #81 已完成图片信息提取与视频“语音转写 + 画面/语音综合摘要”。全部只在用户主动点击时调用 AI；上传本身不自动消耗额度。\n- [ ] **M8 最终验收**：PWA / Android 真机验证麦克风、文件选择、私有附件播放、音频/图片/视频显式 AI、通知、深浅色与 safe-area；并把最新 master 部署到生产 API/Web 后做真实账号闭环。
 
 ### M5 实施记录 — ✅ 代码/CI 完成
 
@@ -201,8 +201,7 @@
 - PR #73：周期 Course 模板变更与单次 override 分流，并具备独立 Preview/Apply/Undo。
 - PR #74：Inspiration 私有多模态附件与录音/图片/视频 Capture。
 - PR #77：账户级任务/课程提醒偏好、安静时段、时区与测试通知。
-- PR #78：Settings 视觉收尾 + 跟随系统/浅色/深色外观；Web/API CI 全绿。
-- 当前仓库事实源已到 `master@dc90a61e`；这些代码状态不等于腾讯云 API、Vercel Production 或 Android 真机已经同步部署/验收。
+- PR #78：Settings 视觉收尾 + 跟随系统/浅色/深色外观；Web/API CI 全绿。\n- PR #80：音频附件由用户主动触发 Qwen ASR 转写与摘要；原音频继续保留在私有附件存储。\n- PR #81：图片附件主动提取可见信息；视频附件主动生成语音转写与画面/语音综合摘要；图片/视频 AI 处理上限独立于存储上限。\n- 当前仓库事实源已到 `master@301955c7`；这些代码状态不等于腾讯云 API、Vercel Production 或 Android 真机已经同步部署/验收。
 
 ### M4 第一优先级安全修复 — ✅ 已完成
 

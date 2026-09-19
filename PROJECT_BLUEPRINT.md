@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-20
-> **代码同步基线**：`master@dc90a61e`
+> **代码同步基线**：`master@301955c7`
 
 ---
 
@@ -297,6 +297,10 @@ VNext M6 已进入主线：
 - ✅ PR #61：M5.3，Qwen ASR 语音输入与可编辑 Planning Context。
 - ✅ PR #62：M5.4，对话 → 可审阅 create/update Task proposals，用户确认后才写入。
 - ✅ PR #63：M5.5，临时冲突增量重排；Scheduler 计算移动 Preview，Apply/Undo 沿用现有安全边界。
+- ✅ PR #66/#68/#69：M6 学习目标 AI，目标专属 PlanningThread、里程碑路线、执行反馈与显式目标变化。
+- ✅ PR #70–#73：M7 单次课程 override、AI 自然语言调课、周期模板 Preview/Apply/Undo。
+- ✅ PR #74/#77/#78：M8 多模态私有记录、账户通知偏好、设置与深浅色外观。
+- ✅ PR #80/#81：多模态附件 AI 只在用户主动触发时执行；音频转写/摘要、图片信息提取、视频语音转写+综合摘要。
 - ✅ PR #66：M6.1，Study 重建为独立 AI 学习目标工作区与目标专属 PlanningThread。
 - ✅ PR #68：M6.2，阶段/里程碑通过共享 Task.project 投影，不新增第二套路线事实源。
 - ✅ PR #69：M6.3，执行反馈快照与显式学习目标变化。
