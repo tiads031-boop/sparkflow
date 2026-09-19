@@ -491,7 +491,7 @@ export class PlanningService {
             actions: actionProposals,
             appliedActionIds: [],
             replanRequests,
-          } as Prisma.InputJsonValue,
+          } as unknown as Prisma.InputJsonValue,
         },
       });
 
