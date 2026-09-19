@@ -8,6 +8,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   buildSchedule,
+  buildScheduleInWindows,
   hasOverlap,
   type BusyInterval,
   type PlannerProposal,
@@ -32,6 +33,55 @@ function parseDate(value: string, label: string) {
 
 function sameInstant(value: Date | null, expected: string | null) {
   return (value?.toISOString() ?? null) === expected;
+}
+
+function normalizeAvailabilityWindows(
+  rawWindows: Array<{ start: string; end: string }> | undefined,
+  fallbackStart?: string,
+  fallbackEnd?: string,
+  trimPast = true,
+): BusyInterval[] {
+  const raw = rawWindows?.length
+    ? rawWindows
+    : fallbackStart && fallbackEnd
+      ? [{ start: fallbackStart, end: fallbackEnd }]
+      : [];
+
+  if (!raw.length)
+    throw new BadRequestException('At least one availability window is required');
+  if (raw.length > 14)
+    throw new BadRequestException('At most 14 availability windows are allowed');
+
+  const now = new Date();
+  const parsed = raw.map((window, index) => {
+    let start = parseDate(window.start, `availabilityWindows[${index}].start`);
+    const end = parseDate(window.end, `availabilityWindows[${index}].end`);
+    if (end <= start)
+      throw new BadRequestException('Availability window end must be after start');
+    if (trimPast && end <= now) return null;
+    if (trimPast && start < now) start = now;
+    return { start, end };
+  }).filter((window): window is BusyInterval => Boolean(window));
+
+  if (!parsed.length)
+    throw new BadRequestException('Availability windows contain no future time');
+
+  parsed.sort((a, b) => a.start.getTime() - b.start.getTime());
+  const rangeStart = parsed[0].start;
+  const rangeEnd = parsed[parsed.length - 1].end;
+  if (rangeEnd.getTime() - rangeStart.getTime() > 7 * 86400000)
+    throw new BadRequestException('Planning range cannot exceed 7 days');
+
+  const merged: BusyInterval[] = [];
+  for (const window of parsed) {
+    const previous = merged[merged.length - 1];
+    if (previous && window.start <= previous.end) {
+      if (window.end > previous.end) previous.end = window.end;
+      continue;
+    }
+    merged.push({ start: new Date(window.start), end: new Date(window.end) });
+  }
+  return merged;
 }
 
 function readStoredState(value: unknown): StoredScheduleState[] {
@@ -69,29 +119,20 @@ export class PlannerService {
   async preview(
     userId: string,
     data: {
-      availabilityStart: string;
-      availabilityEnd: string;
+      availabilityStart?: string;
+      availabilityEnd?: string;
+      availabilityWindows?: Array<{ start: string; end: string }>;
       planningThreadId?: string;
     },
   ) {
-    let availabilityStart = parseDate(
+    const availabilityWindows = normalizeAvailabilityWindows(
+      data.availabilityWindows,
       data.availabilityStart,
-      'availabilityStart',
+      data.availabilityEnd,
+      true,
     );
-    const availabilityEnd = parseDate(data.availabilityEnd, 'availabilityEnd');
-    if (availabilityEnd <= availabilityStart)
-      throw new BadRequestException(
-        'availabilityEnd must be after availabilityStart',
-      );
-    if (
-      availabilityEnd.getTime() - availabilityStart.getTime() >
-      7 * 86400000
-    ) {
-      throw new BadRequestException('Planning range cannot exceed 7 days');
-    }
-    const now = new Date();
-    if (availabilityStart < now && now < availabilityEnd)
-      availabilityStart = now;
+    const availabilityStart = availabilityWindows[0].start;
+    const availabilityEnd = availabilityWindows[availabilityWindows.length - 1].end;
 
     let goalScopeId: string | null = null;
     if (data.planningThreadId) {
@@ -118,7 +159,7 @@ export class PlannerService {
               }
             : {}),
         },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }, { createdAt: 'asc' }],
       }),
       this.prisma.task.findMany({
         where: {
@@ -150,7 +191,7 @@ export class PlannerService {
         end: event.endTime,
       })),
     ];
-    const result = buildSchedule(
+    const result = buildScheduleInWindows(
       tasks.map((task) => ({
         id: task.id,
         title: task.title,
@@ -160,8 +201,7 @@ export class PlannerService {
         updatedAt: task.updatedAt,
       })),
       occupied,
-      availabilityStart,
-      availabilityEnd,
+      availabilityWindows,
     );
 
     return {
@@ -170,6 +210,10 @@ export class PlannerService {
         start: availabilityStart.toISOString(),
         end: availabilityEnd.toISOString(),
       },
+      availabilityWindows: availabilityWindows.map((window) => ({
+        start: window.start.toISOString(),
+        end: window.end.toISOString(),
+      })),
       generatedAt: new Date().toISOString(),
     };
   }
@@ -340,6 +384,7 @@ export class PlannerService {
       planningThreadId?: string;
       planningThreadRevision?: number;
       blockedIntervals?: Array<{ start: string; end: string }>;
+      availabilityWindows?: Array<{ start: string; end: string }>;
     },
   ) {
     if (!Array.isArray(data.proposals) || data.proposals.length === 0)
@@ -357,6 +402,9 @@ export class PlannerService {
         throw new BadRequestException('Blocked interval end must be after start');
       return { start, end };
     });
+    const allowedAvailabilityWindows = data.availabilityWindows?.length
+      ? normalizeAvailabilityWindows(data.availabilityWindows, undefined, undefined, false)
+      : [];
 
     return this.prisma.$transaction(async (tx) => {
       let planningThreadId: string | null = null;
@@ -428,6 +476,16 @@ export class PlannerService {
             throw new ConflictException(
               `Task ${task.id} would miss its deadline`,
             );
+          if (
+            allowedAvailabilityWindows.length &&
+            !allowedAvailabilityWindows.some(
+              (window) => start >= window.start && end <= window.end,
+            )
+          ) {
+            throw new ConflictException(
+              `Task ${task.id} is outside the approved availability windows`,
+            );
+          }
           return { start, end };
         },
       );
