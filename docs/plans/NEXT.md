@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-19 | **代码基线**：`master@e883b9a3`
+> **最后更新**：2026-09-19 | **代码基线**：`master@73e5f779`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -24,7 +24,7 @@
 3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 稳定性修复已随 `99ebb3c` API 镜像上线，下一步复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
 4. **腾讯云 API 仍运行 `99ebb3c`（VNext M1–M3 未改 API）；Web Production 已发布 VNext `master@e883b9a3`，公网首页 200 且未发现发布后一小时 Vercel runtime error。**
 5. **Android 继续以 commit-stamped Release 做真机验收；当前 VNext M3 包为 `android-7145ba0ea3d2`。**
-6. **VNext Plan M1–M3 已进入 master 且 Web Production 已完成静态发布/冒烟；仍需真实账号操作与 Android 真机验收，之后再决定是否进入 M4 拖拽/过滤增强。**
+6. **VNext Plan M1–M3 已进入 master；用户已明确重定义下一阶段产品方向：学习改为独立 AI 目标规划、AI 安排升级为对话式调度、课程支持单次调课/换课、四象限手机同屏可关闭、Today 极简、多模态随手记、设置/通知/任务表单重做。按 M4–M8 新方案推进，不再沿用旧的“Study 关联 Course / M4 仅拖拽过滤”方向。**
 
 ---
 
@@ -162,6 +162,39 @@
 
 ---
 
+## 4.6 VNext M4–M8：AI 调度中枢与产品重整（✅ 方案，⏭ 下一产品主线）
+
+方案：[vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md)
+
+用户已确认的新方向：
+
+- [ ] **M4 / 执行界面与提醒基础**：先修 PushService 用户隔离；Today 只留“今日安排”；统一 Task Sheet；四象限手机 2×2 + 可关闭；Settings 新壳层。
+- [ ] **M5 / AI 规划与调整 2.0**：把固定“AI 帮我安排”改为对话式助手；AI 根据需求缺口自主访谈，不限制固定问题数；保存持续 Planning Context（已确认目标/约束/偏好/策略/假设/revision）；当规划依赖外部事实时自动联网研究，保存来源/获取时间/有效期并在过期后重新核验；支持文字 + 语音、临时想法/任务、增量重规划、目标替换、Preview → Apply → Undo。
+- [ ] **M6 / 学习目标 AI**：Study 与 Course 完全解耦；长期目标绑定持续 Planning Context；AI 尽可能了解成功标准、当前水平、资源、时间预算、偏好与取舍，并可主动核实考试规则、官方大纲、报名/考试时间、目标要求与资源版本等当前信息，再拆阶段/里程碑/Task；后续冲突、执行效果、外部事实变化和目标变化沿用上下文增量调整。
+- [ ] **M7 / 课程灵活调整**：调课、换课、停课、补课；单次变动使用 CalendarEvent override，不静默修改 Course 周期模板；AI 可自然语言操作同一套 Preview/Apply/Undo。
+- [ ] **M8 / 多模态记录与设置收尾**：随手记支持文字/语音/图片/视频；附件从属 Inspiration；完善通知设置、安静时段、测试通知和设置页视觉。
+
+### M4 第一优先级安全修复
+
+当前 `PushService.notifyDueTasks()` 会先查询一批到期任务，再遍历全部 PushSubscription 发送，未按任务 `userId` 分组。下一代码批次必须先改为：
+
+1. 到期/提醒任务按 userId 分组；
+2. 只发送到同 userId 的 subscriptions；
+3. `reminderAt` 优先于 `dueDate`；
+4. 增加同一提醒的防重复 delivery key。
+
+该项属于隐私/正确性修复，优先于设置页视觉。
+
+### 已明确取消/替代的旧方向
+
+- Study 新 UI 不再关联 Course，也不显示“今日课程/课程管理”。
+- 四象限移动端不再“一次只看一个象限”，改为完整 2×2。
+- Today 不再显示 WeekStrip / RhythmDial / FreeTime / TodayProgress。
+- “AI 帮我安排”固定日期/时间窗表单不再作为最终交互。
+- 五项底栏固定后，Settings 不再暴露旧导航排序/显示设置。
+
+---
+
 ## 5. Phase 15 M1：Capture → Review → Task（✅ 代码 + 生产核心链路已完成）
 
 - [x] 服务端 `Inspiration` 成为记录事实源，支持 manual 随手记。
@@ -214,22 +247,20 @@
 
 ---
 
-## 7. Study Mode（M1 代码与生产部署完成，待真实账户验收）
+## 7. Study / 学习工作区（旧 M1 已部署，新方向已重定义）
 
-当前状态：方案、路线图与九张参考设计图已通过 PR #25 合入 master；PR #45 已将 M1 运行时代码合入 `master@99ebb3c`，腾讯云 migration 与 API、Vercel Production 均已上线。仍需以真实账户完成 Web/PWA/Android 移动端验收。
+旧 StudyFolder M1 代码仍在仓库，但产品方向已于 2026-09-19 重定义：
 
-建议顺序：
+- 不再把 Course 作为 Study 的组成部分；
+- StudyFolder 升级为“学习目标容器”，继续复用 StudyFolderTask；
+- 新 UI 围绕“目标 → AI 追问 → 阶段/里程碑 → Task → 日程 → 重新规划”；
+- 课程继续由独立 Course 模块管理；
+- 旧 StudyFolderCourse 关系暂时只保留兼容，不在新 UI 中继续使用。
 
-1. **M1：Study Mode 壳层 + Study Home + StudyFolder** — ✅ 代码与生产部署完成，🚧 真实账户验收
-2. **M2：ReviewPlan / ReviewRecord + 固定间隔复习闭环**
-3. **M3：StudyHabit / 周计划 / 热力图**
-4. **M4：模板 / PDF / 年度统计导出**
-
-核心约束：复用现有 Course / Task / Calendar / Planner / Focus；不建立第二套数据事实源。
-
-第一阶段验收链路：`Folder → Today → Focus → Review → Schedule`。
+后续实施以 [vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md) 的 M6 为准，旧 Study Mode M2/M3/M4 路线不再作为近期执行依据。
 
 ---
+
 
 ## 8. Phase 13：Local Codex Bridge（P2）
 
