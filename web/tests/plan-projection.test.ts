@@ -5,6 +5,7 @@ import {
   buildPlanItems,
   buildPlannerPreviewItems,
   courseOccursOnDate,
+  dedupeCoursesByOccurrence,
   getPlanRange,
   getSemesterWeekNumber,
   localDateKey,
@@ -142,6 +143,55 @@ test('study tasks remain Task facts but project with study context', () => {
 
 test('course week filtering does not hide courses when semester context is unavailable', () => {
   assert.equal(courseOccursOnDate(course, new Date(2026, 8, 21, 12, 0), null), true);
+});
+
+
+test('course occurrence filtering rejects courses from another semester', () => {
+  const otherSemesterCourse: Course = {
+    ...course,
+    id: 'course-old-semester',
+    semesterId: 'semester-old',
+  };
+
+  assert.equal(courseOccursOnDate(otherSemesterCourse, new Date(2026, 8, 21, 12, 0), semester), false);
+});
+
+
+test('duplicate imported course rows collapse into one occurrence and merge weeks', () => {
+  const duplicate: Course = {
+    ...course,
+    id: 'course-duplicate',
+    weeks: [3, 5],
+    sourceFingerprint: 'duplicate-source',
+  };
+  const original: Course = {
+    ...course,
+    weeks: [1, 3],
+    sourceFingerprint: 'original-source',
+  };
+
+  const deduped = dedupeCoursesByOccurrence([original, duplicate]);
+
+  assert.equal(deduped.length, 1);
+  assert.deepEqual(deduped[0].weeks, [1, 3, 5]);
+});
+
+
+test('Plan projection removes visually identical course occurrences from duplicate rows', () => {
+  const duplicate: Course = {
+    ...course,
+    id: 'course-duplicate',
+  };
+
+  const items = buildPlanItems({
+    tasks: [],
+    courses: [course, duplicate],
+    calendarEvents: [],
+    semester,
+    range: getPlanRange(new Date(2026, 8, 21, 12, 0), 'week'),
+  });
+
+  assert.equal(items.filter((item) => item.kind === 'course').length, 1);
 });
 
 
