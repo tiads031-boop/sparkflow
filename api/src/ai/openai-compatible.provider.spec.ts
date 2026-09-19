@@ -165,6 +165,49 @@ describe('planning response parser', () => {
     ]);
   });
 
+  it('parses an exact two-occurrence course swap draft', () => {
+    const result = toPlanningTurn({
+      reply: '我定位到两节具体课次，先生成换课草案。',
+      readiness: 'ready',
+      summary: '交换两节具体课程实例。',
+      openQuestions: [],
+      researchQueries: [],
+      actions: [
+        {
+          type: 'course_change',
+          courseName: '民法',
+          otherCourseName: '刑法',
+          change: {
+            type: 'swap',
+            eventId: 'event-civil',
+            otherEventId: 'event-criminal',
+          },
+        },
+      ],
+      replanRequests: [],
+      context: {
+        brief: [],
+        constraints: [],
+        preferences: [],
+        strategy: [],
+        assumptions: [],
+      },
+    });
+
+    expect(result.actions).toEqual([
+      {
+        type: 'course_change',
+        courseName: '民法',
+        otherCourseName: '刑法',
+        change: {
+          type: 'swap',
+          eventId: 'event-civil',
+          otherEventId: 'event-criminal',
+        },
+      },
+    ]);
+  });
+
   it('parses bounded temporary-conflict replan requests', () => {
     const result = toPlanningTurn({
       reply: '下午临时有事，我先给你生成一个重排预览。',
