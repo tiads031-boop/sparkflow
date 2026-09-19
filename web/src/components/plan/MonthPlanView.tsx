@@ -1,4 +1,22 @@
-export default function MonthPlanView({ selectedDate }: { selectedDate: Date }) {
+import { CalendarClock } from 'lucide-react';
+import type { PlanItem } from './planProjection';
+import { itemsForLocalDay, localDateKey } from './planProjection';
+
+interface MonthPlanViewProps {
+  selectedDate: Date;
+  items: PlanItem[];
+  onSelectDate: (date: Date) => void;
+  onItemClick?: (item: PlanItem) => void;
+}
+
+function itemLabel(item: PlanItem) {
+  if (item.kind === 'course') return '课程';
+  if (item.kind === 'study-task') return '学习';
+  if (item.kind === 'task') return '任务';
+  return '日程';
+}
+
+export default function MonthPlanView({ selectedDate, items, onSelectDate, onItemClick }: MonthPlanViewProps) {
   const date = new Date(selectedDate.getTime());
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -9,6 +27,7 @@ export default function MonthPlanView({ selectedDate }: { selectedDate: Date }) 
     index < mondayOffset ? null : index - mondayOffset + 1,
   );
   const today = new Date();
+  const selectedItems = itemsForLocalDay(items, selectedDate);
 
   return (
     <section className="rounded-[1.75rem] bg-[var(--sf-surface)] p-4 shadow-sm">
@@ -17,30 +36,74 @@ export default function MonthPlanView({ selectedDate }: { selectedDate: Date }) 
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--sf-text-tertiary)]">Month</p>
           <h2 className="text-lg font-black text-[var(--sf-text-primary)]">{year} 年 {month + 1} 月</h2>
         </div>
-        <span className="text-[10px] text-[var(--sf-text-tertiary)]">M2 接入真实安排</span>
+        <span className="text-[10px] text-[var(--sf-text-tertiary)]">{items.length} 项安排</span>
       </div>
+
       <div className="grid grid-cols-7 gap-y-2 text-center text-[10px] font-bold text-[var(--sf-text-tertiary)]">
         {'一二三四五六日'.split('').map((day) => <span key={day}>{day}</span>)}
       </div>
       <div className="mt-2 grid grid-cols-7 gap-1">
         {cells.map((day, index) => {
-          const active = day === date.getDate();
-          const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+          if (!day) return <div key={`blank-${index}`} className="aspect-square" />;
+          const cellDate = new Date(year, month, day);
+          const dayItems = itemsForLocalDay(items, cellDate);
+          const active = localDateKey(cellDate) === localDateKey(date);
+          const isToday = localDateKey(cellDate) === localDateKey(today);
+
           return (
-            <div key={`${index}-${day ?? 'blank'}`} className="aspect-square rounded-xl p-1 text-center">
-              {day && (
-                <div className={`mx-auto grid h-8 w-8 place-items-center rounded-full text-xs font-bold ${
-                  active ? 'bg-[#242424] text-white' : isToday ? 'bg-[#cae393] text-[#242424]' : 'text-[var(--sf-text-primary)]'
-                }`}>
-                  {day}
-                </div>
-              )}
-            </div>
+            <button
+              type="button"
+              key={localDateKey(cellDate)}
+              onClick={() => onSelectDate(cellDate)}
+              className={`min-h-[52px] rounded-xl px-0.5 py-1 text-center transition-colors ${active ? 'bg-[#242424] text-white' : 'hover:bg-[var(--sf-bg)]'}`}
+            >
+              <span className={`mx-auto grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold ${isToday && !active ? 'bg-[#cae393] text-[#242424]' : ''}`}>
+                {day}
+              </span>
+              <span className="mt-1 flex h-2 items-center justify-center gap-0.5">
+                {dayItems.slice(0, 3).map((item) => (
+                  <span key={item.id} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                ))}
+              </span>
+              {dayItems.length > 3 && <span className={`block text-[7px] ${active ? 'text-white/60' : 'text-[var(--sf-text-tertiary)]'}`}>+{dayItems.length - 3}</span>}
+            </button>
           );
         })}
       </div>
-      <div className="mt-4 rounded-2xl bg-[var(--sf-bg)] px-4 py-4 text-xs leading-5 text-[var(--sf-text-tertiary)]">
-        月视图壳层已就位。下一阶段会在日期格中投影 Course、CalendarEvent 和已排程 Task，并在点选日期后展开当天 Agenda。
+
+      <div className="mt-4 border-t border-black/5 pt-4">
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-[var(--sf-text-tertiary)]">{selectedDate.toLocaleDateString('zh-CN', { weekday: 'long' })}</p>
+            <h3 className="text-sm font-black text-[var(--sf-text-primary)]">{selectedDate.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}</h3>
+          </div>
+          <span className="rounded-full bg-[var(--sf-bg)] px-2 py-1 text-[9px] font-bold text-[var(--sf-text-tertiary)]">{selectedItems.length} 项</span>
+        </div>
+
+        <div className="space-y-2">
+          {selectedItems.length ? selectedItems.slice(0, 6).map((item) => {
+            const start = new Date(item.start);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onItemClick?.(item)}
+                className="flex w-full items-center gap-3 rounded-2xl bg-[var(--sf-bg)] px-3 py-2.5 text-left"
+              >
+                <span className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                <span className="w-10 shrink-0 text-[10px] font-black text-[var(--sf-text-primary)]">{start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-bold text-[var(--sf-text-primary)]">{item.title}</span>
+                  <span className="block truncate text-[9px] text-[var(--sf-text-tertiary)]">{itemLabel(item)}{item.location ? ` · ${item.location}` : ''}</span>
+                </span>
+              </button>
+            );
+          }) : (
+            <div className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--sf-bg)] px-4 py-6 text-xs text-[var(--sf-text-tertiary)]">
+              <CalendarClock size={15} /> 这一天还没有安排
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

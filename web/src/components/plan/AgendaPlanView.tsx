@@ -1,16 +1,68 @@
-import CalendarView from '../CalendarView';
-import type { Task } from '../../types';
+import { CalendarClock, LockKeyhole, Sparkles } from 'lucide-react';
+import type { PlanItem } from './planProjection';
+import { itemsForLocalDay } from './planProjection';
 
-export default function AgendaPlanView({ onTaskClick }: { onTaskClick: (task: Task) => void }) {
+interface AgendaPlanViewProps {
+  selectedDate: Date;
+  items: PlanItem[];
+  onItemClick?: (item: PlanItem) => void;
+}
+
+function typeLabel(item: PlanItem) {
+  if (item.kind === 'course') return '课程';
+  if (item.kind === 'study-task') return '学习任务';
+  if (item.kind === 'task') return '任务';
+  return '日程';
+}
+
+export default function AgendaPlanView({ selectedDate, items, onItemClick }: AgendaPlanViewProps) {
+  const dayItems = itemsForLocalDay(items, selectedDate);
+  const now = new Date();
+
   return (
-    <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
-      <div className="border-b border-black/5 px-4 py-3">
+    <section className="rounded-[1.75rem] bg-[var(--sf-surface)] p-4 shadow-sm">
+      <div className="mb-4">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--sf-text-tertiary)]">Agenda</p>
-        <h2 className="text-base font-black text-[var(--sf-text-primary)]">日程视图</h2>
+        <h2 className="text-lg font-black text-[var(--sf-text-primary)]">{selectedDate.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</h2>
       </div>
-      <div className="px-3 pt-3">
-        <CalendarView onTaskClick={onTaskClick} />
-      </div>
+
+      {dayItems.length ? (
+        <div className="relative space-y-2 before:absolute before:bottom-2 before:left-[42px] before:top-2 before:w-px before:bg-black/[0.07]">
+          {dayItems.map((item) => {
+            const start = new Date(item.start);
+            const end = new Date(item.end);
+            const active = start <= now && end > now;
+            return (
+              <button
+                type="button"
+                key={item.id}
+                onClick={() => onItemClick?.(item)}
+                className={`relative flex w-full items-stretch gap-3 rounded-2xl px-2 py-2.5 text-left transition-transform active:scale-[0.99] ${active ? 'bg-[#eaf4d6]' : 'bg-[var(--sf-bg)]'} ${item.completed ? 'opacity-50' : ''}`}
+              >
+                <span className="relative z-10 w-8 shrink-0 pt-1 text-right text-[9px] font-black text-[var(--sf-text-secondary)]">
+                  {start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                </span>
+                <span className="relative z-10 mt-1 h-3 w-3 shrink-0 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: item.color }} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1">
+                    <span className="truncate text-xs font-black text-[var(--sf-text-primary)]">{item.title}</span>
+                    {item.scheduleSource === 'ai' && <Sparkles size={10} className="shrink-0 text-[#6f8b31]" />}
+                    {item.locked && <LockKeyhole size={10} className="shrink-0 text-[var(--sf-text-tertiary)]" />}
+                  </span>
+                  <span className="mt-0.5 block text-[9px] text-[var(--sf-text-tertiary)]">
+                    {typeLabel(item)} · {start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}–{end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    {item.location ? ` · ${item.location}` : ''}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--sf-bg)] px-4 py-10 text-xs text-[var(--sf-text-tertiary)]">
+          <CalendarClock size={16} /> 今天还没有安排
+        </div>
+      )}
     </section>
   );
 }
