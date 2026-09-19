@@ -1,10 +1,47 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
 import { InspirationsService } from './inspirations.service';
 import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  InspirationMediaService,
+  MAX_INSPIRATION_ATTACHMENTS,
+  MAX_INSPIRATION_FILE_BYTES,
+} from './inspiration-media.service';
+
+function parseCaptureTags(raw?: string) {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) throw new Error('tags must be an array');
+    return parsed
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 30);
+  } catch {
+    throw new BadRequestException('tags 格式无效');
+  }
+}
 
 @Controller('inspirations')
 export class InspirationsController {
-  constructor(private readonly inspirationsService: InspirationsService) {}
+  constructor(
+    private readonly inspirationsService: InspirationsService,
+    private readonly media: InspirationMediaService,
+  ) {}
 
   @Get()
   findAll(@CurrentUserId() userId: string, @Query('status') status?: string) {
@@ -14,6 +51,45 @@ export class InspirationsController {
   @Get('review/queue')
   getReviewQueue(@CurrentUserId() userId: string, @Query('limit') limit?: string) {
     return this.inspirationsService.getReviewQueue(userId, limit ? Number(limit) : undefined);
+  }
+
+  @Post('capture')
+  @UseInterceptors(FilesInterceptor('files', MAX_INSPIRATION_ATTACHMENTS, {
+    limits: {
+      fileSize: MAX_INSPIRATION_FILE_BYTES,
+      files: MAX_INSPIRATION_ATTACHMENTS,
+    },
+  }))
+  capture(
+    @CurrentUserId() userId: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('contentText') contentText?: string,
+    @Body('tags') tags?: string,
+  ) {
+    return this.inspirationsService.createCapture(
+      userId,
+      contentText,
+      files || [],
+      parseCaptureTags(tags),
+    );
+  }
+
+  @Get(':id/attachments/:attachmentId/file')
+  async attachmentFile(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    const attachment = await this.inspirationsService.getAttachment(
+      id,
+      attachmentId,
+      userId,
+    );
+    return new StreamableFile(this.media.open(attachment.storageKey), {
+      type: attachment.mimeType,
+      length: attachment.sizeBytes,
+      disposition: 'inline',
+    });
   }
 
   @Get(':id')
