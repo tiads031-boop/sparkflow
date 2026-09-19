@@ -229,6 +229,8 @@ function buildTaskItems(tasks: Task[], range: DateRange): PlanItem[] {
 
 function buildCalendarItems(events: CalendarEvent[], range: DateRange): PlanItem[] {
   return events.flatMap((event) => {
+    // Cancelled course occurrences are tombstones that suppress the Course fallback.
+    if (event.overrideType === 'cancel') return [];
     // A task-backed calendar event represents the same fact as scheduled Task.
     if (event.taskId || event.extendedProps?.taskId) return [];
 
@@ -262,7 +264,12 @@ function buildCourseFallbackItems(
   const existingCourseDays = new Set(
     events
       .filter((event) => event.courseId)
-      .map((event) => `${event.courseId}:${localDateKey(event.startTime)}`),
+      .flatMap((event) => [
+        `${event.courseId}:${localDateKey(event.startTime)}`,
+        ...(event.overrideOriginalStart
+          ? [`${event.courseId}:${localDateKey(event.overrideOriginalStart)}`]
+          : []),
+      ]),
   );
 
   const items: PlanItem[] = [];

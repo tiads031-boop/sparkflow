@@ -11,6 +11,7 @@ export type Occurrence = CalendarEvent & { course: Course; location?: string };
 export function occurrences(backup: ScheduleBackup, semesterId?: string | null): Occurrence[] {
   return backup.courses.filter(c => !semesterId || c.semesterId === semesterId)
     .flatMap(course => course.events.map(e => ({ ...e, course })))
+    .filter(e => e.overrideType !== 'cancel')
     .filter(e => Number.isFinite(Date.parse(e.startTime)) && Date.parse(e.endTime) > Date.parse(e.startTime))
     .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime));
 }

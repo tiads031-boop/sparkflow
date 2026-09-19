@@ -50,17 +50,32 @@ export class CalendarService {
   }
 
   findAll(userId: string, start: string, end: string, semesterId?: string) {
+    const rangeStart = new Date(start);
+    const rangeEnd = new Date(end);
     const where: any = {
       userId,
-      startTime: { lt: new Date(end) },
-      endTime: { gt: new Date(start) },
+      AND: [
+        {
+          OR: [
+            {
+              startTime: { lt: rangeEnd },
+              endTime: { gt: rangeStart },
+            },
+            {
+              overrideOriginalStart: { gte: rangeStart, lt: rangeEnd },
+            },
+          ],
+        },
+      ],
     };
 
     if (semesterId) {
-      where.OR = [
-        { courseId: null },
-        { course: { semesterId } },
-      ];
+      where.AND.push({
+        OR: [
+          { courseId: null },
+          { course: { semesterId } },
+        ],
+      });
     }
 
     return this.prisma.calendarEvent.findMany({

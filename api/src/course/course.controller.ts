@@ -62,6 +62,31 @@ export class CourseController {
     return this.courseService.findAll(userId, semesterId);
   }
 
+  @Get('change-candidates')
+  listChangeCandidates(
+    @CurrentUserId() userId: string,
+    @Query('start') start?: string,
+    @Query('end') end?: string,
+  ) {
+    return this.courseService.listCourseChangeCandidates(userId, start, end);
+  }
+
+  @Post('changes/preview')
+  previewChange(
+    @CurrentUserId() userId: string,
+    @Body() data: any,
+  ) {
+    return this.courseService.previewCourseChange(userId, data);
+  }
+
+  @Post('changes/apply')
+  applyChange(
+    @CurrentUserId() userId: string,
+    @Body() data: any,
+  ) {
+    return this.courseService.applyCourseChange(userId, data);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUserId() userId: string) {
     return this.courseService.findOne(id, userId);

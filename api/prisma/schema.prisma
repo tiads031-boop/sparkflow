@@ -243,8 +243,11 @@ model CalendarEvent {
   endTime             DateTime
   isAllDay            Boolean   @default(false)
   recurrenceRule      String?
-  isOverride          Boolean   @default(false) // 是否为手动调课覆盖（换课时跳过）
-  color               String    @default("#185FA5")
+  isOverride            Boolean   @default(false) // 是否为具体 occurrence 的例外
+  overrideType          String?   // reschedule / cancel / swap / extra
+  overrideOriginalStart DateTime? // 被覆盖的原始 occurrence 开始时间
+  overrideGroupId       String?   // swap 等成组变动的关联 id
+  color                 String    @default("#185FA5")
   location            String?
   externalSource      String?
   externalEventId     String?
@@ -265,6 +268,7 @@ model CalendarEvent {
   @@index([startTime])
   @@index([courseId])
   @@index([taskId], map: "calendar_events_task_id_idx")
+  @@index([userId, overrideGroupId])
   @@map("calendar_events")
 }
 
