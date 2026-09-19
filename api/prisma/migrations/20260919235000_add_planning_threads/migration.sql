@@ -24,7 +24,8 @@ ALTER TABLE "ai_conversations"
   ADD COLUMN "planningThreadId" TEXT;
 
 ALTER TABLE "schedule_plans"
-  ADD COLUMN "planningThreadId" TEXT;
+  ADD COLUMN "planningThreadId" TEXT,
+  ADD COLUMN "planningThreadRevision" INTEGER;
 
 CREATE INDEX "planning_threads_userId_status_idx"
   ON "planning_threads"("userId", "status");
