@@ -24,6 +24,7 @@ export interface CourseReminderEvent {
   title: string;
   startTime: Date;
   endTime: Date;
+  location?: string | null;
 }
 
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
