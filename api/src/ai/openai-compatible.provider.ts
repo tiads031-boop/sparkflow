@@ -115,6 +115,11 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       if (priority) action.priority = priority;
       if (estimatedMinutes !== undefined) action.estimatedMinutes = estimatedMinutes;
       if (dueDate !== undefined) action.dueDate = dueDate;
+      if (typeof candidate.milestoneTitle === 'string') {
+        action.milestoneTitle = candidate.milestoneTitle.trim().slice(0, 120) || null;
+      } else if (candidate.milestoneTitle === null) {
+        action.milestoneTitle = null;
+      }
       actions.push(action);
       continue;
     }
@@ -410,13 +415,18 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not create task actions from vague goals, brainstorms, or unresolved questions. Ask first when important task details are unclear.',
             'Task actions are only drafts for user confirmation. Never claim they are already applied.',
             'Do not propose direct calendar/course mutations in this phase.',
+            'When planningScope.type is goal, treat it as a persistent long-term learning goal, not as a Course.',
+            'For goal scope, keep interviewing until success criteria, current level, resources, time budget, important preferences/tradeoffs, and high-impact external facts are sufficiently known or explicitly assumed.',
+            'When the goal is ready for execution and the user wants a concrete plan, group create_task drafts into a small number of meaningful stages/milestones using milestoneTitle.',
+            'milestoneTitle is an organizational label, not a second task system. Prefer outcome-oriented stage names such as 基础建立 / 强化训练 / 模拟冲刺.',
+            'Do not create arbitrary busywork just to fill stages; each task should materially advance the confirmed goal.',
             'If a temporary real-world conflict blocks an interval and the user asks to move affected flexible tasks, you may propose a replanRequest.',
             'A replanRequest must contain exact ISO instants for blockedStart/blockedEnd and a bounded planningStart/planningEnd window where movable tasks may be relocated.',
             'Use currentTime and timeZone to interpret relative phrases such as 今天/明天/今晚. If the acceptable relocation window is materially unclear, ask before producing a replanRequest.',
             'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
             'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"milestoneTitle":"基础建立"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
             'Return actions as [] when no concrete task write is ready for confirmation.',
             'Return replanRequests as [] when no deterministic schedule movement preview is needed.',
@@ -434,6 +444,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             message: input.message,
             currentPlanningContext: input.context,
             currentTasks: input.currentTasks || [],
+            planningScope: input.planningScope || null,
             currentTime: input.currentTime || new Date().toISOString(),
             timeZone: input.timeZone || 'UTC',
             researchAllowed: input.researchAllowed !== false,
