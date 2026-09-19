@@ -20,6 +20,8 @@ export interface PlannerProposal {
   durationMinutes: number;
   taskUpdatedAt: string;
   reason: string;
+  originalStart?: string;
+  originalEnd?: string;
 }
 
 const PRIORITY_WEIGHT: Record<string, number> = { high: 0, medium: 1, low: 2 };
