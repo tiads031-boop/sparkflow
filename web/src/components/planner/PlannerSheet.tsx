@@ -166,7 +166,7 @@ export default function PlannerSheet({
   const handleVoiceTranscript = useCallback((text: string) => {
     setMessageInput((current) => current.trim() ? `${current.trim()} ${text}` : text);
     setTurnMessage('语音已转写，可以先修改文字，再发送给 AI。');
-  }, [scopeType, scopeId]);
+  }, []);
   const voice = usePlanningVoiceInput(handleVoiceTranscript);
   useModalLifecycle(open, close);
 
@@ -210,7 +210,7 @@ export default function PlannerSheet({
     } finally {
       setLoadingThread(false);
     }
-  }, []);
+  }, [scopeType, scopeId]);
 
   useEffect(() => {
     if (!open) return;
