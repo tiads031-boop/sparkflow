@@ -66,7 +66,12 @@ export class PlanningController {
   turn(
     @CurrentUserId() userId: string,
     @Param('id') id: string,
-    @Body() data: { message: string; expectedRevision: number },
+    @Body() data: {
+      message: string;
+      expectedRevision: number;
+      currentTime?: string;
+      timeZone?: string;
+    },
   ) {
     return this.planningService.turn(userId, id, data);
   }
