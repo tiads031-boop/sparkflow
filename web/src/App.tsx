@@ -3,9 +3,6 @@ import {
   CalendarRange, GraduationCap, Home, UserRound, Zap,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
-import TasksView from './components/TasksView';
-import BoardView from './components/BoardView';
-import CalendarView from './components/CalendarView';
 import SparksView from './components/SparksView';
 import CourseView from './components/CourseView';
 import CourseTheme from './components/CourseTheme';
@@ -93,6 +90,7 @@ export default function App() {
   const [focusOpen, setFocusOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const activeWorkspace = workspaceTabForRoute(activeTab) ?? 'today';
+  const isPlanRoute = activeTab === 'plan' || activeTab === 'tasks' || activeTab === 'board' || activeTab === 'timeline';
 
   useEffect(() => {
     loadTasks();
@@ -335,13 +333,17 @@ export default function App() {
           )}
           <CourseReminderRuntime />
           <CourseIntegrationsRuntime />
-          {activeTab === 'plan' && (
+          {isPlanRoute && (
             <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开计划空间…</div>}>
               <PlanWorkspace
+                key={activeTab}
                 tasks={tasks}
                 onTaskClick={(task) => handleOpenDetail(task, 'task')}
                 onPlanner={() => setPlannerOpen(true)}
                 onQuickAdd={() => setQuickAddOpen(true)}
+                initialSection={activeTab === 'tasks' || activeTab === 'board' ? 'tasks' : 'calendar'}
+                initialTaskView={activeTab === 'board' ? 'board' : 'list'}
+                initialPlanView={activeTab === 'timeline' ? 'agenda' : undefined}
               />
             </Suspense>
           )}
@@ -349,9 +351,6 @@ export default function App() {
           {activeTab === 'courses' && viewingCourseId ? (
             <CourseTheme><CourseDetailView onBack={() => setViewingCourseId(null)} /></CourseTheme>
           ) : activeTab === 'today' && <TodayView onTaskClick={handleEditSchedule} />}
-          {activeTab === 'tasks' && <TasksView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
-          {activeTab === 'board' && <BoardView tasks={tasks} onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
-          {activeTab === 'timeline' && <CalendarView onTaskClick={(t) => handleOpenDetail(t, 'task')} />}
           {activeTab === 'courses' && !viewingCourseId && (
             <CourseTheme>
             <CourseView
