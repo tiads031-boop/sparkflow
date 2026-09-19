@@ -7,9 +7,11 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import {
   AI_PROVIDER,
   type AIProvider,
+  type PlanningActionProposal,
   type PlanningContextSnapshot,
   type PlanningEvidenceItem,
   type PlanningFact,
@@ -140,6 +142,35 @@ function freshEvidence(items: PlanningEvidenceItem[], now = new Date()) {
     return !Number.isNaN(expiresAt.getTime()) && expiresAt > now;
   });
 }
+function readActionProposals(value: unknown): PlanningActionProposal[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const candidate = item as Record<string, unknown>;
+    if (typeof candidate.proposalId !== 'string') return [];
+
+    if (candidate.type === 'create_task' && typeof candidate.title === 'string') {
+      return [candidate as unknown as PlanningActionProposal];
+    }
+
+    if (
+      candidate.type === 'update_task' &&
+      typeof candidate.taskId === 'string' &&
+      candidate.changes &&
+      typeof candidate.changes === 'object'
+    ) {
+      return [candidate as unknown as PlanningActionProposal];
+    }
+    return [];
+  });
+}
+
+function conversationContextObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
 
 
 @Injectable()
@@ -278,6 +309,33 @@ export class PlanningService {
       { role: 'assistant' as const, content: row.aiResponse },
     ]);
 
+    const currentTaskRows = await this.prisma.task.findMany({
+      where: {
+        userId,
+        status: { notIn: ['done', 'cancelled'] },
+        OR: [
+          { section: null },
+          { section: { not: 'calendar' } },
+        ],
+      },
+      orderBy: [{ dueDate: 'asc' }, { updatedAt: 'desc' }],
+      take: 80,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        priority: true,
+        dueDate: true,
+        estimatedMinutes: true,
+        scheduledStart: true,
+      },
+    });
+    const currentTasks = currentTaskRows.map((task) => ({
+      ...task,
+      dueDate: task.dueDate?.toISOString() || null,
+      scheduledStart: task.scheduledStart?.toISOString() || null,
+    }));
+
     const previousEvidence = freshEvidence(readEvidence(thread.evidence));
     let evidenceUsed = previousEvidence;
     let researchAdded: PlanningEvidenceItem[] = [];
@@ -289,6 +347,7 @@ export class PlanningService {
         message,
         context: contextFromThread(thread),
         recentMessages,
+        currentTasks,
         evidence: previousEvidence,
         researchAllowed: this.research.isConfigured(),
         researchUnavailableReason: this.research.isConfigured()
@@ -338,6 +397,20 @@ export class PlanningService {
       throw new ServiceUnavailableException('AI planning is temporarily unavailable');
     }
 
+    const validTaskIds = new Set(currentTasks.map((task) => task.id));
+    const actionProposals: PlanningActionProposal[] = result.actions.flatMap((action) => {
+      if (action.type === 'update_task') {
+        if (!validTaskIds.has(action.taskId)) return [];
+        const currentTask = currentTasks.find((task) => task.id === action.taskId);
+        return [{
+          ...action,
+          taskTitle: currentTask?.title || action.taskTitle,
+          proposalId: randomUUID(),
+        }];
+      }
+      return [{ ...action, proposalId: randomUUID() }];
+    });
+
     const nextContext = {
       brief: normalizeFacts(result.context.brief),
       constraints: normalizeFacts(result.context.constraints),
@@ -347,7 +420,7 @@ export class PlanningService {
     };
     const persistedEvidence = mergeEvidence(readEvidence(thread.evidence), researchAdded);
 
-    const updatedThread = await this.prisma.$transaction(async (tx) => {
+    const transactionResult = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.planningThread.updateMany({
         where: {
           id,
@@ -369,7 +442,7 @@ export class PlanningService {
         throw new ConflictException('Planning context changed; reload before continuing');
       }
 
-      await tx.aIConversation.create({
+      const conversation = await tx.aIConversation.create({
         data: {
           userId,
           planningThreadId: id,
@@ -385,16 +458,20 @@ export class PlanningService {
             researchStatus,
             researchProvider: this.research.providerName,
             evidenceIds: researchAdded.map((item) => item.id),
+            actions: actionProposals,
+            appliedActionIds: [],
           } as Prisma.InputJsonValue,
         },
       });
 
-      return tx.planningThread.findFirstOrThrow({ where: { id, userId } });
+      const updatedThread = await tx.planningThread.findFirstOrThrow({ where: { id, userId } });
+      return { updatedThread, conversation };
     });
 
     return {
       threadId: id,
-      revision: updatedThread.revision,
+      conversationId: transactionResult.conversation.id,
+      revision: transactionResult.updatedThread.revision,
       assistantMessage: result.reply,
       readiness: result.readiness,
       openQuestions: result.openQuestions,
@@ -404,8 +481,116 @@ export class PlanningService {
         provider: this.research.providerName,
         evidence: researchAdded,
       },
-      planningContext: contextFromThread(updatedThread),
+      actions: actionProposals,
+      planningContext: contextFromThread(transactionResult.updatedThread),
     };
+  }
+
+  async applyActions(
+    userId: string,
+    threadId: string,
+    data: { conversationId: string; proposalIds: string[] },
+  ) {
+    if (!data.conversationId?.trim()) {
+      throw new BadRequestException('conversationId is required');
+    }
+    const requestedIds = [...new Set(
+      Array.isArray(data.proposalIds)
+        ? data.proposalIds.filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+        : [],
+    )].slice(0, 8);
+    if (!requestedIds.length) throw new BadRequestException('proposalIds are required');
+
+    const conversation = await this.prisma.aIConversation.findFirst({
+      where: {
+        id: data.conversationId,
+        userId,
+        planningThreadId: threadId,
+        conversationType: 'planning',
+      },
+    });
+    if (!conversation) throw new NotFoundException('Planning action proposal not found');
+
+    const context = conversationContextObject(conversation.context);
+    const actions = readActionProposals(context.actions);
+    const appliedBefore = new Set(
+      Array.isArray(context.appliedActionIds)
+        ? context.appliedActionIds.filter((value): value is string => typeof value === 'string')
+        : [],
+    );
+    const selected = actions.filter((action) => requestedIds.includes(action.proposalId));
+    if (!selected.length) throw new BadRequestException('No matching action proposals');
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const createdTaskIds: string[] = [];
+      const updatedTaskIds: string[] = [];
+
+      for (const action of selected) {
+        if (action.type === 'create_task') {
+          await tx.task.createMany({
+            data: [{
+              id: action.proposalId,
+              userId,
+              title: action.title,
+              description: action.description ?? null,
+              status: 'todo',
+              priority: action.priority || 'medium',
+              section: 'personal',
+              estimatedMinutes: action.estimatedMinutes ?? null,
+              dueDate: action.dueDate ? new Date(action.dueDate) : null,
+              scheduleSource: 'ai',
+              tags: [],
+            }],
+            skipDuplicates: true,
+          });
+          const task = await tx.task.findFirst({
+            where: { id: action.proposalId, userId },
+            select: { id: true },
+          });
+          if (!task) throw new ConflictException('Task proposal id is already in use');
+          createdTaskIds.push(task.id);
+          continue;
+        }
+
+        const changes: Prisma.TaskUpdateManyMutationInput = {};
+        if (action.changes.title !== undefined) changes.title = action.changes.title;
+        if (action.changes.description !== undefined) changes.description = action.changes.description;
+        if (action.changes.priority !== undefined) changes.priority = action.changes.priority;
+        if (action.changes.estimatedMinutes !== undefined) changes.estimatedMinutes = action.changes.estimatedMinutes;
+        if (action.changes.dueDate !== undefined) {
+          changes.dueDate = action.changes.dueDate ? new Date(action.changes.dueDate) : null;
+        }
+
+        const updated = await tx.task.updateMany({
+          where: { id: action.taskId, userId },
+          data: changes,
+        });
+        if (updated.count !== 1) throw new NotFoundException('Task to update was not found');
+        updatedTaskIds.push(action.taskId);
+      }
+
+      const allApplied = [...new Set([
+        ...appliedBefore,
+        ...selected.map((action) => action.proposalId),
+      ])];
+      await tx.aIConversation.update({
+        where: { id: conversation.id },
+        data: {
+          context: {
+            ...context,
+            appliedActionIds: allApplied,
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      return {
+        appliedActionIds: selected.map((action) => action.proposalId),
+        createdTaskIds,
+        updatedTaskIds,
+      };
+    });
+
+    return result;
   }
 
   async closeThread(userId: string, id: string) {
