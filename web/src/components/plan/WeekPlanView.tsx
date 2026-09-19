@@ -1,9 +1,7 @@
-import type { DateLike } from './planTypes';
-
 const hours = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00'];
 
-export default function WeekPlanView({ selectedDate }: { selectedDate: DateLike }) {
-  const date = new Date(selectedDate);
+export default function WeekPlanView({ selectedDate }: { selectedDate: Date }) {
+  const date = new Date(selectedDate.getTime());
   const monday = new Date(date);
   const offset = (date.getDay() + 6) % 7;
   monday.setDate(date.getDate() - offset);
