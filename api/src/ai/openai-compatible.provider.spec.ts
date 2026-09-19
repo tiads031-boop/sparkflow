@@ -120,6 +120,51 @@ describe('planning response parser', () => {
     }));
   });
 
+  it('parses a reviewable one-off course change draft', () => {
+    const result = toPlanningTurn({
+      reply: '我定位到了明天这节民法，先生成调课草案。',
+      readiness: 'ready',
+      summary: '将一个具体课程实例移动到新时间。',
+      openQuestions: [],
+      researchQueries: [],
+      actions: [
+        {
+          type: 'course_change',
+          courseName: '民法',
+          change: {
+            type: 'reschedule',
+            eventId: 'event-1',
+            startTime: '2026-09-25T01:00:00.000Z',
+            endTime: '2026-09-25T02:30:00.000Z',
+            location: 'B202',
+          },
+        },
+      ],
+      replanRequests: [],
+      context: {
+        brief: [],
+        constraints: [],
+        preferences: [],
+        strategy: [],
+        assumptions: [],
+      },
+    });
+
+    expect(result.actions).toEqual([
+      {
+        type: 'course_change',
+        courseName: '民法',
+        change: {
+          type: 'reschedule',
+          eventId: 'event-1',
+          startTime: '2026-09-25T01:00:00.000Z',
+          endTime: '2026-09-25T02:30:00.000Z',
+          location: 'B202',
+        },
+      },
+    ]);
+  });
+
   it('parses bounded temporary-conflict replan requests', () => {
     const result = toPlanningTurn({
       reply: '下午临时有事，我先给你生成一个重排预览。',
