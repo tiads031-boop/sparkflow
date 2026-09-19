@@ -5,6 +5,7 @@ APP_ROOT="${APP_ROOT:-/opt/sparkflow/app}"
 WEB_ROOT="${WEB_ROOT:-/var/www/sparkflow}"
 NGINX_SITE="${NGINX_SITE:-/etc/nginx/sites-available/fish-life.cc.cd}"
 NGINX_ENABLED="${NGINX_ENABLED:-/etc/nginx/sites-enabled/fish-life.cc.cd}"
+WEB_BUILD_IMAGE="${WEB_BUILD_IMAGE:-sparkflow-api:latest}"
 
 if [[ ! -d "$APP_ROOT/.git" ]]; then
   echo "SparkFlow repository not found at $APP_ROOT" >&2
@@ -18,9 +19,29 @@ git pull --ff-only origin master
 
 DEPLOY_SHA="$(git rev-parse HEAD)"
 
-cd "$APP_ROOT/web"
-npm ci
-npm run build
+if command -v npm >/dev/null 2>&1; then
+  cd "$APP_ROOT/web"
+  npm ci
+  npm run build
+else
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Neither npm nor docker is available to build the Web app" >&2
+    exit 1
+  fi
+
+  if ! docker image inspect "$WEB_BUILD_IMAGE" >/dev/null 2>&1; then
+    echo "Web build image not found: $WEB_BUILD_IMAGE" >&2
+    exit 1
+  fi
+
+  docker run --rm --entrypoint sh \
+    -e NODE_ENV=development \
+    -e npm_config_cache=/tmp/npm-cache \
+    -v "$APP_ROOT/web:/web" \
+    -w /web \
+    "$WEB_BUILD_IMAGE" \
+    -lc 'npm ci && npm run build'
+fi
 
 install -d -o www-data -g www-data "$WEB_ROOT"
 rsync -a --delete "$APP_ROOT/web/dist/" "$WEB_ROOT/"

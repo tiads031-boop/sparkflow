@@ -51,7 +51,7 @@
 | PR #48 VNext Plan M1 | ✅ 已合并 | 固定五项主导航、PlanWorkspace、四视图壳层、旧入口兼容与视图记忆 |
 | PR #49 VNext Plan M2 | ✅ 已合并 | Task/Course/CalendarEvent/Study Task 统一投影，真实 Month/Week/Agenda/Timetable |
 | PR #50 VNext Plan M3 | ✅ 已合并 | Planner Preview 临时时间块、Apply 转真实排程、Undo 恢复；CI 全绿 |
-| VNext Web Production | ✅ 已发布 / 🚧 待业务验收 | `fish-life.cc.cd` 指向 READY 部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e`；首页 200，五项导航与 M3 Preview 文案已在生产 bundle 核到；Vercel deployment meta 因手工 codeload 发布为空，SHA 映射记录在 NEXT |
+| VNext Web Production | ✅ 腾讯云自托管已发布 / 🚧 待业务验收 | `fish-life.cc.cd` / `www.fish-life.cc.cd` 指向腾讯云 `170.106.191.176`；Nginx 直接托管 `master@56bdc80a` 静态产物，HTTPS、首页、SPA 深层路由、Service Worker 与 API 健康检查均通过公网验收 |
 | Android VNext M3 | ✅ APK 已生成 / 🚧 待真机 | Release `android-7145ba0ea3d2`；asset `sparkflow-7145ba0ea3d2-debug.apk`；对应功能提交 `7145ba0ea3d2` |
 | PR #27 legacy Phase 12 tests | ✅ 已关闭 | 被 #28/#29/#30/#36 更完整的安全与真实 PostgreSQL 验证覆盖 |
 | PR #66/#68/#69 VNext M6 | ✅ 已合并 | Study 独立 AI 学习目标、阶段/里程碑共享 Task 投影、执行反馈与显式目标变化 |

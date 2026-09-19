@@ -138,7 +138,11 @@ cd /opt/sparkflow/app
 sudo APP_ROOT=/opt/sparkflow/app bash scripts/deploy-web-server.sh
 ```
 
-脚本会执行 `git pull --ff-only`、`npm ci`、`npm run build`，再把 `web/dist` 同步到 `/var/www/sparkflow`。首次运行时安装仓库内的 Nginx 配置；后续不会覆盖 Certbot 已写入的 HTTPS 配置。脚本只在 `nginx -t` 通过后 reload。`try_files ... /index.html` 保证 SPA 深层路由刷新可用；带哈希的 `/assets/` 长缓存，`index.html`、`sw.js` 与 `manifest.json` 不长缓存。
+脚本优先使用宿主机 `npm`。若服务器未安装 Node.js，则自动复用本机
+`sparkflow-api:latest` 镜像中的 Node.js/npm 完成前端构建，不需要为了静态站额外安装
+宿主机 Node.js。可通过 `WEB_BUILD_IMAGE` 指定其他已存在的 Node 镜像。
+
+脚本会执行 `git pull --ff-only`，通过宿主机或容器运行 `npm ci`、`npm run build`，再把 `web/dist` 同步到 `/var/www/sparkflow`。首次运行时安装仓库内的 Nginx 配置；后续不会覆盖 Certbot 已写入的 HTTPS 配置。脚本只在 `nginx -t` 通过后 reload。`try_files ... /index.html` 保证 SPA 深层路由刷新可用；带哈希的 `/assets/` 长缓存，`index.html`、`sw.js` 与 `manifest.json` 不长缓存。
 
 DNS 切换时把 `fish-life.cc.cd` 的记录指向腾讯云公网 IP；`api.fish-life.cc.cd` 保持不变。DNS 生效后签发/安装证书：
 
