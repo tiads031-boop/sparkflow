@@ -335,7 +335,7 @@ function GoalRoadmap({
 }: {
   goal: StudyFolder;
   onBack: () => void;
-  onPlan: () => void;
+  onPlan: (seed?: string) => void;
   onStartFocus: () => void;
 }) {
   const progress = goalProgress(goal);
@@ -396,7 +396,7 @@ function GoalRoadmap({
           <div className="mt-4 grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={onPlan}
+              onClick={() => onPlan()}
               className="flex items-center justify-center gap-2 rounded-full bg-[#242424] py-2.5 text-xs font-black text-[#cae393]"
             >
               <BrainCircuit size={13} /> 继续 AI 规划
@@ -411,6 +411,47 @@ function GoalRoadmap({
           </div>
         )}
       </section>
+
+      {goal.status === 'active' && (
+        <section className="mt-4 rounded-[1.8rem] border border-[#b0a8db]/35 bg-[#f7f5fc] p-4">
+          <div className="flex items-start gap-2">
+            <BrainCircuit size={16} className="mt-0.5 shrink-0 text-[#6f63a8]" />
+            <div>
+              <h2 className="text-sm font-black text-[#3f385f]">根据实际执行继续调整</h2>
+              <p className="mt-1 text-[10px] leading-4 text-[#756f8d]">
+                AI 会读取这个目标真实的任务完成、逾期、近 7 天专注和各阶段进度；这些数据只用于判断节奏，不会把“做完任务”直接当成“已经掌握”。
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 grid gap-2">
+            <button
+              type="button"
+              onClick={() => onPlan('请结合这个学习目标当前的实际执行快照，帮我做一次复盘。先指出计划与执行之间最值得关注的偏差，再问我造成这些偏差的关键原因；不要因为进度落后就直接增加任务。')}
+              className="rounded-2xl bg-white px-4 py-3 text-left"
+            >
+              <strong className="block text-xs text-[#3f385f]">复盘实际执行</strong>
+              <span className="mt-1 block text-[10px] leading-4 text-gray-400">完成率、逾期、专注时间和阶段推进一起看。</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onPlan('我觉得当前学习路线需要调整。请先结合实际执行情况判断问题更可能出在时间预算、难度、任务拆分还是策略上，再向我追问必要信息，最后给出可确认的任务或阶段调整草案。')}
+              className="rounded-2xl bg-white px-4 py-3 text-left"
+            >
+              <strong className="block text-xs text-[#3f385f]">调整学习路线</strong>
+              <span className="mt-1 block text-[10px] leading-4 text-gray-400">保留仍有效的目标与约束，只改真正需要变的部分。</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onPlan('我的学习目标本身可能发生了变化。请先问清楚我想保留什么、放弃什么以及新的成功标准；只有我明确确认目标变化后，再提出“修改学习目标”的可确认草案，并同步检查现有阶段和任务是否需要调整。')}
+              className="rounded-2xl bg-white px-4 py-3 text-left"
+            >
+              <strong className="block text-xs text-[#3f385f]">目标发生变化</strong>
+              <span className="mt-1 block text-[10px] leading-4 text-gray-400">换目标不会直接覆盖，仍需要你确认 AI 的修改草案。</span>
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="mt-4 rounded-[2rem] bg-white p-5 shadow-sm">
         <div className="mb-4">
@@ -485,7 +526,7 @@ function GoalRoadmap({
             {goal.status === 'active' && (
               <button
                 type="button"
-                onClick={onPlan}
+                onClick={() => onPlan()}
                 className="mt-4 rounded-full bg-[#242424] px-4 py-2.5 text-xs font-black text-[#cae393]"
               >
                 继续完善目标
@@ -630,7 +671,7 @@ export default function StudyWorkspace({
         <GoalRoadmap
           goal={roadmapGoal}
           onBack={() => setRoadmapGoalId(null)}
-          onPlan={() => openGoalPlanning(roadmapGoal)}
+          onPlan={(seed) => openGoalPlanning(roadmapGoal, seed)}
           onStartFocus={onStartFocus}
         />
       ) : (
