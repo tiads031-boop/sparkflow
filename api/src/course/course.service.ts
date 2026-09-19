@@ -168,6 +168,162 @@ function sameCourseEventState(event: any, expected: CourseEventState) {
   });
 }
 
+
+type CourseTemplateChanges = {
+  dayOfWeek?: number;
+  startTime?: string;
+  endTime?: string;
+  room?: string | null;
+  location?: string | null;
+};
+
+type CourseTemplateChangeRequest = {
+  courseId: string;
+  effectiveFrom: string;
+  changes: CourseTemplateChanges;
+};
+
+type CourseTemplateState = {
+  courseId: string;
+  dayOfWeek: number | null;
+  startTime: string | null;
+  endTime: string | null;
+  room: string | null;
+  location: string | null;
+};
+
+type CourseTemplateEventState = {
+  eventId: string;
+  taskId: string | null;
+  courseId: string | null;
+  title: string;
+  eventType: string;
+  startTime: string;
+  endTime: string;
+  isAllDay: boolean;
+  recurrenceRule: string | null;
+  isOverride: boolean;
+  overrideType: string | null;
+  overrideOriginalStart: string | null;
+  overrideGroupId: string | null;
+  color: string;
+  location: string | null;
+  externalSource: string | null;
+  externalEventId: string | null;
+  sourceCalendarTitle: string | null;
+  googleEventId: string | null;
+  googleSyncedAt: string | null;
+  syncStatus: string;
+  scheduleLocked: boolean;
+};
+
+type CourseTemplatePlanState = {
+  effectiveFrom: string;
+  course: CourseTemplateState;
+  events: CourseTemplateEventState[];
+};
+
+type CourseTemplateConflict = {
+  occurrenceIndex: number;
+  sourceType: 'calendar' | 'task';
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+};
+
+function courseTemplateState(course: any): CourseTemplateState {
+  return {
+    courseId: course.id,
+    dayOfWeek: typeof course.dayOfWeek === 'number' ? course.dayOfWeek : null,
+    startTime: course.startTime || null,
+    endTime: course.endTime || null,
+    room: course.room || null,
+    location: course.location || null,
+  };
+}
+
+function courseTemplateEventState(event: any): CourseTemplateEventState {
+  return {
+    eventId: event.id,
+    taskId: event.taskId || null,
+    courseId: event.courseId || null,
+    title: event.title,
+    eventType: event.eventType,
+    startTime: event.startTime instanceof Date ? event.startTime.toISOString() : String(event.startTime),
+    endTime: event.endTime instanceof Date ? event.endTime.toISOString() : String(event.endTime),
+    isAllDay: Boolean(event.isAllDay),
+    recurrenceRule: event.recurrenceRule || null,
+    isOverride: Boolean(event.isOverride),
+    overrideType: event.overrideType || null,
+    overrideOriginalStart: event.overrideOriginalStart
+      ? (event.overrideOriginalStart instanceof Date
+          ? event.overrideOriginalStart.toISOString()
+          : String(event.overrideOriginalStart))
+      : null,
+    overrideGroupId: event.overrideGroupId || null,
+    color: event.color,
+    location: event.location || null,
+    externalSource: event.externalSource || null,
+    externalEventId: event.externalEventId || null,
+    sourceCalendarTitle: event.sourceCalendarTitle || null,
+    googleEventId: event.googleEventId || null,
+    googleSyncedAt: event.googleSyncedAt
+      ? (event.googleSyncedAt instanceof Date
+          ? event.googleSyncedAt.toISOString()
+          : String(event.googleSyncedAt))
+      : null,
+    syncStatus: event.syncStatus || 'pending',
+    scheduleLocked: Boolean(event.scheduleLocked),
+  };
+}
+
+function readCourseTemplatePlanState(value: unknown): CourseTemplatePlanState | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  if (
+    typeof candidate.effectiveFrom !== 'string' ||
+    !candidate.course ||
+    typeof candidate.course !== 'object' ||
+    !Array.isArray(candidate.events)
+  ) return null;
+  const course = candidate.course as Record<string, unknown>;
+  if (typeof course.courseId !== 'string') return null;
+
+  const events = candidate.events.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const event = item as Record<string, unknown>;
+    if (
+      typeof event.eventId !== 'string' ||
+      typeof event.title !== 'string' ||
+      typeof event.eventType !== 'string' ||
+      typeof event.startTime !== 'string' ||
+      typeof event.endTime !== 'string' ||
+      typeof event.isAllDay !== 'boolean' ||
+      typeof event.isOverride !== 'boolean' ||
+      typeof event.color !== 'string' ||
+      typeof event.syncStatus !== 'string' ||
+      typeof event.scheduleLocked !== 'boolean'
+    ) return [];
+    return [event as unknown as CourseTemplateEventState];
+  });
+
+  if (events.length !== candidate.events.length) return null;
+  return {
+    effectiveFrom: candidate.effectiveFrom,
+    course: course as unknown as CourseTemplateState,
+    events,
+  };
+}
+
+function sameCourseTemplateState(course: any, expected: CourseTemplateState) {
+  return JSON.stringify(courseTemplateState(course)) === JSON.stringify(expected);
+}
+
+function sameCourseTemplateEventState(event: any, expected: CourseTemplateEventState) {
+  return JSON.stringify(courseTemplateEventState(event)) === JSON.stringify(expected);
+}
+
 @Injectable()
 export class CourseService {
   constructor(private prisma: PrismaService) {}
