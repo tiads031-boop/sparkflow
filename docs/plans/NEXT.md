@@ -154,7 +154,8 @@
 - [x] 三批均通过 Web build/tests 与现有 API/fresh PostgreSQL CI。
 - [x] Vercel Production 已从 `master@e883b9a3` 源码显式发布：`dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，`fish-life.cc.cd` HTTP 200；bundle 静态核验包含“今天 / 计划 / 记录 / 学习 / 我的”和 M3“返回计划查看时间块预览”。
 - [ ] Web/PWA 真实账号：Month / Week / Agenda / Timetable + Planner Preview → Apply → Undo。
-- [x] Android VNext M3 commit-stamped APK 已生成：Release `android-7145ba0ea3d2` / `sparkflow-7145ba0ea3d2-debug.apk`。\n- [ ] Android 真机：360px、safe-area、底栏、周视图密度、课表、Planner 闭环。
+- [x] Android VNext M3 commit-stamped APK 已生成：Release `android-7145ba0ea3d2` / `sparkflow-7145ba0ea3d2-debug.apk`。
+- [ ] Android 真机：360px、safe-area、底栏、周视图密度、课表、Planner 闭环。
 - [ ] M4（拖拽、过滤、视觉细化）仅在上述真实验收稳定后启动。
 
 核心约束继续保持：PlanItem 只是一层前端视图模型；Task / Course / CalendarEvent / Planner / Focus 仍为现有事实源，不创建第二套 Schedule/StudySchedule。
