@@ -91,13 +91,15 @@ function normalizedMinutes(value: unknown): number | null | undefined {
 
 function toPlanningActions(value: unknown): PlanningActionDraft[] {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, 8).flatMap((item) => {
-    if (!item || typeof item !== 'object') return [];
+  const actions: PlanningActionDraft[] = [];
+
+  for (const item of value.slice(0, 8)) {
+    if (!item || typeof item !== 'object') continue;
     const candidate = item as Record<string, unknown>;
 
     if (candidate.type === 'create_task') {
-      if (typeof candidate.title !== 'string' || !candidate.title.trim()) return [];
-      const action: PlanningActionDraft = {
+      if (typeof candidate.title !== 'string' || !candidate.title.trim()) continue;
+      const action: Extract<PlanningActionDraft, { type: 'create_task' }> = {
         type: 'create_task',
         title: candidate.title.trim().slice(0, 200),
       };
@@ -112,7 +114,8 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       if (priority) action.priority = priority;
       if (estimatedMinutes !== undefined) action.estimatedMinutes = estimatedMinutes;
       if (dueDate !== undefined) action.dueDate = dueDate;
-      return [action];
+      actions.push(action);
+      continue;
     }
 
     if (candidate.type === 'update_task') {
@@ -123,7 +126,7 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
         !candidate.taskTitle.trim() ||
         !candidate.changes ||
         typeof candidate.changes !== 'object'
-      ) return [];
+      ) continue;
       const rawChanges = candidate.changes as Record<string, unknown>;
       const changes: Extract<PlanningActionDraft, { type: 'update_task' }>['changes'] = {};
       if (typeof rawChanges.title === 'string' && rawChanges.title.trim()) {
@@ -140,17 +143,19 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       if (priority) changes.priority = priority;
       if (estimatedMinutes !== undefined) changes.estimatedMinutes = estimatedMinutes;
       if (dueDate !== undefined) changes.dueDate = dueDate;
-      if (!Object.keys(changes).length) return [];
-      return [{
+      if (!Object.keys(changes).length) continue;
+
+      const action: Extract<PlanningActionDraft, { type: 'update_task' }> = {
         type: 'update_task',
         taskId: candidate.taskId.trim().slice(0, 100),
         taskTitle: candidate.taskTitle.trim().slice(0, 200),
         changes,
-      }];
+      };
+      actions.push(action);
     }
+  }
 
-    return [];
-  });
+  return actions;
 }
 
 function toResearchQueries(value: unknown): PlanningResearchRequest[] {
