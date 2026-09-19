@@ -7,10 +7,12 @@ import {
   Image as ImageIcon,
   Loader2,
   Play,
+  ScanText,
   Sparkles,
   Video,
 } from 'lucide-react';
 import {
+  analyzeInspirationAttachment,
   fetchInspirationAttachmentBlob,
   summarizeInspirationAttachment,
   transcribeInspirationAttachment,
@@ -18,6 +20,7 @@ import {
 } from '../../api/inspirations';
 
 const MAX_ASR_BYTES = 7 * 1024 * 1024;
+const MAX_MEDIA_AI_BYTES = 12 * 1024 * 1024;
 
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -34,7 +37,7 @@ function AttachmentItem({
   const [current, setCurrent] = useState(attachment);
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [aiAction, setAiAction] = useState<'transcribe' | 'summary' | null>(null);
+  const [aiAction, setAiAction] = useState<'transcribe' | 'summary' | 'analyze' | null>(null);
   const [expandedTranscript, setExpandedTranscript] = useState(false);
   const [error, setError] = useState('');
 
@@ -98,6 +101,24 @@ function AttachmentItem({
     }
   };
 
+  const analyze = async () => {
+    if (aiAction || current.kind === 'audio') return;
+    setAiAction('analyze');
+    setError('');
+    try {
+      const next = await analyzeInspirationAttachment(
+        inspirationId,
+        current.id,
+      );
+      setCurrent(next);
+      if (next.transcript) setExpandedTranscript(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '多模态 AI 分析失败');
+    } finally {
+      setAiAction(null);
+    }
+  };
+
   const Icon = current.kind === 'image'
     ? ImageIcon
     : current.kind === 'video'
@@ -109,6 +130,7 @@ function AttachmentItem({
       ? '视频'
       : '语音 / 音频';
   const audioTooLarge = current.kind === 'audio' && current.sizeBytes > MAX_ASR_BYTES;
+  const mediaAiTooLarge = current.kind !== 'audio' && current.sizeBytes > MAX_MEDIA_AI_BYTES;
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)]">
@@ -116,7 +138,7 @@ function AttachmentItem({
         <img
           src={url}
           alt={current.originalName || '记录图片'}
-          className="max-h-72 w-full object-contain bg-black/[0.03]"
+          className="max-h-72 w-full bg-black/[0.03] object-contain"
         />
       )}
       {url && current.kind === 'video' && (
@@ -185,48 +207,89 @@ function AttachmentItem({
               当前 AI 转写支持不超过 7 MB 的单个音频；附件仍可正常播放和保留。
             </p>
           )}
+        </div>
+      )}
 
-          {current.transcript && (
-            <div className="mt-3 rounded-2xl bg-[var(--sf-surface)] p-3">
-              <button
-                type="button"
-                onClick={() => setExpandedTranscript((value) => !value)}
-                className="flex w-full items-center justify-between gap-2 text-left"
-              >
-                <strong className="flex items-center gap-1.5 text-[10px] text-[var(--sf-text-primary)]">
-                  <FileText size={11} /> 转写文本
-                </strong>
-                {expandedTranscript
-                  ? <ChevronUp size={12} className="text-[var(--sf-text-tertiary)]" />
-                  : <ChevronDown size={12} className="text-[var(--sf-text-tertiary)]" />}
-              </button>
-              <p
-                className={`mt-2 whitespace-pre-wrap text-[10px] leading-5 text-[var(--sf-text-secondary)] ${
-                  expandedTranscript ? '' : 'line-clamp-3'
-                }`}
-              >
-                {current.transcript}
-              </p>
-            </div>
-          )}
-
-          {current.aiSummary && (
-            <div className="mt-2 rounded-2xl bg-[#f4f2fb] p-3">
-              <strong className="flex items-center gap-1.5 text-[10px] text-[#554a7d]">
-                <Sparkles size={11} /> AI 摘要
-              </strong>
-              <p className="mt-2 whitespace-pre-wrap text-[10px] leading-5 text-[#6d638e]">
-                {current.aiSummary}
-              </p>
-            </div>
+      {current.kind === 'image' && (
+        <div className="border-t border-[var(--sf-border)] px-3 py-3">
+          <button
+            type="button"
+            onClick={() => void analyze()}
+            disabled={Boolean(aiAction) || mediaAiTooLarge}
+            className="flex items-center gap-1.5 rounded-full bg-[#f4f2fb] px-3 py-2 text-[10px] font-bold text-[#64598d] disabled:opacity-40"
+          >
+            {aiAction === 'analyze'
+              ? <Loader2 size={12} className="animate-spin" />
+              : <ScanText size={12} />}
+            {current.aiSummary ? '重新分析图片' : 'AI 提取信息'}
+          </button>
+          {mediaAiTooLarge && (
+            <p className="mt-2 text-[9px] leading-4 text-amber-700">
+              当前图片 AI 分析支持不超过 12 MB；附件仍可正常查看和保留。
+            </p>
           )}
         </div>
       )}
 
-      {current.kind !== 'audio' && (
-        <p className="border-t border-[var(--sf-border)] px-3 py-2 text-[9px] leading-4 text-[var(--sf-text-tertiary)]">
-          当前仅音频支持显式 AI 转写/摘要；图片和视频不会在后台自动调用 AI。
-        </p>
+      {current.kind === 'video' && (
+        <div className="border-t border-[var(--sf-border)] px-3 py-3">
+          <button
+            type="button"
+            onClick={() => void analyze()}
+            disabled={Boolean(aiAction) || mediaAiTooLarge}
+            className="flex items-center gap-1.5 rounded-full bg-[#f4f2fb] px-3 py-2 text-[10px] font-bold text-[#64598d] disabled:opacity-40"
+          >
+            {aiAction === 'analyze'
+              ? <Loader2 size={12} className="animate-spin" />
+              : <Sparkles size={12} />}
+            {current.aiSummary ? '重新分析视频' : 'AI 转写并摘要'}
+          </button>
+          <p className="mt-2 text-[9px] leading-4 text-[var(--sf-text-tertiary)]">
+            只有你点击后才会把这段视频发送给配置的多模态模型处理。
+          </p>
+          {mediaAiTooLarge && (
+            <p className="mt-1 text-[9px] leading-4 text-amber-700">
+              当前视频 AI 分析支持不超过 12 MB；附件仍可正常播放和保留。
+            </p>
+          )}
+        </div>
+      )}
+
+      {current.transcript && (
+        <div className="mx-3 mb-3 rounded-2xl bg-[var(--sf-surface)] p-3">
+          <button
+            type="button"
+            onClick={() => setExpandedTranscript((value) => !value)}
+            className="flex w-full items-center justify-between gap-2 text-left"
+          >
+            <strong className="flex items-center gap-1.5 text-[10px] text-[var(--sf-text-primary)]">
+              <FileText size={11} />
+              {current.kind === 'video' ? '视频语音转写' : '转写文本'}
+            </strong>
+            {expandedTranscript
+              ? <ChevronUp size={12} className="text-[var(--sf-text-tertiary)]" />
+              : <ChevronDown size={12} className="text-[var(--sf-text-tertiary)]" />}
+          </button>
+          <p
+            className={`mt-2 whitespace-pre-wrap text-[10px] leading-5 text-[var(--sf-text-secondary)] ${
+              expandedTranscript ? '' : 'line-clamp-3'
+            }`}
+          >
+            {current.transcript}
+          </p>
+        </div>
+      )}
+
+      {current.aiSummary && (
+        <div className="mx-3 mb-3 rounded-2xl bg-[#f4f2fb] p-3">
+          <strong className="flex items-center gap-1.5 text-[10px] text-[#554a7d]">
+            <Sparkles size={11} />
+            {current.kind === 'image' ? 'AI 图片信息' : 'AI 摘要'}
+          </strong>
+          <p className="mt-2 whitespace-pre-wrap text-[10px] leading-5 text-[#6d638e]">
+            {current.aiSummary}
+          </p>
+        </div>
       )}
 
       {error && (
