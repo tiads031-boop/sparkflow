@@ -116,4 +116,68 @@ describe('PlanningService goal scope', () => {
     expect(result.createdTaskIds).toEqual(['proposal-1']);
     expect(conversationUpdate).toHaveBeenCalled();
   });
+
+  it('moves an existing goal task to a new milestone without leaving the goal', async () => {
+    const taskUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const conversationUpdate = jest.fn().mockResolvedValue({});
+
+    const tx = {
+      studyFolder: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'goal-1' }),
+      },
+      task: {
+        updateMany: taskUpdateMany,
+      },
+      aIConversation: {
+        update: conversationUpdate,
+      },
+    };
+
+    const prisma = {
+      aIConversation: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'conversation-2',
+          context: {
+            actions: [{
+              proposalId: 'proposal-2',
+              type: 'update_task',
+              taskId: 'task-1',
+              taskTitle: '完成民法第一轮',
+              changes: {
+                milestoneTitle: '强化训练',
+              },
+            }],
+            appliedActionIds: [],
+          },
+          planningThread: {
+            scopeType: 'goal',
+            scopeId: 'goal-1',
+          },
+        }),
+      },
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+
+    const service = new PlanningService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
+
+    await service.applyActions('user-1', 'thread-1', {
+      conversationId: 'conversation-2',
+      proposalIds: ['proposal-2'],
+    });
+
+    expect(taskUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'task-1',
+        userId: 'user-1',
+        studyFolders: { some: { folderId: 'goal-1' } },
+      },
+      data: { project: '强化训练' },
+    });
+    expect(conversationUpdate).toHaveBeenCalled();
+  });
+
 });
