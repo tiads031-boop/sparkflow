@@ -7,6 +7,8 @@ export interface InspirationAttachment {
   mimeType: string;
   originalName?: string | null;
   sizeBytes: number;
+  transcript?: string | null;
+  aiSummary?: string | null;
   createdAt: string;
 }
 
@@ -94,6 +96,28 @@ export async function fetchInspirationAttachmentBlob(
     { timeoutMs: 90_000 },
   );
   return response.blob();
+}
+
+export function transcribeInspirationAttachment(
+  inspirationId: string,
+  attachmentId: string,
+) {
+  return api.post<InspirationAttachment>(
+    `/inspirations/${encodeURIComponent(inspirationId)}/attachments/${encodeURIComponent(attachmentId)}/transcribe`,
+    {},
+    { throwOnError: true, timeoutMs: 75_000 },
+  );
+}
+
+export function summarizeInspirationAttachment(
+  inspirationId: string,
+  attachmentId: string,
+) {
+  return api.post<InspirationAttachment>(
+    `/inspirations/${encodeURIComponent(inspirationId)}/attachments/${encodeURIComponent(attachmentId)}/summary`,
+    {},
+    { throwOnError: true, timeoutMs: 75_000 },
+  );
 }
 
 export function updateInspiration(id: string, data: Partial<Pick<InspirationRecord, 'title' | 'description' | 'contentText' | 'sourceUrl' | 'sourceType' | 'tags'>>) {
