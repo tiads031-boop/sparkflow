@@ -73,7 +73,7 @@ export default function PlannerSheet({
           availabilityStart: localIso(date, startTime),
           availabilityEnd: localIso(date, endTime),
         },
-        { throwOnError: true },
+        { throwOnError: true, timeoutMs: 45_000 },
       );
       setPreview(result);
       if (!result.proposals.length) setMessage('当前范围内没有可自动安排的未排期任务。');
