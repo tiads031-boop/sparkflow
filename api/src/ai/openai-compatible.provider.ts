@@ -67,7 +67,7 @@ function toPlanningFacts(value: unknown): PlanningFact[] {
   });
 }
 
-function toPlanningTurn(value: unknown): PlanningTurnResult {
+export function toPlanningTurn(value: unknown): PlanningTurnResult {
   if (!value || typeof value !== 'object') throw new Error('AI planning response is invalid');
   const candidate = value as Record<string, unknown>;
   const readiness = candidate.readiness;
@@ -81,6 +81,11 @@ function toPlanningTurn(value: unknown): PlanningTurnResult {
     throw new Error('AI planning response has no context');
   }
   const context = candidate.context as Record<string, unknown>;
+  for (const section of ['brief', 'constraints', 'preferences', 'strategy', 'assumptions']) {
+    if (!Array.isArray(context[section])) {
+      throw new Error(`AI planning response is missing ${section}`);
+    }
+  }
   const openQuestions = Array.isArray(candidate.openQuestions)
     ? candidate.openQuestions
         .filter((item): item is string => typeof item === 'string')
