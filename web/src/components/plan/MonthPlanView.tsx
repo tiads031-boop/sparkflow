@@ -1,7 +1,5 @@
-import type { DateLike } from './planTypes';
-
-export default function MonthPlanView({ selectedDate }: { selectedDate: DateLike }) {
-  const date = new Date(selectedDate);
+export default function MonthPlanView({ selectedDate }: { selectedDate: Date }) {
+  const date = new Date(selectedDate.getTime());
   const year = date.getFullYear();
   const month = date.getMonth();
   const firstDay = new Date(year, month, 1);
