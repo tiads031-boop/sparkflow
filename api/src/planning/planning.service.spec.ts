@@ -308,4 +308,183 @@ describe('PlanningService goal scope', () => {
     expect(conversationUpdate).toHaveBeenCalled();
   });
 
+
+  it('records an externally-applied course proposal without writing task or goal facts', async () => {
+    const conversationUpdate = jest.fn().mockResolvedValue({});
+    const tx = {
+      aIConversation: {
+        update: conversationUpdate,
+      },
+    };
+    const prisma = {
+      aIConversation: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'conversation-course',
+          context: {
+            actions: [{
+              proposalId: 'proposal-course',
+              type: 'course_change',
+              courseName: '民法',
+              change: {
+                type: 'cancel',
+                eventId: 'event-1',
+              },
+            }],
+            appliedActionIds: [],
+          },
+          planningThread: {
+            scopeType: 'general',
+            scopeId: null,
+          },
+        }),
+      },
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+
+    const service = new PlanningService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await service.applyActions('user-1', 'thread-1', {
+      conversationId: 'conversation-course',
+      proposalIds: ['proposal-course'],
+    });
+
+    expect(result.externalActionIds).toEqual(['proposal-course']);
+    expect(result.createdTaskIds).toEqual([]);
+    expect(result.updatedTaskIds).toEqual([]);
+    expect(result.updatedGoalIds).toEqual([]);
+    expect(conversationUpdate).toHaveBeenCalledWith({
+      where: { id: 'conversation-course' },
+      data: {
+        context: expect.objectContaining({
+          appliedActionIds: ['proposal-course'],
+        }),
+      },
+    });
+  });
+
+  it('drops an AI course change when its occurrence id is not in the owned snapshot', async () => {
+    const ai = {
+      modelName: 'test-model',
+      generatePlanningTurn: jest.fn().mockResolvedValue({
+        reply: '我先生成一个调课草案。',
+        readiness: 'ready',
+        context: {
+          brief: [],
+          constraints: [],
+          preferences: [],
+          strategy: [],
+          assumptions: [],
+        },
+        openQuestions: [],
+        summary: '',
+        researchQueries: [],
+        actions: [{
+          type: 'course_change',
+          courseName: '民法',
+          change: {
+            type: 'cancel',
+            eventId: 'hallucinated-event',
+          },
+        }],
+        replanRequests: [],
+      }),
+    };
+    const thread = {
+      id: 'thread-course',
+      userId: 'user-1',
+      title: '调整课表',
+      scopeType: 'general',
+      scopeId: null,
+      status: 'active',
+      revision: 1,
+      brief: [],
+      constraints: [],
+      preferences: [],
+      strategy: [],
+      assumptions: [],
+      evidence: [],
+    };
+    const conversationCreate = jest.fn().mockResolvedValue({
+      id: 'conversation-1',
+      context: {},
+    });
+    const tx = {
+      planningThread: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findFirstOrThrow: jest.fn().mockResolvedValue({ ...thread, revision: 2 }),
+      },
+      aIConversation: {
+        create: conversationCreate,
+      },
+    };
+    const prisma = {
+      planningThread: {
+        findFirst: jest.fn().mockResolvedValue(thread),
+      },
+      aIConversation: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      task: {
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      course: {
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'course-1',
+          name: '民法',
+          teacher: null,
+          room: 'A101',
+          location: null,
+          dayOfWeek: 2,
+          startTime: '09:00',
+          endTime: '10:30',
+          semesterId: 'semester-1',
+        }]),
+      },
+      calendarEvent: {
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'event-1',
+          courseId: 'course-1',
+          title: '民法',
+          startTime: new Date('2026-09-22T01:00:00.000Z'),
+          endTime: new Date('2026-09-22T02:30:00.000Z'),
+          location: 'A101',
+          overrideType: null,
+          overrideOriginalStart: null,
+          course: { id: 'course-1', name: '民法' },
+        }]),
+      },
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+    const research = {
+      isConfigured: jest.fn().mockReturnValue(false),
+      providerName: 'none',
+    };
+
+    const service = new PlanningService(
+      prisma as never,
+      ai as never,
+      research as never,
+    );
+
+    const result = await service.turn('user-1', 'thread-course', {
+      message: '把明天的民法停掉',
+      expectedRevision: 1,
+      currentTime: '2026-09-20T02:00:00.000Z',
+      timeZone: 'Asia/Shanghai',
+    });
+
+    expect(result.actions).toEqual([]);
+    expect(conversationCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        context: expect.objectContaining({
+          actions: [],
+        }),
+      }),
+    });
+  });
+
 });
