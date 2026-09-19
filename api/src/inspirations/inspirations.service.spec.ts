@@ -1,10 +1,17 @@
 import { InspirationsService } from './inspirations.service';
 
-describe('InspirationsService Phase 15 M1', () => {
+function mediaMock() {
+  return {
+    persist: jest.fn().mockResolvedValue([]),
+    removeMany: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
+describe('InspirationsService Phase 15 M1 + M8', () => {
   it('creates a manual record with a next-day review candidate', async () => {
     const create = jest.fn(({ data }) => data);
     const prisma = { inspiration: { create } };
-    const service = new InspirationsService(prisma as never);
+    const service = new InspirationsService(prisma as never, mediaMock() as never);
 
     const before = Date.now();
     const result = await service.create({
@@ -16,6 +23,42 @@ describe('InspirationsService Phase 15 M1', () => {
     expect(result.sourceUrl).toBeNull();
     expect(result.tags).toEqual([]);
     expect(result.nextReviewAt.getTime()).toBeGreaterThanOrEqual(before + 23 * 60 * 60 * 1000);
+  });
+
+  it('creates an attachment-only inspiration and persists private attachment metadata', async () => {
+    const media = mediaMock();
+    media.persist.mockResolvedValue([{
+      id: 'attachment-1',
+      kind: 'image',
+      mimeType: 'image/png',
+      originalName: 'photo.png',
+      storageKey: 'inspiration-1/attachment-1.png',
+      sizeBytes: 1234,
+    }]);
+    const create = jest.fn(({ data }) => ({
+      ...data,
+      attachments: data.attachments.create,
+    }));
+    const prisma = { inspiration: { create } };
+    const service = new InspirationsService(prisma as never, media as never);
+    const file = {
+      buffer: Buffer.from('png'),
+      size: 3,
+      mimetype: 'image/png',
+      originalname: 'photo.png',
+    } as Express.Multer.File;
+
+    const result = await service.createCapture('user-1', '', [file], []);
+
+    expect(media.persist).toHaveBeenCalledWith(expect.any(String), [file]);
+    expect(result.contentText).toBeNull();
+    expect(result.attachments).toEqual([
+      expect.objectContaining({
+        id: 'attachment-1',
+        kind: 'image',
+        storageKey: 'inspiration-1/attachment-1.png',
+      }),
+    ]);
   });
 
   it('stores reflections separately and schedules the next review three days later', async () => {
@@ -30,7 +73,7 @@ describe('InspirationsService Phase 15 M1', () => {
       inspirationReflection: { create: reflectionCreate },
       $transaction,
     };
-    const service = new InspirationsService(prisma as never);
+    const service = new InspirationsService(prisma as never, mediaMock() as never);
 
     await service.addReflection('inspiration-1', 'user-1', 'Preview 也应该能撤销');
 
@@ -65,7 +108,7 @@ describe('InspirationsService Phase 15 M1', () => {
       inspiration: { findFirst },
       task: { create },
     };
-    const service = new InspirationsService(prisma as never);
+    const service = new InspirationsService(prisma as never, mediaMock() as never);
 
     const result = await service.createTaskFromInspiration('inspiration-1', 'user-1');
 
@@ -74,8 +117,14 @@ describe('InspirationsService Phase 15 M1', () => {
     expect(result.tags).toEqual(['SparkFlow']);
   });
 
-  it('removes an affected insight when deleting its source would leave fewer than two sources', async () => {
-    const findFirst = jest.fn().mockResolvedValue({ id: 'inspiration-1' });
+  it('removes private files after deleting the inspiration and dependent insight links', async () => {
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'inspiration-1',
+      attachments: [
+        { storageKey: 'inspiration-1/a.png' },
+        { storageKey: 'inspiration-1/b.webm' },
+      ],
+    });
     const deleteMany = jest.fn().mockResolvedValue({ count: 1 });
     const tx = {
       inspiration: {
@@ -91,12 +140,17 @@ describe('InspirationsService Phase 15 M1', () => {
       inspiration: { findFirst },
       $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
     };
-    const service = new InspirationsService(prisma as never);
+    const media = mediaMock();
+    const service = new InspirationsService(prisma as never, media as never);
 
     await service.remove('inspiration-1', 'user-1');
 
     expect(deleteMany).toHaveBeenCalledWith({
       where: { id: { in: ['insight-1'] }, userId: 'user-1' },
     });
+    expect(media.removeMany).toHaveBeenCalledWith([
+      'inspiration-1/a.png',
+      'inspiration-1/b.webm',
+    ]);
   });
 });

@@ -90,14 +90,21 @@ export class InsightsService {
       take: 40,
     });
 
-    if (records.length < 2) {
-      throw new BadRequestException('至少需要 2 条近期记录才能发现洞察');
+    const textRecords = records.filter((record) => (
+      Boolean(record.title?.trim())
+      || Boolean(record.description?.trim())
+      || Boolean(record.contentText?.trim())
+      || record.reflections.some((reflection) => Boolean(reflection.body?.trim()))
+    ));
+
+    if (textRecords.length < 2) {
+      throw new BadRequestException('至少需要 2 条包含文字的近期记录才能发现洞察');
     }
 
     let generated: GeneratedInsight[];
     try {
       generated = await this.ai.generateInsights({
-        records: records.map((record) => ({
+        records: textRecords.map((record) => ({
           id: record.id,
           title: record.title,
           description: record.description,
@@ -116,7 +123,7 @@ export class InsightsService {
       throw new ServiceUnavailableException('AI 洞察暂时不可用，请稍后再试');
     }
 
-    const allowedSourceIds = new Set(records.map((record) => record.id));
+    const allowedSourceIds = new Set(textRecords.map((record) => record.id));
     const valid = generated.slice(0, 6).flatMap((item) => {
       const title = item.title?.trim();
       const body = item.body?.trim();

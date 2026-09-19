@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
@@ -10,14 +10,12 @@ import {
   RefreshCw,
   Sparkles,
   Trash2,
-  X,
 } from 'lucide-react';
 import type { Spark } from '../store/appStore';
 import { useAppStore } from '../store/appStore';
 import {
   addReflection,
   applyReviewAction,
-  createInspiration,
   createTaskFromInspiration,
   deleteInspiration,
   getReviewQueue,
@@ -27,6 +25,8 @@ import {
   type ReviewQueue,
 } from '../api/inspirations';
 import { InsightPanel } from './insights/InsightPanel';
+import InspirationCaptureSheet from './records/InspirationCaptureSheet';
+import InspirationAttachmentList from './records/InspirationAttachmentList';
 
 interface SparksViewProps {
   sparks: Spark[];
@@ -38,7 +38,19 @@ interface SparksViewProps {
 type RecordViewMode = 'cards' | 'review' | 'insights' | 'wall';
 
 function recordText(record: InspirationRecord) {
-  return record.contentText || record.description || record.title || '未命名记录';
+  if (record.contentText || record.description || record.title) {
+    return record.contentText || record.description || record.title || '未命名记录';
+  }
+  const attachments = record.attachments || [];
+  if (!attachments.length) return '未命名记录';
+  const imageCount = attachments.filter((item) => item.kind === 'image').length;
+  const audioCount = attachments.filter((item) => item.kind === 'audio').length;
+  const videoCount = attachments.filter((item) => item.kind === 'video').length;
+  return [
+    imageCount ? `${imageCount} 张图片` : null,
+    audioCount ? `${audioCount} 段语音/音频` : null,
+    videoCount ? `${videoCount} 个视频` : null,
+  ].filter(Boolean).join(' · ');
 }
 
 function sourceLabel(record: InspirationRecord) {
@@ -54,11 +66,8 @@ export default function SparksView(_props: SparksViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
-  const [captureText, setCaptureText] = useState('');
-  const [captureBusy, setCaptureBusy] = useState(false);
   const [reviewText, setReviewText] = useState('');
   const [reviewBusy, setReviewBusy] = useState(false);
-  const captureRef = useRef<HTMLTextAreaElement>(null);
 
   const loadRecords = useCallback(async () => {
     try {
@@ -103,10 +112,6 @@ export default function SparksView(_props: SparksViewProps) {
     };
   }, [loadRecords, loadReviews]);
 
-  useEffect(() => {
-    if (captureOpen) captureRef.current?.focus();
-  }, [captureOpen]);
-
   const currentReview = reviewQueue.items[0];
   const reflectionCount = useMemo(
     () => records.reduce((total, record) => total + (record._count?.reflections || record.reflections?.length || 0), 0),
@@ -116,24 +121,6 @@ export default function SparksView(_props: SparksViewProps) {
   const refreshAll = async () => {
     setLoading(true);
     await Promise.all([loadRecords(), loadReviews()]);
-  };
-
-  const saveCapture = async () => {
-    const value = captureText.trim();
-    if (!value || captureBusy) return;
-    setCaptureBusy(true);
-    setError(null);
-    try {
-      await createInspiration(value);
-      setCaptureText('');
-      setCaptureOpen(false);
-      setMessage('已记下，明天会进入回顾候选。');
-      await Promise.all([loadRecords(), loadReviews()]);
-    } catch (err: any) {
-      setError(err?.message || '保存失败');
-    } finally {
-      setCaptureBusy(false);
-    }
   };
 
   const editRecord = async (record: InspirationRecord) => {
@@ -250,6 +237,10 @@ export default function SparksView(_props: SparksViewProps) {
                   <button type="button" aria-label="删除记录" onClick={() => removeRecord(record)} className="rounded-full bg-[var(--sf-bg)] p-2"><Trash2 size={13} /></button>
                 </div>
               </div>
+              <InspirationAttachmentList
+                inspirationId={record.id}
+                attachments={record.attachments}
+              />
               {record.tags?.length > 0 && <div className="mb-3 flex flex-wrap gap-1.5">{record.tags.map((tag) => <span key={tag} className="rounded-full bg-[var(--sf-bg)] px-2 py-1 text-[10px] text-[var(--sf-text-secondary)]">#{tag}</span>)}</div>}
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--sf-text-tertiary)]">
                 <span>{record._count?.reflections || record.reflections?.length || 0} 次回顾</span>
@@ -302,6 +293,10 @@ export default function SparksView(_props: SparksViewProps) {
               <article className="rounded-[2rem] bg-[#f2f0e8] p-6 shadow-sm">
                 <Clock3 size={15} className="mb-4 opacity-40" />
                 <p className="whitespace-pre-wrap text-base font-medium leading-7 text-[#242424]">{recordText(currentReview)}</p>
+                <InspirationAttachmentList
+                  inspirationId={currentReview.id}
+                  attachments={currentReview.attachments}
+                />
                 {currentReview.reflections && currentReview.reflections.length > 0 && (
                   <div className="mt-5 border-t border-black/10 pt-4">
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-black/40">之前的想法</p>
@@ -329,18 +324,14 @@ export default function SparksView(_props: SparksViewProps) {
         </section>
       )}
 
-      {captureOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" role="presentation" onClick={() => setCaptureOpen(false)}>
-          <section className="w-full max-w-lg rounded-t-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)]" onClick={(event) => event.stopPropagation()}>
-            <div className="mb-4 flex items-center justify-between">
-              <div><h2 className="text-base font-bold">随手记</h2><p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">正文是唯一必填项。</p></div>
-              <button type="button" aria-label="关闭" onClick={() => setCaptureOpen(false)} className="rounded-full bg-[var(--sf-bg)] p-2"><X size={16} /></button>
-            </div>
-            <textarea ref={captureRef} value={captureText} onChange={(event) => setCaptureText(event.target.value)} placeholder="记下现在想到的东西……" className="min-h-36 w-full resize-none rounded-[var(--sf-radius-md)] border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm leading-6 outline-none" />
-            <button type="button" disabled={!captureText.trim() || captureBusy} onClick={saveCapture} className="mt-3 w-full rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-bold text-[var(--sf-surface)] disabled:opacity-40">{captureBusy ? '保存中…' : '保存'}</button>
-          </section>
-        </div>
-      )}
+      <InspirationCaptureSheet
+        open={captureOpen}
+        onClose={() => setCaptureOpen(false)}
+        onSaved={async () => {
+          setMessage('已记下，明天会进入回顾候选。');
+          await Promise.all([loadRecords(), loadReviews()]);
+        }}
+      />
     </div>
   );
 }

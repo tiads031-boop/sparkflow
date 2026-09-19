@@ -111,12 +111,29 @@ model Inspiration {
   task         Task?
   reflections  InspirationReflection[]
   insightLinks InsightInspiration[]
+  attachments InspirationAttachment[]
 
   @@index([userId])
   @@index([status])
   @@index([tags])
   @@index([userId, nextReviewAt])
   @@map("inspirations")
+}
+
+model InspirationAttachment {
+  id            String   @id @default(uuid())
+  inspirationId String
+  kind          String
+  mimeType      String
+  originalName  String?
+  storageKey    String   @unique
+  sizeBytes     Int
+  createdAt     DateTime @default(now())
+
+  inspiration Inspiration @relation(fields: [inspirationId], references: [id], onDelete: Cascade)
+
+  @@index([inspirationId, createdAt])
+  @@map("inspiration_attachments")
 }
 
 model InspirationReflection {
