@@ -286,10 +286,17 @@ export interface PlannerProposal {
   durationMinutes: number;
   taskUpdatedAt: string;
   reason: string;
+  originalStart?: string;
+  originalEnd?: string;
 }
 
 export interface PlannerPreview {
   proposals: PlannerProposal[];
   unscheduledTaskIds: string[];
   range: { start: string; end: string };
+}
+
+export interface PlannerReplanPreview extends PlannerPreview {
+  affectedTaskIds: string[];
+  blockedRange: { start: string; end: string };
 }
