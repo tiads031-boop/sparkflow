@@ -245,22 +245,24 @@ function GoalCard({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
-        <button
-          type="button"
-          onClick={onPlan}
-          className="flex items-center justify-center gap-2 rounded-full bg-[#242424] py-2.5 text-xs font-black text-[#cae393]"
-        >
-          <Sparkles size={13} />
-          {goal.planningThread ? '继续和 AI 规划' : '开始 AI 规划'}
-        </button>
+      <div className={`mt-4 grid gap-2 ${goal.status === 'archived' ? 'grid-cols-1' : 'grid-cols-[1fr_auto]'}`}>
+        {goal.status !== 'archived' && (
+          <button
+            type="button"
+            onClick={onPlan}
+            className="flex items-center justify-center gap-2 rounded-full bg-[#242424] py-2.5 text-xs font-black text-[#cae393]"
+          >
+            <Sparkles size={13} />
+            {goal.planningThread ? '继续和 AI 规划' : '开始 AI 规划'}
+          </button>
+        )}
         <button
           type="button"
           onClick={onArchive}
-          className="grid h-10 w-10 place-items-center rounded-full bg-white/80 text-gray-500"
+          className={`${goal.status === 'archived' ? 'flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-bold' : 'grid h-10 w-10 place-items-center rounded-full'} bg-white/80 text-gray-500`}
           aria-label={goal.status === 'archived' ? '恢复目标' : '归档目标'}
         >
-          {goal.status === 'archived' ? <RotateCcw size={14} /> : <Archive size={14} />}
+          {goal.status === 'archived' ? <><RotateCcw size={14} />恢复目标</> : <Archive size={14} />}
         </button>
       </div>
     </article>
