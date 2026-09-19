@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { CalendarEvent, Course, Semester, Task } from '../src/types/index.ts';
 import {
   buildPlanItems,
+  buildPlannerPreviewItems,
   courseOccursOnDate,
   getPlanRange,
   getSemesterWeekNumber,
@@ -141,4 +142,31 @@ test('study tasks remain Task facts but project with study context', () => {
 
 test('course week filtering does not hide courses when semester context is unavailable', () => {
   assert.equal(courseOccursOnDate(course, new Date(2026, 8, 21, 12, 0), null), true);
+});
+
+
+test('Planner preview projects into temporary AI items without mutating Task schedule facts', () => {
+  const original = task({ id: 'preview-task', scheduledStart: undefined, scheduledEnd: undefined, scheduleSource: undefined });
+  const previewItems = buildPlannerPreviewItems({
+    proposals: [{
+      taskId: 'preview-task',
+      title: '复习民法',
+      start: new Date(2026, 8, 21, 16, 0).toISOString(),
+      end: new Date(2026, 8, 21, 17, 0).toISOString(),
+      durationMinutes: 60,
+      taskUpdatedAt: '2026-09-19T00:00:00.000Z',
+      reason: '利用下午空档完成高优先级任务',
+    }],
+    unscheduledTaskIds: [],
+    range: {
+      start: new Date(2026, 8, 21, 8, 0).toISOString(),
+      end: new Date(2026, 8, 21, 22, 0).toISOString(),
+    },
+  }, [original]);
+
+  assert.equal(previewItems.length, 1);
+  assert.equal(previewItems[0].preview, true);
+  assert.equal(previewItems[0].scheduleSource, 'ai');
+  assert.equal(previewItems[0].reason, '利用下午空档完成高优先级任务');
+  assert.equal(original.scheduledStart, undefined);
 });
