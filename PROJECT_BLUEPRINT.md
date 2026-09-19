@@ -2,8 +2,8 @@
 
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
-> **最后更新**：2026-09-19
-> **代码同步基线**：`master@735944fd`
+> **最后更新**：2026-09-20
+> **代码同步基线**：`master@7405d3b7`
 
 ---
 
@@ -258,7 +258,7 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API
 | Phase 15 | 🚧 M1–M3 已实现，真实链路收尾 | M1–M3 Web/API 已对齐 `99ebb3c`；真实 Qwen 与 Android/Planner 链路仍需验收 |
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合入；Web Production 已发布并静态冒烟，Android M3 APK `android-7145ba0ea3d2` 已生成；真实账号与真机验收前 M4 暂不启动 |
-| VNext AI Orchestration | 🚧 M4.1–M4.4 已完成 | PR #55：安全提醒 + Today 极简；PR #56：统一新建 Task Sheet + 手机同屏四象限；当前下一步 M4.5 Settings，然后 M5 对话式 AI/语音/持续 Planning Context/Web Research |
+| VNext AI Orchestration | ✅ M4/M5 代码与 CI 已完成，🚧 当前 M6 | PR #58：Settings；PR #59–#63：Planning Context、自适应访谈、Web Research、语音、可审阅 Task 操作与临时冲突增量重排；下一步进入独立 AI 学习目标 |
 
 ---
 
@@ -288,6 +288,12 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API
 - ✅ PR #54：AI-first VNext M4–M8 完整方案，包含自适应访谈、持续 Planning Context、语音输入与 Web Research。
 - ✅ PR #55：M4.1/M4.2，按用户隔离通知、reminderAt 优先、持久化 delivery key，以及 Today 极简。
 - ✅ PR #56：M4.3/M4.4，统一新建 Task Sheet，Plan 待办列表/四象限切换，手机 2×2 同屏。
+- ✅ PR #58：M4.5，“我的/设置”改为分组首页 + 二级设置；真实四象限偏好、默认提醒、Push 测试、日历连接和数据/账户能力保留。
+- ✅ PR #59：M5.1，PlanningThread / Context、revision 并发保护、SchedulePlan 规划版本回链。
+- ✅ PR #60：M5.2，对话式 AI Planner、SearXNG ResearchProvider、证据展示与“临时安排”。
+- ✅ PR #61：M5.3，Qwen ASR 语音输入与可编辑 Planning Context。
+- ✅ PR #62：M5.4，对话 → 可审阅 create/update Task proposals，用户确认后才写入。
+- ✅ PR #63：M5.5，临时冲突增量重排；Scheduler 计算移动 Preview，Apply/Undo 沿用现有安全边界。
 - ✅ VNext Web Production：部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，aliases 包含 `fish-life.cc.cd`；首页 200，生产 bundle 核到五项导航与 M3 Preview 文案。
 - ✅ Android VNext M3 构建：Release `android-7145ba0ea3d2`，asset `sparkflow-7145ba0ea3d2-debug.apk`。
 - ⚠️ 本次 Vercel 由 GitHub codeload 源码手工发布，deployment `meta` 为空；尝试仅补 Git metadata 的第二次部署被 Hobby 每日 deployment 限额拒绝。功能部署已成功，本蓝图/NEXT 记录 `e883b9a3 → dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 的发布映射。
@@ -324,9 +330,9 @@ flowchart TD
     F --> G["✅ 发布 99ebb3c + API/Web 对齐"]
     G --> H["Issue #31 remaining Web/Android/Planner acceptance"]
     H --> I["VNext Plan Web/PWA/Android acceptance"]
-    I --> K["VNext M4 notification/Today/Task/Quadrant/Settings"]
-    K --> L["M5 AI orchestration 2.0"]
-    L --> M["M6 AI learning goals"]
+    I --> K["✅ VNext M4 notification/Today/Task/Quadrant/Settings"]
+    K --> L["✅ M5 AI orchestration 2.0"]
+    L --> M["🚧 M6 AI learning goals"]
     M --> N["M7 course overrides + AI"]
     N --> O["M8 multimodal capture + notification/settings polish"]
     O --> J["Phase 13 Local Codex Bridge"]
