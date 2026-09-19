@@ -23,24 +23,24 @@ function QuadrantPanel({ quadrant, tasks, onTaskClick, onMove, onDropTask, onDra
   const meta = QUADRANT_META[quadrant];
   return (
     <section
-      className="min-h-64 rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-4 shadow-sm"
+      className="min-h-[220px] overflow-hidden rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-2.5 shadow-sm sm:min-h-64 sm:p-4"
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
         onDropTask(event.dataTransfer.getData('text/task-id'), quadrant);
       }}
     >
-      <header className="mb-3 flex items-start justify-between gap-3">
+      <header className="mb-2 flex items-start justify-between gap-2 sm:mb-3 sm:gap-3">
         <div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
-            <h2 className="text-sm font-bold">{meta.title}</h2>
+            <h2 className="text-[11px] font-black leading-tight sm:text-sm">{meta.title}</h2>
           </div>
-          <p className="mt-1 text-[11px] text-[var(--sf-text-tertiary)]">{meta.hint}</p>
+          <p className="mt-1 hidden text-[11px] text-[var(--sf-text-tertiary)] sm:block">{meta.hint}</p>
         </div>
-        <span className="rounded-full bg-[var(--sf-bg)] px-2.5 py-1 text-xs font-semibold">{tasks.length}</span>
+        <span className="rounded-full bg-[var(--sf-bg)] px-2 py-0.5 text-[9px] font-bold sm:px-2.5 sm:py-1 sm:text-xs">{tasks.length}</span>
       </header>
-      <div className="space-y-2">
+      <div className="max-h-[34svh] space-y-1.5 overflow-y-auto pr-0.5 sm:max-h-none sm:space-y-2 sm:overflow-visible">
         {tasks.map((task) => (
           <article
             key={task.id}
@@ -51,30 +51,29 @@ function QuadrantPanel({ quadrant, tasks, onTaskClick, onMove, onDropTask, onDra
               onDragStart(task.id);
             }}
             onDragEnd={onDragEnd}
-            className="rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] p-3"
+            className="rounded-xl border border-[var(--sf-border)] bg-[var(--sf-bg)] p-2 sm:rounded-2xl sm:p-3"
           >
             <button type="button" onClick={() => onTaskClick(task)} className="block w-full text-left btn-press focus-ring">
-              <strong className="block truncate text-sm">{task.title}</strong>
-              <span className="mt-1 block text-[11px] text-[var(--sf-text-secondary)]">{task.project || '未分项目'} · {dueLabel(task.dueDate)}</span>
+              <strong className="block line-clamp-2 text-[10px] leading-4 sm:text-sm">{task.title}</strong>
+              <span className="mt-1 block truncate text-[8px] text-[var(--sf-text-secondary)] sm:text-[11px]">{task.project || '未分项目'} · {dueLabel(task.dueDate)}</span>
             </button>
             <select
               aria-label={`移动“${task.title}”到其他象限`}
               value={quadrant}
               onChange={(event) => onMove(task, event.target.value as TaskQuadrant)}
-              className="mt-2 w-full rounded-full bg-[var(--sf-surface)] px-2 py-1 text-[11px] text-[var(--sf-text-secondary)] outline-none"
+              className="mt-1.5 w-full rounded-full bg-[var(--sf-surface)] px-1.5 py-1 text-[8px] text-[var(--sf-text-secondary)] outline-none sm:mt-2 sm:px-2 sm:text-[11px]"
             >
               {QUADRANT_ORDER.map((key) => <option key={key} value={key}>{QUADRANT_META[key].title}</option>)}
             </select>
           </article>
         ))}
-        {tasks.length === 0 ? <p className="py-8 text-center text-xs text-[var(--sf-text-tertiary)]">这里暂时是空的</p> : null}
+        {tasks.length === 0 ? <p className="py-8 text-center text-[9px] text-[var(--sf-text-tertiary)] sm:text-xs">这里暂时是空的</p> : null}
       </div>
     </section>
   );
 }
 
 export default function QuadrantView({ tasks, onTaskClick }: { tasks: Task[]; onTaskClick: (task: Task) => void }) {
-  const [active, setActive] = useState<TaskQuadrant>('important-urgent');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [pendingMove, setPendingMove] = useState<{ task: Task; target: TaskQuadrant; date: string } | null>(null);
   const updateTask = useAppStore((state) => state.updateTask);
@@ -88,7 +87,6 @@ export default function QuadrantView({ tasks, onTaskClick }: { tasks: Task[]; on
       priority: important ? 'High Priority' : task.priority === 'High Priority' ? 'Medium' : task.priority,
       ...(dueDate ? { dueDate: new Date(`${dueDate}T23:59:00`).toISOString() } : {}),
     });
-    setActive(target);
   }, [updateTask]);
 
   const requestMove = useCallback((task: Task, target: TaskQuadrant) => {
@@ -120,24 +118,10 @@ export default function QuadrantView({ tasks, onTaskClick }: { tasks: Task[]; on
 
   return (
     <div>
-      <div className="mb-3 grid grid-cols-2 gap-2 sm:hidden">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         {QUADRANT_ORDER.map((key) => (
-          <button
-            type="button"
-            key={key}
-            onClick={() => setActive(key)}
-            className={`rounded-2xl px-3 py-2 text-left text-xs transition-colors ${active === key ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'bg-[var(--sf-surface)]'}`}
-          >
-            <span className="block font-bold">{QUADRANT_META[key].title}</span>
-            <span className="mt-0.5 block opacity-60">{groups[key].length} 项</span>
-          </button>
+          <QuadrantPanel key={key} quadrant={key} tasks={groups[key]} {...panelProps} />
         ))}
-      </div>
-      <div className="sm:hidden">
-        <QuadrantPanel quadrant={active} tasks={groups[active]} {...panelProps} />
-      </div>
-      <div className="hidden grid-cols-2 gap-3 sm:grid">
-        {QUADRANT_ORDER.map((key) => <QuadrantPanel key={key} quadrant={key} tasks={groups[key]} {...panelProps} />)}
       </div>
       {draggedTaskId ? <p className="mt-3 text-center text-[11px] text-[var(--sf-text-tertiary)]">拖到目标象限即可移动</p> : null}
       {pendingMove ? createPortal(
