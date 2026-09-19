@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-18 | **代码基线**：`master@5835e322`
+> **最后更新**：2026-09-19 | **代码基线**：`master@99ebb3c`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -9,9 +9,9 @@
 | 范围 | 已确认事实 |
 |---|---|
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
-| API | `https://api.fish-life.cc.cd`，腾讯云已运行 `1e5f8356`；公网 `/api/health.buildSha` 与仓库一致；生产库 19 个 migrations 全部 up to date |
-| Web | Vercel 项目 `sparkflow031`；当前 Production 仍为 M2 `3286458a`。M3 `1e5f8356` 本地 Web build 已通过，但 Hobby 当日 >100 deployments 硬限额阻止新 Production；已关闭 Git 自动 deployments，待额度恢复后显式发布 |
-| GitHub | `master@5835e322`；Phase 15 M1/M2/M3 分别由 PR #38/#39/#40 合并；PR #41 为重复实现已关闭；PR #43 已合并 Qwen 洞察稳定性与 API 超时治理 |
+| API | `https://api.fish-life.cc.cd`，腾讯云运行 `master@99ebb3c`；公网 `/api/health.buildSha` 与仓库一致；生产库 20 个 migrations 全部 up to date，包含 `20260919130000_add_study_folders` |
+| Web | Vercel 项目 `sparkflow031`；Production `fish-life.cc.cd` 已显式发布 `master@99ebb3c`，部署状态 READY，首页 HTTP 200 |
+| GitHub | `master@99ebb3c`；Phase 15 M1/M2/M3 已合并；PR #45 已合并 Study Mode M1；PR #43 已合并 Qwen 洞察稳定性与 API 超时治理 |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
 | 最新 APK | Release `android-5835e3223748`；`sparkflow-5835e3223748-debug.apk`；对应 `master@5835e322`，Android CI 成功 |
@@ -20,9 +20,9 @@
 ## 近期总原则
 
 1. **Phase 15 M1/M2/M3 代码均已进入 master；不要再重复实现 Capture、Insight 或 Insight→Task。**
-2. **当前第一收口项是 M3 Web Production：待 Vercel Hobby 每日 deployment 配额恢复后，将当前 master 显式发布并做真实浏览器验收。**
-3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 已针对 thinking、JSON mode、429/5xx 重试与超时做稳定性修复。下一步是把 `5835e322` 部署到生产后复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
-4. **腾讯云 API 已部署到 `1e5f8356`，19 个 migrations 已应用；Phase 12 剩余重点缩小为真实 Web/Android 教务导入、Planner 与网络未知结果验收。**
+2. **当前第一收口项是已发布版本的真实账号验收：Study Mode CRUD、M2/M3 Insight→Task、教务导入、Planner 与未知结果恢复。**
+3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 稳定性修复已随 `99ebb3c` API 镜像上线，下一步复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
+4. **腾讯云 API 已部署到 `99ebb3c`，20 个 migrations 已应用；Web Production 已同步到同一提交。**
 5. **Android 继续以 commit-stamped Release 做真机验收；最新包为 `android-5835e3223748`。**
 6. **M3 Web + AI Provider 真实验收完成后，再在 Phase 15 M4 主动助手、Study Mode、Phase 14 余项之间选择下一产品批次。**
 
@@ -57,9 +57,10 @@
 
 ### A. 部署版本与 migration
 
-- [x] 已从 `master@1e5f8356` 构建腾讯云 API 镜像并写入 `BUILD_SHA`。
-- [x] 公网 `/api/health.buildSha`、服务器 Git HEAD、运行镜像均已对齐 `1e5f8356`。
-- [x] 腾讯云生产库 `prisma migrate status` 已核验：19 migrations，schema up to date。
+- [x] 已从 `master@99ebb3c` 构建腾讯云 API 镜像并写入 `BUILD_SHA`。
+- [x] 公网 `/api/health.buildSha`、服务器 Git HEAD、运行镜像均已对齐 `99ebb3c`。
+- [x] 腾讯云生产库 `prisma migrate status` 已核验：20 migrations，schema up to date。
+- [x] `20260919130000_add_study_folders` 已应用并通过 StudyController 路由启动核验。
 - [x] `20260914050000_add_schedule_plans` 已包含在生产 migration chain。
 - [x] `20260915120000_add_course_import_idempotency` 已包含在生产 migration chain。
 - [x] 生产 migration chain 已覆盖 `course_import_batches` 与课程来源/import 字段；CI 与生产 status 均通过。
@@ -85,7 +86,7 @@
 
 使用最新 GitHub Release APK：
 
-- [ ] 安装 `sparkflow-8e7e0700f894-debug.apk` 或之后同机制生成的更新包。
+- [ ] 安装最新 Release `sparkflow-5835e3223748-debug.apk`（或之后同机制生成的更新包）。
 - [ ] 登录成功；确认此前 CORS 分叉已消失。
 - [ ] Session 刷新/重启后恢复。
 - [ ] SchoolImport / 文件降级 → 返回 SparkFlow → 预览 → 导入。
@@ -165,7 +166,7 @@
 - [x] OpenAI-compatible Provider 抽象与输出校验；虚构/越权 source id 不落库。
 - [x] 腾讯云生产已应用 M2 migration。
 - [x] **真实 AI Provider 已接通并出现 Qwen 生产调用证据**；PR #43 针对 qwen3.7-plus 默认 thinking、JSON 输出、Provider 超时与 429/5xx 短重试做了稳定性修复。
-- [ ] 将 `master@5835e322` 的 Provider 稳定性修复部署到生产后，用真实账户复验多卡片 → Insight 的成功率、延迟与模型质量。
+- [ ] 用真实账户复验多卡片 → Insight 的成功率、延迟与模型质量。
 
 ### M3 Insight → Task — ✅ 代码/API/Android，🚧 Web Production
 
@@ -173,9 +174,9 @@
 - [x] Action 洞察点击“加入待办”后先显示确认 Sheet；用户可改标题、时长、截止日期、优先级。
 - [x] Task ↔ Insight 双向回链；Task 详情显示洞察与来源记录数量。
 - [x] 普通 Task 编辑不能重新绑定 `insightId/inspirationId`；创建时校验 Insight 属于当前用户。
-- [x] 腾讯云 API 已部署 `master@1e5f8356`；M3 migration 后生产库共 19 migrations，状态 up to date。
+- [x] 腾讯云 API 已部署 `master@99ebb3c`；生产库共 20 migrations，状态 up to date。
 - [x] GitHub CI 与最新 Android APK `android-5835e3223748` 成功；该包已包含 PR #43 的前端请求超时治理。
-- [ ] **Web Production 发布当前 `master@5835e322`**：继续采用显式 Production 发布；发布后验证 Insight 75s 专用超时与普通 API 15s 有界超时。
+- [x] **Web Production 已发布 `master@99ebb3c`**：Production READY，首页 HTTP 200；仍需真实账户验证 Insight 75s 专用超时与普通 API 15s 有界超时。
 - [ ] Web/Android 真机跑完整链路：记录 → 回顾 → Insight → 确认 Task → Planner → Timeline → Focus → Done。
 
 ### 发布策略
@@ -190,17 +191,17 @@
 - Provider 超时提升为 60s；429/500/502/503/504 首次失败允许一次短重试。
 - 普通 Web API 请求默认 15s 超时；Insight 生成单独允许 75s。
 - Provider 失败写入不含密钥/用户内容的安全摘要日志；前端区分 408 请求超时。
-- 该补丁已进入 `master@5835e322` 并生成 Android Release；腾讯云 API 与 Vercel Production 仍需按发布门禁显式对齐后再标记生产完成。
+- 该补丁已进入 `master@99ebb3c` 并随腾讯云 API/Vercel Production 上线；真实账户链路仍需验收。
 
 ---
 
-## 7. Study Mode（M1 代码完成，待生产验收）
+## 7. Study Mode（M1 代码与生产部署完成，待真实账户验收）
 
-当前状态：方案、路线图与九张参考设计图已通过 PR #25 合入 master；M1 已完成 Study Mode 入口与开关、Study Home、二级导航、StudyFolder 数据模型/API，以及课程/任务关联。上线前仍需应用新增 migration，并以真实账户完成 Web/PWA/Android 移动端验收。
+当前状态：方案、路线图与九张参考设计图已通过 PR #25 合入 master；PR #45 已将 M1 运行时代码合入 `master@99ebb3c`，腾讯云 migration 与 API、Vercel Production 均已上线。仍需以真实账户完成 Web/PWA/Android 移动端验收。
 
 建议顺序：
 
-1. **M1：Study Mode 壳层 + Study Home + StudyFolder** — ✅ 代码完成，🚧 生产验收
+1. **M1：Study Mode 壳层 + Study Home + StudyFolder** — ✅ 代码与生产部署完成，🚧 真实账户验收
 2. **M2：ReviewPlan / ReviewRecord + 固定间隔复习闭环**
 3. **M3：StudyHabit / 周计划 / 热力图**
 4. **M4：模板 / PDF / 年度统计导出**
