@@ -101,3 +101,40 @@ export function sendPlanningTurn(id: string, message: string, expectedRevision: 
     { throwOnError: true, timeoutMs: 90_000 },
   );
 }
+
+
+export function updatePlanningContext(
+  id: string,
+  expectedRevision: number,
+  data: Partial<Pick<PlanningContextSnapshot, 'brief' | 'constraints' | 'preferences' | 'strategy' | 'assumptions'>>,
+) {
+  return api.patch<PlanningThreadDetail>(
+    `/planning/threads/${id}/context`,
+    { expectedRevision, ...data },
+    { throwOnError: true },
+  );
+}
+
+export function getPlanningVoiceStatus() {
+  return api.get<{ configured: boolean; model: string | null }>(
+    '/planning/voice/status',
+    { throwOnError: true },
+  );
+}
+
+export function transcribePlanningAudio(blob: Blob) {
+  const form = new FormData();
+  const extension = blob.type.includes('mp4')
+    ? 'm4a'
+    : blob.type.includes('ogg')
+      ? 'ogg'
+      : blob.type.includes('wav')
+        ? 'wav'
+        : 'webm';
+  form.append('audio', blob, `planning-voice.${extension}`);
+  return api.post<{ text: string; model: string; bytes: number }>(
+    '/planning/voice/transcribe',
+    form,
+    { throwOnError: true, timeoutMs: 75_000 },
+  );
+}

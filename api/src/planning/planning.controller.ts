@@ -1,10 +1,31 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 import { PlanningService } from './planning.service';
+import { VoiceTranscriptionService } from './voice-transcription.service';
 
 @Controller('planning')
 export class PlanningController {
-  constructor(private readonly planningService: PlanningService) {}
+  constructor(
+    private readonly planningService: PlanningService,
+    private readonly voiceTranscription: VoiceTranscriptionService,
+  ) {}
+
+  @Get('voice/status')
+  voiceStatus() {
+    return this.voiceTranscription.status();
+  }
+
+  @Post('voice/transcribe')
+  @UseInterceptors(FileInterceptor('audio', {
+    limits: { fileSize: 7 * 1024 * 1024, files: 1 },
+  }))
+  transcribe(
+    @CurrentUserId() _userId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.voiceTranscription.transcribe(file);
+  }
 
   @Get('threads')
   list(@CurrentUserId() userId: string, @Query('status') status?: string) {
