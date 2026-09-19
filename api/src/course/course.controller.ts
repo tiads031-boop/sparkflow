@@ -95,6 +95,30 @@ export class CourseController {
     return this.courseService.undoCourseChange(userId, planId);
   }
 
+  @Post('templates/preview')
+  previewTemplateChange(
+    @CurrentUserId() userId: string,
+    @Body() data: any,
+  ) {
+    return this.courseService.previewCourseTemplateChange(userId, data);
+  }
+
+  @Post('templates/apply')
+  applyTemplateChange(
+    @CurrentUserId() userId: string,
+    @Body() data: any,
+  ) {
+    return this.courseService.applyCourseTemplateChange(userId, data);
+  }
+
+  @Post('templates/:planId/undo')
+  undoTemplateChange(
+    @CurrentUserId() userId: string,
+    @Param('planId') planId: string,
+  ) {
+    return this.courseService.undoCourseTemplateChange(userId, planId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUserId() userId: string) {
     return this.courseService.findOne(id, userId);
