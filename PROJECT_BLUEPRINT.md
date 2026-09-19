@@ -2,8 +2,8 @@
 
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
-> **最后更新**：2026-09-18  
-> **代码同步基线**：`master@5835e322`
+> **最后更新**：2026-09-19
+> **代码同步基线**：`master@99ebb3c`
 
 ---
 
@@ -127,7 +127,7 @@ flowchart TD
 - Preview → Apply → Undo 已具备基础实现。
 - 确定性 Scheduler 为唯一时间决策层。
 - 下一阶段补充自然语言意图和“帮我顺延”。
-- `SchedulePlan` 与后续 Phase 15 migrations 已在腾讯云生产库核验；当前生产共 19 migrations，schema up to date。
+- `SchedulePlan`、Phase 15 与 Study Mode migrations 已在腾讯云生产库核验；当前生产共 20 migrations，schema up to date。
 
 ### Focus
 
@@ -210,11 +210,11 @@ Capture → Review → Insight → Action
 
 M1：✅ Inspiration、随手记、Reflection、回顾、记录 → Task 已实现并完成生产核心链路。  
 M2：🚧 Theme / Evolution / Action Insight 与来源解释已实现；真实 Qwen Provider 已有生产调用证据；PR #43 已完成 thinking/JSON mode/重试/超时稳定性修复，待最新 master 生产复验。  
-M3：🚧 Insight → 用户确认 Task 与双向回链已实现；Android 已到 `5835e322`；腾讯云 API 当前已验证生产基线仍为 `1e5f8356`，Web/API 待显式发布最新 master 后做完整真实验收。
+M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API 与 Vercel Production 已对齐 `99ebb3c`，仍待真实账户完成完整链路验收。
 
 ### Study Mode
 
-已完成方案和设计资产整理，尚未进入运行时代码。
+M1 运行时代码已通过 PR #45 合入并部署；StudyFolder migration、API 与 Web Production 已对齐 `99ebb3c`，仍待真实账户验收。
 
 阶段顺序：M1 Study Home / StudyFolder → M2 Review → M3 Habit / Plan → M4 Template / Export。
 
@@ -228,11 +228,11 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；Android 已�
 | Phase 09 | ⚠️ 冻结重估 | 多项能力已被后续实现覆盖 |
 | Phase 10 | ⚠️ 冻结重估 | md 方案取消；认证已完成；灵感转任务由 Phase 15 接管 |
 | Phase 11 | ✅ 归档 | 早期账户/Onboarding 历史方案 |
-| Phase 12 | 🚧 当前 P0：生产验收 | 安全代码、migration CI、真实 PG 顺序/并发 replay、rollback、用户隔离、部署追溯、Android CORS/Release 门禁已具备；Issue #31 承接生产和真机证据 |
+| Phase 12 | 🚧 当前 P0：真实链路验收 | 安全代码、migration CI、真实 PG 顺序/并发 replay、rollback、用户隔离、部署追溯、Android CORS/Release 门禁已具备；Issue #31 承接生产和真机证据 |
 | Phase 13 | ⬜ P2 | Local Codex Bridge，等待用户主链路稳定 |
 | Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
-| Phase 15 | 🚧 M1–M3 已实现，生产收尾 | M1 已完成；M2 真实 Qwen 已有生产调用证据且 PR #43 已补稳定性；M3 最新 Android 已到 `5835e322`，Web/API 需对齐最新 master 并完成真实验收 |
-| Study Mode | ⬜ M0 完成 | 提案、路线图和九张设计参考已合入；运行时代码未实施 |
+| Phase 15 | 🚧 M1–M3 已实现，真实链路收尾 | M1–M3 Web/API 已对齐 `99ebb3c`；真实 Qwen 与 Android/Planner 链路仍需验收 |
+| Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 
 ---
 
@@ -253,7 +253,8 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；Android 已�
 - ✅ PR #39：Phase 15 M2 explainable Insights。
 - ✅ PR #40：Phase 15 M3 Insight → confirmed Task + 双向回链。
 - ✅ PR #41：重复 M3 实现已关闭，未合并。
-- ✅ PR #43：Qwen Insight 稳定性与 API 请求超时治理，已合并至 `master@5835e322`。
+- ✅ PR #43：Qwen Insight 稳定性与 API 请求超时治理，已合并并随之后的 `master@99ebb3c` 生产版本上线。
+- ✅ PR #45：Study Mode M1 workspace、StudyFolder migration/API/Web 已合并至 `master@99ebb3c` 并完成生产部署。
 - ✅ PR #27：旧 Phase 12 安全测试分支已关闭，由 #28/#29/#30/#36 覆盖。
 - 🚧 Issue #31：当前 Phase 12 生产验收主线。
 - ⏭ Issue #26：Issue #31 稳定后进入 Phase 14 Timeline 收口。
@@ -264,12 +265,12 @@ M3：🚧 Insight → 用户确认 Task 与双向回链已实现；Android 已�
 
 | 优先级 | 风险 | 已有防线 | 关闭条件 |
 |---|---|---|---|
-| ✅ | 腾讯云运行版本 / migration | `BUILD_SHA` + health buildSha；fresh PG CI；生产 `1e5f8356` 已对账 | 19 migrations 已 up to date，转为常规发布核验 |
+| ✅ | 腾讯云运行版本 / migration | `BUILD_SHA` + health buildSha；fresh PG CI；生产 `99ebb3c` 已对账 | 20 migrations 已 up to date，转为常规发布核验 |
 | P0 | Web 真实学校导入未闭环 | V2 preview/import/replay + real PG 顺序/并发 E2E | 真实学校获取→预览→导入→同 requestId replay 通过 |
 | P0 | Android 之前存在 Web 正常/App 登录失败 | Capacitor CORS 已修；API/Bundle 地址 CI gate；Release 可追溯 | 最新 Release 真机登录、Session 和导入通过 |
 | P0 | Planner 生产 schema/闭环未证实 | SchedulePlan migration 在 fresh PG CI 成功 | 真账号 Preview → Apply → Undo |
 | P1 | HTTP 未知结果恢复仍缺端到端证据 | 前端按 requestId 查询 + 服务端 replay；真实 PG 已验证最终状态 | 模拟客户端超时/断连后查询并恢复已提交结果 |
-| P1 | Vercel Hobby deployment 日配额 | GitHub CI 独立；Git 自动 deployments 已关闭；当前 master 本地 Vite build 已通过 | 配额恢复后显式发布 M3 Production，并保持后续一批次一次 Web 发布 |
+| ✅ | Vercel Hobby deployment 日配额 | GitHub CI 独立；Git 自动 deployments 已关闭；Production 已显式发布 `99ebb3c` | 后续保持一批次一次 Web 发布，避免重新触发配额噪声 |
 | P1 | Issue #26 Timeline M3 未重做 | 当前主线仍保留 Gantt | 最新 master 上通过多来源、移动端、DST/边界验收 |
 
 ---
@@ -283,7 +284,7 @@ flowchart TD
     C --> D["✅ API buildSha / Android CORS / Release gate"]
     D --> E["✅ Phase 15 M1 Capture → Review → Task"]
     E --> F["✅ M2 explainable Insight code/API"]
-    F --> G["🚧 发布 5835e322 + Qwen/real-device acceptance"]
+    F --> G["✅ 发布 99ebb3c + API/Web 对齐"]
     G --> H["Issue #31 remaining Web/Android/Planner acceptance"]
     H --> I["Phase 15 M4 / Study Mode / Phase 14 next batch"]
     I --> J["Phase 13 Local Codex Bridge"]
@@ -291,9 +292,9 @@ flowchart TD
 
 ### 当前批次：Phase 15 M3 生产收尾 + Issue #31 剩余真实验收
 
-1. ✅ 腾讯云 API 已部署 `master@1e5f8356`；Git HEAD / image / public health buildSha 已对齐。
-2. ✅ 生产 PostgreSQL 19 migrations up to date，包含 M2/M3。
-3. 🚧 显式发布当前 `master@5835e322` Web Production，并同步将 PR #43 后端稳定性修复部署到腾讯云 API；部署完成后重新核对 buildSha。
+1. ✅ 腾讯云 API 已部署 `master@99ebb3c`；Git HEAD / image / public health buildSha 已对齐。
+2. ✅ 生产 PostgreSQL 20 migrations up to date，包含 M2/M3/StudyFolder。
+3. ✅ `master@99ebb3c` Web Production 已显式发布并绑定 `fish-life.cc.cd`。
 4. 🚧 使用已接通的真实 Qwen Provider 执行多卡片 → Insight → 用户确认 Task 的成功率、延迟、来源真实性与失败恢复验收。
 5. Android 安装 `sparkflow-5835e3223748-debug.apk`，复测登录、Session、Insight/Action、SchoolImport 和窄屏交互。
 6. Web 真账号完成真实教务导入/replay，并完成 Planner Preview → Apply → Undo。
