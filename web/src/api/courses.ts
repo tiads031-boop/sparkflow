@@ -11,6 +11,59 @@ import type { ScheduleBackup } from '../utils/courseSchedule';
 
 export type CourseImportDuplicatePolicy = 'skip' | 'keep';
 
+export type CourseChangeRequest =
+  | {
+      type: 'reschedule';
+      eventId: string;
+      startTime: string;
+      endTime: string;
+      location?: string | null;
+    }
+  | {
+      type: 'cancel';
+      eventId: string;
+    }
+  | {
+      type: 'extra';
+      courseId: string;
+      startTime: string;
+      endTime: string;
+      location?: string | null;
+      title?: string;
+    }
+  | {
+      type: 'swap';
+      eventId: string;
+      otherEventId: string;
+    };
+
+export interface CourseChangePreviewItem {
+  action: 'update' | 'cancel' | 'create';
+  eventId: string | null;
+  courseId: string;
+  courseName: string;
+  title: string;
+  from: { startTime: string; endTime: string; location: string | null } | null;
+  to: { startTime: string; endTime: string; location: string | null } | null;
+}
+
+export interface CourseChangePreview {
+  type: CourseChangeRequest['type'];
+  changes: CourseChangePreviewItem[];
+  conflicts: Array<{
+    changeIndex: number;
+    sourceType: 'calendar' | 'task';
+    id: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+  }>;
+}
+
+export interface CourseChangeCandidate extends CalendarEvent {
+  course: Pick<Course, 'id' | 'name' | 'color' | 'room' | 'teacher'>;
+}
+
 export interface CourseImportSource {
   system: string;
   schoolId: string;
@@ -184,5 +237,45 @@ export async function adjustCourseEvent(
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+  return res.json();
+}
+
+
+// ── 课程 occurrence 变动（调课 / 换课 / 停课 / 补课） ──
+
+export async function previewCourseChange(
+  data: CourseChangeRequest,
+): Promise<CourseChangePreview> {
+  const res = await apiRequest(`${BASE}/changes/preview`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function applyCourseChange(
+  data: CourseChangeRequest,
+): Promise<{
+  type: CourseChangeRequest['type'];
+  appliedCount: number;
+  overrideGroupId?: string | null;
+  events: CalendarEvent[];
+}> {
+  const res = await apiRequest(`${BASE}/changes/apply`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+export async function fetchCourseChangeCandidates(
+  start?: string,
+  end?: string,
+): Promise<CourseChangeCandidate[]> {
+  const query = new URLSearchParams();
+  if (start) query.set('start', start);
+  if (end) query.set('end', end);
+  const suffix = query.toString() ? `?${query.toString()}` : '';
+  const res = await apiRequest(`${BASE}/change-candidates${suffix}`);
   return res.json();
 }
