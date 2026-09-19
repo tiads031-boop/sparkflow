@@ -80,6 +80,7 @@ function statusLabel(status: 'confirmed' | 'inferred' | 'assumed') {
 }
 
 type CourseChangeAction = Extract<PlanningActionProposal, { type: 'course_change' }>;
+type DirectPlanningAction = Exclude<PlanningActionProposal, { type: 'course_change' }>;
 
 function courseChangeTypeLabel(type: CourseChangeAction['change']['type']) {
   if (type === 'reschedule') return '调课';
@@ -209,6 +210,11 @@ export default function PlannerSheet({
         setActionConversationId(null);
         setActionProposals([]);
         setSelectedActionIds([]);
+        setActiveCourseProposalId(null);
+        setCourseChangePreview(null);
+        setCourseChangePlanId(null);
+        setCourseChangeMessage('');
+        setLastAppliedCourseAction(null);
         setReplanRequests([]);
         setActiveReplanRequestId(null);
         setReplanPreview(null);
@@ -291,6 +297,13 @@ export default function PlannerSheet({
   ), [thread]);
 
   if (!open) return null;
+
+  const directActionProposals = actionProposals.filter(
+    (action): action is DirectPlanningAction => action.type !== 'course_change',
+  );
+  const courseChangeProposals = actionProposals.filter(
+    (action): action is CourseChangeAction => action.type === 'course_change',
+  );
 
   const clearPreview = () => {
     setPreview(null);
@@ -1044,16 +1057,188 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {actionProposals.length > 0 && (
+          {courseChangeProposals.length > 0 && (
+            <div className="mt-5 rounded-[1.7rem] border border-[#b0a8db]/40 bg-[#f7f5fc] p-4">
+              <div className="mb-3">
+                <div className="flex items-center gap-2">
+                  <CalendarClock size={15} className="text-[#6f63a8]" />
+                  <h3 className="text-sm font-black text-[#2d2940]">待确认的课程变动</h3>
+                </div>
+                <p className="mt-1 text-[10px] leading-4 text-[#756f8d]">
+                  AI 只定位具体课次。真实写入仍经过 Course Preview → Apply → Undo，单次变动不会修改后续固定课表。
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {courseChangeProposals.map((action) => {
+                  const active = activeCourseProposalId === action.proposalId;
+                  const change = action.change;
+                  const targetDetail = change.type === 'reschedule' || change.type === 'extra'
+                    ? `${dateTimeLabel(change.startTime)} → ${dateTimeLabel(change.endTime)}${change.location ? ` · ${change.location}` : ''}`
+                    : change.type === 'swap'
+                      ? `${action.courseName} ↔ ${action.otherCourseName || '另一节课程'}`
+                      : '仅取消这一次 occurrence';
+
+                  return (
+                    <article
+                      key={action.proposalId}
+                      className="rounded-[1.5rem] border border-black/[0.05] bg-white p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#756aa8]">
+                            {courseChangeTypeLabel(change.type)}
+                          </span>
+                          <strong className="mt-1 block truncate text-sm text-[#2d2940]">
+                            {action.courseName}
+                            {change.type === 'swap' && action.otherCourseName ? ` ↔ ${action.otherCourseName}` : ''}
+                          </strong>
+                          <span className="mt-1 block text-[10px] leading-4 text-gray-400">
+                            {targetDetail}
+                          </span>
+                        </div>
+                        <Sparkles size={15} className="mt-0.5 shrink-0 text-[#756aa8]" />
+                      </div>
+
+                      {!active && (
+                        <button
+                          type="button"
+                          onClick={() => void generateCourseChangePreview(action)}
+                          disabled={courseChangeBusy || Boolean(courseChangePlanId)}
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#2d2940] py-3 text-xs font-bold text-white disabled:opacity-40"
+                        >
+                          {courseChangeBusy ? <Loader2 size={14} className="animate-spin" /> : <CalendarClock size={14} />}
+                          检查冲突并生成预览
+                        </button>
+                      )}
+
+                      {active && courseChangePreview && (
+                        <div className="mt-3 space-y-2">
+                          {courseChangePreview.changes.map((item, index) => (
+                            <div
+                              key={`${item.eventId || 'new'}-${index}`}
+                              className="rounded-2xl bg-[#f7f5fc] px-3 py-3"
+                            >
+                              <strong className="block text-xs text-[#2d2940]">
+                                {item.courseName} · {item.title}
+                              </strong>
+                              {item.from && (
+                                <span className="mt-1 block text-[10px] text-gray-400">
+                                  原：{dateTimeLabel(item.from.startTime)} → {dateTimeLabel(item.from.endTime)}
+                                  {item.from.location ? ` · ${item.from.location}` : ''}
+                                </span>
+                              )}
+                              <span className={`mt-1 block text-[10px] font-bold ${
+                                item.action === 'cancel' ? 'text-red-500' : 'text-[#756aa8]'
+                              }`}>
+                                {item.action === 'cancel'
+                                  ? '新：本次停课'
+                                  : `新：${dateTimeLabel(item.to!.startTime)} → ${dateTimeLabel(item.to!.endTime)}${item.to!.location ? ` · ${item.to!.location}` : ''}`}
+                              </span>
+                            </div>
+                          ))}
+
+                          {courseChangePreview.conflicts.length > 0 && (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-3">
+                              <strong className="text-[10px] text-red-700">发现冲突</strong>
+                              <div className="mt-1.5 space-y-1">
+                                {courseChangePreview.conflicts.map((item, index) => (
+                                  <p
+                                    key={`${item.sourceType}-${item.id}-${index}`}
+                                    className="text-[10px] leading-4 text-red-600"
+                                  >
+                                    {item.title} · {dateTimeLabel(item.startTime)} → {dateTimeLabel(item.endTime)}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveCourseProposalId(null);
+                                setCourseChangePreview(null);
+                                setCourseChangeMessage('');
+                              }}
+                              disabled={courseChangeBusy}
+                              className="rounded-full bg-[#f4f4f6] py-3 text-xs font-bold text-gray-500 disabled:opacity-40"
+                            >
+                              暂不处理
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void applyCourseChangeProposal(action)}
+                              disabled={courseChangeBusy || courseChangePreview.conflicts.length > 0}
+                              className="flex items-center justify-center gap-2 rounded-full bg-[#b0a8db] py-3 text-xs font-black text-white disabled:opacity-40"
+                            >
+                              {courseChangeBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                              确认应用
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+
+              {courseChangeMessage && !courseChangePlanId && (
+                <p className="mt-3 rounded-xl bg-white px-3 py-2 text-xs text-[#625a82]">
+                  {courseChangeMessage}
+                </p>
+              )}
+            </div>
+          )}
+
+          {courseChangePlanId && lastAppliedCourseAction && (
+            <div className="mt-4 rounded-[1.6rem] border border-[#cae393]/60 bg-[#f7faef] p-4">
+              <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#72804f]">
+                课程变动已应用
+              </span>
+              <strong className="mt-1 block text-sm text-[#242424]">
+                {courseChangeTypeLabel(lastAppliedCourseAction.change.type)} · {lastAppliedCourseAction.courseName}
+              </strong>
+              {courseChangeMessage && (
+                <p className="mt-1 text-[10px] leading-4 text-[#667252]">{courseChangeMessage}</p>
+              )}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => void undoAppliedCourseChange()}
+                  disabled={courseChangeBusy}
+                  className="flex items-center justify-center gap-2 rounded-full bg-white py-3 text-xs font-bold text-[#5f5687] disabled:opacity-40"
+                >
+                  {courseChangeBusy ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  撤销本次变动
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCourseChangePlanId(null);
+                    setLastAppliedCourseAction(null);
+                    setCourseChangeMessage('');
+                  }}
+                  disabled={courseChangeBusy}
+                  className="rounded-full bg-[#242424] py-3 text-xs font-black text-[#cae393] disabled:opacity-40"
+                >
+                  保留变动
+                </button>
+              </div>
+            </div>
+          )}
+
+          {directActionProposals.length > 0 && (
             <div className="mt-5 rounded-[1.7rem] border border-[#cae393]/60 bg-[#f7faef] p-4">
               <div className="mb-3">
-                <h3 className="text-sm font-black text-[#242424]">待确认的任务操作</h3>
+                <h3 className="text-sm font-black text-[#242424]">待确认的任务 / 目标操作</h3>
                 <p className="mt-1 text-[10px] leading-4 text-[#667252]">
-                  AI 只是提出草案。你可以取消任意一项，确认后才会写入任务。
+                  AI 只是提出草案。你可以取消任意一项，确认后才会写入 Task 或学习目标。
                 </p>
               </div>
               <div className="space-y-2">
-                {actionProposals.map((action) => {
+                {directActionProposals.map((action) => {
                   const selected = selectedActionIds.includes(action.proposalId);
                   const details = action.type === 'create_task'
                     ? [
