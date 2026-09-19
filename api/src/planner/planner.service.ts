@@ -512,6 +512,7 @@ export class PlannerService {
       const plan = await tx.schedulePlan.create({
         data: {
           userId,
+          planType: 'task',
           planningThreadId,
           planningThreadRevision,
           status: 'applied',
@@ -529,6 +530,8 @@ export class PlannerService {
         where: { id: planId, userId },
       });
       if (!plan) throw new NotFoundException('Schedule plan not found');
+      if (plan.planType !== 'task')
+        throw new ConflictException('This schedule plan must be undone by its owning workflow');
       if (plan.status !== 'applied')
         throw new ConflictException('Schedule plan has already been undone');
       const beforeState = readStoredState(plan.beforeState);

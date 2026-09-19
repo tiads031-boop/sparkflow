@@ -256,6 +256,7 @@ export async function previewCourseChange(
 export async function applyCourseChange(
   data: CourseChangeRequest,
 ): Promise<{
+  planId: string;
   type: CourseChangeRequest['type'];
   appliedCount: number;
   overrideGroupId?: string | null;
@@ -277,5 +278,15 @@ export async function fetchCourseChangeCandidates(
   if (end) query.set('end', end);
   const suffix = query.toString() ? `?${query.toString()}` : '';
   const res = await apiRequest(`${BASE}/change-candidates${suffix}`);
+  return res.json();
+}
+
+
+export async function undoCourseChange(
+  planId: string,
+): Promise<{ planId: string; restoredCount: number }> {
+  const res = await apiRequest(`${BASE}/changes/${encodeURIComponent(planId)}/undo`, {
+    method: 'POST',
+  });
   return res.json();
 }
