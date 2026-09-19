@@ -137,3 +137,8 @@ test('study tasks remain Task facts but project with study context', () => {
   assert.equal(items[0].kind, 'study-task');
   assert.equal(items[0].taskId, 'study-task');
 });
+
+
+test('course week filtering does not hide courses when semester context is unavailable', () => {
+  assert.equal(courseOccursOnDate(course, new Date(2026, 8, 21, 12, 0), null), true);
+});
