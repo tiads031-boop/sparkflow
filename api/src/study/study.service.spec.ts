@@ -64,6 +64,52 @@ describe('StudyService M1', () => {
     expect(prisma.studyFolder.create).not.toHaveBeenCalled();
   });
 
+  it('returns active goal planning status without requiring course UI coupling', async () => {
+    const now = new Date('2026-09-20T00:00:00.000Z');
+    const prisma = {
+      studyFolder: {
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'goal-1',
+          userId: 'user-1',
+          name: '法考',
+          description: null,
+          icon: 'target',
+          color: '#cae393',
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+          courses: [],
+          tasks: [{ task: { id: 'task-1', title: '民法第一轮' } }],
+        }]),
+      },
+      planningThread: {
+        findMany: jest.fn().mockResolvedValue([{
+          id: 'thread-1',
+          userId: 'user-1',
+          scopeType: 'goal',
+          scopeId: 'goal-1',
+          status: 'active',
+          revision: 4,
+          updatedAt: now,
+          _count: { conversations: 5, schedulePlans: 1 },
+        }]),
+      },
+    };
+    const service = new StudyService(prisma as never);
+
+    const result = await service.findAll('user-1', 'all');
+
+    expect(result[0].courses).toEqual([]);
+    expect(result[0].tasks).toEqual([{ id: 'task-1', title: '民法第一轮' }]);
+    expect(result[0].planningThread).toEqual({
+      id: 'thread-1',
+      revision: 4,
+      updatedAt: now,
+      conversationCount: 5,
+      schedulePlanCount: 1,
+    });
+  });
+
   it('does not archive a folder owned by another user', async () => {
     const prisma = {
       studyFolder: {
