@@ -28,8 +28,18 @@ export class PlanningController {
   }
 
   @Get('threads')
-  list(@CurrentUserId() userId: string, @Query('status') status?: string) {
-    return this.planningService.listThreads(userId, status || 'active');
+  list(
+    @CurrentUserId() userId: string,
+    @Query('status') status?: string,
+    @Query('scopeType') scopeType?: string,
+    @Query('scopeId') scopeId?: string,
+  ) {
+    return this.planningService.listThreads(
+      userId,
+      status || 'active',
+      scopeType,
+      scopeId,
+    );
   }
 
   @Post('threads')
