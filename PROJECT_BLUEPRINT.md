@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-19
-> **代码同步基线**：`master@99ebb3c`
+> **代码同步基线**：`master@7145ba0`
 
 ---
 
@@ -54,6 +54,7 @@ Folder → Today → Focus → Review → Schedule
 | 15 | AI 洞察与行动 | OpenAI-compatible Provider；Insight 只产生候选，Action 经用户确认后写入共享 Task，并保留 `insightId` 回链 | 保留用户控制权，可回答“为什么做这个任务” |
 | 16 | Study Mode | 复用 Course / Task / Calendar / Planner / Focus | 学习场景是工作区，不是第二套效率系统 |
 | 17 | Local Codex Bridge | 独立本机 loopback Gateway，native Codex 为唯一执行事实源 | 不进入云端生产控制链，不建立第二套 runtime/transcript |
+| 18 | VNext 信息架构 / Plan | 一级导航固定为今天/计划/记录/学习/我的；Plan 通过前端 PlanItem 统一投影 Task/Course/CalendarEvent，Planner Preview 仅为临时视图态 | 降低入口膨胀与重复课表/日历风险，同时保持现有事实源和 Preview→Apply→Undo 用户控制 |
 
 ---
 
@@ -121,6 +122,17 @@ flowchart TD
 - Task 与 CalendarEvent 统一投影。
 - 当前 master 保留既有 `CalendarView` 与 Gantt 能力。
 - 旧 PR #14 不直接合并；剩余 M3 要求由 Issue #26 从最新 master 重做。
+
+### VNext Plan Workspace
+
+PR #48/#49/#50 已完成 M1–M3 代码与 CI：
+
+- 固定五工作空间：今天 / 计划 / 记录 / 学习 / 我的。
+- Plan 内提供 Month / Week / Agenda / Timetable；Course、CalendarEvent、scheduled Task、Study Task 共用前端投影。
+- task-backed CalendarEvent 与 Course fallback 在投影层去重，不新增数据库事实源。
+- 学期起止日期与 Course.weeks 用于周次/“非本周”判断；缺少可靠学期上下文时不强行隐藏课程。
+- Planner Preview 可作为虚线临时时间块显示在 Week / Agenda；Apply 后由真实 Task 排程替代，Undo 后恢复。
+- 当前仅能称为代码/CI 已完成；尚需 Vercel Production、PWA 与 Android 真机验收后再进入 M4 拖拽/过滤增强。
 
 ### Planner / AI 安排
 
@@ -233,6 +245,7 @@ M1 运行时代码已通过 PR #45 合入并部署；StudyFolder migration、API
 | Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
 | Phase 15 | 🚧 M1–M3 已实现，真实链路收尾 | M1–M3 Web/API 已对齐 `99ebb3c`；真实 Qwen 与 Android/Planner 链路仍需验收 |
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
+| VNext Plan | 🚧 M1–M3 代码/CI 已完成 | PR #48/#49/#50 已合入 `master@7145ba0`；待 Web/PWA/Android 真实验收，M4 暂不启动 |
 
 ---
 
@@ -255,6 +268,10 @@ M1 运行时代码已通过 PR #45 合入并部署；StudyFolder migration、API
 - ✅ PR #41：重复 M3 实现已关闭，未合并。
 - ✅ PR #43：Qwen Insight 稳定性与 API 请求超时治理，已合并并随之后的 `master@99ebb3c` 生产版本上线。
 - ✅ PR #45：Study Mode M1 workspace、StudyFolder migration/API/Web 已合并至 `master@99ebb3c` 并完成生产部署。
+- ✅ PR #47：VNext 五工作空间与 Plan 重构详细方案。
+- ✅ PR #48：VNext M1，固定五项导航 + Plan 四视图壳层。
+- ✅ PR #49：VNext M2，真实 Task/Course/CalendarEvent/Study Task 统一投影。
+- ✅ PR #50：VNext M3，Planner Preview 时间块 → Apply → Undo 视图闭环；Web/API CI 全绿。
 - ✅ PR #27：旧 Phase 12 安全测试分支已关闭，由 #28/#29/#30/#36 覆盖。
 - 🚧 Issue #31：当前 Phase 12 生产验收主线。
 - ⏭ Issue #26：Issue #31 稳定后进入 Phase 14 Timeline 收口。
@@ -286,8 +303,7 @@ flowchart TD
     E --> F["✅ M2 explainable Insight code/API"]
     F --> G["✅ 发布 99ebb3c + API/Web 对齐"]
     G --> H["Issue #31 remaining Web/Android/Planner acceptance"]
-    H --> I["Phase 15 M4 / Study Mode / Phase 14 next batch"]
-    I --> J["Phase 13 Local Codex Bridge"]
+    H --> I["VNext Plan Web/PWA/Android acceptance"]\n    I --> K["VNext M4 / Phase 15 M4 / Study Mode / Phase 14 next batch"]\n    K --> J["Phase 13 Local Codex Bridge"]
 ```
 
 ### 当前批次：Phase 15 M3 生产收尾 + Issue #31 剩余真实验收
