@@ -114,16 +114,27 @@ export interface PlanningTurnResponse {
   planningContext: PlanningContextSnapshot;
 }
 
-export function listPlanningThreads() {
-  return api.get<PlanningThreadSummary[]>('/planning/threads', {
+export function listPlanningThreads(
+  scopeType?: string,
+  scopeId?: string,
+) {
+  const params = new URLSearchParams();
+  if (scopeType) params.set('scopeType', scopeType);
+  if (scopeId) params.set('scopeId', scopeId);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return api.get<PlanningThreadSummary[]>(`/planning/threads${suffix}`, {
     throwOnError: true,
   });
 }
 
-export function createPlanningThread(title?: string) {
+export function createPlanningThread(
+  title?: string,
+  scopeType = 'general',
+  scopeId?: string,
+) {
   return api.post<PlanningThreadSummary>(
     '/planning/threads',
-    { title, scopeType: 'general' },
+    { title, scopeType, scopeId },
     { throwOnError: true },
   );
 }
