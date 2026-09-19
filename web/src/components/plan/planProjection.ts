@@ -103,6 +103,9 @@ export function courseOccursOnDate(course: Course, date: Date, semester?: Semest
   }
 
   if (!course.weeks?.length) return true;
+  // Without semester boundaries we cannot reliably interpret week numbers.
+  // Prefer showing the course instead of incorrectly marking/hiding it.
+  if (!semester) return true;
   const week = getSemesterWeekNumber(date, semester);
   return week !== null && course.weeks.includes(week);
 }
