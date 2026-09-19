@@ -351,7 +351,7 @@ export default function App() {
                 onQuickAdd={() => setQuickAddOpen(true)}
                 plannerPreview={plannerPreview}
                 initialSection={activeTab === 'tasks' || activeTab === 'board' ? 'tasks' : 'calendar'}
-                initialTaskView={activeTab === 'board' ? 'board' : 'list'}
+                initialTaskView={activeTab === 'board' ? 'quadrant' : undefined}
                 initialPlanView={activeTab === 'timeline' ? 'agenda' : undefined}
               />
             </Suspense>
