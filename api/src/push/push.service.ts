@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import * as webpush from 'web-push';
 import * as admin from 'firebase-admin';
+import type { Prisma } from '@prisma/client';
 import {
   buildReminderDeliveryKey,
   groupReminderTasksByUser,
@@ -11,6 +12,13 @@ import {
   reminderWindow,
   type ReminderTask,
 } from './push-reminder';
+import {
+  mergeNotificationSettings,
+  normalizeNotificationPreferencesPatch,
+  parseNotificationPreferences,
+  shouldDeliverReminder,
+  type NotificationPreferences,
+} from './push-preferences';
 
 interface WebPushSub {
   endpoint: string;
@@ -81,6 +89,38 @@ export class PushService implements OnModuleInit {
 
   getVapidPublicKey(): string | null {
     return this.config.get<string>('VAPID_PUBLIC_KEY') || null;
+  }
+
+  async getNotificationPreferences(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { settings: true },
+    });
+    return parseNotificationPreferences(user?.settings);
+  }
+
+  async updateNotificationPreferences(
+    userId: string,
+    patch: Partial<NotificationPreferences>,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { settings: true },
+    });
+    const current = parseNotificationPreferences(user?.settings);
+    const next = normalizeNotificationPreferencesPatch(current, patch);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        settings: mergeNotificationSettings(
+          user?.settings,
+          next,
+        ) as Prisma.InputJsonValue,
+      },
+    });
+
+    return next;
   }
 
   // ── 订阅 ──
@@ -154,22 +194,23 @@ export class PushService implements OnModuleInit {
     if (!this.vapidReady && !this.fcmApp) return;
 
     const now = new Date();
-    const { reminderStart, dueEnd } = reminderWindow(now);
+    const { dueEnd } = reminderWindow(now);
+    const recentStart = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const dueTasks = await this.prisma.task.findMany({
+    const reminderCandidates = await this.prisma.task.findMany({
       where: {
         status: { notIn: ['done', 'cancelled'] },
         OR: [
           {
             reminderAt: {
-              gte: reminderStart,
+              gte: recentStart,
               lte: now,
             },
           },
           {
             reminderAt: null,
             dueDate: {
-              gte: now,
+              gte: recentStart,
               lte: dueEnd,
             },
           },
@@ -186,12 +227,36 @@ export class PushService implements OnModuleInit {
         { reminderAt: 'asc' },
         { dueDate: 'asc' },
       ],
-      take: 100,
+      take: 500,
     }) as ReminderTask[];
 
-    if (dueTasks.length === 0) return;
+    if (reminderCandidates.length === 0) return;
 
-    const tasksByUser = groupReminderTasksByUser(dueTasks);
+    const candidateGroups = groupReminderTasksByUser(reminderCandidates);
+    const candidateUserIds = [...candidateGroups.keys()];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: candidateUserIds } },
+      select: { id: true, settings: true },
+    });
+    const preferencesByUser = new Map(
+      users.map((user) => [
+        user.id,
+        parseNotificationPreferences(user.settings),
+      ]),
+    );
+
+    const tasksByUser = new Map<string, ReminderTask[]>();
+    for (const [userId, tasks] of candidateGroups) {
+      const preferences = preferencesByUser.get(userId)
+        || parseNotificationPreferences(undefined);
+      const eligible = tasks.filter((task) =>
+        shouldDeliverReminder(task, preferences, now),
+      );
+      if (eligible.length > 0) tasksByUser.set(userId, eligible);
+    }
+
+    if (tasksByUser.size === 0) return;
+
     const userIds = [...tasksByUser.keys()];
     const subs = await this.prisma.pushSubscription.findMany({
       where: { userId: { in: userIds } },
