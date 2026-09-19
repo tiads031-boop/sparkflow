@@ -83,6 +83,14 @@ describe('planning response parser', () => {
             milestoneTitle: '强化训练',
           },
         },
+        {
+          type: 'update_goal',
+          goalTitle: '通过法考',
+          changes: {
+            name: '2027 年通过法考',
+            description: '主攻客观题与主观题两阶段。',
+          },
+        },
       ],
       context: {
         brief: [],
@@ -93,7 +101,7 @@ describe('planning response parser', () => {
       },
     });
 
-    expect(result.actions).toHaveLength(2);
+    expect(result.actions).toHaveLength(3);
     expect(result.actions[0]).toEqual(expect.objectContaining({
       type: 'create_task',
       title: '拿快递',
@@ -104,6 +112,11 @@ describe('planning response parser', () => {
       type: 'update_task',
       taskId: 'task-1',
       changes: expect.objectContaining({ milestoneTitle: '强化训练' }),
+    }));
+    expect(result.actions[2]).toEqual(expect.objectContaining({
+      type: 'update_goal',
+      goalTitle: '通过法考',
+      changes: expect.objectContaining({ name: '2027 年通过法考' }),
     }));
   });
 
