@@ -124,6 +124,33 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       continue;
     }
 
+    if (candidate.type === 'update_goal') {
+      if (
+        typeof candidate.goalTitle !== 'string' ||
+        !candidate.goalTitle.trim() ||
+        !candidate.changes ||
+        typeof candidate.changes !== 'object'
+      ) continue;
+      const rawChanges = candidate.changes as Record<string, unknown>;
+      const changes: Extract<PlanningActionDraft, { type: 'update_goal' }>['changes'] = {};
+      if (typeof rawChanges.name === 'string' && rawChanges.name.trim()) {
+        changes.name = rawChanges.name.trim().slice(0, 120);
+      }
+      if (typeof rawChanges.description === 'string') {
+        changes.description = rawChanges.description.trim().slice(0, 2000) || null;
+      } else if (rawChanges.description === null) {
+        changes.description = null;
+      }
+      if (!Object.keys(changes).length) continue;
+
+      actions.push({
+        type: 'update_goal',
+        goalTitle: candidate.goalTitle.trim().slice(0, 120),
+        changes,
+      });
+      continue;
+    }
+
     if (candidate.type === 'update_task') {
       if (
         typeof candidate.taskId !== 'string' ||
@@ -421,7 +448,11 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Task actions are only drafts for user confirmation. Never claim they are already applied.',
             'Do not propose direct calendar/course mutations in this phase.',
             'When planningScope.type is goal, treat it as a persistent long-term learning goal, not as a Course.',
+            'For goal scope, goalExecution is a derived execution snapshot from the user\'s real Tasks and completed focus sessions. Use it to understand pace and friction, but never equate task completion with actual mastery.',
+            'When execution is behind or uneven, ask about causes that materially affect the plan before making large changes; do not punish the user by simply adding more tasks.',
             'For goal scope, keep interviewing until success criteria, current level, resources, time budget, important preferences/tradeoffs, and high-impact external facts are sufficiently known or explicitly assumed.',
+            'If the user explicitly changes, renames, narrows, broadens, or replaces the learning goal itself, you may propose update_goal. update_goal is only valid for goal scope and must be a reviewable draft, never an already-applied change.',
+            'Do not change the learning goal merely because progress is slow; changing the goal requires explicit user intent.',
             'When the goal is ready for execution and the user wants a concrete plan, group create_task drafts into a small number of meaningful stages/milestones using milestoneTitle.',
             'When adjusting an existing goal plan, update_task.changes.milestoneTitle may move an existing goal task to another stage, or null may remove the stage label.',
             'milestoneTitle is an organizational label, not a second task system. Prefer outcome-oriented stage names such as 基础建立 / 强化训练 / 模拟冲刺.',
@@ -432,7 +463,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
             'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"milestoneTitle":"基础建立"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","milestoneTitle":"强化训练"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"milestoneTitle":"基础建立"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","milestoneTitle":"强化训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
             'Return actions as [] when no concrete task write is ready for confirmation.',
             'Return replanRequests as [] when no deterministic schedule movement preview is needed.',
@@ -451,6 +482,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             currentPlanningContext: input.context,
             currentTasks: input.currentTasks || [],
             planningScope: input.planningScope || null,
+            goalExecution: input.goalExecution || null,
             currentTime: input.currentTime || new Date().toISOString(),
             timeZone: input.timeZone || 'UTC',
             researchAllowed: input.researchAllowed !== false,
