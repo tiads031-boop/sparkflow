@@ -55,10 +55,33 @@ export interface PlanningConversationMessage {
   content: string;
 }
 
+export interface PlanningResearchRequest {
+  query: string;
+  reason: string;
+  highImpact: boolean;
+  preferOfficial: boolean;
+}
+
+export interface PlanningEvidenceItem {
+  id: string;
+  query: string;
+  title: string;
+  url: string;
+  domain: string;
+  snippet: string;
+  sourceType: 'official' | 'primary' | 'secondary' | 'community' | 'unknown';
+  fetchedAt: string;
+  expiresAt: string;
+  highImpact: boolean;
+}
+
 export interface PlanningTurnInput {
   message: string;
   context: PlanningContextSnapshot;
   recentMessages: PlanningConversationMessage[];
+  evidence?: PlanningEvidenceItem[];
+  researchAllowed?: boolean;
+  researchUnavailableReason?: string;
 }
 
 export interface PlanningTurnResult {
@@ -67,4 +90,5 @@ export interface PlanningTurnResult {
   context: Omit<PlanningContextSnapshot, 'revision'>;
   openQuestions: string[];
   summary: string;
+  researchQueries: PlanningResearchRequest[];
 }
