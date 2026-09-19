@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { Course, Semester } from '../../types';
-import { courseOccursOnDate, dedupeCoursesByOccurrence, getMonday, getSemesterWeekNumber } from './planProjection';
+import { courseOccursOnDate, dedupeCoursesByOccurrence, getMonday, getSemesterWeekNumber, localDateKey } from './planProjection';
 
 const periods = [
   ['1', '08:00', '08:50'],
@@ -54,7 +54,7 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
     return day;
   });
   const week = getSemesterWeekNumber(selectedDate, semester);
-  const selectedKey = selectedDate.toISOString().slice(0, 10);
+  const selectedKey = localDateKey(selectedDate);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const semesterCourses = dedupeCoursesByOccurrence(
     semester
