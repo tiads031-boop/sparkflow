@@ -1,5 +1,15 @@
 import { api, apiRequest } from './client';
 
+export interface InspirationAttachment {
+  id: string;
+  inspirationId: string;
+  kind: 'image' | 'audio' | 'video';
+  mimeType: string;
+  originalName?: string | null;
+  sizeBytes: number;
+  createdAt: string;
+}
+
 export interface InspirationReflection {
   id: string;
   userId: string;
@@ -27,6 +37,7 @@ export interface InspirationRecord {
   reflections?: InspirationReflection[];
   _count?: { reflections: number };
   task?: { id: string; title: string; status: string } | null;
+  attachments?: InspirationAttachment[];
 }
 
 export interface ReviewQueue {
@@ -55,6 +66,34 @@ export function createInspiration(contentText: string, tags: string[] = []) {
     contentText,
     tags,
   }, { throwOnError: true });
+}
+
+
+export function createMultimodalInspiration(
+  contentText: string,
+  files: File[] = [],
+  tags: string[] = [],
+) {
+  const form = new FormData();
+  if (contentText.trim()) form.append('contentText', contentText.trim());
+  form.append('tags', JSON.stringify(tags));
+  files.forEach((file) => form.append('files', file, file.name));
+  return api.post<InspirationRecord>(
+    '/inspirations/capture',
+    form,
+    { throwOnError: true, timeoutMs: 90_000 },
+  );
+}
+
+export async function fetchInspirationAttachmentBlob(
+  inspirationId: string,
+  attachmentId: string,
+) {
+  const response = await apiRequest(
+    `/inspirations/${encodeURIComponent(inspirationId)}/attachments/${encodeURIComponent(attachmentId)}/file`,
+    { timeoutMs: 90_000 },
+  );
+  return response.blob();
 }
 
 export function updateInspiration(id: string, data: Partial<Pick<InspirationRecord, 'title' | 'description' | 'contentText' | 'sourceUrl' | 'sourceType' | 'tags'>>) {
