@@ -124,6 +124,85 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       continue;
     }
 
+    if (candidate.type === 'course_change') {
+      if (
+        typeof candidate.courseName !== 'string' ||
+        !candidate.courseName.trim() ||
+        !candidate.change ||
+        typeof candidate.change !== 'object'
+      ) continue;
+
+      const rawChange = candidate.change as Record<string, unknown>;
+      const changeType = rawChange.type;
+      let change: Extract<PlanningActionDraft, { type: 'course_change' }>['change'] | null = null;
+
+      if (changeType === 'cancel') {
+        if (typeof rawChange.eventId !== 'string' || !rawChange.eventId.trim()) continue;
+        change = {
+          type: 'cancel',
+          eventId: rawChange.eventId.trim().slice(0, 100),
+        };
+      } else if (changeType === 'swap') {
+        if (
+          typeof rawChange.eventId !== 'string' ||
+          !rawChange.eventId.trim() ||
+          typeof rawChange.otherEventId !== 'string' ||
+          !rawChange.otherEventId.trim()
+        ) continue;
+        change = {
+          type: 'swap',
+          eventId: rawChange.eventId.trim().slice(0, 100),
+          otherEventId: rawChange.otherEventId.trim().slice(0, 100),
+        };
+      } else if (changeType === 'reschedule' || changeType === 'extra') {
+        const startTime = normalizedDate(rawChange.startTime);
+        const endTime = normalizedDate(rawChange.endTime);
+        if (typeof startTime !== 'string' || typeof endTime !== 'string') continue;
+        if (new Date(endTime) <= new Date(startTime)) continue;
+
+        const location = typeof rawChange.location === 'string'
+          ? rawChange.location.trim().slice(0, 300) || null
+          : rawChange.location === null
+            ? null
+            : undefined;
+
+        if (changeType === 'reschedule') {
+          if (typeof rawChange.eventId !== 'string' || !rawChange.eventId.trim()) continue;
+          change = {
+            type: 'reschedule',
+            eventId: rawChange.eventId.trim().slice(0, 100),
+            startTime,
+            endTime,
+            ...(location !== undefined ? { location } : {}),
+          };
+        } else {
+          if (typeof rawChange.courseId !== 'string' || !rawChange.courseId.trim()) continue;
+          const title = typeof rawChange.title === 'string'
+            ? rawChange.title.trim().slice(0, 200) || undefined
+            : undefined;
+          change = {
+            type: 'extra',
+            courseId: rawChange.courseId.trim().slice(0, 100),
+            startTime,
+            endTime,
+            ...(location !== undefined ? { location } : {}),
+            ...(title ? { title } : {}),
+          };
+        }
+      }
+
+      if (!change) continue;
+      actions.push({
+        type: 'course_change',
+        courseName: candidate.courseName.trim().slice(0, 120),
+        ...(typeof candidate.otherCourseName === 'string' && candidate.otherCourseName.trim()
+          ? { otherCourseName: candidate.otherCourseName.trim().slice(0, 120) }
+          : {}),
+        change,
+      });
+      continue;
+    }
+
     if (candidate.type === 'update_goal') {
       if (
         typeof candidate.goalTitle !== 'string' ||
@@ -446,7 +525,15 @@ export class OpenAICompatibleProvider implements AIProvider {
             'When the user clearly asks to change an existing task, you may propose update_task, but taskId must be copied exactly from currentTasks.',
             'Do not create task actions from vague goals, brainstorms, or unresolved questions. Ask first when important task details are unclear.',
             'Task actions are only drafts for user confirmation. Never claim they are already applied.',
-            'Do not propose direct calendar/course mutations in this phase.',
+            'Course changes are allowed only as reviewable course_change drafts. They never mean the course has already changed.',
+            'For course_change, copy every courseId/eventId exactly from currentCourses/currentCourseOccurrences. Never invent or infer database ids from names.',
+            'Use course_change only for one-off occurrence changes: reschedule, cancel, swap, or extra.',
+            'For reschedule/cancel/swap, identify one exact currentCourseOccurrences item. If the user reference is ambiguous, ask a clarifying question instead of guessing.',
+            'For swap, both eventId and otherEventId must be exact occurrence ids and must be different.',
+            'For extra, courseId must be copied exactly from currentCourses and the user must have made clear which course should get the extra occurrence.',
+            'Use currentTime and timeZone to resolve relative course phrases such as 明天/本周五. If the target instant is materially unclear, ask before emitting course_change.',
+            'If the user says a recurring rule should change permanently (for example 以后都改到周五), do not encode that as a one-off course_change. Explain that this is a Course template change and ask for explicit confirmation through the template-edit flow.',
+            'Course actions are drafts for Course Preview → Apply → Undo. Never claim a course change has already been applied.',
             'When planningScope.type is goal, treat it as a persistent long-term learning goal, not as a Course.',
             'For goal scope, goalExecution is a derived execution snapshot from the user\'s real Tasks and completed focus sessions. Use it to understand pace and friction, but never equate task completion with actual mastery.',
             'When execution is behind or uneven, ask about causes that materially affect the plan before making large changes; do not punish the user by simply adding more tasks.',
@@ -463,9 +550,9 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
             'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"milestoneTitle":"基础建立"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","milestoneTitle":"强化训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"milestoneTitle":"基础建立"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","milestoneTitle":"强化训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
-            'Return actions as [] when no concrete task write is ready for confirmation.',
+            'Return actions as [] when no concrete task, learning-goal, or course-change draft is ready for confirmation.',
             'Return replanRequests as [] when no deterministic schedule movement preview is needed.',
             'Return the complete updated context, not only a patch.',
             'Reply in the language used by the user.',
@@ -481,6 +568,8 @@ export class OpenAICompatibleProvider implements AIProvider {
             message: input.message,
             currentPlanningContext: input.context,
             currentTasks: input.currentTasks || [],
+            currentCourses: input.currentCourses || [],
+            currentCourseOccurrences: input.currentCourseOccurrences || [],
             planningScope: input.planningScope || null,
             goalExecution: input.goalExecution || null,
             currentTime: input.currentTime || new Date().toISOString(),
