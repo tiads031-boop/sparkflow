@@ -153,7 +153,14 @@ export class PlannerService {
     };
   }
 
-  async apply(userId: string, data: { proposals: ApplyProposal[] }) {
+  async apply(
+    userId: string,
+    data: {
+      proposals: ApplyProposal[];
+      planningThreadId?: string;
+      planningThreadRevision?: number;
+    },
+  ) {
     if (!Array.isArray(data.proposals) || data.proposals.length === 0)
       throw new BadRequestException('No proposals to apply');
     if (data.proposals.length > 50)
@@ -163,6 +170,29 @@ export class PlannerService {
       throw new BadRequestException('A task can only appear once in a plan');
 
     return this.prisma.$transaction(async (tx) => {
+      let planningThreadId: string | null = null;
+      let planningThreadRevision: number | null = null;
+
+      if (data.planningThreadId) {
+        const thread = await tx.planningThread.findFirst({
+          where: { id: data.planningThreadId, userId },
+          select: { id: true, revision: true, status: true },
+        });
+        if (!thread) throw new NotFoundException('Planning thread not found');
+        if (thread.status !== 'active')
+          throw new ConflictException('Planning thread is not active');
+        if (
+          data.planningThreadRevision !== undefined &&
+          thread.revision !== data.planningThreadRevision
+        ) {
+          throw new ConflictException(
+            'Planning context changed; generate a new preview',
+          );
+        }
+        planningThreadId = thread.id;
+        planningThreadRevision = thread.revision;
+      }
+
       const tasks = await tx.task.findMany({
         where: { userId, id: { in: ids } },
       });
@@ -269,6 +299,8 @@ export class PlannerService {
       const plan = await tx.schedulePlan.create({
         data: {
           userId,
+          planningThreadId,
+          planningThreadRevision,
           status: 'applied',
           beforeState: beforeState as unknown as Prisma.InputJsonValue,
           afterState: afterState as unknown as Prisma.InputJsonValue,
