@@ -5,6 +5,7 @@ import type {
   GeneratedInsight,
   InsightGenerationInput,
   InsightType,
+  PlanningActionDraft,
   PlanningFact,
   PlanningFactStatus,
   PlanningResearchRequest,
@@ -68,6 +69,90 @@ function toPlanningFacts(value: unknown): PlanningFact[] {
   });
 }
 
+function normalizedDate(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+}
+
+function normalizedPriority(value: unknown): 'high' | 'medium' | 'low' | undefined {
+  return ['high', 'medium', 'low'].includes(String(value))
+    ? value as 'high' | 'medium' | 'low'
+    : undefined;
+}
+
+function normalizedMinutes(value: unknown): number | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return Math.max(5, Math.min(720, Math.round(value)));
+}
+
+function toPlanningActions(value: unknown): PlanningActionDraft[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const candidate = item as Record<string, unknown>;
+
+    if (candidate.type === 'create_task') {
+      if (typeof candidate.title !== 'string' || !candidate.title.trim()) return [];
+      const action: PlanningActionDraft = {
+        type: 'create_task',
+        title: candidate.title.trim().slice(0, 200),
+      };
+      if (typeof candidate.description === 'string') {
+        action.description = candidate.description.trim().slice(0, 2000) || null;
+      } else if (candidate.description === null) {
+        action.description = null;
+      }
+      const priority = normalizedPriority(candidate.priority);
+      const estimatedMinutes = normalizedMinutes(candidate.estimatedMinutes);
+      const dueDate = normalizedDate(candidate.dueDate);
+      if (priority) action.priority = priority;
+      if (estimatedMinutes !== undefined) action.estimatedMinutes = estimatedMinutes;
+      if (dueDate !== undefined) action.dueDate = dueDate;
+      return [action];
+    }
+
+    if (candidate.type === 'update_task') {
+      if (
+        typeof candidate.taskId !== 'string' ||
+        !candidate.taskId.trim() ||
+        typeof candidate.taskTitle !== 'string' ||
+        !candidate.taskTitle.trim() ||
+        !candidate.changes ||
+        typeof candidate.changes !== 'object'
+      ) return [];
+      const rawChanges = candidate.changes as Record<string, unknown>;
+      const changes: Extract<PlanningActionDraft, { type: 'update_task' }>['changes'] = {};
+      if (typeof rawChanges.title === 'string' && rawChanges.title.trim()) {
+        changes.title = rawChanges.title.trim().slice(0, 200);
+      }
+      if (typeof rawChanges.description === 'string') {
+        changes.description = rawChanges.description.trim().slice(0, 2000) || null;
+      } else if (rawChanges.description === null) {
+        changes.description = null;
+      }
+      const priority = normalizedPriority(rawChanges.priority);
+      const estimatedMinutes = normalizedMinutes(rawChanges.estimatedMinutes);
+      const dueDate = normalizedDate(rawChanges.dueDate);
+      if (priority) changes.priority = priority;
+      if (estimatedMinutes !== undefined) changes.estimatedMinutes = estimatedMinutes;
+      if (dueDate !== undefined) changes.dueDate = dueDate;
+      if (!Object.keys(changes).length) return [];
+      return [{
+        type: 'update_task',
+        taskId: candidate.taskId.trim().slice(0, 100),
+        taskTitle: candidate.taskTitle.trim().slice(0, 200),
+        changes,
+      }];
+    }
+
+    return [];
+  });
+}
+
 function toResearchQueries(value: unknown): PlanningResearchRequest[] {
   if (!Array.isArray(value)) return [];
   return value.slice(0, 3).flatMap((item) => {
@@ -128,6 +213,7 @@ export function toPlanningTurn(value: unknown): PlanningTurnResult {
       ? candidate.summary.trim().slice(0, 1000)
       : '',
     researchQueries: toResearchQueries(candidate.researchQueries),
+    actions: toPlanningActions(candidate.actions),
   };
 }
 
@@ -272,9 +358,15 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Prefer official/first-party sources for high-impact facts.',
             'When evidence is provided, distinguish user facts from external evidence. Do not silently convert external search results into confirmed personal facts.',
             'If evidence conflicts or is weak, say so in the reply and keep readiness clarify when the unresolved fact materially affects the plan.',
+            'When the user clearly asks to create a new actionable task, you may propose create_task.',
+            'When the user clearly asks to change an existing task, you may propose update_task, but taskId must be copied exactly from currentTasks.',
+            'Do not create task actions from vague goals, brainstorms, or unresolved questions. Ask first when important task details are unclear.',
+            'Task actions are only drafts for user confirmation. Never claim they are already applied.',
+            'Do not propose direct calendar/course mutations in this phase.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null"}}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
+            'Return actions as [] when no concrete task write is ready for confirmation.',
             'Return the complete updated context, not only a patch.',
             'Reply in the language used by the user.',
           ].join('\n'),
@@ -288,6 +380,7 @@ export class OpenAICompatibleProvider implements AIProvider {
           content: JSON.stringify({
             message: input.message,
             currentPlanningContext: input.context,
+            currentTasks: input.currentTasks || [],
             researchAllowed: input.researchAllowed !== false,
             researchUnavailableReason: input.researchUnavailableReason || null,
             evidence: input.evidence || [],
