@@ -87,6 +87,14 @@ export class CourseController {
     return this.courseService.applyCourseChange(userId, data);
   }
 
+  @Post('changes/:planId/undo')
+  undoChange(
+    @CurrentUserId() userId: string,
+    @Param('planId') planId: string,
+  ) {
+    return this.courseService.undoCourseChange(userId, planId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUserId() userId: string) {
     return this.courseService.findOne(id, userId);
