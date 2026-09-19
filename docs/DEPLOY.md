@@ -1,6 +1,6 @@
 # SparkFlow 自托管部署手册
 
-生产架构：Vercel 托管前端 `fish-life.cc.cd`，腾讯云服务器运行 Nginx、SparkFlow API 与 PostgreSQL。注册、登录、密码哈希和会话均由 SparkFlow API 处理，不依赖外部认证或数据库服务。
+生产架构：腾讯云服务器的 Nginx 直接托管前端 `fish-life.cc.cd`，并将 `api.fish-life.cc.cd` 反向代理到 SparkFlow API；API 与 PostgreSQL 继续使用现有 Docker 部署。注册、登录、密码哈希和会话均由 SparkFlow API 处理，不依赖外部认证或数据库服务。
 
 ## 1. PostgreSQL
 
@@ -112,7 +112,7 @@ server {
 }
 ```
 
-## 5. Vercel
+## 5. Web / PWA 前端（腾讯云 Nginx）
 
 前端生产变量：
 
@@ -121,6 +121,33 @@ VITE_API_BASE_URL=https://api.fish-life.cc.cd/api
 ```
 
 不再配置 `VITE_SUPABASE_URL` 或 `VITE_SUPABASE_PUBLISHABLE_KEY`。
+
+前端是 React/Vite 静态站，构建结果为 `web/dist`。服务器使用 `/var/www/sparkflow` 作为站点目录；API 继续走独立域名，不把 `/api` 代理到前端站点。
+
+首次准备服务器：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y nginx rsync
+```
+
+从仓库最新 `master` 构建并发布：
+
+```bash
+cd /opt/sparkflow/app
+sudo APP_ROOT=/opt/sparkflow/app bash scripts/deploy-web-server.sh
+```
+
+脚本会执行 `git pull --ff-only`、`npm ci`、`npm run build`，再把 `web/dist` 同步到 `/var/www/sparkflow`。首次运行时安装仓库内的 Nginx 配置；后续不会覆盖 Certbot 已写入的 HTTPS 配置。脚本只在 `nginx -t` 通过后 reload。`try_files ... /index.html` 保证 SPA 深层路由刷新可用；带哈希的 `/assets/` 长缓存，`index.html`、`sw.js` 与 `manifest.json` 不长缓存。
+
+DNS 切换时把 `fish-life.cc.cd` 的记录指向腾讯云公网 IP；`api.fish-life.cc.cd` 保持不变。DNS 生效后签发/安装证书：
+
+```bash
+sudo certbot --nginx -d fish-life.cc.cd -d www.fish-life.cc.cd
+sudo certbot renew --dry-run
+```
+
+如果没有启用 `www.fish-life.cc.cd`，从 Nginx 配置和证书命令中同时移除该名称，避免证书签发因未解析的域名失败。
 
 ## 6. 部署后强制验证
 
@@ -167,32 +194,11 @@ docker logs --tail 100 sparkflow-api
 
 ---
 
-## Vercel Web 发布
+## 从 Vercel 切换到腾讯云
 
-SparkFlow 的 Vercel 项目使用 Hobby 配额。历史上短分支每个小 commit 都触发 Git Preview，曾实际触发每日 deployment 次数硬限制。
-
-当前策略：
-
-1. `web/vercel.json` 使用 `git.deploymentEnabled=false`，关闭 Git 自动 deployments。
-2. GitHub Web/API CI 继续作为代码质量门禁。
-3. 业务 PR 合并后，确认目标 master commit，再显式创建一次 Vercel Production deployment。
-4. 发布完成后核对 Production deployment 的 Git SHA / bundle，并做真实页面验收。
-5. 不因为 Preview 缺失而把 GitHub CI 判为失败；也不把 Vercel 平台额度错误当成代码失败。
-
-推荐节奏：
-
-```text
-short branch commits
-  ↓
-GitHub CI
-  ↓
-PR merge
-  ↓
-confirm master SHA
-  ↓
-one explicit Vercel Production deployment
-  ↓
-production smoke
-```
-
-如果 Vercel 返回 `api-deployments-free-per-day`，停止重复重试，等待平台配额恢复后再发布；API/Android 发布状态需要单独记录，不能用 Web 部署失败覆盖其实际状态。
+1. 先在服务器完成前端构建和本机 Host 头冒烟，不改 DNS。
+2. 将 `fish-life.cc.cd` DNS 指向腾讯云公网 IP，保留 `api.fish-life.cc.cd` 现有记录。
+3. DNS 生效后用 Certbot 安装 HTTPS，并检查根路径和一个 SPA 深层路由。
+4. 检查浏览器请求仍发往 `https://api.fish-life.cc.cd/api`，登录与 Session 恢复正常。
+5. PWA 强制刷新一次，验证 Service Worker、manifest、安装与离线壳层。
+6. 稳定后再解除 Vercel 上的生产域名绑定；Vercel 项目可以暂时保留作短期回退，不继续承担生产流量。
