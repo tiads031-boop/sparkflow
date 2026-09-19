@@ -115,6 +115,9 @@ export interface CalendarEvent {
   courseId?: string;
   color?: string;
   isOverride?: boolean;
+  overrideType?: 'reschedule' | 'cancel' | 'swap' | 'extra' | string | null;
+  overrideOriginalStart?: string | null;
+  overrideGroupId?: string | null;
   extendedProps?: { taskId?: string; eventType?: string };
   taskId?: string | null;
   externalSource?: string | null;
