@@ -132,7 +132,8 @@ PR #48/#49/#50 已完成 M1–M3 代码与 CI：
 - task-backed CalendarEvent 与 Course fallback 在投影层去重，不新增数据库事实源。
 - 学期起止日期与 Course.weeks 用于周次/“非本周”判断；缺少可靠学期上下文时不强行隐藏课程。
 - Planner Preview 可作为虚线临时时间块显示在 Week / Agenda；Apply 后由真实 Task 排程替代，Undo 后恢复。
-- Web Production 已从 `master@e883b9a3` 源码显式发布到 READY 部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e`，`fish-life.cc.cd` HTTP 200；生产 bundle 已静态核到五项导航与 M3 Preview 文案。\n- Android VNext M3 Release `android-7145ba0ea3d2` 已生成；Web 真账号/PWA 与 Android 真机交互仍未验收，完成前不进入 M4 拖拽/过滤增强。
+- Web Production 已从 `master@e883b9a3` 源码显式发布到 READY 部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e`，`fish-life.cc.cd` HTTP 200；生产 bundle 已静态核到五项导航与 M3 Preview 文案。
+- Android VNext M3 Release `android-7145ba0ea3d2` 已生成；Web 真账号/PWA 与 Android 真机交互仍未验收，完成前不进入 M4 拖拽/过滤增强。
 
 ### Planner / AI 安排
 
@@ -320,7 +321,8 @@ flowchart TD
 5. Android 安装 VNext M3 `sparkflow-7145ba0ea3d2-debug.apk`，复测登录、Session、五项底栏、四时间视图、Insight/Action、SchoolImport 和窄屏交互。
 6. Web 真账号完成真实教务导入/replay，并完成 Planner Preview → Apply → Undo。
 7. 验证一次客户端未知/超时结果 → requestId 查询恢复路径。
-8. ✅ VNext Plan Web 已发布并完成公开静态冒烟；🚧 继续以真实账号验收五项主导航、四时间视图、课程周次、Planner Preview → Apply → Undo，并在 Android 真机复验。\n9. 上述真实链路通过后，再选择 VNext M4、Phase 15 M4、Study Mode 或 Phase 14 余项作为下一产品批次。
+8. ✅ VNext Plan Web 已发布并完成公开静态冒烟；🚧 继续以真实账号验收五项主导航、四时间视图、课程周次、Planner Preview → Apply → Undo，并在 Android 真机复验。
+9. 上述真实链路通过后，再选择 VNext M4、Phase 15 M4、Study Mode 或 Phase 14 余项作为下一产品批次。
 
 ---
 
