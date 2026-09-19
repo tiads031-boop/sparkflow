@@ -917,6 +917,7 @@ export default function PlannerSheet({
                   const selected = selectedActionIds.includes(action.proposalId);
                   const details = action.type === 'create_task'
                     ? [
+                        action.milestoneTitle ? `阶段：${action.milestoneTitle}` : null,
                         action.priority ? `优先级：${action.priority}` : null,
                         action.estimatedMinutes ? `${action.estimatedMinutes} 分钟` : null,
                         action.dueDate ? `截止：${new Date(action.dueDate).toLocaleString('zh-CN')}` : null,
