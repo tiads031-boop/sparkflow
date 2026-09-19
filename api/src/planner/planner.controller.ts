@@ -18,7 +18,11 @@ export class PlannerController {
   @Post('apply')
   apply(
     @CurrentUserId() userId: string,
-    @Body() data: { proposals: PlannerProposal[] },
+    @Body() data: {
+      proposals: PlannerProposal[];
+      planningThreadId?: string;
+      planningThreadRevision?: number;
+    },
   ) {
     return this.plannerService.apply(userId, data);
   }
