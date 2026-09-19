@@ -409,14 +409,23 @@ export class PlanningService {
     let researchStatus: 'not-needed' | 'used' | 'unavailable' | 'failed' = 'not-needed';
     let result;
 
+    const planningInputBase = {
+      message,
+      context: contextFromThread(thread),
+      recentMessages,
+      currentTasks,
+      planningScope: {
+        type: thread.scopeType,
+        id: thread.scopeId,
+        title: thread.title,
+      },
+      currentTime: currentTime.toISOString(),
+      timeZone,
+    };
+
     try {
       result = await this.ai.generatePlanningTurn({
-        message,
-        context: contextFromThread(thread),
-        recentMessages,
-        currentTasks,
-        currentTime: currentTime.toISOString(),
-        timeZone,
+        ...planningInputBase,
         evidence: previousEvidence,
         researchAllowed: this.research.isConfigured(),
         researchUnavailableReason: this.research.isConfigured()
@@ -428,12 +437,7 @@ export class PlanningService {
         if (!this.research.isConfigured()) {
           researchStatus = 'unavailable';
           result = await this.ai.generatePlanningTurn({
-            message,
-            context: contextFromThread(thread),
-            recentMessages,
-            currentTasks,
-            currentTime: currentTime.toISOString(),
-            timeZone,
+            ...planningInputBase,
             evidence: previousEvidence,
             researchAllowed: false,
             researchUnavailableReason: 'Web research provider is not configured',
@@ -444,10 +448,7 @@ export class PlanningService {
             evidenceUsed = mergeEvidence(previousEvidence, researchAdded);
             researchStatus = researchAdded.length > 0 ? 'used' : 'failed';
             result = await this.ai.generatePlanningTurn({
-              message,
-              context: contextFromThread(thread),
-              recentMessages,
-              currentTasks,
+              ...planningInputBase,
               evidence: evidenceUsed,
               researchAllowed: false,
               researchUnavailableReason:
@@ -456,10 +457,7 @@ export class PlanningService {
           } catch {
             researchStatus = 'failed';
             result = await this.ai.generatePlanningTurn({
-              message,
-              context: contextFromThread(thread),
-              recentMessages,
-              currentTasks,
+              ...planningInputBase,
               evidence: previousEvidence,
               researchAllowed: false,
               researchUnavailableReason: 'Web research failed for this turn',
@@ -641,6 +639,7 @@ export class PlanningService {
               status: 'todo',
               priority: action.priority || 'medium',
               section: goalScopeId ? 'study' : 'personal',
+              project: goalScopeId ? (action.milestoneTitle || null) : null,
               estimatedMinutes: action.estimatedMinutes ?? null,
               dueDate: action.dueDate ? new Date(action.dueDate) : null,
               scheduleSource: 'ai',
