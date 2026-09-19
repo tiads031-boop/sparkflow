@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-19 | **代码基线**：`master@7145ba0`
+> **最后更新**：2026-09-19 | **代码基线**：`master@e883b9a3`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,7 +8,7 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext Plan M1–M3 已通过 PR #48/#49/#50 进入 `master@7145ba0`；当前先做 Web/PWA/Android 真实验收，再决定 M4 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext Plan M1–M3 已发布到 Web Production；功能基线 `7145ba0`，仓库 `master@e883b9a3`；当前剩真实账号与 Android 真机验收，再决定 M4 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
@@ -22,7 +22,7 @@
 
 | 文件 | 范围 | 状态 | 说明 |
 |---|---|---|---|
-| [vnext-information-architecture-plan-workspace.md](vnext-information-architecture-plan-workspace.md) | VNext 信息架构、五工作空间、Plan 四视图、课程/任务/Planner 统一投影 | 🚧 M1–M3 代码/CI 已完成 | PR #48/#49/#50 已合并；五工作空间、真实 Plan 四视图与 Planner 临时预览块已进入 master；待 Production/PWA/Android 验收后再做 M4 |
+| [vnext-information-architecture-plan-workspace.md](vnext-information-architecture-plan-workspace.md) | VNext 信息架构、五工作空间、Plan 四视图、课程/任务/Planner 统一投影 | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合并；Web Production `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，五项导航/M3 bundle 已静态核验；Android M3 Release `android-7145ba0ea3d2` 已生成 |
 | [../study-mode/README.md](../study-mode/README.md) | Study Mode、Study Home、学习文件夹、复习闭环、习惯与导出 | ⬜ M0 完成 | PR #25 已合并；复用 Today / Task / Calendar / Planner / Focus / Course，不建立第二套事实源；实施拆分见 [roadmap](../study-mode/roadmap.md) |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 / Local Codex Bridge | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后再启动；不进入云端 API/数据库控制链 |
 
@@ -50,6 +50,8 @@
 | PR #48 VNext Plan M1 | ✅ 已合并 | 固定五项主导航、PlanWorkspace、四视图壳层、旧入口兼容与视图记忆 |
 | PR #49 VNext Plan M2 | ✅ 已合并 | Task/Course/CalendarEvent/Study Task 统一投影，真实 Month/Week/Agenda/Timetable |
 | PR #50 VNext Plan M3 | ✅ 已合并 | Planner Preview 临时时间块、Apply 转真实排程、Undo 恢复；CI 全绿 |
+| VNext Web Production | ✅ 已发布 / 🚧 待业务验收 | `fish-life.cc.cd` 指向 READY 部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e`；首页 200，五项导航与 M3 Preview 文案已在生产 bundle 核到；Vercel deployment meta 因手工 codeload 发布为空，SHA 映射记录在 NEXT |
+| Android VNext M3 | ✅ APK 已生成 / 🚧 待真机 | Release `android-7145ba0ea3d2`；asset `sparkflow-7145ba0ea3d2-debug.apk`；对应功能提交 `7145ba0ea3d2` |
 | PR #27 legacy Phase 12 tests | ✅ 已关闭 | 被 #28/#29/#30/#36 更完整的安全与真实 PostgreSQL 验证覆盖 |
 
 ## 活跃执行 Issue
