@@ -267,6 +267,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             'strategy must explain the currently chosen planning approach and why it fits the known context.',
             'Do not invent external facts such as exam dates, official rules, opening hours, prices, travel times, or current product requirements.',
             'If the plan materially depends on current external facts and the supplied evidence is insufficient, request web research.',
+            'When researchAllowed is false, do not emit new researchQueries; instead explain any remaining uncertainty and continue only with the supplied evidence.',
             'Request at most 3 focused searches. Mark highImpact true when an incorrect fact could change eligibility, deadlines, cost, travel feasibility, or the plan itself.',
             'Prefer official/first-party sources for high-impact facts.',
             'When evidence is provided, distinguish user facts from external evidence. Do not silently convert external search results into confirmed personal facts.',
