@@ -1,4 +1,4 @@
-import type { CalendarEvent, Course, Semester, Task } from '../../types';
+import type { CalendarEvent, Course, PlannerPreview, Semester, Task } from '../../types';
 
 export type PlanItemKind = 'course' | 'calendar' | 'task' | 'study-task';
 
@@ -16,6 +16,8 @@ export interface PlanItem {
   taskId?: string;
   courseId?: string;
   scheduleSource?: string;
+  preview?: boolean;
+  reason?: string;
 }
 
 export interface DateRange {
@@ -244,6 +246,35 @@ export function buildPlanItems(input: {
   ];
 
   return items.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+}
+
+export function buildPlannerPreviewItems(preview: PlannerPreview | null | undefined, tasks: Task[]): PlanItem[] {
+  if (!preview?.proposals.length) return [];
+  const taskMap = new Map(tasks.map((task) => [task.id, task]));
+
+  return preview.proposals.flatMap((proposal) => {
+    const task = taskMap.get(proposal.taskId);
+    const start = new Date(proposal.start);
+    const end = new Date(proposal.end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
+
+    return [{
+      id: `preview:${proposal.taskId}`,
+      kind: task?.section === 'study' || Boolean(task?.courseId) ? 'study-task' : 'task',
+      sourceId: proposal.taskId,
+      title: proposal.title,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      color: task ? taskColor(task) : '#8b7fbc',
+      locked: false,
+      completed: false,
+      taskId: proposal.taskId,
+      courseId: task?.courseId,
+      scheduleSource: 'ai',
+      preview: true,
+      reason: proposal.reason,
+    } satisfies PlanItem];
+  });
 }
 
 export function itemsForLocalDay(items: PlanItem[], date: Date): PlanItem[] {
