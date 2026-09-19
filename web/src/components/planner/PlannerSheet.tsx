@@ -1,24 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BrainCircuit, Check, RotateCcw, Sparkles } from 'lucide-react';
 import { api } from '../../api/client';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
-
-interface Proposal {
-  taskId: string;
-  title: string;
-  start: string;
-  end: string;
-  durationMinutes: number;
-  taskUpdatedAt: string;
-  reason: string;
-}
-
-interface Preview {
-  proposals: Proposal[];
-  unscheduledTaskIds: string[];
-  range: { start: string; end: string };
-}
+import type { PlannerPreview } from '../../types';
 
 function dateInput(date: Date) {
   const year = date.getFullYear();
@@ -44,21 +29,32 @@ export default function PlannerSheet({
   selectedDate,
   onClose,
   onApplied,
+  onPreviewChange,
 }: {
   open: boolean;
   selectedDate: Date;
   onClose: () => void;
   onApplied: () => Promise<void>;
+  onPreviewChange?: (preview: PlannerPreview | null) => void;
 }) {
   const [date, setDate] = useState(dateInput(selectedDate));
   const [startTime, setStartTime] = useState('08:00');
   const [endTime, setEndTime] = useState('22:00');
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const [preview, setPreview] = useState<PlannerPreview | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const close = useCallback(() => onClose(), [onClose]);
   useModalLifecycle(open, close);
+
+  useEffect(() => {
+    if (open && !preview && !planId) setDate(dateInput(selectedDate));
+  }, [open, planId, preview, selectedDate]);
+
+  const clearPreview = () => {
+    setPreview(null);
+    onPreviewChange?.(null);
+  };
 
   if (!open) return null;
 
@@ -67,7 +63,7 @@ export default function PlannerSheet({
     setMessage('');
     setPlanId(null);
     try {
-      const result = await api.post<Preview>(
+      const result = await api.post<PlannerPreview>(
         '/planner/preview',
         {
           availabilityStart: localIso(date, startTime),
@@ -76,6 +72,7 @@ export default function PlannerSheet({
         { throwOnError: true, timeoutMs: 45_000 },
       );
       setPreview(result);
+      onPreviewChange?.(result);
       if (!result.proposals.length) setMessage('当前范围内没有可自动安排的未排期任务。');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '生成安排失败');
@@ -97,6 +94,7 @@ export default function PlannerSheet({
       setPlanId(result.planId);
       setMessage(`已安排 ${result.appliedCount} 项任务，可在时间轴中查看。`);
       await onApplied();
+      onPreviewChange?.(null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '应用安排失败');
     } finally {
@@ -113,7 +111,7 @@ export default function PlannerSheet({
         throwOnError: true,
       });
       setPlanId(null);
-      setPreview(null);
+      clearPreview();
       setMessage(`已撤销，恢复 ${result.restoredCount} 项任务。`);
       await onApplied();
     } catch (error) {
@@ -152,7 +150,7 @@ export default function PlannerSheet({
               value={date}
               onChange={(event) => {
                 setDate(event.target.value);
-                setPreview(null);
+                clearPreview();
               }}
               className="min-w-0 rounded-full bg-[var(--sf-bg)] px-4 py-2.5 text-right text-sm font-normal outline-none"
             />
@@ -167,7 +165,7 @@ export default function PlannerSheet({
                   value={startTime}
                   onChange={(event) => {
                     setStartTime(event.target.value);
-                    setPreview(null);
+                    clearPreview();
                   }}
                   className="mt-2 w-full rounded-full bg-[var(--sf-surface)] px-4 py-2.5 text-center text-sm font-medium outline-none"
                 />
@@ -179,7 +177,7 @@ export default function PlannerSheet({
                   value={endTime}
                   onChange={(event) => {
                     setEndTime(event.target.value);
-                    setPreview(null);
+                    clearPreview();
                   }}
                   className="mt-2 w-full rounded-full bg-[var(--sf-surface)] px-4 py-2.5 text-center text-sm font-medium outline-none"
                 />
@@ -225,6 +223,15 @@ export default function PlannerSheet({
               <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 另有 {preview.unscheduledTaskIds.length} 项因时间不足或截止约束未安排。
               </p>
+            )}
+            {!planId && (
+              <button
+                type="button"
+                onClick={close}
+                className="w-full rounded-full border border-dashed border-[var(--sf-marker-purple)] py-3 text-sm font-bold text-[var(--sf-marker-purple)]"
+              >
+                返回计划查看时间块预览
+              </button>
             )}
           </div>
         )}
