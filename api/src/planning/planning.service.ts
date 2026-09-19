@@ -362,6 +362,7 @@ export class PlanningService {
             message,
             context: contextFromThread(thread),
             recentMessages,
+            currentTasks,
             evidence: previousEvidence,
             researchAllowed: false,
             researchUnavailableReason: 'Web research provider is not configured',
