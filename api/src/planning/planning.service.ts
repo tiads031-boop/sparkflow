@@ -13,6 +13,8 @@ import {
   type AIProvider,
   type PlanningActionProposal,
   type PlanningContextSnapshot,
+  type PlanningCourseOccurrenceSnapshot,
+  type PlanningCourseSnapshot,
   type PlanningGoalExecutionSnapshot,
   type PlanningReplanRequest,
   type PlanningEvidenceItem,
@@ -169,6 +171,15 @@ function readActionProposals(value: unknown): PlanningActionProposal[] {
       typeof candidate.goalTitle === 'string' &&
       candidate.changes &&
       typeof candidate.changes === 'object'
+    ) {
+      return [candidate as unknown as PlanningActionProposal];
+    }
+
+    if (
+      candidate.type === 'course_change' &&
+      typeof candidate.courseName === 'string' &&
+      candidate.change &&
+      typeof candidate.change === 'object'
     ) {
       return [candidate as unknown as PlanningActionProposal];
     }
@@ -470,6 +481,88 @@ export class PlanningService {
       scheduledEnd: task.scheduledEnd?.toISOString() || null,
     }));
 
+    let currentCourses: PlanningCourseSnapshot[] = [];
+    let currentCourseOccurrences: PlanningCourseOccurrenceSnapshot[] = [];
+    if (thread.scopeType !== 'goal') {
+      const courseWhere = {
+        userId,
+        ...(thread.scopeType === 'course' && thread.scopeId
+          ? { id: thread.scopeId }
+          : {}),
+      };
+      const occurrenceRangeStart = new Date(currentTime.getTime() - 14 * 24 * 60 * 60 * 1000);
+      const occurrenceRangeEnd = new Date(currentTime.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+      const [courseRows, occurrenceRows] = await Promise.all([
+        this.prisma.course.findMany({
+          where: courseWhere,
+          orderBy: { createdAt: 'asc' },
+          take: 80,
+          select: {
+            id: true,
+            name: true,
+            teacher: true,
+            room: true,
+            location: true,
+            dayOfWeek: true,
+            startTime: true,
+            endTime: true,
+            semesterId: true,
+          },
+        }),
+        this.prisma.calendarEvent.findMany({
+          where: {
+            userId,
+            courseId: { not: null },
+            ...(thread.scopeType === 'course' && thread.scopeId
+              ? { courseId: thread.scopeId }
+              : {}),
+            OR: [
+              {
+                startTime: {
+                  gte: occurrenceRangeStart,
+                  lt: occurrenceRangeEnd,
+                },
+              },
+              {
+                overrideOriginalStart: {
+                  gte: occurrenceRangeStart,
+                  lt: occurrenceRangeEnd,
+                },
+              },
+            ],
+          },
+          orderBy: { startTime: 'asc' },
+          take: 160,
+          include: {
+            course: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      currentCourses = courseRows;
+      currentCourseOccurrences = occurrenceRows.flatMap((event) => (
+        event.courseId && event.course
+          ? [{
+              id: event.id,
+              courseId: event.courseId,
+              courseName: event.course.name,
+              title: event.title,
+              startTime: event.startTime.toISOString(),
+              endTime: event.endTime.toISOString(),
+              location: event.location || null,
+              overrideType: event.overrideType || null,
+              overrideOriginalStart: event.overrideOriginalStart?.toISOString() || null,
+            }]
+          : []
+      ));
+    }
+
     let goalExecution: PlanningGoalExecutionSnapshot | undefined;
     if (thread.scopeType === 'goal' && thread.scopeId) {
       const goalTasks = await this.prisma.task.findMany({
@@ -521,6 +614,8 @@ export class PlanningService {
       context: contextFromThread(thread),
       recentMessages,
       currentTasks,
+      currentCourses,
+      currentCourseOccurrences,
       planningScope: {
         type: thread.scopeType,
         id: thread.scopeId,
@@ -578,6 +673,12 @@ export class PlanningService {
     }
 
     const validTaskIds = new Set(currentTasks.map((task) => task.id));
+    const currentCourseById = new Map(currentCourses.map((course) => [course.id, course]));
+    const activeOccurrenceById = new Map(
+      currentCourseOccurrences
+        .filter((occurrence) => occurrence.overrideType !== 'cancel')
+        .map((occurrence) => [occurrence.id, occurrence]),
+    );
     const actionProposals: PlanningActionProposal[] = [];
     for (const action of result.actions) {
       if (action.type === 'update_task') {
@@ -596,6 +697,45 @@ export class PlanningService {
         actionProposals.push({
           ...action,
           goalTitle: thread.title || action.goalTitle,
+          proposalId: randomUUID(),
+        });
+        continue;
+      }
+
+      if (action.type === 'course_change') {
+        if (thread.scopeType === 'goal') continue;
+
+        if (action.change.type === 'extra') {
+          const course = currentCourseById.get(action.change.courseId);
+          if (!course) continue;
+          actionProposals.push({
+            ...action,
+            courseName: course.name,
+            otherCourseName: undefined,
+            proposalId: randomUUID(),
+          });
+          continue;
+        }
+
+        const occurrence = activeOccurrenceById.get(action.change.eventId);
+        if (!occurrence) continue;
+
+        if (action.change.type === 'swap') {
+          const otherOccurrence = activeOccurrenceById.get(action.change.otherEventId);
+          if (!otherOccurrence || otherOccurrence.id === occurrence.id) continue;
+          actionProposals.push({
+            ...action,
+            courseName: occurrence.courseName,
+            otherCourseName: otherOccurrence.courseName,
+            proposalId: randomUUID(),
+          });
+          continue;
+        }
+
+        actionProposals.push({
+          ...action,
+          courseName: occurrence.courseName,
+          otherCourseName: undefined,
           proposalId: randomUUID(),
         });
         continue;
@@ -738,6 +878,7 @@ export class PlanningService {
       const createdTaskIds: string[] = [];
       const updatedTaskIds: string[] = [];
       const updatedGoalIds: string[] = [];
+      const externalActionIds: string[] = [];
 
       if (goalScopeId) {
         const ownedGoal = await tx.studyFolder.findFirst({
@@ -748,6 +889,14 @@ export class PlanningService {
       }
 
       for (const action of selected) {
+        if (action.type === 'course_change') {
+          // Course data is written only through Course Preview → Apply → Undo.
+          // This endpoint only records that the already-applied external proposal
+          // is no longer pending in the PlanningThread conversation.
+          externalActionIds.push(action.proposalId);
+          continue;
+        }
+
         if (action.type === 'update_goal') {
           if (!goalScopeId) {
             throw new BadRequestException('Goal updates require a goal-scoped planning thread');
@@ -857,6 +1006,7 @@ export class PlanningService {
         createdTaskIds,
         updatedTaskIds,
         updatedGoalIds: [...new Set(updatedGoalIds)],
+        externalActionIds,
       };
     });
 
