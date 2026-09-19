@@ -24,12 +24,33 @@ function aiMock() {
   };
 }
 
-function serviceWith(prisma: unknown, media = mediaMock(), voice = voiceMock(), ai = aiMock()) {
+function mediaAiMock() {
+  return {
+    analyzeImage: jest.fn().mockResolvedValue({
+      summary: '图片包含项目排期和三个关键日期。',
+      model: 'qwen3-vl-plus',
+    }),
+    analyzeVideo: jest.fn().mockResolvedValue({
+      transcript: '先做用户访谈，再调整排期。',
+      summary: '视频讨论了用户访谈与排期调整。',
+      model: 'qwen3.8-omni-flash',
+    }),
+  };
+}
+
+function serviceWith(
+  prisma: unknown,
+  media = mediaMock(),
+  voice = voiceMock(),
+  ai = aiMock(),
+  mediaAI = mediaAiMock(),
+) {
   return new InspirationsService(
     prisma as never,
     media as never,
     voice as never,
     ai as never,
+    mediaAI as never,
   );
 }
 
@@ -321,6 +342,150 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       'attachment-1',
       'user-1',
     )).rejects.toThrow('请先转写音频，再生成摘要');
+  });
+
+
+  it('explicitly analyzes an owned image and stores only the AI summary', async () => {
+    const media = mediaMock();
+    media.read.mockResolvedValue(Buffer.from('image'));
+    const mediaAI = mediaAiMock();
+    const update = jest.fn(({ data }) => ({
+      id: 'attachment-image',
+      inspirationId: 'inspiration-1',
+      kind: 'image',
+      mimeType: 'image/png',
+      originalName: 'whiteboard.png',
+      sizeBytes: 5,
+      transcript: null,
+      aiSummary: data.aiSummary,
+      createdAt: new Date(),
+    }));
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'attachment-image',
+          inspirationId: 'inspiration-1',
+          kind: 'image',
+          mimeType: 'image/png',
+          storageKey: 'inspiration-1/whiteboard.png',
+          sizeBytes: 5,
+          inspiration: {
+            title: '白板照片',
+            contentText: '会议后记录',
+          },
+        }),
+        update,
+      },
+    };
+    const service = serviceWith(
+      prisma,
+      media,
+      voiceMock(),
+      aiMock(),
+      mediaAI,
+    );
+
+    const result = await service.analyzeAttachment(
+      'inspiration-1',
+      'attachment-image',
+      'user-1',
+    );
+
+    expect(media.read).toHaveBeenCalledWith('inspiration-1/whiteboard.png');
+    expect(mediaAI.analyzeImage).toHaveBeenCalledWith(
+      Buffer.from('image'),
+      'image/png',
+      '白板照片\n会议后记录',
+    );
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'attachment-image' },
+      data: { aiSummary: '图片包含项目排期和三个关键日期。' },
+    }));
+    expect(result.aiSummary).toBe('图片包含项目排期和三个关键日期。');
+  });
+
+  it('explicitly analyzes an owned video and stores transcript plus summary', async () => {
+    const media = mediaMock();
+    media.read.mockResolvedValue(Buffer.from('video'));
+    const mediaAI = mediaAiMock();
+    const update = jest.fn(({ data }) => ({
+      id: 'attachment-video',
+      inspirationId: 'inspiration-1',
+      kind: 'video',
+      mimeType: 'video/mp4',
+      originalName: 'meeting.mp4',
+      sizeBytes: 5,
+      transcript: data.transcript,
+      aiSummary: data.aiSummary,
+      createdAt: new Date(),
+    }));
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'attachment-video',
+          inspirationId: 'inspiration-1',
+          kind: 'video',
+          mimeType: 'video/mp4',
+          storageKey: 'inspiration-1/meeting.mp4',
+          sizeBytes: 5,
+          inspiration: {
+            title: '会议视频',
+            contentText: null,
+          },
+        }),
+        update,
+      },
+    };
+    const service = serviceWith(
+      prisma,
+      media,
+      voiceMock(),
+      aiMock(),
+      mediaAI,
+    );
+
+    const result = await service.analyzeAttachment(
+      'inspiration-1',
+      'attachment-video',
+      'user-1',
+    );
+
+    expect(mediaAI.analyzeVideo).toHaveBeenCalledWith(
+      Buffer.from('video'),
+      'video/mp4',
+      '会议视频',
+    );
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'attachment-video' },
+      data: {
+        transcript: '先做用户访谈，再调整排期。',
+        aiSummary: '视频讨论了用户访谈与排期调整。',
+      },
+    }));
+    expect(result.transcript).toBe('先做用户访谈，再调整排期。');
+  });
+
+  it('rejects generic media analysis for audio attachments', async () => {
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'attachment-audio',
+          inspirationId: 'inspiration-1',
+          kind: 'audio',
+          mimeType: 'audio/webm',
+          storageKey: 'inspiration-1/a.webm',
+          sizeBytes: 5,
+          inspiration: { title: null, contentText: null },
+        }),
+      },
+    };
+    const service = serviceWith(prisma);
+
+    await expect(service.analyzeAttachment(
+      'inspiration-1',
+      'attachment-audio',
+      'user-1',
+    )).rejects.toThrow('当前附件请使用音频转写/摘要功能');
   });
 
 });
