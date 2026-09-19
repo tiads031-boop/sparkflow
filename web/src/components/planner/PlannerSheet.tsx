@@ -161,10 +161,7 @@ export default function PlannerSheet({
   }, []);
 
   useEffect(() => {
-    if (!open) {
-      if (voice.state === 'recording') voice.cancel();
-      return;
-    }
+    if (!open) return;
     setDate(dateInput(selectedDate));
     setMessageInput(initialPrompt);
     setPreview(null);
@@ -175,7 +172,11 @@ export default function PlannerSheet({
     setContextError('');
     onPreviewChange?.(null);
     void loadLatestThread();
-  }, [open, selectedDate, initialPrompt, loadLatestThread, onPreviewChange, voice.state, voice.cancel]);
+  }, [open, selectedDate, initialPrompt, loadLatestThread, onPreviewChange]);
+
+  useEffect(() => {
+    if (!open && voice.state === 'recording') voice.cancel();
+  }, [open, voice.state, voice.cancel]);
 
   useEffect(() => {
     if (!open) return;
