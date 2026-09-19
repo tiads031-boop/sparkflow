@@ -91,12 +91,14 @@ export default function PlannerSheet({
   onClose,
   onApplied,
   onPreviewChange,
+  initialPrompt = '',
 }: {
   open: boolean;
   selectedDate: Date;
   onClose: () => void;
   onApplied: () => Promise<void>;
   onPreviewChange?: (preview: PlannerPreview | null) => void;
+  initialPrompt?: string;
 }) {
   const [thread, setThread] = useState<PlanningThreadDetail | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
@@ -146,13 +148,14 @@ export default function PlannerSheet({
   useEffect(() => {
     if (!open) return;
     setDate(dateInput(selectedDate));
+    setMessageInput(initialPrompt);
     setPreview(null);
     setPlanId(null);
     setSchedulerOpen(false);
     setScheduleMessage('');
     onPreviewChange?.(null);
     void loadLatestThread();
-  }, [open, selectedDate, loadLatestThread, onPreviewChange]);
+  }, [open, selectedDate, initialPrompt, loadLatestThread, onPreviewChange]);
 
   useEffect(() => {
     if (!open) return;
