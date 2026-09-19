@@ -83,6 +83,8 @@ export interface PlanningTaskSnapshot {
   dueDate: string | null;
   estimatedMinutes: number | null;
   scheduledStart: string | null;
+  scheduledEnd: string | null;
+  scheduleLocked: boolean;
 }
 
 export type PlanningActionDraft =
@@ -111,11 +113,26 @@ export type PlanningActionProposal = PlanningActionDraft & {
   proposalId: string;
 };
 
+export interface PlanningReplanDraft {
+  title: string;
+  blockedStart: string;
+  blockedEnd: string;
+  planningStart: string;
+  planningEnd: string;
+  reason: string;
+}
+
+export interface PlanningReplanRequest extends PlanningReplanDraft {
+  requestId: string;
+}
+
 export interface PlanningTurnInput {
   message: string;
   context: PlanningContextSnapshot;
   recentMessages: PlanningConversationMessage[];
   currentTasks?: PlanningTaskSnapshot[];
+  currentTime?: string;
+  timeZone?: string;
   evidence?: PlanningEvidenceItem[];
   researchAllowed?: boolean;
   researchUnavailableReason?: string;
@@ -129,4 +146,5 @@ export interface PlanningTurnResult {
   summary: string;
   researchQueries: PlanningResearchRequest[];
   actions: PlanningActionDraft[];
+  replanRequests: PlanningReplanDraft[];
 }

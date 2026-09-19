@@ -153,12 +153,154 @@ export class PlannerService {
     };
   }
 
+  async replanPreview(
+    userId: string,
+    data: {
+      blockedStart: string;
+      blockedEnd: string;
+      planningStart: string;
+      planningEnd: string;
+    },
+  ) {
+    const blockedStart = parseDate(data.blockedStart, 'blockedStart');
+    const blockedEnd = parseDate(data.blockedEnd, 'blockedEnd');
+    let planningStart = parseDate(data.planningStart, 'planningStart');
+    const planningEnd = parseDate(data.planningEnd, 'planningEnd');
+
+    if (blockedEnd <= blockedStart)
+      throw new BadRequestException('blockedEnd must be after blockedStart');
+    if (planningEnd <= planningStart)
+      throw new BadRequestException('planningEnd must be after planningStart');
+    if (planningEnd.getTime() - planningStart.getTime() > 7 * 86400000)
+      throw new BadRequestException('Planning range cannot exceed 7 days');
+    if (blockedStart >= planningEnd || blockedEnd <= planningStart)
+      throw new BadRequestException('Blocked interval must intersect the planning range');
+
+    const now = new Date();
+    if (planningStart < now && now < planningEnd) planningStart = now;
+
+    const affectedTasks = await this.prisma.task.findMany({
+      where: {
+        userId,
+        status: { notIn: ['done', 'cancelled'] },
+        scheduleLocked: false,
+        scheduledStart: { lt: blockedEnd },
+        scheduledEnd: { gt: blockedStart },
+      },
+      orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }],
+    });
+
+    const affectedIds = affectedTasks.map((task) => task.id);
+    if (!affectedIds.length) {
+      return {
+        proposals: [],
+        unscheduledTaskIds: [],
+        affectedTaskIds: [],
+        blockedRange: {
+          start: blockedStart.toISOString(),
+          end: blockedEnd.toISOString(),
+        },
+        range: {
+          start: planningStart.toISOString(),
+          end: planningEnd.toISOString(),
+        },
+        generatedAt: new Date().toISOString(),
+      };
+    }
+
+    const [fixedTasks, events] = await Promise.all([
+      this.prisma.task.findMany({
+        where: {
+          userId,
+          id: { notIn: affectedIds },
+          status: { notIn: ['done', 'cancelled'] },
+          scheduledStart: { lt: planningEnd },
+          scheduledEnd: { gt: planningStart },
+        },
+        select: { scheduledStart: true, scheduledEnd: true },
+      }),
+      this.prisma.calendarEvent.findMany({
+        where: {
+          userId,
+          startTime: { lt: planningEnd },
+          endTime: { gt: planningStart },
+        },
+        select: { startTime: true, endTime: true, taskId: true },
+      }),
+    ]);
+
+    const occupied: BusyInterval[] = [
+      ...fixedTasks.flatMap((task) =>
+        task.scheduledStart && task.scheduledEnd
+          ? [{ start: task.scheduledStart, end: task.scheduledEnd }]
+          : [],
+      ),
+      ...events.flatMap((event) =>
+        event.taskId && affectedIds.includes(event.taskId)
+          ? []
+          : [{ start: event.startTime, end: event.endTime }],
+      ),
+      { start: blockedStart, end: blockedEnd },
+    ];
+
+    const result = buildSchedule(
+      affectedTasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        durationMinutes:
+          task.estimatedMinutes ??
+          (task.scheduledStart && task.scheduledEnd
+            ? Math.max(15, Math.round(
+                (task.scheduledEnd.getTime() - task.scheduledStart.getTime()) / 60_000,
+              ))
+            : 30),
+        priority: task.priority,
+        dueAt: task.dueDate,
+        updatedAt: task.updatedAt,
+      })),
+      occupied,
+      planningStart,
+      planningEnd,
+    );
+
+    const originalByTaskId = new Map(
+      affectedTasks.map((task) => [
+        task.id,
+        {
+          start: task.scheduledStart?.toISOString(),
+          end: task.scheduledEnd?.toISOString(),
+        },
+      ]),
+    );
+
+    return {
+      ...result,
+      proposals: result.proposals.map((proposal) => ({
+        ...proposal,
+        originalStart: originalByTaskId.get(proposal.taskId)?.start,
+        originalEnd: originalByTaskId.get(proposal.taskId)?.end,
+        reason: `临时冲突后重新安排 · ${proposal.reason}`,
+      })),
+      affectedTaskIds: affectedIds,
+      blockedRange: {
+        start: blockedStart.toISOString(),
+        end: blockedEnd.toISOString(),
+      },
+      range: {
+        start: planningStart.toISOString(),
+        end: planningEnd.toISOString(),
+      },
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
   async apply(
     userId: string,
     data: {
       proposals: ApplyProposal[];
       planningThreadId?: string;
       planningThreadRevision?: number;
+      blockedIntervals?: Array<{ start: string; end: string }>;
     },
   ) {
     if (!Array.isArray(data.proposals) || data.proposals.length === 0)
@@ -168,6 +310,14 @@ export class PlannerService {
     const ids = data.proposals.map((proposal) => proposal.taskId);
     if (new Set(ids).size !== ids.length)
       throw new BadRequestException('A task can only appear once in a plan');
+
+    const blockedIntervals = (data.blockedIntervals || []).slice(0, 5).map((interval) => {
+      const start = parseDate(interval.start, 'blockedInterval.start');
+      const end = parseDate(interval.end, 'blockedInterval.end');
+      if (end <= start)
+        throw new BadRequestException('Blocked interval end must be after start');
+      return { start, end };
+    });
 
     return this.prisma.$transaction(async (tx) => {
       let planningThreadId: string | null = null;
@@ -246,7 +396,7 @@ export class PlannerService {
             startTime: { lt: rangeEnd },
             endTime: { gt: rangeStart },
           },
-          select: { startTime: true, endTime: true },
+          select: { startTime: true, endTime: true, taskId: true },
         }),
       ]);
       const occupied: BusyInterval[] = [
@@ -255,10 +405,12 @@ export class PlannerService {
             ? [{ start: task.scheduledStart, end: task.scheduledEnd }]
             : [],
         ),
-        ...events.map((event) => ({
-          start: event.startTime,
-          end: event.endTime,
-        })),
+        ...events.flatMap((event) =>
+          event.taskId && ids.includes(event.taskId)
+            ? []
+            : [{ start: event.startTime, end: event.endTime }],
+        ),
+        ...blockedIntervals,
       ];
       if (
         proposalIntervals.some((proposal) =>

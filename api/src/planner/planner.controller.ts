@@ -15,6 +15,19 @@ export class PlannerController {
     return this.plannerService.preview(userId, data);
   }
 
+  @Post('replan/preview')
+  replanPreview(
+    @CurrentUserId() userId: string,
+    @Body() data: {
+      blockedStart: string;
+      blockedEnd: string;
+      planningStart: string;
+      planningEnd: string;
+    },
+  ) {
+    return this.plannerService.replanPreview(userId, data);
+  }
+
   @Post('apply')
   apply(
     @CurrentUserId() userId: string,
@@ -22,6 +35,7 @@ export class PlannerController {
       proposals: PlannerProposal[];
       planningThreadId?: string;
       planningThreadRevision?: number;
+      blockedIntervals?: Array<{ start: string; end: string }>;
     },
   ) {
     return this.plannerService.apply(userId, data);

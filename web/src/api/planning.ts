@@ -30,6 +30,16 @@ export interface PlanningEvidenceItem {
   highImpact: boolean;
 }
 
+export interface PlanningReplanRequest {
+  requestId: string;
+  title: string;
+  blockedStart: string;
+  blockedEnd: string;
+  planningStart: string;
+  planningEnd: string;
+  reason: string;
+}
+
 export type PlanningActionProposal =
   | {
       proposalId: string;
@@ -64,6 +74,7 @@ export interface PlanningConversationRow {
     evidenceIds?: string[];
     actions?: PlanningActionProposal[];
     appliedActionIds?: string[];
+    replanRequests?: PlanningReplanRequest[];
   } | null;
   createdAt: string;
 }
@@ -99,6 +110,7 @@ export interface PlanningTurnResponse {
     evidence: PlanningEvidenceItem[];
   };
   actions: PlanningActionProposal[];
+  replanRequests: PlanningReplanRequest[];
   planningContext: PlanningContextSnapshot;
 }
 
@@ -123,9 +135,20 @@ export function getPlanningThread(id: string) {
 }
 
 export function sendPlanningTurn(id: string, message: string, expectedRevision: number) {
+  let timeZone = 'UTC';
+  try {
+    timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    // keep UTC fallback
+  }
   return api.post<PlanningTurnResponse>(
     `/planning/threads/${id}/turn`,
-    { message, expectedRevision },
+    {
+      message,
+      expectedRevision,
+      currentTime: new Date().toISOString(),
+      timeZone,
+    },
     { throwOnError: true, timeoutMs: 90_000 },
   );
 }

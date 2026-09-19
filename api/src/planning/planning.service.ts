@@ -13,6 +13,7 @@ import {
   type AIProvider,
   type PlanningActionProposal,
   type PlanningContextSnapshot,
+  type PlanningReplanRequest,
   type PlanningEvidenceItem,
   type PlanningFact,
   type PlanningFactStatus,
@@ -281,7 +282,12 @@ export class PlanningService {
   async turn(
     userId: string,
     id: string,
-    data: { message: string; expectedRevision: number },
+    data: {
+      message: string;
+      expectedRevision: number;
+      currentTime?: string;
+      timeZone?: string;
+    },
   ) {
     const message = data.message?.trim();
     if (!message) throw new BadRequestException('message is required');
@@ -289,6 +295,11 @@ export class PlanningService {
     if (!Number.isInteger(data.expectedRevision) || data.expectedRevision < 1) {
       throw new BadRequestException('expectedRevision is required');
     }
+    const currentTime = data.currentTime ? new Date(data.currentTime) : new Date();
+    if (Number.isNaN(currentTime.getTime())) {
+      throw new BadRequestException('currentTime is invalid');
+    }
+    const timeZone = data.timeZone?.trim().slice(0, 100) || 'UTC';
 
     const thread = await this.prisma.planningThread.findFirst({
       where: { id, userId },
@@ -328,12 +339,15 @@ export class PlanningService {
         dueDate: true,
         estimatedMinutes: true,
         scheduledStart: true,
+        scheduledEnd: true,
+        scheduleLocked: true,
       },
     });
     const currentTasks = currentTaskRows.map((task) => ({
       ...task,
       dueDate: task.dueDate?.toISOString() || null,
       scheduledStart: task.scheduledStart?.toISOString() || null,
+      scheduledEnd: task.scheduledEnd?.toISOString() || null,
     }));
 
     const previousEvidence = freshEvidence(readEvidence(thread.evidence));
@@ -348,6 +362,8 @@ export class PlanningService {
         context: contextFromThread(thread),
         recentMessages,
         currentTasks,
+        currentTime: currentTime.toISOString(),
+        timeZone,
         evidence: previousEvidence,
         researchAllowed: this.research.isConfigured(),
         researchUnavailableReason: this.research.isConfigured()
@@ -420,6 +436,11 @@ export class PlanningService {
       });
     }
 
+    const replanRequests: PlanningReplanRequest[] = result.replanRequests.map((request) => ({
+      ...request,
+      requestId: randomUUID(),
+    }));
+
     const nextContext = {
       brief: normalizeFacts(result.context.brief),
       constraints: normalizeFacts(result.context.constraints),
@@ -469,7 +490,8 @@ export class PlanningService {
             evidenceIds: researchAdded.map((item) => item.id),
             actions: actionProposals,
             appliedActionIds: [],
-          } as Prisma.InputJsonValue,
+            replanRequests,
+          } as unknown as Prisma.InputJsonValue,
         },
       });
 
@@ -491,6 +513,7 @@ export class PlanningService {
         evidence: researchAdded,
       },
       actions: actionProposals,
+      replanRequests,
       planningContext: contextFromThread(transactionResult.updatedThread),
     };
   }
