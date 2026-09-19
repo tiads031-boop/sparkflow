@@ -339,6 +339,11 @@ export default function App() {
                 key={activeTab}
                 tasks={tasks}
                 onTaskClick={(task) => handleOpenDetail(task, 'task')}
+                onCourseClick={(courseId) => {
+                  loadCourseDetail(courseId);
+                  setViewingCourseId(courseId);
+                  setActiveTab('courses');
+                }}
                 onPlanner={() => setPlannerOpen(true)}
                 onQuickAdd={() => setQuickAddOpen(true)}
                 initialSection={activeTab === 'tasks' || activeTab === 'board' ? 'tasks' : 'calendar'}
