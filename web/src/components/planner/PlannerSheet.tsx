@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   BrainCircuit,
+  CalendarClock,
   Check,
   ChevronDown,
   ChevronUp,
