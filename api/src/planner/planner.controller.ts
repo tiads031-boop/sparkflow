@@ -10,7 +10,11 @@ export class PlannerController {
   @Post('preview')
   preview(
     @CurrentUserId() userId: string,
-    @Body() data: { availabilityStart: string; availabilityEnd: string },
+    @Body() data: {
+      availabilityStart: string;
+      availabilityEnd: string;
+      planningThreadId?: string;
+    },
   ) {
     return this.plannerService.preview(userId, data);
   }
@@ -23,6 +27,7 @@ export class PlannerController {
       blockedEnd: string;
       planningStart: string;
       planningEnd: string;
+      planningThreadId?: string;
     },
   ) {
     return this.plannerService.replanPreview(userId, data);

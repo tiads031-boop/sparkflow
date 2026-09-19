@@ -917,11 +917,15 @@ export default function PlannerSheet({
                   const selected = selectedActionIds.includes(action.proposalId);
                   const details = action.type === 'create_task'
                     ? [
+                        action.milestoneTitle ? `阶段：${action.milestoneTitle}` : null,
                         action.priority ? `优先级：${action.priority}` : null,
                         action.estimatedMinutes ? `${action.estimatedMinutes} 分钟` : null,
                         action.dueDate ? `截止：${new Date(action.dueDate).toLocaleString('zh-CN')}` : null,
                       ].filter(Boolean)
                     : [
+                        action.changes.milestoneTitle !== undefined
+                          ? `阶段 → ${action.changes.milestoneTitle || '待整理'}`
+                          : null,
                         action.changes.priority ? `优先级 → ${action.changes.priority}` : null,
                         action.changes.estimatedMinutes !== undefined ? `时长 → ${action.changes.estimatedMinutes ?? '未设置'} 分钟` : null,
                         action.changes.dueDate !== undefined

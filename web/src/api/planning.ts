@@ -49,6 +49,7 @@ export type PlanningActionProposal =
       priority?: 'high' | 'medium' | 'low';
       estimatedMinutes?: number | null;
       dueDate?: string | null;
+      milestoneTitle?: string | null;
     }
   | {
       proposalId: string;
@@ -61,6 +62,7 @@ export type PlanningActionProposal =
         priority?: 'high' | 'medium' | 'low';
         estimatedMinutes?: number | null;
         dueDate?: string | null;
+        milestoneTitle?: string | null;
       };
     };
 

@@ -68,7 +68,11 @@ export class PlannerService {
 
   async preview(
     userId: string,
-    data: { availabilityStart: string; availabilityEnd: string },
+    data: {
+      availabilityStart: string;
+      availabilityEnd: string;
+      planningThreadId?: string;
+    },
   ) {
     let availabilityStart = parseDate(
       data.availabilityStart,
@@ -89,6 +93,16 @@ export class PlannerService {
     if (availabilityStart < now && now < availabilityEnd)
       availabilityStart = now;
 
+    let goalScopeId: string | null = null;
+    if (data.planningThreadId) {
+      const thread = await this.prisma.planningThread.findFirst({
+        where: { id: data.planningThreadId, userId, status: 'active' },
+        select: { scopeType: true, scopeId: true },
+      });
+      if (!thread) throw new NotFoundException('Planning thread not found');
+      goalScopeId = thread.scopeType === 'goal' ? thread.scopeId : null;
+    }
+
     const [tasks, scheduledTasks, events] = await Promise.all([
       this.prisma.task.findMany({
         where: {
@@ -96,6 +110,13 @@ export class PlannerService {
           status: { notIn: ['done', 'cancelled'] },
           scheduleLocked: false,
           scheduledStart: null,
+          ...(goalScopeId
+            ? {
+                studyFolders: {
+                  some: { folderId: goalScopeId },
+                },
+              }
+            : {}),
         },
         orderBy: { createdAt: 'asc' },
       }),
@@ -160,6 +181,7 @@ export class PlannerService {
       blockedEnd: string;
       planningStart: string;
       planningEnd: string;
+      planningThreadId?: string;
     },
   ) {
     const blockedStart = parseDate(data.blockedStart, 'blockedStart');
@@ -179,6 +201,16 @@ export class PlannerService {
     const now = new Date();
     if (planningStart < now && now < planningEnd) planningStart = now;
 
+    let goalScopeId: string | null = null;
+    if (data.planningThreadId) {
+      const thread = await this.prisma.planningThread.findFirst({
+        where: { id: data.planningThreadId, userId, status: 'active' },
+        select: { scopeType: true, scopeId: true },
+      });
+      if (!thread) throw new NotFoundException('Planning thread not found');
+      goalScopeId = thread.scopeType === 'goal' ? thread.scopeId : null;
+    }
+
     const affectedTasks = await this.prisma.task.findMany({
       where: {
         userId,
@@ -186,6 +218,13 @@ export class PlannerService {
         scheduleLocked: false,
         scheduledStart: { lt: blockedEnd },
         scheduledEnd: { gt: blockedStart },
+        ...(goalScopeId
+          ? {
+              studyFolders: {
+                some: { folderId: goalScopeId },
+              },
+            }
+          : {}),
       },
       orderBy: [{ priority: 'desc' }, { dueDate: 'asc' }],
     });
@@ -322,11 +361,18 @@ export class PlannerService {
     return this.prisma.$transaction(async (tx) => {
       let planningThreadId: string | null = null;
       let planningThreadRevision: number | null = null;
+      let goalScopeId: string | null = null;
 
       if (data.planningThreadId) {
         const thread = await tx.planningThread.findFirst({
           where: { id: data.planningThreadId, userId },
-          select: { id: true, revision: true, status: true },
+          select: {
+            id: true,
+            revision: true,
+            status: true,
+            scopeType: true,
+            scopeId: true,
+          },
         });
         if (!thread) throw new NotFoundException('Planning thread not found');
         if (thread.status !== 'active')
@@ -341,13 +387,28 @@ export class PlannerService {
         }
         planningThreadId = thread.id;
         planningThreadRevision = thread.revision;
+        goalScopeId = thread.scopeType === 'goal' ? thread.scopeId : null;
       }
 
       const tasks = await tx.task.findMany({
-        where: { userId, id: { in: ids } },
+        where: {
+          userId,
+          id: { in: ids },
+          ...(goalScopeId
+            ? {
+                studyFolders: {
+                  some: { folderId: goalScopeId },
+                },
+              }
+            : {}),
+        },
       });
       if (tasks.length !== ids.length)
-        throw new NotFoundException('One or more tasks were not found');
+        throw new NotFoundException(
+          goalScopeId
+            ? 'One or more tasks are outside this learning goal'
+            : 'One or more tasks were not found',
+        );
 
       const taskMap = new Map(tasks.map((task) => [task.id, task]));
       const proposalIntervals: BusyInterval[] = data.proposals.map(

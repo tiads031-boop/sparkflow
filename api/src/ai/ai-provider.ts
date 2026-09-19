@@ -85,6 +85,7 @@ export interface PlanningTaskSnapshot {
   scheduledStart: string | null;
   scheduledEnd: string | null;
   scheduleLocked: boolean;
+  project: string | null;
 }
 
 export type PlanningActionDraft =
@@ -95,6 +96,7 @@ export type PlanningActionDraft =
       priority?: 'high' | 'medium' | 'low';
       estimatedMinutes?: number | null;
       dueDate?: string | null;
+      milestoneTitle?: string | null;
     }
   | {
       type: 'update_task';
@@ -106,6 +108,7 @@ export type PlanningActionDraft =
         priority?: 'high' | 'medium' | 'low';
         estimatedMinutes?: number | null;
         dueDate?: string | null;
+        milestoneTitle?: string | null;
       };
     };
 
@@ -126,11 +129,18 @@ export interface PlanningReplanRequest extends PlanningReplanDraft {
   requestId: string;
 }
 
+export interface PlanningScopeSnapshot {
+  type: string;
+  id: string | null;
+  title: string | null;
+}
+
 export interface PlanningTurnInput {
   message: string;
   context: PlanningContextSnapshot;
   recentMessages: PlanningConversationMessage[];
   currentTasks?: PlanningTaskSnapshot[];
+  planningScope?: PlanningScopeSnapshot;
   currentTime?: string;
   timeZone?: string;
   evidence?: PlanningEvidenceItem[];
