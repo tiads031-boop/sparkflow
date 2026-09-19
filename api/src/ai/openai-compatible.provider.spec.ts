@@ -165,6 +165,53 @@ describe('planning response parser', () => {
     ]);
   });
 
+  it('parses an explicit recurring course template change draft', () => {
+    const result = toPlanningTurn({
+      reply: '你明确说从下周开始以后都改到周五，我先生成周期课表修改草案。',
+      readiness: 'ready',
+      summary: '修改民法未来周期模板。',
+      openQuestions: [],
+      researchQueries: [],
+      actions: [
+        {
+          type: 'course_template_change',
+          courseId: 'course-1',
+          courseName: '民法',
+          effectiveFrom: '2026-09-21T00:00:00.000Z',
+          changes: {
+            dayOfWeek: 5,
+            startTime: '10:00',
+            endTime: '11:40',
+            room: 'B202',
+          },
+        },
+      ],
+      replanRequests: [],
+      context: {
+        brief: [],
+        constraints: [],
+        preferences: [],
+        strategy: [],
+        assumptions: [],
+      },
+    });
+
+    expect(result.actions).toEqual([
+      {
+        type: 'course_template_change',
+        courseId: 'course-1',
+        courseName: '民法',
+        effectiveFrom: '2026-09-21T00:00:00.000Z',
+        changes: {
+          dayOfWeek: 5,
+          startTime: '10:00',
+          endTime: '11:40',
+          room: 'B202',
+        },
+      },
+    ]);
+  });
+
   it('parses bounded temporary-conflict replan requests', () => {
     const result = toPlanningTurn({
       reply: '下午临时有事，我先给你生成一个重排预览。',
