@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Sparkles,
   Trash2,
-  X,
 } from 'lucide-react';
 import type { Spark } from '../store/appStore';
 import { useAppStore } from '../store/appStore';
