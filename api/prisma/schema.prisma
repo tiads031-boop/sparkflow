@@ -316,8 +316,9 @@ model AIConversation {
 model SchedulePlan {
   id               String   @id @default(uuid())
   userId           String
-  planningThreadId String?
-  status           String   @default("applied")
+  planningThreadId       String?
+  planningThreadRevision Int?
+  status                 String   @default("applied")
   beforeState      Json
   afterState       Json
   createdAt        DateTime @default(now())
