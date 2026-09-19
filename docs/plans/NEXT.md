@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-19 | **代码基线**：`master@73e5f779`
+> **最后更新**：2026-09-19 | **代码基线**：`master@735944fd`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -11,7 +11,7 @@
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，腾讯云运行 `master@99ebb3c`；公网 `/api/health.buildSha` 与仓库一致；生产库 20 个 migrations 全部 up to date，包含 `20260919130000_add_study_folders` |
 | Web | Vercel 项目 `sparkflow031`；2026-09-19 已从 GitHub `master@e883b9a3` 源码显式发布 Production，部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 为 READY，`fish-life.cc.cd` HTTP 200；生产 bundle 已核到五项导航与 M3 Planner Preview 文案 |
-| GitHub | `master@e883b9a3`；VNext Plan M1–M3（功能基线 `7145ba0`，PR #48/#49/#50）已合并并通过 CI；PR #51 已同步方案事实源 |
+| GitHub | `master@735944fd`；VNext AI-first M4–M8 方案 PR #54 已合并；M4.1–M4.4 已通过 PR #55/#56 落地并通过 Web/API/fresh PostgreSQL CI |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
 | 最新功能 APK | Release `android-7145ba0ea3d2`；`sparkflow-7145ba0ea3d2-debug.apk`；对应 VNext M3 功能提交 `7145ba0ea3d2`，Android CI 成功；之后 `e883b9a3` 仅改文档，未触发 APK |
@@ -168,22 +168,28 @@
 
 用户已确认的新方向：
 
-- [ ] **M4 / 执行界面与提醒基础**：先修 PushService 用户隔离；Today 只留“今日安排”；统一 Task Sheet；四象限手机 2×2 + 可关闭；Settings 新壳层。
+- [x] **M4.1 / 通知正确性**：PR #55 已修 PushService 用户隔离、`reminderAt` 优先、每任务/提醒/订阅的持久化 delivery key；新增 server-only `notification_deliveries` migration 并通过 fresh PostgreSQL CI。
+- [x] **M4.2 / Today 极简**：PR #55 已移除日期选择 / WeekStrip / RhythmDial / FreeTime / TodayProgress / Review 卡片；Today 固定读取真实今天，只显示统一“今日安排”。
+- [x] **M4.3 / 新建任务 UI**：PR #56 已新增统一浅色 Task Sheet；常用字段首屏，提醒/重复/指定开始时间进入“更多设置”；支持“保存并交给 AI 安排”。旧编辑详情暂保留，避免移除子任务/Pomodoro。
+- [x] **M4.4 / 四象限**：PR #56 已将 Plan 待办切换为“列表 / 四象限”；手机端同屏 2×2，选择持久化；旧 Board 入口兼容映射到四象限。
+- [ ] **M4.5 / Settings 新壳层**：重做“我的/设置”为偏好、连接、数据、账户安全、诊断等分组二级页；补四象限启用开关与通知设置入口。
 - [ ] **M5 / AI 规划与调整 2.0**：把固定“AI 帮我安排”改为对话式助手；AI 根据需求缺口自主访谈，不限制固定问题数；保存持续 Planning Context（已确认目标/约束/偏好/策略/假设/revision）；当规划依赖外部事实时自动联网研究，保存来源/获取时间/有效期并在过期后重新核验；支持文字 + 语音、临时想法/任务、增量重规划、目标替换、Preview → Apply → Undo。
 - [ ] **M6 / 学习目标 AI**：Study 与 Course 完全解耦；长期目标绑定持续 Planning Context；AI 尽可能了解成功标准、当前水平、资源、时间预算、偏好与取舍，并可主动核实考试规则、官方大纲、报名/考试时间、目标要求与资源版本等当前信息，再拆阶段/里程碑/Task；后续冲突、执行效果、外部事实变化和目标变化沿用上下文增量调整。
 - [ ] **M7 / 课程灵活调整**：调课、换课、停课、补课；单次变动使用 CalendarEvent override，不静默修改 Course 周期模板；AI 可自然语言操作同一套 Preview/Apply/Undo。
 - [ ] **M8 / 多模态记录与设置收尾**：随手记支持文字/语音/图片/视频；附件从属 Inspiration；完善通知设置、安静时段、测试通知和设置页视觉。
 
-### M4 第一优先级安全修复
+### M4 第一优先级安全修复 — ✅ 已完成
 
-当前 `PushService.notifyDueTasks()` 会先查询一批到期任务，再遍历全部 PushSubscription 发送，未按任务 `userId` 分组。下一代码批次必须先改为：
+PR #55 已完成：
 
 1. 到期/提醒任务按 userId 分组；
 2. 只发送到同 userId 的 subscriptions；
-3. `reminderAt` 优先于 `dueDate`；
-4. 增加同一提醒的防重复 delivery key。
+3. `reminderAt` 优先于 `dueDate`，无显式提醒时保留 due-soon fallback；
+4. `notification_deliveries.deliveryKey` 唯一约束防 cron 重复推送；
+5. 仅在通道发送成功后写 delivery，临时失败仍可重试；
+6. 新表启用 RLS 并拒绝 anon/authenticated 直连。
 
-该项属于隐私/正确性修复，优先于设置页视觉。
+该隐私/正确性风险已由代码 + migration + CI 收口；生产部署仍需按 API 发布流程执行。
 
 ### 已明确取消/替代的旧方向
 
