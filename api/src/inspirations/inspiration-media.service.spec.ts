@@ -47,16 +47,23 @@ describe('Inspiration media validation', () => {
   });
 
   it('rejects attachment batches beyond the total-size boundary', () => {
+    const legalSingleFileBytes = Math.floor(MAX_INSPIRATION_TOTAL_BYTES / 3) + 1;
+    expect(legalSingleFileBytes).toBeLessThan(MAX_INSPIRATION_FILE_BYTES);
     expect(() => validateInspirationFiles([
       {
         buffer: Buffer.alloc(1),
-        size: MAX_INSPIRATION_TOTAL_BYTES / 2 + 1,
+        size: legalSingleFileBytes,
         mimetype: 'video/mp4',
       },
       {
         buffer: Buffer.alloc(1),
-        size: MAX_INSPIRATION_TOTAL_BYTES / 2 + 1,
+        size: legalSingleFileBytes,
         mimetype: 'video/webm',
+      },
+      {
+        buffer: Buffer.alloc(1),
+        size: legalSingleFileBytes,
+        mimetype: 'audio/webm',
       },
     ])).toThrow(BadRequestException);
   });
