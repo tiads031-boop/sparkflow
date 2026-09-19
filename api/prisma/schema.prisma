@@ -321,6 +321,7 @@ model AIConversation {
 model SchedulePlan {
   id               String   @id @default(uuid())
   userId           String
+  planType         String   @default("task")
   planningThreadId       String?
   planningThreadRevision Int?
   status                 String   @default("applied")
@@ -333,6 +334,7 @@ model SchedulePlan {
   planningThread PlanningThread? @relation(fields: [planningThreadId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+  @@index([userId, planType, createdAt])
   @@index([planningThreadId, createdAt])
   @@map("schedule_plans")
 }
