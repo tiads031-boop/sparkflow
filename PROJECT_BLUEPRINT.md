@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-19
-> **代码同步基线**：`master@e883b9a3`
+> **代码同步基线**：`master@73e5f779`
 
 ---
 
@@ -52,9 +52,12 @@ Folder → Today → Focus → Review → Schedule
 | 13 | Android 发布 | 构建前后校验 production API；APK/Artifact/Release 绑定 commit SHA | 每个真机包都能追溯来源与 API 目标 |
 | 14 | 记录事实源 | Phase 15 统一到服务端 `Inspiration`，Reflection 独立历史，Insight 使用 N:N 来源关系 | 记录、回顾、洞察都可追溯，不把 AI 输出当原始事实 |
 | 15 | AI 洞察与行动 | OpenAI-compatible Provider；Insight 只产生候选，Action 经用户确认后写入共享 Task，并保留 `insightId` 回链 | 保留用户控制权，可回答“为什么做这个任务” |
-| 16 | Study Mode | 复用 Course / Task / Calendar / Planner / Focus | 学习场景是工作区，不是第二套效率系统 |
+| 16 | Study / 学习工作区 | 与 Course 产品逻辑解耦；以 StudyFolder 作为学习目标容器，AI 通过目标访谈生成共享 Task / Calendar 安排 | 课程是学校课程事实，学习是目标规划场景；两者不应互相绑死，同时仍不建立第二套 Task/Calendar |
 | 17 | Local Codex Bridge | 独立本机 loopback Gateway，native Codex 为唯一执行事实源 | 不进入云端生产控制链，不建立第二套 runtime/transcript |
 | 18 | VNext 信息架构 / Plan | 一级导航固定为今天/计划/记录/学习/我的；Plan 通过前端 PlanItem 统一投影 Task/Course/CalendarEvent，Planner Preview 仅为临时视图态 | 降低入口膨胀与重复课表/日历风险，同时保持现有事实源和 Preview→Apply→Undo 用户控制 |
+| 19 | AI 调度中枢 | “AI 帮我安排”升级为对话式 AI 规划与调整；LLM 负责澄清/意图/解释，确定性 Scheduler 与现有 Task/Course/Calendar 负责事实写入 | 支持临时想法、目标规划、日程重排、课程变动，同时保持 Preview→Apply→Undo 与可复现约束 |
+| 20 | 课程单次变动 | Course 继续是周期模板；调课/换课/停课/补课通过 CalendarEvent override 表达，不静默改动未来周期 | 区分“这一次变动”和“以后都这样”，避免一次调课污染整学期 |
+| 21 | 多模态记录 | Inspiration 为记录主事实，图片/音频/视频使用从属 Attachment 元数据 + 文件存储 | 保持记录可追溯，不把大文件直接塞入数据库，也不在上传时默认消耗 AI 额度 |
 
 ---
 
@@ -225,11 +228,17 @@ M1：✅ Inspiration、随手记、Reflection、回顾、记录 → Task 已实�
 M2：🚧 Theme / Evolution / Action Insight 与来源解释已实现；真实 Qwen Provider 已有生产调用证据；PR #43 已完成 thinking/JSON mode/重试/超时稳定性修复，待最新 master 生产复验。  
 M3：🚧 Insight → 用户确认 Task 与双向回链已实现；腾讯云 API 与 Vercel Production 已对齐 `99ebb3c`，仍待真实账户完成完整链路验收。
 
-### Study Mode
+### Study / 学习工作区
 
-M1 运行时代码已通过 PR #45 合入并部署；StudyFolder migration、API 与 Web Production 已对齐 `99ebb3c`，仍待真实账户验收。
+旧 M1 StudyFolder 代码仍在运行，但产品方向已重定义：
 
-阶段顺序：M1 Study Home / StudyFolder → M2 Review → M3 Habit / Plan → M4 Template / Export。
+- Study 不再聚合/关联 Course；
+- StudyFolder 升级为“学习目标容器”；
+- AI 先围绕目标、期限、当前水平、可投入时间做必要追问；
+- 阶段与里程碑属于目标规划，真正执行项继续写共享 Task；
+- Course 保持独立学校课程系统。
+
+后续以 `docs/plans/vnext-ai-orchestration-study-course-capture.md` 的 M6 为准。
 
 ---
 
@@ -247,6 +256,7 @@ M1 运行时代码已通过 PR #45 合入并部署；StudyFolder migration、API
 | Phase 15 | 🚧 M1–M3 已实现，真实链路收尾 | M1–M3 Web/API 已对齐 `99ebb3c`；真实 Qwen 与 Android/Planner 链路仍需验收 |
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合入；Web Production 已发布并静态冒烟，Android M3 APK `android-7145ba0ea3d2` 已生成；真实账号与真机验收前 M4 暂不启动 |
+| VNext AI Orchestration | ✅ M4–M8 方案完成，⏭ 下一产品主线 | 学习与课程解耦；对话式 AI 规划/调整；临时安排；课程 override；同屏四象限；Today 极简；多模态记录；设置/通知/Task Sheet 重做 |
 
 ---
 
@@ -292,6 +302,7 @@ M1 运行时代码已通过 PR #45 合入并部署；StudyFolder migration、API
 | P0 | Planner 生产 schema/闭环未证实 | SchedulePlan migration 在 fresh PG CI 成功 | 真账号 Preview → Apply → Undo |
 | P1 | HTTP 未知结果恢复仍缺端到端证据 | 前端按 requestId 查询 + 服务端 replay；真实 PG 已验证最终状态 | 模拟客户端超时/断连后查询并恢复已提交结果 |
 | P1 | Vercel Hobby deployment 日配额 / 本次 Git metadata 缺失 | GitHub CI 独立；Git 自动 deployments 已关闭；VNext Production 首次手工发布已成功，仓库记录 SHA→deployment 映射 | 等额度恢复后的下一次正常 Git 可追溯发布自然覆盖；不为补 metadata 重复消耗当日 deployment |
+| P0 | Push 到期提醒未按用户隔离 | Web Push/FCM 订阅本身按 userId 保存，但当前 cron 先查全局 dueTasks 再遍历全部订阅 | M4.1 改为 task/user 分组，仅发送同 user subscriptions，并增加提醒防重复 |
 | P1 | Issue #26 Timeline M3 未重做 | 当前主线仍保留 Gantt | 最新 master 上通过多来源、移动端、DST/边界验收 |
 
 ---
@@ -308,8 +319,12 @@ flowchart TD
     F --> G["✅ 发布 99ebb3c + API/Web 对齐"]
     G --> H["Issue #31 remaining Web/Android/Planner acceptance"]
     H --> I["VNext Plan Web/PWA/Android acceptance"]
-    I --> K["VNext M4 / Phase 15 M4 / Study Mode / Phase 14 next batch"]
-    K --> J["Phase 13 Local Codex Bridge"]
+    I --> K["VNext M4 notification/Today/Task/Quadrant/Settings"]
+    K --> L["M5 AI orchestration 2.0"]
+    L --> M["M6 AI learning goals"]
+    M --> N["M7 course overrides + AI"]
+    N --> O["M8 multimodal capture + notification/settings polish"]
+    O --> J["Phase 13 Local Codex Bridge"]
 ```
 
 ### 当前批次：Issue #31 真实验收 + VNext Plan M1–M3 生产/真机验收
