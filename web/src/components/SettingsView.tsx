@@ -24,6 +24,11 @@ import {
 import { useAppStore } from '../store/appStore';
 import type { SparkFlowProfession, SparkFlowStatusNeed } from '../store/appStore';
 import { apiRequest } from '../api/client';
+import {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  type NotificationPreferences,
+} from '../api/push';
 import { exportSparkflowData, readSparkflowImportFile } from '../utils/dataPortability';
 import {
   presetTaskSections,
@@ -101,6 +106,14 @@ function relativeTime(isoStr: string | null): string {
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function browserTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
 }
 
 function PageHeader({
@@ -273,6 +286,9 @@ export default function SettingsView() {
 
   const [pushBusy, setPushBusy] = useState(false);
   const [pushMessage, setPushMessage] = useState<string | null>(null);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences | null>(null);
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [notificationSaving, setNotificationSaving] = useState(false);
 
   const canUseSystemCalendar = isSystemCalendarAvailable();
 
@@ -286,12 +302,69 @@ export default function SettingsView() {
   }, [customTaskSections]);
 
   useEffect(() => {
-    if (page === 'notifications') void checkPushStatus();
+    if (page !== 'notifications') return;
+    let active = true;
+    setNotificationLoading(true);
+    setPushMessage(null);
+
+    void Promise.all([
+      checkPushStatus(),
+      getNotificationPreferences(),
+    ])
+      .then(async ([, serverPreferences]) => {
+        let resolved = serverPreferences;
+        const timeZone = browserTimeZone();
+        if (serverPreferences.timeZone !== timeZone) {
+          try {
+            resolved = await updateNotificationPreferences({ timeZone });
+          } catch {
+            // Timezone sync is best-effort; existing server preferences remain usable.
+          }
+        }
+        if (!active) return;
+        setNotificationPreferences(resolved);
+        const nextLocal = updateUserPreferences({
+          defaultReminderMinutes: resolved.defaultReminderMinutes,
+        });
+        setPreferences(nextLocal);
+      })
+      .catch((err) => {
+        if (active) setPushMessage(errorMessage(err, '读取通知偏好失败'));
+      })
+      .finally(() => {
+        if (active) setNotificationLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [page, checkPushStatus]);
 
   const savePreferences = (patch: Partial<UserPreferences>) => {
     const next = updateUserPreferences(patch);
     setPreferences(next);
+  };
+
+  const saveNotificationPreference = async (
+    patch: Partial<NotificationPreferences>,
+  ) => {
+    if (notificationSaving) return;
+    setNotificationSaving(true);
+    setPushMessage(null);
+    try {
+      const next = await updateNotificationPreferences(patch);
+      setNotificationPreferences(next);
+      if (patch.defaultReminderMinutes !== undefined) {
+        const nextLocal = updateUserPreferences({
+          defaultReminderMinutes: next.defaultReminderMinutes,
+        });
+        setPreferences(nextLocal);
+      }
+    } catch (err) {
+      setPushMessage(errorMessage(err, '保存通知偏好失败'));
+    } finally {
+      setNotificationSaving(false);
+    }
   };
 
   const handlePushToggle = async (enabled: boolean) => {
@@ -533,9 +606,14 @@ export default function SettingsView() {
   }
 
   if (page === 'notifications') {
+    const serverPreferences = notificationPreferences;
     return (
       <div className="animate-page-enter pb-24">
-        <PageHeader title="通知与提醒" subtitle="管理设备通知，以及新任务默认提醒方式。" onBack={() => setPage('home')} />
+        <PageHeader
+          title="通知与提醒"
+          subtitle="任务、课程和安静时段由账户偏好统一管理，PWA 与 Android 共用。"
+          onBack={() => setPage('home')}
+        />
 
         <InlineCard>
           <div className="flex items-center gap-3">
@@ -543,9 +621,13 @@ export default function SettingsView() {
               <Bell size={18} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-[#242424]">设备通知</p>
+              <p className="text-sm font-bold text-[#242424]">当前设备通知</p>
               <p className="mt-0.5 text-[10px] text-gray-400">
-                {!pushSupported ? '当前环境不支持推送' : pushEnabled ? `已开启 · ${pushChannel === 'fcm' ? 'Android FCM' : 'Web Push'}` : '未开启'}
+                {!pushSupported
+                  ? '当前环境不支持推送'
+                  : pushEnabled
+                    ? `已开启 · ${pushChannel === 'fcm' ? 'Android FCM' : 'Web Push'}`
+                    : '未开启'}
               </p>
             </div>
             <Toggle
@@ -564,37 +646,185 @@ export default function SettingsView() {
             >
               {pushBusy ? '处理中…' : '发送测试通知'}
             </button>
-            {pushMessage && <p className="mt-3 rounded-2xl bg-[#f4f4f6] px-3 py-2.5 text-xs text-gray-600">{pushMessage}</p>}
+            <p className="mt-2 text-[10px] leading-4 text-gray-400">
+              测试通知是主动诊断操作，即使当前处于安静时段也会发送。
+            </p>
+            {pushMessage && (
+              <p className="mt-3 rounded-2xl bg-[#f4f4f6] px-3 py-2.5 text-xs text-gray-600">
+                {pushMessage}
+              </p>
+            )}
           </div>
         </InlineCard>
 
-        <section className="mt-5">
-          <h2 className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">新建任务</h2>
-          <InlineCard>
-            <label className="block">
-              <span className="text-sm font-bold text-[#242424]">默认提前提醒</span>
-              <span className="mt-1 block text-[10px] leading-4 text-gray-400">设置截止时间时，Task Sheet 会自动填入这个提醒时间，你仍可以单独修改。</span>
-              <select
-                value={preferences.defaultReminderMinutes}
-                onChange={(event) => savePreferences({ defaultReminderMinutes: Number(event.target.value) })}
-                className="mt-3 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm font-medium outline-none"
-              >
-                <option value={0}>不自动添加提醒</option>
-                <option value={10}>提前 10 分钟</option>
-                <option value={15}>提前 15 分钟</option>
-                <option value={30}>提前 30 分钟</option>
-                <option value={60}>提前 1 小时</option>
-                <option value={120}>提前 2 小时</option>
-                <option value={1440}>提前 1 天</option>
-              </select>
-            </label>
-          </InlineCard>
-        </section>
+        {notificationLoading || !serverPreferences ? (
+          <div className="mt-4 flex items-center justify-center gap-2 rounded-[1.6rem] bg-white py-10 text-xs text-gray-400 shadow-sm">
+            <Loader2 size={14} className="animate-spin" /> 正在读取账户通知偏好…
+          </div>
+        ) : (
+          <>
+            <section className="mt-5">
+              <h2 className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">
+                提醒类型
+              </h2>
+              <InlineCard>
+                <div className="flex items-center gap-3 border-b border-black/[0.05] pb-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-[#242424]">任务提醒</p>
+                    <p className="mt-0.5 text-[10px] leading-4 text-gray-400">
+                      使用任务自己的 reminderAt；没有单独提醒时可按默认提前时间推导。
+                    </p>
+                  </div>
+                  <Toggle
+                    checked={serverPreferences.taskRemindersEnabled}
+                    disabled={notificationSaving}
+                    onChange={(taskRemindersEnabled) =>
+                      void saveNotificationPreference({ taskRemindersEnabled })}
+                  />
+                </div>
 
-        <div className="mt-4 rounded-2xl border border-dashed border-[#b0a8db]/50 bg-[#f4f2fb] px-4 py-3">
-          <p className="text-xs font-bold text-[#4f4675]">后续通知增强</p>
-          <p className="mt-1 text-[10px] leading-4 text-[#6d638e]">安静时段、每日摘要和更细的通知类别会在 M8 接入服务端，避免先放一个实际不生效的开关。</p>
-        </div>
+                <div className="border-b border-black/[0.05] py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-[#242424]">截止时间兜底提醒</p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-gray-400">
+                        任务没有 reminderAt 时，仍根据下面的默认提前量提醒。
+                      </p>
+                    </div>
+                    <Toggle
+                      checked={serverPreferences.dueSoonFallbackEnabled}
+                      disabled={notificationSaving || !serverPreferences.taskRemindersEnabled}
+                      onChange={(dueSoonFallbackEnabled) =>
+                        void saveNotificationPreference({ dueSoonFallbackEnabled })}
+                    />
+                  </div>
+
+                  <label className="mt-3 block">
+                    <span className="text-xs font-bold text-gray-500">默认提前提醒</span>
+                    <select
+                      value={serverPreferences.defaultReminderMinutes}
+                      disabled={notificationSaving || !serverPreferences.taskRemindersEnabled}
+                      onChange={(event) =>
+                        void saveNotificationPreference({
+                          defaultReminderMinutes: Number(event.target.value),
+                        })}
+                      className="mt-2 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm font-medium outline-none disabled:opacity-50"
+                    >
+                      <option value={0}>到截止时间时</option>
+                      <option value={10}>提前 10 分钟</option>
+                      <option value={15}>提前 15 分钟</option>
+                      <option value={30}>提前 30 分钟</option>
+                      <option value={60}>提前 1 小时</option>
+                      <option value={120}>提前 2 小时</option>
+                      <option value={1440}>提前 1 天</option>
+                    </select>
+                    <span className="mt-1.5 block text-[10px] leading-4 text-gray-400">
+                      Task Sheet 会同步使用这项账户偏好；具体任务仍可以单独改 reminderAt。
+                    </span>
+                  </label>
+                </div>
+
+                <div className="pt-4">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-[#242424]">课程提醒</p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-gray-400">
+                        只提醒真实 Course occurrence；停课 override 不会发送。
+                      </p>
+                    </div>
+                    <Toggle
+                      checked={serverPreferences.courseRemindersEnabled}
+                      disabled={notificationSaving}
+                      onChange={(courseRemindersEnabled) =>
+                        void saveNotificationPreference({ courseRemindersEnabled })}
+                    />
+                  </div>
+
+                  <label className="mt-3 block">
+                    <span className="text-xs font-bold text-gray-500">课程提前提醒</span>
+                    <select
+                      value={serverPreferences.courseReminderMinutes}
+                      disabled={notificationSaving || !serverPreferences.courseRemindersEnabled}
+                      onChange={(event) =>
+                        void saveNotificationPreference({
+                          courseReminderMinutes: Number(event.target.value),
+                        })}
+                      className="mt-2 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm font-medium outline-none disabled:opacity-50"
+                    >
+                      <option value={0}>上课时</option>
+                      <option value={5}>提前 5 分钟</option>
+                      <option value={10}>提前 10 分钟</option>
+                      <option value={15}>提前 15 分钟</option>
+                      <option value={30}>提前 30 分钟</option>
+                      <option value={60}>提前 1 小时</option>
+                      <option value={120}>提前 2 小时</option>
+                    </select>
+                  </label>
+                </div>
+              </InlineCard>
+            </section>
+
+            <section className="mt-5">
+              <h2 className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">
+                安静时段
+              </h2>
+              <InlineCard>
+                <div className="flex items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-[#242424]">启用安静时段</p>
+                    <p className="mt-0.5 text-[10px] leading-4 text-gray-400">
+                      期间不会发送自动任务或课程提醒；测试通知不受影响。
+                    </p>
+                  </div>
+                  <Toggle
+                    checked={serverPreferences.quietHoursEnabled}
+                    disabled={notificationSaving}
+                    onChange={(quietHoursEnabled) =>
+                      void saveNotificationPreference({ quietHoursEnabled })}
+                  />
+                </div>
+
+                {serverPreferences.quietHoursEnabled && (
+                  <div className="mt-4 grid grid-cols-2 gap-2 border-t border-black/[0.05] pt-4">
+                    <label className="block">
+                      <span className="text-[10px] font-bold text-gray-500">开始</span>
+                      <input
+                        type="time"
+                        value={serverPreferences.quietStart}
+                        disabled={notificationSaving}
+                        onChange={(event) =>
+                          void saveNotificationPreference({ quietStart: event.target.value })}
+                        className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-3 py-3 text-sm outline-none"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-[10px] font-bold text-gray-500">结束</span>
+                      <input
+                        type="time"
+                        value={serverPreferences.quietEnd}
+                        disabled={notificationSaving}
+                        onChange={(event) =>
+                          void saveNotificationPreference({ quietEnd: event.target.value })}
+                        className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-3 py-3 text-sm outline-none"
+                      />
+                    </label>
+                  </div>
+                )}
+
+                <p className="mt-3 rounded-2xl bg-[#f4f4f6] px-3 py-2.5 text-[10px] leading-4 text-gray-500">
+                  当前时区：{serverPreferences.timeZone}。跨午夜的安静时段（如 23:00–07:00）会自动正确处理。
+                </p>
+              </InlineCard>
+            </section>
+
+            <div className="mt-4 rounded-2xl border border-dashed border-[#b0a8db]/50 bg-[#f4f2fb] px-4 py-3">
+              <p className="text-xs font-bold text-[#4f4675]">通知偏好已跨设备</p>
+              <p className="mt-1 text-[10px] leading-4 text-[#6d638e]">
+                这些偏好保存到账户，不再只依赖浏览器本地设置。每日摘要、学习计划提醒与冲突提醒会在有真实服务端触发器后再开放，不展示无效开关。
+              </p>
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -870,7 +1100,7 @@ export default function SettingsView() {
         <SettingRow
           icon={<Bell size={17} />}
           title="通知与提醒"
-          description="设备推送、测试通知和默认提醒"
+          description="任务、课程、安静时段与测试通知"
           value={pushEnabled ? '已开启' : '未开启'}
           onClick={() => setPage('notifications')}
         />
@@ -911,9 +1141,9 @@ export default function SettingsView() {
       </Group>
 
       <div className="rounded-2xl border border-dashed border-[#cae393] bg-[#f5f8ee] px-4 py-3">
-        <p className="text-xs font-bold text-[#465235]">AI 规划偏好会随 M5 上线</p>
+        <p className="text-xs font-bold text-[#465235]">账户偏好逐步统一到服务端</p>
         <p className="mt-1 text-[10px] leading-4 text-[#657050]">
-          自动联网研究、来源偏好和规划上下文会在“AI 规划与调整 2.0”真正接入后再开放设置，避免现在出现不生效的假开关。
+          通知提醒已经跨 PWA / Android 共用；仍只展示已经有真实后端能力的设置，避免出现“能开但不生效”的选项。
         </p>
       </div>
     </div>
