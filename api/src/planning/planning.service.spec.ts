@@ -51,6 +51,59 @@ describe('goal execution snapshot', () => {
   });
 });
 
+describe('PlanningService course scope', () => {
+  it('reuses an existing active PlanningThread only for an owned course', async () => {
+    const existing = {
+      id: 'thread-course',
+      userId: 'user-1',
+      title: '民法 课程调整',
+      scopeType: 'course',
+      scopeId: 'course-1',
+      status: 'active',
+    };
+    const prisma = {
+      course: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'course-1', name: '民法' }),
+      },
+      planningThread: {
+        findFirst: jest.fn().mockResolvedValue(existing),
+        create: jest.fn(),
+      },
+    };
+    const service = new PlanningService(prisma as never, {} as never, {} as never);
+
+    await expect(service.createThread('user-1', {
+      scopeType: 'course',
+      scopeId: 'course-1',
+    })).resolves.toEqual(existing);
+
+    expect(prisma.course.findFirst).toHaveBeenCalledWith({
+      where: { id: 'course-1', userId: 'user-1' },
+      select: { id: true, name: true },
+    });
+    expect(prisma.planningThread.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a course scope that is not owned by the current user', async () => {
+    const prisma = {
+      course: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      planningThread: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
+    };
+    const service = new PlanningService(prisma as never, {} as never, {} as never);
+
+    await expect(service.createThread('user-1', {
+      scopeType: 'course',
+      scopeId: 'other-course',
+    })).rejects.toThrow('Course not found');
+    expect(prisma.planningThread.create).not.toHaveBeenCalled();
+  });
+});
+
 describe('PlanningService goal scope', () => {
   it('reuses the active planning thread for the same owned learning goal', async () => {
     const existing = {
