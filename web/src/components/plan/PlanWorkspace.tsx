@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { CalendarDays, Columns3, ListTodo, Loader2 } from 'lucide-react';
-import type { PlanView, Task } from '../../types';
+import type { PlannerPreview, PlanView, Task } from '../../types';
 import BoardView from '../BoardView';
 import TasksView from '../TasksView';
 import AgendaPlanView from './AgendaPlanView';
@@ -9,7 +9,7 @@ import PlanHeader from './PlanHeader';
 import TimetablePlanView from './TimetablePlanView';
 import WeekPlanView from './WeekPlanView';
 import { readLastPlanView, writeLastPlanView } from './planPreferences';
-import { getMonday, getSemesterWeekNumber, localDateKey, type PlanItem } from './planProjection';
+import { buildPlannerPreviewItems, getMonday, getSemesterWeekNumber, localDateKey, type PlanItem } from './planProjection';
 import { usePlanItems } from './usePlanItems';
 import { useAppStore } from '../../store/appStore';
 
@@ -22,6 +22,7 @@ interface PlanWorkspaceProps {
   onCourseClick?: (courseId: string) => void;
   onPlanner: () => void;
   onQuickAdd: () => void;
+  plannerPreview?: PlannerPreview | null;
   initialSection?: PlanSection;
   initialTaskView?: TaskView;
   initialPlanView?: PlanView;
@@ -37,6 +38,7 @@ export default function PlanWorkspace({
   onCourseClick,
   onPlanner,
   onQuickAdd,
+  plannerPreview,
   initialSection = 'calendar',
   initialTaskView = 'list',
   initialPlanView,
@@ -53,6 +55,13 @@ export default function PlanWorkspace({
 
   const activeSemester = semesters.find((semester) => semester.id === activeSemesterId) ?? null;
   const planData = usePlanItems(selectedDate, view);
+  const previewItems = useMemo(
+    () => buildPlannerPreviewItems(plannerPreview, tasks),
+    [plannerPreview, tasks],
+  );
+  const visibleItems = view === 'week' || view === 'agenda'
+    ? [...planData.items, ...previewItems]
+    : planData.items;
   const semesterWeek = getSemesterWeekNumber(selectedDate, activeSemester);
   const currentWeek = localDateKey(getMonday(selectedDate)) === localDateKey(getMonday(new Date()));
 
@@ -146,6 +155,20 @@ export default function PlanWorkspace({
           </button>
         </nav>
 
+        {section === 'calendar' && previewItems.length > 0 && (
+          <button
+            type="button"
+            onClick={onPlanner}
+            className="mb-3 flex w-full items-center justify-between rounded-2xl border border-dashed border-[#8b7fbc] bg-[#e5e2f3]/60 px-4 py-3 text-left"
+          >
+            <span>
+              <span className="block text-xs font-black text-[#4f4675]">AI 安排预览 · {previewItems.length} 项</span>
+              <span className="mt-0.5 block text-[10px] text-[#6d638e]">虚线时间块尚未写入日程，点击查看并确认。</span>
+            </span>
+            <span className="text-[10px] font-black text-[#4f4675]">查看 →</span>
+          </button>
+        )}
+
         {section === 'calendar' && (
           <>
             {planData.error && (
@@ -170,7 +193,7 @@ export default function PlanWorkspace({
             {view === 'week' && (
               <WeekPlanView
                 selectedDate={selectedDate}
-                items={planData.items}
+                items={visibleItems}
                 onSelectDate={setSelectedDate}
                 onItemClick={handlePlanItemClick}
               />
@@ -178,7 +201,7 @@ export default function PlanWorkspace({
             {view === 'agenda' && (
               <AgendaPlanView
                 selectedDate={selectedDate}
-                items={planData.items}
+                items={visibleItems}
                 onItemClick={handlePlanItemClick}
               />
             )}

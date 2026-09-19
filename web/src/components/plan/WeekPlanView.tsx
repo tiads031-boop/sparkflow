@@ -81,11 +81,11 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                       type="button"
                       key={item.id}
                       onClick={() => onItemClick?.(item)}
-                      className={`absolute left-0.5 right-0.5 z-10 overflow-hidden rounded-md border-l-2 px-1 py-1 text-left shadow-sm ${item.completed ? 'opacity-45' : ''}`}
-                      style={{ top, height, borderLeftColor: item.color, backgroundColor: cardBackground(item.color) }}
+                      className={`absolute left-0.5 right-0.5 z-10 overflow-hidden rounded-md border-l-2 px-1 py-1 text-left shadow-sm ${item.preview ? 'outline outline-1 outline-dashed outline-[#8b7fbc]' : ''} ${item.completed ? 'opacity-45' : ''}`}
+                      style={{ top, height, borderLeftColor: item.color, backgroundColor: item.preview ? '#eeeafd' : cardBackground(item.color) }}
                       title={item.title}
                     >
-                      <span className="block break-words text-[8px] font-black leading-[10px] text-[#242424]">{item.title}</span>
+                      <span className="block break-words text-[8px] font-black leading-[10px] text-[#242424]">{item.preview ? '✨ ' : ''}{item.title}</span>
                       {height >= 34 && item.location && <span className="mt-0.5 block truncate text-[7px] leading-[9px] text-gray-500">@{item.location}</span>}
                       <span className="absolute bottom-0.5 right-0.5 flex items-center gap-0.5 text-gray-500">
                         {item.scheduleSource === 'ai' && <Sparkles size={7} />}

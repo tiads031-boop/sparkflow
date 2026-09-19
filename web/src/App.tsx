@@ -3,6 +3,7 @@ import {
   CalendarRange, GraduationCap, Home, UserRound, Zap,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
+import type { PlannerPreview } from './types';
 import SparksView from './components/SparksView';
 import CourseView from './components/CourseView';
 import CourseTheme from './components/CourseTheme';
@@ -89,6 +90,7 @@ export default function App() {
   const [editingScheduleTask, setEditingScheduleTask] = useState<Task | null>(null);
   const [focusOpen, setFocusOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [plannerPreview, setPlannerPreview] = useState<PlannerPreview | null>(null);
   const activeWorkspace = workspaceTabForRoute(activeTab) ?? 'today';
   const isPlanRoute = activeTab === 'plan' || activeTab === 'tasks' || activeTab === 'board' || activeTab === 'timeline';
 
@@ -346,6 +348,7 @@ export default function App() {
                 }}
                 onPlanner={() => setPlannerOpen(true)}
                 onQuickAdd={() => setQuickAddOpen(true)}
+                plannerPreview={plannerPreview}
                 initialSection={activeTab === 'tasks' || activeTab === 'board' ? 'tasks' : 'calendar'}
                 initialTaskView={activeTab === 'board' ? 'board' : 'list'}
                 initialPlanView={activeTab === 'timeline' ? 'agenda' : undefined}
@@ -423,11 +426,11 @@ export default function App() {
         )}
         <FocusSession open={focusOpen} onClose={() => setFocusOpen(false)} />
         <PlannerSheet
-          key={selectedDate.toDateString()}
           open={plannerOpen}
           selectedDate={selectedDate}
           onClose={() => setPlannerOpen(false)}
           onApplied={loadTasks}
+          onPreviewChange={setPlannerPreview}
         />
     </AppShell>
   );

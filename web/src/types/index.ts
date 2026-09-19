@@ -277,3 +277,19 @@ export type NavVisibility = Record<ToggleableNavTab, boolean>;
 export type NavOrder = ToggleableNavTab[];
 
 export type PlanView = 'month' | 'week' | 'agenda' | 'timetable';
+
+export interface PlannerProposal {
+  taskId: string;
+  title: string;
+  start: string;
+  end: string;
+  durationMinutes: number;
+  taskUpdatedAt: string;
+  reason: string;
+}
+
+export interface PlannerPreview {
+  proposals: PlannerProposal[];
+  unscheduledTaskIds: string[];
+  range: { start: string; end: string };
+}
