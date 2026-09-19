@@ -105,6 +105,19 @@ export class InspirationsController {
     );
   }
 
+  @Post(':id/attachments/:attachmentId/analyze')
+  analyzeAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.inspirationsService.analyzeAttachment(
+      id,
+      attachmentId,
+      userId,
+    );
+  }
+
   @Post(':id/attachments/:attachmentId/summary')
   summarizeAttachment(
     @Param('id') id: string,
