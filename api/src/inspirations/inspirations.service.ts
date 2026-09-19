@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { randomUUID } from 'crypto';
+import { InspirationMediaService } from './inspiration-media.service';
 
 function addDays(base: Date, days: number) {
   return new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
@@ -7,7 +9,10 @@ function addDays(base: Date, days: number) {
 
 @Injectable()
 export class InspirationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly media: InspirationMediaService,
+  ) {}
 
   findAll(userId: string, status?: string) {
     return this.prisma.inspiration.findMany({
@@ -15,6 +20,7 @@ export class InspirationsService {
       include: {
         _count: { select: { reflections: true } },
         task: { select: { id: true, title: true, status: true } },
+        attachments: { orderBy: { createdAt: 'asc' as const } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -26,6 +32,7 @@ export class InspirationsService {
       include: {
         reflections: { orderBy: { createdAt: 'desc' } },
         task: { select: { id: true, title: true, status: true } },
+        attachments: { orderBy: { createdAt: 'asc' } },
       },
     });
   }
@@ -63,8 +70,69 @@ export class InspirationsService {
       include: {
         _count: { select: { reflections: true } },
         task: { select: { id: true, title: true, status: true } },
+        attachments: { orderBy: { createdAt: 'asc' as const } },
       },
     });
+  }
+
+  async createCapture(
+    userId: string,
+    contentText: string | undefined,
+    files: Express.Multer.File[] = [],
+    tags: string[] = [],
+  ) {
+    const normalizedText = contentText?.trim() || '';
+    if (!normalizedText && !files.length) {
+      throw new BadRequestException('请填写文字或添加至少一个附件');
+    }
+
+    const id = randomUUID();
+    const stored = await this.media.persist(id, files);
+    try {
+      const now = new Date();
+      return await this.prisma.inspiration.create({
+        data: {
+          id,
+          userId,
+          sourceType: 'manual',
+          contentText: normalizedText || null,
+          tags,
+          nextReviewAt: addDays(now, 1),
+          attachments: stored.length
+            ? {
+                create: stored.map((item) => ({
+                  id: item.id,
+                  kind: item.kind,
+                  mimeType: item.mimeType,
+                  originalName: item.originalName,
+                  storageKey: item.storageKey,
+                  sizeBytes: item.sizeBytes,
+                })),
+              }
+            : undefined,
+        },
+        include: {
+          _count: { select: { reflections: true } },
+          task: { select: { id: true, title: true, status: true } },
+          attachments: { orderBy: { createdAt: 'asc' } },
+        },
+      });
+    } catch (error) {
+      await this.media.removeMany(stored.map((item) => item.storageKey));
+      throw error;
+    }
+  }
+
+  async getAttachment(id: string, attachmentId: string, userId: string) {
+    const attachment = await this.prisma.inspirationAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        inspirationId: id,
+        inspiration: { userId },
+      },
+    });
+    if (!attachment) throw new NotFoundException('Attachment not found');
+    return attachment;
   }
 
   async update(id: string, userId: string, data: {
@@ -94,6 +162,7 @@ export class InspirationsService {
       include: {
         _count: { select: { reflections: true } },
         task: { select: { id: true, title: true, status: true } },
+        attachments: { orderBy: { createdAt: 'asc' as const } },
       },
     });
   }
@@ -108,11 +177,14 @@ export class InspirationsService {
   async remove(id: string, userId: string) {
     const existing = await this.prisma.inspiration.findFirst({
       where: { id, userId },
-      select: { id: true },
+      select: {
+        id: true,
+        attachments: { select: { storageKey: true } },
+      },
     });
     if (!existing) throw new NotFoundException('Inspiration not found');
 
-    return this.prisma.$transaction(async (tx) => {
+    const deleted = await this.prisma.$transaction(async (tx) => {
       const affectedLinks = await tx.insightInspiration.findMany({
         where: { inspirationId: id },
         select: { insightId: true },
@@ -131,6 +203,9 @@ export class InspirationsService {
       }
       return deleted;
     });
+
+    await this.media.removeMany(existing.attachments.map((item) => item.storageKey));
+    return deleted;
   }
 
   async getReviewQueue(userId: string, requestedLimit?: number) {
@@ -149,6 +224,7 @@ export class InspirationsService {
         include: {
           reflections: { orderBy: { createdAt: 'desc' as const } },
           task: { select: { id: true, title: true, status: true } },
+          attachments: { orderBy: { createdAt: 'asc' as const } },
         },
         orderBy: [{ nextReviewAt: 'asc' }, { createdAt: 'asc' }],
         take: limit,
