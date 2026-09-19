@@ -923,6 +923,9 @@ export default function PlannerSheet({
                         action.dueDate ? `截止：${new Date(action.dueDate).toLocaleString('zh-CN')}` : null,
                       ].filter(Boolean)
                     : [
+                        action.changes.milestoneTitle !== undefined
+                          ? `阶段 → ${action.changes.milestoneTitle || '待整理'}`
+                          : null,
                         action.changes.priority ? `优先级 → ${action.changes.priority}` : null,
                         action.changes.estimatedMinutes !== undefined ? `时长 → ${action.changes.estimatedMinutes ?? '未设置'} 分钟` : null,
                         action.changes.dueDate !== undefined
