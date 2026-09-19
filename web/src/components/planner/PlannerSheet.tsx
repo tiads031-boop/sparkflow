@@ -20,11 +20,13 @@ import {
 } from 'lucide-react';
 import { api } from '../../api/client';
 import {
+  applyPlanningActions,
   createPlanningThread,
   getPlanningThread,
   listPlanningThreads,
   sendPlanningTurn,
   updatePlanningContext,
+  type PlanningActionProposal,
   type PlanningContextSnapshot,
   type PlanningEvidenceItem,
   type PlanningThreadDetail,
@@ -118,6 +120,11 @@ export default function PlannerSheet({
   const [contextEditing, setContextEditing] = useState(false);
   const [contextSaving, setContextSaving] = useState(false);
   const [contextError, setContextError] = useState('');
+  const [actionConversationId, setActionConversationId] = useState<string | null>(null);
+  const [actionProposals, setActionProposals] = useState<PlanningActionProposal[]>([]);
+  const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
 
   const [schedulerOpen, setSchedulerOpen] = useState(false);
   const [date, setDate] = useState(dateInput(selectedDate));
@@ -146,13 +153,24 @@ export default function PlannerSheet({
         setThread(null);
         setReadiness(null);
         setLatestEvidence([]);
+        setActionConversationId(null);
+        setActionProposals([]);
+        setSelectedActionIds([]);
         return;
       }
       const detail = await getPlanningThread(threads[0].id);
       setThread(detail);
-      const latestContext = detail.conversations.at(-1)?.context;
+      const latestConversation = detail.conversations.at(-1);
+      const latestContext = latestConversation?.context;
       setReadiness(latestContext?.readiness || null);
       setLatestEvidence(detail.evidence || []);
+      const appliedIds = new Set(latestContext?.appliedActionIds || []);
+      const pendingActions = (latestContext?.actions || []).filter(
+        (action) => !appliedIds.has(action.proposalId),
+      );
+      setActionConversationId(pendingActions.length ? latestConversation?.id || null : null);
+      setActionProposals(pendingActions);
+      setSelectedActionIds(pendingActions.map((action) => action.proposalId));
     } catch (error) {
       setTurnMessage(error instanceof Error ? error.message : '读取规划上下文失败');
     } finally {
@@ -168,6 +186,7 @@ export default function PlannerSheet({
     setPlanId(null);
     setSchedulerOpen(false);
     setScheduleMessage('');
+    setActionMessage('');
     setContextEditing(false);
     setContextError('');
     onPreviewChange?.(null);
@@ -232,6 +251,10 @@ export default function PlannerSheet({
       setLatestEvidence(result.research.evidence.length
         ? result.research.evidence
         : detail.evidence || []);
+      setActionConversationId(result.actions.length ? result.conversationId : null);
+      setActionProposals(result.actions);
+      setSelectedActionIds(result.actions.map((action) => action.proposalId));
+      setActionMessage('');
 
       if (result.research.status === 'used') {
         setTurnMessage(`已联网核实 ${result.research.evidence.length} 个来源。`);
@@ -256,6 +279,10 @@ export default function PlannerSheet({
       setThread(detail);
       setReadiness(null);
       setLatestEvidence([]);
+      setActionConversationId(null);
+      setActionProposals([]);
+      setSelectedActionIds([]);
+      setActionMessage('');
       setMessageInput('');
       setTurnMessage('');
       clearPreview();
@@ -292,6 +319,45 @@ export default function PlannerSheet({
       }
     } finally {
       setContextSaving(false);
+    }
+  };
+
+  const toggleAction = (proposalId: string) => {
+    setSelectedActionIds((current) => (
+      current.includes(proposalId)
+        ? current.filter((id) => id !== proposalId)
+        : [...current, proposalId]
+    ));
+  };
+
+  const applyActions = async () => {
+    if (!thread || !actionConversationId || !selectedActionIds.length || actionBusy) return;
+    setActionBusy(true);
+    setActionMessage('');
+    try {
+      const result = await applyPlanningActions(
+        thread.id,
+        actionConversationId,
+        selectedActionIds,
+      );
+      setActionProposals((current) => current.filter(
+        (action) => !result.appliedActionIds.includes(action.proposalId),
+      ));
+      setSelectedActionIds([]);
+      setActionMessage(
+        `已应用 ${result.appliedActionIds.length} 项操作：新增 ${result.createdTaskIds.length} 个任务，更新 ${result.updatedTaskIds.length} 个任务。`,
+      );
+      await onApplied();
+      const refreshed = await getPlanningThread(thread.id);
+      setThread(refreshed);
+      if (result.createdTaskIds.length > 0) {
+        setSchedulerOpen(true);
+        setScheduleMessage('新任务已进入任务池，可以继续生成时间块预览。');
+      }
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : '应用任务操作失败');
+    } finally {
+      setActionBusy(false);
     }
   };
 
@@ -567,6 +633,82 @@ export default function PlannerSheet({
             <p className="mt-4 rounded-2xl bg-[var(--sf-bg)] px-4 py-3 text-xs text-[var(--sf-text-secondary)]">
               {turnMessage}
             </p>
+          )}
+
+          {actionProposals.length > 0 && (
+            <div className="mt-5 rounded-[1.7rem] border border-[#cae393]/60 bg-[#f7faef] p-4">
+              <div className="mb-3">
+                <h3 className="text-sm font-black text-[#242424]">待确认的任务操作</h3>
+                <p className="mt-1 text-[10px] leading-4 text-[#667252]">
+                  AI 只是提出草案。你可以取消任意一项，确认后才会写入任务。
+                </p>
+              </div>
+              <div className="space-y-2">
+                {actionProposals.map((action) => {
+                  const selected = selectedActionIds.includes(action.proposalId);
+                  const details = action.type === 'create_task'
+                    ? [
+                        action.priority ? `优先级：${action.priority}` : null,
+                        action.estimatedMinutes ? `${action.estimatedMinutes} 分钟` : null,
+                        action.dueDate ? `截止：${new Date(action.dueDate).toLocaleString('zh-CN')}` : null,
+                      ].filter(Boolean)
+                    : [
+                        action.changes.priority ? `优先级 → ${action.changes.priority}` : null,
+                        action.changes.estimatedMinutes !== undefined ? `时长 → ${action.changes.estimatedMinutes ?? '未设置'} 分钟` : null,
+                        action.changes.dueDate !== undefined
+                          ? `截止 → ${action.changes.dueDate ? new Date(action.changes.dueDate).toLocaleString('zh-CN') : '清除'}`
+                          : null,
+                      ].filter(Boolean);
+                  return (
+                    <button
+                      type="button"
+                      key={action.proposalId}
+                      onClick={() => toggleAction(action.proposalId)}
+                      className={`flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left ${
+                        selected ? 'border-[#9fbd61] bg-white' : 'border-black/[0.05] bg-white/60 opacity-60'
+                      }`}
+                    >
+                      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 ${
+                        selected ? 'border-[#9fbd61] bg-[#cae393]' : 'border-gray-300'
+                      }`}>
+                        {selected && <Check size={11} />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="text-[9px] font-black uppercase tracking-[0.12em] text-[#72804f]">
+                          {action.type === 'create_task' ? '新增任务' : '修改任务'}
+                        </span>
+                        <strong className="mt-0.5 block text-xs text-[#242424]">
+                          {action.type === 'create_task' ? action.title : action.taskTitle}
+                        </strong>
+                        {action.type === 'create_task' && action.description && (
+                          <span className="mt-1 block text-[10px] leading-4 text-gray-500">{action.description}</span>
+                        )}
+                        {action.type === 'update_task' && action.changes.title && (
+                          <span className="mt-1 block text-[10px] text-gray-500">标题 → {action.changes.title}</span>
+                        )}
+                        {details.length > 0 && (
+                          <span className="mt-1.5 block text-[9px] leading-4 text-gray-400">
+                            {details.join(' · ')}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => void applyActions()}
+                disabled={!selectedActionIds.length || actionBusy}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#242424] py-3 text-xs font-black text-[#cae393] disabled:opacity-35"
+              >
+                {actionBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                确认应用 {selectedActionIds.length} 项
+              </button>
+              {actionMessage && (
+                <p className="mt-3 rounded-xl bg-white px-3 py-2 text-xs text-[#56613f]">{actionMessage}</p>
+              )}
+            </div>
           )}
 
           {thread && (readiness === 'ready' || schedulerOpen) && (
