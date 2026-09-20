@@ -24,7 +24,7 @@ export default function QuickAddSheet({ open, onClose, onSelect }: QuickAddSheet
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 bg-black/10"
+      className="fixed inset-0 z-[41] bg-black/10"
       role="presentation"
       onClick={onClose}
     >
