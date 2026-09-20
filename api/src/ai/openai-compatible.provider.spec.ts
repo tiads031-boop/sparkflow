@@ -1,4 +1,4 @@
-import { toPlanningTurn } from './openai-compatible.provider';
+import { OpenAICompatibleProvider, toPlanningTurn } from './openai-compatible.provider';
 
 describe('planning response parser', () => {
   it('accepts complete structured planning context and trims unsafe excess', () => {
@@ -275,5 +275,82 @@ describe('planning response parser', () => {
     });
 
     expect(result.context.brief).toEqual([]);
+  });
+});
+
+
+describe('planning response recovery', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('asks the provider to correct an invalid structured planning response once', async () => {
+    const incomplete = {
+      reply: '继续',
+      readiness: 'ready',
+      summary: '',
+      openQuestions: [],
+      researchQueries: [],
+      actions: [],
+      replanRequests: [],
+      context: {
+        brief: [],
+        constraints: [],
+        preferences: [],
+        strategy: [],
+      },
+    };
+    const corrected = {
+      ...incomplete,
+      reply: '已澄清补课日期，请确认后再应用。',
+      context: {
+        ...incomplete.context,
+        assumptions: [],
+      },
+    };
+    const providerResponse = (value: unknown) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify(value) } }],
+      }),
+    }) as Response;
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(providerResponse(incomplete))
+      .mockResolvedValueOnce(providerResponse(corrected));
+    const config = {
+      get: jest.fn((key: string) => ({
+        AI_API_KEY: 'test-key',
+        AI_BASE_URL: 'https://example.invalid/v1',
+        AI_MODEL: 'test-model',
+      }[key])),
+    };
+    const provider = new OpenAICompatibleProvider(config as never);
+
+    await expect(provider.generatePlanningTurn({
+      message: '补课日期是 9 月 29 日',
+      recentMessages: [],
+      context: {
+        brief: [],
+        constraints: [],
+        preferences: [],
+        strategy: [],
+        assumptions: [],
+        revision: 1,
+      },
+    } as never)).resolves.toEqual(expect.objectContaining({
+      reply: corrected.reply,
+      readiness: 'ready',
+    }));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retryBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(retryBody.temperature).toBe(0);
+    expect(retryBody.messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        role: 'system',
+        content: expect.stringContaining('failed schema validation'),
+      }),
+    ]));
   });
 });
