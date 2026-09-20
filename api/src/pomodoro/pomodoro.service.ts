@@ -141,6 +141,10 @@ export class PomodoroService {
   }
 
   async pause(id: string, userId: string, expectedRevision?: number) {
+    const open = await this.findOpen(userId);
+    if (open?.id === id && this.present(open).remainingSeconds === 0) {
+      return this.complete(id, userId, expectedRevision);
+    }
     return this.prisma.$transaction(async (tx) => {
       const session = await tx.pomodoroSession.findFirst({
         where: { id, userId },
@@ -191,6 +195,10 @@ export class PomodoroService {
   }
 
   async resume(id: string, userId: string, expectedRevision?: number) {
+    const open = await this.findOpen(userId);
+    if (open?.id === id && this.present(open).remainingSeconds === 0) {
+      return this.complete(id, userId, expectedRevision);
+    }
     return this.prisma.$transaction(async (tx) => {
       const session = await tx.pomodoroSession.findFirst({
         where: { id, userId },
