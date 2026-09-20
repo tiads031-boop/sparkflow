@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-19 | **代码基线**：`master@56bdc80a`
+> **最后更新**：2026-09-20 | **代码基线**：`master@e5978ecb`
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -11,7 +11,7 @@
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
 | API | `https://api.fish-life.cc.cd`，腾讯云运行 `master@99ebb3c`；公网 `/api/health.buildSha` 与仓库一致；生产库 20 个 migrations 全部 up to date，包含 `20260919130000_add_study_folders` |
 | Web | 腾讯云 Nginx 直接托管 `/var/www/sparkflow`；2026-09-19 已从 GitHub `master@56bdc80a` 构建并上线，`fish-life.cc.cd` / `www.fish-life.cc.cd` 均指向 `170.106.191.176`，Let's Encrypt HTTPS、首页、SPA 深层路由与 Service Worker 均通过公网验收 |
-| GitHub | `master@56bdc80a`；VNext M4–M8 主体代码/CI 已完成，PR #83 已合并前端自托管 Nginx/部署脚本/文档。PR #80 增加显式音频转写/摘要，PR #81 增加显式图片信息提取与视频语音转写+画面摘要；上传附件本身仍不自动调用 AI。涉及 migration 的批次均通过 fresh PostgreSQL CI |
+| GitHub | `master@e5978ecb`；VNext M4–M8 与 Focus C1/C2 代码/CI 已完成。PR #105 增加可恢复精确专注会话，PR #106 增加专注完成后的多模态记录与 5–180 分钟时长盘；上传附件本身仍不自动调用 AI。涉及 migration 的批次均通过 fresh PostgreSQL CI |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
 | 最新功能 APK | Release `android-7145ba0ea3d2`；`sparkflow-7145ba0ea3d2-debug.apk`；对应 VNext M3 功能提交 `7145ba0ea3d2`，Android CI 成功；之后 `e883b9a3` 仅改文档，未触发 APK |
@@ -19,7 +19,7 @@
 
 ## 近期总原则
 
-1. **Phase 15 M1/M2/M3 代码均已进入 master；不要再重复实现 Capture、Insight 或 Insight→Task。**
+1. **Phase 15 M1/M2/M3 与 Focus C1/C2 代码均已进入 master；不要再重复实现 Capture、Insight、Insight→Task 或专注记录底座。**
 2. **当前第一收口项已切换为最新 `master@56bdc80a` 的 API 同步与真实账号/真机验收；不要再继续重复实现 M4–M8 已完成能力。**
 3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 稳定性修复已随 `99ebb3c` API 镜像上线，下一步复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
 4. **腾讯云 API 仍运行 `99ebb3c`；Web Production 已从腾讯云 Nginx 发布 `master@56bdc80a`，公网首页、SPA 深层路由、Service Worker、API 健康检查均为 200。**
@@ -179,7 +179,10 @@
 - [x] **M8.1 / 多模态记录**：PR #74 已完成 Inspiration 私有图片/音频/视频附件、语音录制、受控读取与媒体预览；上传时不自动调用 AI。
 - [x] **M8.2 / 通知偏好**：PR #77 已完成账户级任务/课程提醒、默认提前量、安静时段、时区和测试通知；继续复用现有 `User.settings.notification`，未新增第二套设置表。
 - [x] **M8.3 / 设置视觉与外观**：PR #78 已完成“我的”设置中心视觉收尾与真实“跟随系统/浅色/深色”外观选择；不暴露无真实后端能力的 AI 假开关。
-- [x] **M8.4 / 显式附件 AI**：PR #80 已完成音频“转写 → 摘要”；PR #81 已完成图片信息提取与视频“语音转写 + 画面/语音综合摘要”。全部只在用户主动点击时调用 AI；上传本身不自动消耗额度。\n- [ ] **M8 最终验收**：PWA / Android 真机验证麦克风、文件选择、私有附件播放、音频/图片/视频显式 AI、通知、深浅色与 safe-area；并把最新 master 部署到生产 API/Web 后做真实账号闭环。
+- [x] **M8.4 / 显式附件 AI**：PR #80 已完成音频“转写 → 摘要”；PR #81 已完成图片信息提取与视频“语音转写 + 画面/语音综合摘要”。全部只在用户主动点击时调用 AI；上传本身不自动消耗额度。
+- [x] **M8.5 / Focus C1**：PR #105 已完成精确专注分段、暂停/恢复计时、CAS 完成、Focus 日历投影与 `Inspiration.focusSessionId` 数据关联。
+- [x] **M8.6 / Focus C2**：PR #106 已完成完成后“记录一下 / 稍后 / 再记一条”多模态记录，后端校验会话归属与 completed 状态；支持 5–180 分钟圆盘拖拽（5 分钟吸附）与精确输入。
+- [ ] **M8 最终验收**：PWA / Android 真机验证麦克风、文件选择、私有附件播放、音频/图片/视频显式 AI、Focus 多条记录、通知、深浅色与 safe-area；并把最新 master 部署到生产 API/Web 后做真实账号闭环。
 
 ### M5 实施记录 — ✅ 代码/CI 完成
 
@@ -201,7 +204,7 @@
 - PR #73：周期 Course 模板变更与单次 override 分流，并具备独立 Preview/Apply/Undo。
 - PR #74：Inspiration 私有多模态附件与录音/图片/视频 Capture。
 - PR #77：账户级任务/课程提醒偏好、安静时段、时区与测试通知。
-- PR #78：Settings 视觉收尾 + 跟随系统/浅色/深色外观；Web/API CI 全绿。\n- PR #80：音频附件由用户主动触发 Qwen ASR 转写与摘要；原音频继续保留在私有附件存储。\n- PR #81：图片附件主动提取可见信息；视频附件主动生成语音转写与画面/语音综合摘要；图片/视频 AI 处理上限独立于存储上限。\n- 当前仓库事实源已到 `master@301955c7`；这些代码状态不等于腾讯云 API、Vercel Production 或 Android 真机已经同步部署/验收。
+- PR #78：Settings 视觉收尾 + 跟随系统/浅色/深色外观；Web/API CI 全绿。\n- PR #80：音频附件由用户主动触发 Qwen ASR 转写与摘要；原音频继续保留在私有附件存储。\n- PR #81：图片附件主动提取可见信息；视频附件主动生成语音转写与画面/语音综合摘要；图片/视频 AI 处理上限独立于存储上限。\n- PR #105：精确专注分段、可恢复暂停/恢复、CAS 完成与 Focus 日历投影；为 Inspiration 增加专注会话回链字段。\n- PR #106：完成后关联多条文字/语音/图片/视频记录；专注时长圆盘拖拽与精确输入；API/Web build/test 与 fresh PostgreSQL CI 全部通过。\n- 当前仓库事实源已到 `master@e5978ecb`；这些代码状态不等于腾讯云 API、Vercel Production 或 Android 真机已经同步部署/验收。
 
 ### M4 第一优先级安全修复 — ✅ 已完成
 
