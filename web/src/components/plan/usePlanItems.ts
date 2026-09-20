@@ -20,6 +20,13 @@ export function usePlanItems(selectedDate: Date, view: PlanView): PlanDataState 
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [calendarRevision, setCalendarRevision] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => setCalendarRevision((value) => value + 1);
+    window.addEventListener('sparkflow:calendar-changed', refresh);
+    return () => window.removeEventListener('sparkflow:calendar-changed', refresh);
+  }, []);
 
   const range = useMemo(() => getPlanRange(selectedDate, view), [selectedDate, view]);
   const rangeStart = range.start.toISOString();
@@ -50,7 +57,7 @@ export function usePlanItems(selectedDate: Date, view: PlanView): PlanDataState 
     });
 
     return () => controller.abort();
-  }, [rangeStart, rangeEnd, lastGoogleSyncAt]);
+  }, [rangeStart, rangeEnd, lastGoogleSyncAt, calendarRevision]);
 
   const activeSemester = semesters.find((semester) => semester.id === activeSemesterId) ?? null;
   const items = useMemo(() => buildPlanItems({

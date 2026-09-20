@@ -1,20 +1,27 @@
-/**
- * Pomodoro Slice
- *
- * 番茄钟状态机：开始 / 暂停 / 恢复 / 停止 / 完成。
- * 与服务端 pomodoro 表双向同步。
- */
-import type { StateCreator } from 'zustand';
-import type { AppState } from './index';
-import type { PomodoroState } from '../types';
-import { apiRequest, DEFAULT_USER_ID } from '../api/client';
-import { DEFAULT_DURATION } from './constants';
+import type { StateCreator } from "zustand";
+import type { AppState } from "./index";
+import type { PomodoroState } from "../types";
+import { apiRequest } from "../api/client";
+import { DEFAULT_DURATION } from "./constants";
+
+interface FocusSessionResponse {
+  id: string;
+  taskId: string | null;
+  status: "active" | "paused" | "completed" | "interrupted";
+  revision: number;
+  startedAt: string;
+  plannedDurationSeconds: number;
+  effectiveDurationSeconds: number;
+  pausedDurationSeconds: number;
+  remainingSeconds: number;
+}
 
 export interface PomodoroSlice {
   pomodoro: PomodoroState;
   startPomodoro: (taskId?: string, durationMinutes?: number) => Promise<void>;
-  pausePomodoro: () => void;
-  resumePomodoro: () => void;
+  loadActivePomodoro: () => Promise<void>;
+  pausePomodoro: () => Promise<void>;
+  resumePomodoro: () => Promise<void>;
   stopPomodoro: () => Promise<void>;
   tick: () => void;
   completePomodoro: () => Promise<void>;
@@ -28,62 +35,129 @@ const INITIAL_POMODORO: PomodoroState = {
   duration: DEFAULT_DURATION,
   activeTaskId: null,
   activeSessionId: null,
+  revision: null,
+  startedAt: null,
+  effectiveDurationSeconds: 0,
+  pausedDurationSeconds: 0,
+  lastCompletedEffectiveSeconds: 0,
+  syncError: null,
   todayCount: 0,
   totalFocusMinutes: 0,
 };
 
-export const createPomodoroSlice: StateCreator<AppState, [], [], PomodoroSlice> = (set, get) => ({
+function stateFromSession(
+  current: PomodoroState,
+  session: FocusSessionResponse,
+): PomodoroState {
+  const open = session.status === "active" || session.status === "paused";
+  return {
+    ...current,
+    isRunning: open,
+    isPaused: session.status === "paused",
+    duration: session.plannedDurationSeconds,
+    timeLeft: session.remainingSeconds,
+    activeTaskId: session.taskId,
+    activeSessionId: open ? session.id : null,
+    revision: open ? session.revision : null,
+    startedAt: session.startedAt,
+    effectiveDurationSeconds: session.effectiveDurationSeconds,
+    pausedDurationSeconds: session.pausedDurationSeconds,
+    lastCompletedEffectiveSeconds:
+      session.status === "completed"
+        ? session.effectiveDurationSeconds
+        : current.lastCompletedEffectiveSeconds,
+    syncError: null,
+  };
+}
+
+async function readSession(response: Response) {
+  return (await response.json()) as FocusSessionResponse;
+}
+
+export const createPomodoroSlice: StateCreator<
+  AppState,
+  [],
+  [],
+  PomodoroSlice
+> = (set, get) => ({
   pomodoro: { ...INITIAL_POMODORO },
 
   startPomodoro: async (taskId, durationMinutes = 25) => {
-    const durationSeconds = Math.max(1, Math.round(durationMinutes)) * 60;
+    const res = await apiRequest("/pomodoro", {
+      method: "POST",
+      body: JSON.stringify({
+        taskId,
+        duration: durationMinutes,
+        clientRequestId: crypto.randomUUID(),
+      }),
+    });
+    const session = await readSession(res);
+    set((state) => ({ pomodoro: stateFromSession(state.pomodoro, session) }));
+  },
+
+  loadActivePomodoro: async () => {
     try {
-      const res = await apiRequest('/pomodoro', {
-        method: 'POST',
-        body: JSON.stringify({ userId: DEFAULT_USER_ID, taskId, duration: durationMinutes }),
-      });
-      const session = await res.json();
+      const res = await apiRequest("/pomodoro/active");
+      const session = (await res.json()) as FocusSessionResponse | null;
+      if (!session) {
+        set((state) => ({
+          pomodoro: {
+            ...state.pomodoro,
+            isRunning: false,
+            isPaused: false,
+            activeTaskId: null,
+            activeSessionId: null,
+            revision: null,
+            startedAt: null,
+          },
+        }));
+        return;
+      }
+      set((state) => ({ pomodoro: stateFromSession(state.pomodoro, session) }));
+      if (session.status === "completed") {
+        window.dispatchEvent(new Event("sparkflow:calendar-changed"));
+        await get().loadPomodoroStats();
+      }
+    } catch (error) {
       set((state) => ({
         pomodoro: {
           ...state.pomodoro,
-          isRunning: true,
-          isPaused: false,
-          duration: durationSeconds,
-          timeLeft: durationSeconds,
-          activeTaskId: taskId ?? null,
-          activeSessionId: session.id,
-        },
-      }));
-    } catch {
-      // API 失败时仍启动本地计时器
-      set((state) => ({
-        pomodoro: {
-          ...state.pomodoro,
-          isRunning: true,
-          isPaused: false,
-          duration: durationSeconds,
-          timeLeft: durationSeconds,
-          activeTaskId: taskId ?? null,
+          syncError:
+            error instanceof Error ? error.message : "专注状态同步失败",
         },
       }));
     }
   },
 
-  pausePomodoro: () =>
-    set((state) => ({ pomodoro: { ...state.pomodoro, isPaused: true } })),
+  pausePomodoro: async () => {
+    const { activeSessionId, revision } = get().pomodoro;
+    if (!activeSessionId) return;
+    const res = await apiRequest(`/pomodoro/${activeSessionId}/pause`, {
+      method: "POST",
+      body: JSON.stringify({ revision }),
+    });
+    const session = await readSession(res);
+    set((state) => ({ pomodoro: stateFromSession(state.pomodoro, session) }));
+  },
 
-  resumePomodoro: () =>
-    set((state) => ({ pomodoro: { ...state.pomodoro, isPaused: false } })),
+  resumePomodoro: async () => {
+    const { activeSessionId, revision } = get().pomodoro;
+    if (!activeSessionId) return;
+    const res = await apiRequest(`/pomodoro/${activeSessionId}/resume`, {
+      method: "POST",
+      body: JSON.stringify({ revision }),
+    });
+    const session = await readSession(res);
+    set((state) => ({ pomodoro: stateFromSession(state.pomodoro, session) }));
+  },
 
   stopPomodoro: async () => {
-    const { activeSessionId } = get().pomodoro;
-    if (activeSessionId) {
-      try {
-        await apiRequest(`/pomodoro/${activeSessionId}/interrupt`, { method: 'POST' });
-      } catch {
-        /* API 失败静默处理 */
-      }
-    }
+    const { activeSessionId, revision } = get().pomodoro;
+    if (!activeSessionId) return;
+    await apiRequest(`/pomodoro/${activeSessionId}/interrupt`, {
+      method: "POST",
+      body: JSON.stringify({ revision }),
+    });
     set((state) => ({
       pomodoro: {
         ...state.pomodoro,
@@ -92,6 +166,9 @@ export const createPomodoroSlice: StateCreator<AppState, [], [], PomodoroSlice> 
         timeLeft: state.pomodoro.duration,
         activeTaskId: null,
         activeSessionId: null,
+        revision: null,
+        startedAt: null,
+        syncError: null,
       },
     }));
   },
@@ -99,39 +176,55 @@ export const createPomodoroSlice: StateCreator<AppState, [], [], PomodoroSlice> 
   tick: () =>
     set((state) => {
       if (!state.pomodoro.isRunning || state.pomodoro.isPaused) return state;
-      const newTime = state.pomodoro.timeLeft - 1;
-      if (newTime <= 0) {
-        get().completePomodoro();
-        return state;
+      const newTime = Math.max(0, state.pomodoro.timeLeft - 1);
+      if (newTime === 0 && state.pomodoro.timeLeft > 0) {
+        void get()
+          .completePomodoro()
+          .catch((error) => {
+            set((latest) => ({
+              pomodoro: {
+                ...latest.pomodoro,
+                syncError:
+                  error instanceof Error
+                    ? error.message
+                    : "专注完成待同步，请重试",
+              },
+            }));
+          });
       }
       return { pomodoro: { ...state.pomodoro, timeLeft: newTime } };
     }),
 
   completePomodoro: async () => {
-    const { activeSessionId } = get().pomodoro;
-    if (activeSessionId) {
-      try {
-        await apiRequest(`/pomodoro/${activeSessionId}/complete`, { method: 'POST' });
-      } catch {
-        /* API 失败静默处理 */
-      }
-    }
+    const { activeSessionId, revision } = get().pomodoro;
+    if (!activeSessionId) return;
+    const res = await apiRequest(`/pomodoro/${activeSessionId}/complete`, {
+      method: "POST",
+      body: JSON.stringify({ revision }),
+    });
+    const session = await readSession(res);
     set((state) => ({
       pomodoro: {
         ...state.pomodoro,
         isRunning: false,
         isPaused: false,
-        timeLeft: state.pomodoro.duration,
-        activeTaskId: null,
+        timeLeft: 0,
+        activeTaskId: session.taskId,
         activeSessionId: null,
+        revision: null,
+        effectiveDurationSeconds: session.effectiveDurationSeconds,
+        pausedDurationSeconds: session.pausedDurationSeconds,
+        lastCompletedEffectiveSeconds: session.effectiveDurationSeconds,
+        syncError: null,
       },
     }));
+    window.dispatchEvent(new Event("sparkflow:calendar-changed"));
     await get().loadPomodoroStats();
   },
 
   loadPomodoroStats: async () => {
     try {
-      const res = await apiRequest(`/pomodoro/stats?userId=${DEFAULT_USER_ID}`);
+      const res = await apiRequest("/pomodoro/stats");
       const stats = await res.json();
       set((state) => ({
         pomodoro: {
@@ -141,7 +234,7 @@ export const createPomodoroSlice: StateCreator<AppState, [], [], PomodoroSlice> 
         },
       }));
     } catch {
-      /* API 失败静默处理 */
+      // Statistics can retry on the next foreground refresh.
     }
   },
 });

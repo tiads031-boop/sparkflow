@@ -1,6 +1,6 @@
 import type { CalendarEvent, Course, PlannerPreview, Semester, Task } from '../../types';
 
-export type PlanItemKind = 'course' | 'calendar' | 'task' | 'study-task';
+export type PlanItemKind = 'course' | 'calendar' | 'task' | 'study-task' | 'focus';
 
 export interface PlanItem {
   id: string;
@@ -18,6 +18,7 @@ export interface PlanItem {
   scheduleSource?: string;
   preview?: boolean;
   reason?: string;
+  effectiveDurationSeconds?: number;
 }
 
 export interface DateRange {
@@ -281,9 +282,10 @@ function buildCalendarItems(events: CalendarEvent[], range: DateRange): PlanItem
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || !intersects(start, end, range)) return [];
 
     const isCourse = event.eventType?.toLowerCase() === 'course' || Boolean(event.courseId);
+    const isFocus = event.eventType?.toLowerCase() === 'focus' || Boolean(event.focusSessionId);
     return [{
       id: `calendar:${event.id}`,
-      kind: isCourse ? 'course' : 'calendar',
+      kind: isFocus ? 'focus' : isCourse ? 'course' : 'calendar',
       sourceId: event.id,
       title: event.title,
       start: start.toISOString(),
@@ -293,6 +295,8 @@ function buildCalendarItems(events: CalendarEvent[], range: DateRange): PlanItem
       completed: false,
       location: event.location || undefined,
       courseId: event.courseId,
+      taskId: event.focusSession?.taskId || undefined,
+      effectiveDurationSeconds: event.focusSession?.effectiveDurationSeconds,
     } satisfies PlanItem];
   });
 }

@@ -16,23 +16,59 @@ export class PomodoroController {
     return this.pomodoroService.getStats(userId);
   }
 
+  @Get('active')
+  findActive(@CurrentUserId() userId: string) {
+    return this.pomodoroService.findActive(userId);
+  }
+
   @Post()
-  create(@CurrentUserId() userId: string, @Body() data: {
-    userId?: string;
-    taskId?: string;
-    duration?: number;
-    notes?: string;
-  }) {
+  create(
+    @CurrentUserId() userId: string,
+    @Body()
+    data: {
+      userId?: string;
+      taskId?: string;
+      duration?: number;
+      notes?: string;
+      clientRequestId?: string;
+    },
+  ) {
     return this.pomodoroService.create({ ...data, userId });
   }
 
+  @Post(':id/pause')
+  pause(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body() data: { revision?: number } = {},
+  ) {
+    return this.pomodoroService.pause(id, userId, data.revision);
+  }
+
+  @Post(':id/resume')
+  resume(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body() data: { revision?: number } = {},
+  ) {
+    return this.pomodoroService.resume(id, userId, data.revision);
+  }
+
   @Post(':id/complete')
-  complete(@Param('id') id: string, @CurrentUserId() userId: string) {
-    return this.pomodoroService.complete(id, userId);
+  complete(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body() data: { revision?: number } = {},
+  ) {
+    return this.pomodoroService.complete(id, userId, data.revision);
   }
 
   @Post(':id/interrupt')
-  interrupt(@Param('id') id: string, @CurrentUserId() userId: string) {
-    return this.pomodoroService.interrupt(id, userId);
+  interrupt(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body() data: { revision?: number } = {},
+  ) {
+    return this.pomodoroService.interrupt(id, userId, data.revision);
   }
 }
