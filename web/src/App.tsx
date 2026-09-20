@@ -23,6 +23,7 @@ import QuickAddSheet, { type QuickAddAction } from './components/shell/QuickAddS
 import ScheduleEditor, { type ScheduleDraft } from './components/schedule/ScheduleEditor';
 import FocusSession from './components/focus/FocusSession';
 import PlannerSheet from './components/planner/PlannerSheet';
+import InspirationCaptureSheet from './components/records/InspirationCaptureSheet';
 
 const StudyWorkspace = lazy(() => import('./components/study/StudyWorkspace'));
 const PlanWorkspace = lazy(() => import('./components/plan/PlanWorkspace'));
@@ -88,6 +89,7 @@ export default function App() {
 
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [captureOpen, setCaptureOpen] = useState(false);
   const [scheduleEditorOpen, setScheduleEditorOpen] = useState(false);
   const [editingScheduleTask, setEditingScheduleTask] = useState<Task | null>(null);
   const [focusOpen, setFocusOpen] = useState(false);
@@ -170,7 +172,7 @@ export default function App() {
   const handleQuickAdd = (action: QuickAddAction) => {
     setQuickAddOpen(false);
     if (action === 'spark') {
-      handleOpenCreate('spark');
+      setCaptureOpen(true);
       return;
     }
     if (action === 'schedule') {
@@ -399,7 +401,7 @@ export default function App() {
               sparks={sparks}
               setSparks={setSparks}
               onSparkClick={(s) => handleOpenDetail(s, 'spark')}
-              onAddClick={() => handleOpenCreate('spark')}
+              onAddClick={() => setCaptureOpen(true)}
             />
           )}
           {activeTab === 'records' && (
@@ -407,7 +409,7 @@ export default function App() {
               sparks={sparks}
               setSparks={setSparks}
               onSparkClick={(s) => handleOpenDetail(s, 'spark')}
-              onAddClick={() => handleOpenCreate('spark')}
+              onAddClick={() => setCaptureOpen(true)}
             />
           )}
           {activeTab === 'study' && (
@@ -448,6 +450,7 @@ export default function App() {
           onToggleSubtask={toggleSubtask}
         />
         <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} onSelect={handleQuickAdd} />
+        <InspirationCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} />
         {scheduleEditorOpen && (
           <ScheduleEditor
             key={editingScheduleTask?.id ?? selectedDate.toDateString()}
