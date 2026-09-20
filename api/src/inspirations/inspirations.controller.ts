@@ -53,6 +53,35 @@ export class InspirationsController {
     return this.inspirationsService.getReviewQueue(userId, limit ? Number(limit) : undefined);
   }
 
+  @Get('review/today')
+  getTodayReview(
+    @CurrentUserId() userId: string,
+    @Query('timeZone') timeZone?: string,
+  ) {
+    return this.inspirationsService.getTodayReviewBatch(userId, timeZone, false);
+  }
+
+  @Post('review/today/more')
+  extendTodayReview(
+    @CurrentUserId() userId: string,
+    @Body('timeZone') timeZone?: string,
+  ) {
+    return this.inspirationsService.getTodayReviewBatch(userId, timeZone, true);
+  }
+
+  @Post('review/items/:itemId/process')
+  processReviewItem(
+    @Param('itemId') itemId: string,
+    @CurrentUserId() userId: string,
+    @Body() input: {
+      action: 'reflection' | 'later' | 'digested';
+      requestId: string;
+      body?: string;
+    },
+  ) {
+    return this.inspirationsService.processReviewBatchItem(itemId, userId, input);
+  }
+
   @Post('capture')
   @UseInterceptors(FilesInterceptor('files', MAX_INSPIRATION_ATTACHMENTS, {
     limits: {
@@ -65,12 +94,16 @@ export class InspirationsController {
     @UploadedFiles() files: Express.Multer.File[],
     @Body('contentText') contentText?: string,
     @Body('tags') tags?: string,
+    @Body('requestId') requestId?: string,
+    @Body('timeZone') timeZone?: string,
   ) {
     return this.inspirationsService.createCapture(
       userId,
       contentText,
       files || [],
       parseCaptureTags(tags),
+      requestId,
+      timeZone,
     );
   }
 
