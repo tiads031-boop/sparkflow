@@ -260,6 +260,9 @@ export default function PlannerSheet({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoVoiceStartedRef = useRef(false);
+  const nearBottomRef = useRef(true);
+  const previousMessageCountRef = useRef(0);
+  const [newReplyPending, setNewReplyPending] = useState(false);
   const close = useCallback(() => onClose(), [onClose]);
   const handleVoiceTranscript = useCallback((text: string) => {
     setMessageInput((current) => current.trim() ? `${current.trim()} ${text}` : text);
@@ -273,7 +276,7 @@ export default function PlannerSheet({
     start: startVoice,
     cancel: cancelVoice,
   } = voice;
-  useModalLifecycle(open, close);
+  useModalLifecycle(open, close, { isolateAppMain: true });
 
   const loadLatestThread = useCallback(async () => {
     setLoadingThread(true);
@@ -384,12 +387,49 @@ export default function PlannerSheet({
     if (voiceSupported) void startVoice();
   }, [open, autoStartVoice, voiceConfigured, voiceSupported, startVoice]);
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    const node = scrollRef.current;
+    if (!node) return;
+    node.scrollTo({ top: node.scrollHeight, behavior });
+    nearBottomRef.current = true;
+    setNewReplyPending(false);
+  }, []);
+
+  const handleConversationScroll = useCallback(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const distance = node.scrollHeight - node.scrollTop - node.clientHeight;
+    const nearBottom = distance < 96;
+    nearBottomRef.current = nearBottom;
+    if (nearBottom) setNewReplyPending(false);
+  }, []);
+
   useEffect(() => {
-    if (!open) return;
-    window.setTimeout(() => {
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-    }, 50);
-  }, [open, thread?.conversations.length, turnBusy]);
+    if (!open) {
+      previousMessageCountRef.current = 0;
+      nearBottomRef.current = true;
+      setNewReplyPending(false);
+      return;
+    }
+    window.setTimeout(() => scrollToBottom('auto'), 50);
+  }, [open, scrollToBottom]);
+
+  useEffect(() => {
+    const count = thread?.conversations.length || 0;
+    const previous = previousMessageCountRef.current;
+    previousMessageCountRef.current = count;
+    if (!open || count <= previous) return;
+    if (nearBottomRef.current) {
+      window.setTimeout(() => scrollToBottom('smooth'), 30);
+    } else {
+      setNewReplyPending(true);
+    }
+  }, [open, thread?.conversations.length, scrollToBottom]);
+
+  useEffect(() => {
+    if (!open || !turnBusy || !nearBottomRef.current) return;
+    window.setTimeout(() => scrollToBottom('smooth'), 30);
+  }, [open, turnBusy, scrollToBottom]);
 
   const messages = useMemo(() => (
     thread?.conversations.flatMap((row) => [
@@ -397,6 +437,14 @@ export default function PlannerSheet({
       { id: `${row.id}-assistant`, role: 'assistant' as const, content: row.aiResponse },
     ]) || []
   ), [thread]);
+  const contextItemCount = thread ? [
+    ...thread.planningContext.brief,
+    ...thread.planningContext.constraints,
+    ...thread.planningContext.preferences,
+    ...thread.planningContext.strategy,
+    ...thread.planningContext.assumptions,
+  ].length : 0;
+  const contextSummary = thread?.planningContext.brief[0]?.value || '尚未形成目标摘要';
 
   if (!open) return null;
 
@@ -994,9 +1042,77 @@ export default function PlannerSheet({
               <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
             </select>
           </label>
+
+          {thread && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setContextOpen((value) => !value)}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#b0a8db]/25 bg-[#f7f5fc] px-3 py-2.5 text-left"
+              >
+                <span className="min-w-0 flex-1">
+                  <strong className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#62578f]">当前规划依据</strong>
+                  <span className="mt-0.5 block truncate text-xs text-[var(--sf-text-primary)]">{contextSummary}</span>
+                  <span className="mt-0.5 block text-[9px] text-[var(--sf-text-tertiary)]">
+                    {thread.planningContext.constraints.length} 条约束 · {contextItemCount} 条依据 · revision {thread.revision}
+                  </span>
+                </span>
+                {contextOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              </button>
+
+              {contextOpen && (
+                <div className="mt-2 max-h-[40vh] space-y-4 overflow-y-auto rounded-[1.5rem] border border-black/[0.05] bg-white p-4">
+                  {contextEditing ? (
+                    <PlanningContextEditor
+                      context={thread.planningContext}
+                      saving={contextSaving}
+                      onSave={(draft) => void savePlanningContext(draft)}
+                      onCancel={() => {
+                        setContextEditing(false);
+                        setContextError('');
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] leading-4 text-[var(--sf-text-tertiary)]">
+                          这里是 AI 后续调整计划时持续沿用的已确认依据。
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setContextEditing(true);
+                            setContextError('');
+                          }}
+                          className="ml-3 flex shrink-0 items-center gap-1 rounded-full bg-[var(--sf-bg)] px-3 py-1.5 text-[9px] font-bold"
+                        >
+                          <Pencil size={10} /> 编辑
+                        </button>
+                      </div>
+                      <ContextSection title="目标 / 当前状态" items={thread.planningContext.brief} />
+                      <ContextSection title="硬约束 / 软约束" items={thread.planningContext.constraints} />
+                      <ContextSection title="偏好" items={thread.planningContext.preferences} />
+                      <ContextSection title="当前策略" items={thread.planningContext.strategy} />
+                      <ContextSection title="暂时假设" items={thread.planningContext.assumptions} />
+                      {!contextItemCount && (
+                        <p className="text-xs text-[var(--sf-text-tertiary)]">继续对话后，这里会逐步形成可持续的规划上下文。</p>
+                      )}
+                    </>
+                  )}
+                  {contextError && (
+                    <p className="rounded-2xl bg-red-50 px-3 py-2 text-xs text-red-600">{contextError}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </header>
 
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+        <div
+          ref={scrollRef}
+          onScroll={handleConversationScroll}
+          className="relative min-h-0 flex-1 overflow-y-auto px-4 py-5"
+        >
           {loadingThread ? (
             <div className="flex items-center justify-center gap-2 py-20 text-sm text-[var(--sf-text-tertiary)]">
               <Loader2 size={16} className="animate-spin" /> 正在读取规划上下文…
@@ -1067,75 +1183,6 @@ export default function PlannerSheet({
                     <Loader2 size={14} className="animate-spin" />
                     正在理解你的需求，必要时会联网核实…
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {thread && (
-            <div className="mt-5">
-              <button
-                type="button"
-                onClick={() => setContextOpen((value) => !value)}
-                className="flex w-full items-center justify-between rounded-2xl border border-black/[0.06] bg-white px-4 py-3 text-left"
-              >
-                <span>
-                  <strong className="block text-xs">当前规划依据</strong>
-                  <span className="mt-0.5 block text-[10px] text-[var(--sf-text-tertiary)]">
-                    revision {thread.revision} · 目标、约束、偏好、策略与假设
-                  </span>
-                </span>
-                {contextOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </button>
-
-              {contextOpen && (
-                <div className="mt-2 space-y-4 rounded-[1.5rem] border border-black/[0.05] bg-white p-4">
-                  {contextEditing ? (
-                    <PlanningContextEditor
-                      context={thread.planningContext}
-                      saving={contextSaving}
-                      onSave={(draft) => void savePlanningContext(draft)}
-                      onCancel={() => {
-                        setContextEditing(false);
-                        setContextError('');
-                      }}
-                    />
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] leading-4 text-[var(--sf-text-tertiary)]">
-                          这里是 AI 后续调整计划时会继续沿用的依据。
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setContextEditing(true);
-                            setContextError('');
-                          }}
-                          className="ml-3 flex shrink-0 items-center gap-1 rounded-full bg-[var(--sf-bg)] px-3 py-1.5 text-[9px] font-bold"
-                        >
-                          <Pencil size={10} /> 编辑
-                        </button>
-                      </div>
-                      <ContextSection title="目标 / 当前状态" items={thread.planningContext.brief} />
-                      <ContextSection title="硬约束 / 软约束" items={thread.planningContext.constraints} />
-                      <ContextSection title="偏好" items={thread.planningContext.preferences} />
-                      <ContextSection title="当前策略" items={thread.planningContext.strategy} />
-                      <ContextSection title="暂时假设" items={thread.planningContext.assumptions} />
-                      {![
-                        ...thread.planningContext.brief,
-                        ...thread.planningContext.constraints,
-                        ...thread.planningContext.preferences,
-                        ...thread.planningContext.strategy,
-                        ...thread.planningContext.assumptions,
-                      ].length && (
-                        <p className="text-xs text-[var(--sf-text-tertiary)]">继续对话后，这里会逐步形成可持续的规划上下文。</p>
-                      )}
-                    </>
-                  )}
-                  {contextError && (
-                    <p className="rounded-2xl bg-red-50 px-3 py-2 text-xs text-red-600">{contextError}</p>
-                  )}
                 </div>
               )}
             </div>
@@ -1815,6 +1862,16 @@ export default function PlannerSheet({
                 </div>
               )}
             </div>
+          )}
+
+          {newReplyPending && (
+            <button
+              type="button"
+              onClick={() => scrollToBottom('smooth')}
+              className="sticky bottom-2 left-1/2 z-10 mx-auto mt-4 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[#242424] px-4 py-2 text-[10px] font-black text-[#cae393] shadow-lg"
+            >
+              <ChevronDown size={13} /> 新回复
+            </button>
           )}
         </div>
 
