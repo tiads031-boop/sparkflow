@@ -58,10 +58,12 @@ export default function InspirationCaptureSheet({
   open,
   onClose,
   onSaved,
+  focusSessionId,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved?: (record: InspirationRecord) => void | Promise<void>;
+  focusSessionId?: string;
 }) {
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -87,7 +89,7 @@ export default function InspirationCaptureSheet({
   );
 
   useEffect(() => {
-    if (!open || !draftReady || !currentUserId) return;
+    if (!open || !draftReady || !currentUserId || focusSessionId) return;
     const timer = window.setTimeout(() => {
       if (!text.trim() && files.length === 0) {
         void deleteCaptureDraft(currentUserId);
@@ -102,7 +104,7 @@ export default function InspirationCaptureSheet({
       });
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [open, draftReady, currentUserId, text, files]);
+  }, [open, draftReady, currentUserId, focusSessionId, text, files]);
 
   const microphoneSupported = typeof window !== 'undefined'
     && typeof MediaRecorder !== 'undefined'
@@ -142,7 +144,7 @@ export default function InspirationCaptureSheet({
     let cancelled = false;
     setDraftReady(false);
     void (async () => {
-      if (currentUserId) {
+      if (currentUserId && !focusSessionId) {
         const draft = await readCaptureDraft(currentUserId);
         if (cancelled) return;
         if (draft) {
@@ -166,7 +168,7 @@ export default function InspirationCaptureSheet({
     return () => {
       cancelled = true;
     };
-  }, [open, currentUserId]);
+  }, [open, currentUserId, focusSessionId]);
 
   useEffect(() => {
     if (!recording) return;
@@ -286,10 +288,11 @@ export default function InspirationCaptureSheet({
       const record = await createMultimodalInspiration(text, files, [], {
         requestId: captureRequestIdRef.current,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        focusSessionId,
       });
       window.dispatchEvent(new CustomEvent('sparkflow:records-changed'));
       await onSaved?.(record);
-      if (currentUserId) await deleteCaptureDraft(currentUserId);
+      if (currentUserId && !focusSessionId) await deleteCaptureDraft(currentUserId);
       setText('');
       setFiles([]);
       captureRequestIdRef.current = crypto.randomUUID();
@@ -312,15 +315,19 @@ export default function InspirationCaptureSheet({
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="多模态随手记"
+        aria-label={focusSessionId ? '专注记录' : '多模态随手记'}
         className="w-full max-w-lg rounded-t-[2rem] bg-[var(--sf-surface)] p-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <header className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-black text-[var(--sf-text-primary)]">随手记</h2>
+            <h2 className="text-base font-black text-[var(--sf-text-primary)]">
+              {focusSessionId ? '记录这次专注' : '随手记'}
+            </h2>
             <p className="mt-1 text-xs leading-5 text-[var(--sf-text-tertiary)]">
-              文字、语音、图片、视频，留下一种就可以。
+              {focusSessionId
+                ? '文字、语音、图片或视频，会和这次专注放在一起。'
+                : '文字、语音、图片、视频，留下一种就可以。'}
             </p>
           </div>
           <button
@@ -338,7 +345,7 @@ export default function InspirationCaptureSheet({
           ref={textareaRef}
           value={text}
           onChange={(event) => setText(event.target.value)}
-          placeholder="现在想到什么，就先留下来……"
+          placeholder={focusSessionId ? '这次专注里，有什么值得留下？' : '现在想到什么，就先留下来……'}
           className="min-h-32 w-full resize-none rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm leading-6 outline-none focus:border-[var(--sf-text-primary)]"
         />
 
@@ -442,7 +449,7 @@ export default function InspirationCaptureSheet({
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-black text-[var(--sf-surface)] disabled:opacity-40"
         >
           {saving && <Loader2 size={15} className="animate-spin" />}
-          {saving ? '正在保存附件…' : '保存记录'}
+          {saving ? '正在保存附件…' : focusSessionId ? '保存专注记录' : '保存记录'}
         </button>
       </section>
     </div>,

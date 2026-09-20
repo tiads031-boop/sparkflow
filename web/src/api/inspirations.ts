@@ -25,6 +25,7 @@ export interface InspirationRecord {
   userId: string;
   sourceUrl?: string | null;
   sourceType: string;
+  focusSessionId?: string | null;
   title?: string | null;
   description?: string | null;
   contentText?: string | null;
@@ -120,13 +121,14 @@ export function createMultimodalInspiration(
   contentText: string,
   files: File[] = [],
   tags: string[] = [],
-  options: { requestId?: string; timeZone?: string } = {},
+  options: { requestId?: string; timeZone?: string; focusSessionId?: string } = {},
 ) {
   const form = new FormData();
   if (contentText.trim()) form.append('contentText', contentText.trim());
   form.append('tags', JSON.stringify(tags));
   form.append('requestId', options.requestId || crypto.randomUUID());
   form.append('timeZone', options.timeZone || currentTimeZone());
+  if (options.focusSessionId) form.append('focusSessionId', options.focusSessionId);
   files.forEach((file) => form.append('files', file, file.name));
   return api.post<InspirationRecord>(
     '/inspirations/capture',

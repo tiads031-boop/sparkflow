@@ -69,19 +69,23 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     expect(result.sourceType).toBe('manual');
     expect(result.sourceUrl).toBeNull();
     expect(result.tags).toEqual([]);
-    expect(result.nextReviewAt.getTime()).toBeGreaterThanOrEqual(before + 23 * 60 * 60 * 1000);
+    expect(result.nextReviewAt.getTime()).toBeGreaterThanOrEqual(
+      before + 23 * 60 * 60 * 1000,
+    );
   });
 
   it('creates an attachment-only inspiration and persists private attachment metadata', async () => {
     const media = mediaMock();
-    media.persist.mockResolvedValue([{
-      id: 'attachment-1',
-      kind: 'image',
-      mimeType: 'image/png',
-      originalName: 'photo.png',
-      storageKey: 'inspiration-1/attachment-1.png',
-      sizeBytes: 1234,
-    }]);
+    media.persist.mockResolvedValue([
+      {
+        id: 'attachment-1',
+        kind: 'image',
+        mimeType: 'image/png',
+        originalName: 'photo.png',
+        storageKey: 'inspiration-1/attachment-1.png',
+        sizeBytes: 1234,
+      },
+    ]);
     const create = jest.fn(({ data }) => ({
       ...data,
       attachments: data.attachments.create,
@@ -109,12 +113,22 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
   });
 
   it('stores reflections separately and schedules the next review three days later', async () => {
-    const findFirst = jest.fn()
+    const findFirst = jest
+      .fn()
       .mockResolvedValueOnce({ id: 'inspiration-1' })
-      .mockResolvedValueOnce({ id: 'inspiration-1', reflections: [{ id: 'reflection-1' }] });
-    const reflectionCreate = jest.fn().mockResolvedValue({ id: 'reflection-1' });
-    const inspirationUpdate = jest.fn().mockResolvedValue({ id: 'inspiration-1' });
-    const $transaction = jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops));
+      .mockResolvedValueOnce({
+        id: 'inspiration-1',
+        reflections: [{ id: 'reflection-1' }],
+      });
+    const reflectionCreate = jest
+      .fn()
+      .mockResolvedValue({ id: 'reflection-1' });
+    const inspirationUpdate = jest
+      .fn()
+      .mockResolvedValue({ id: 'inspiration-1' });
+    const $transaction = jest.fn(async (ops: Promise<unknown>[]) =>
+      Promise.all(ops),
+    );
     const prisma = {
       inspiration: { findFirst, update: inspirationUpdate },
       inspirationReflection: { create: reflectionCreate },
@@ -122,7 +136,11 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     };
     const service = serviceWith(prisma);
 
-    await service.addReflection('inspiration-1', 'user-1', 'Preview 也应该能撤销');
+    await service.addReflection(
+      'inspiration-1',
+      'user-1',
+      'Preview 也应该能撤销',
+    );
 
     expect(reflectionCreate).toHaveBeenCalledWith({
       data: {
@@ -131,13 +149,15 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
         body: 'Preview 也应该能撤销',
       },
     });
-    expect(inspirationUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'inspiration-1' },
-      data: expect.objectContaining({
-        reviewState: 'pending',
-        reviewCount: { increment: 1 },
+    expect(inspirationUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'inspiration-1' },
+        data: expect.objectContaining({
+          reviewState: 'pending',
+          reviewCount: { increment: 1 },
+        }),
       }),
-    }));
+    );
   });
 
   it('creates at most one linked task and preserves the inspiration backlink', async () => {
@@ -157,7 +177,10 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     };
     const service = serviceWith(prisma);
 
-    const result = await service.createTaskFromInspiration('inspiration-1', 'user-1');
+    const result = await service.createTaskFromInspiration(
+      'inspiration-1',
+      'user-1',
+    );
 
     expect(result.inspirationId).toBe('inspiration-1');
     expect(result.title).toBe('整理 SparkFlow 的可逆自动化原则');
@@ -185,7 +208,9 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     };
     const prisma = {
       inspiration: { findFirst },
-      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
     };
     const media = mediaMock();
     const service = serviceWith(prisma, media);
@@ -242,13 +267,15 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       Buffer.from('audio'),
       'audio/webm',
     );
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'attachment-1' },
-      data: {
-        transcript: '明天下午整理项目计划。',
-        aiSummary: null,
-      },
-    }));
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'attachment-1' },
+        data: {
+          transcript: '明天下午整理项目计划。',
+          aiSummary: null,
+        },
+      }),
+    );
     expect(result.transcript).toBe('明天下午整理项目计划。');
     expect(result.aiSummary).toBeNull();
   });
@@ -268,11 +295,13 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     };
     const service = serviceWith(prisma);
 
-    await expect(service.transcribeAttachment(
-      'inspiration-1',
-      'attachment-image',
-      'user-1',
-    )).rejects.toThrow('当前只支持音频附件转写');
+    await expect(
+      service.transcribeAttachment(
+        'inspiration-1',
+        'attachment-image',
+        'user-1',
+      ),
+    ).rejects.toThrow('当前只支持音频附件转写');
   });
 
   it('summarizes only a persisted transcript from an owned attachment', async () => {
@@ -318,9 +347,11 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       text: '讨论了下周项目计划和两个风险。',
       context: '项目语音记录\n会后随手记',
     });
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { aiSummary: '明天下午需要整理项目计划。' },
-    }));
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { aiSummary: '明天下午需要整理项目计划。' },
+      }),
+    );
   });
 
   it('requires a transcript before generating an attachment summary', async () => {
@@ -337,13 +368,10 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     };
     const service = serviceWith(prisma);
 
-    await expect(service.summarizeAttachment(
-      'inspiration-1',
-      'attachment-1',
-      'user-1',
-    )).rejects.toThrow('请先转写音频，再生成摘要');
+    await expect(
+      service.summarizeAttachment('inspiration-1', 'attachment-1', 'user-1'),
+    ).rejects.toThrow('请先转写音频，再生成摘要');
   });
-
 
   it('explicitly analyzes an owned image and stores only the AI summary', async () => {
     const media = mediaMock();
@@ -377,13 +405,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
         update,
       },
     };
-    const service = serviceWith(
-      prisma,
-      media,
-      voiceMock(),
-      aiMock(),
-      mediaAI,
-    );
+    const service = serviceWith(prisma, media, voiceMock(), aiMock(), mediaAI);
 
     const result = await service.analyzeAttachment(
       'inspiration-1',
@@ -397,10 +419,12 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       'image/png',
       '白板照片\n会议后记录',
     );
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'attachment-image' },
-      data: { aiSummary: '图片包含项目排期和三个关键日期。' },
-    }));
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'attachment-image' },
+        data: { aiSummary: '图片包含项目排期和三个关键日期。' },
+      }),
+    );
     expect(result.aiSummary).toBe('图片包含项目排期和三个关键日期。');
   });
 
@@ -436,13 +460,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
         update,
       },
     };
-    const service = serviceWith(
-      prisma,
-      media,
-      voiceMock(),
-      aiMock(),
-      mediaAI,
-    );
+    const service = serviceWith(prisma, media, voiceMock(), aiMock(), mediaAI);
 
     const result = await service.analyzeAttachment(
       'inspiration-1',
@@ -455,13 +473,15 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       'video/mp4',
       '会议视频',
     );
-    expect(update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'attachment-video' },
-      data: {
-        transcript: '先做用户访谈，再调整排期。',
-        aiSummary: '视频讨论了用户访谈与排期调整。',
-      },
-    }));
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'attachment-video' },
+        data: {
+          transcript: '先做用户访谈，再调整排期。',
+          aiSummary: '视频讨论了用户访谈与排期调整。',
+        },
+      }),
+    );
     expect(result.transcript).toBe('先做用户访谈，再调整排期。');
   });
 
@@ -481,13 +501,10 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     };
     const service = serviceWith(prisma);
 
-    await expect(service.analyzeAttachment(
-      'inspiration-1',
-      'attachment-audio',
-      'user-1',
-    )).rejects.toThrow('当前附件请使用音频转写/摘要功能');
+    await expect(
+      service.analyzeAttachment('inspiration-1', 'attachment-audio', 'user-1'),
+    ).rejects.toThrow('当前附件请使用音频转写/摘要功能');
   });
-
 
   it('returns an existing capture for the same request id without persisting files again', async () => {
     const media = mediaMock();
@@ -519,6 +536,60 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     expect(prisma.inspiration.create).not.toHaveBeenCalled();
   });
 
+  it('links a capture to an owned completed focus session', async () => {
+    const prisma = {
+      inspiration: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(({ data }) => ({ ...data, id: 'inspiration-focus' })),
+      },
+      pomodoroSession: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'focus-1' }),
+      },
+    };
+    const service = serviceWith(prisma);
+
+    const result = await service.createCapture(
+      'user-1',
+      '这次找到了问题根因',
+      [],
+      [],
+      'focus-capture-1',
+      'Asia/Shanghai',
+      'focus-1',
+    );
+
+    expect(prisma.pomodoroSession.findFirst).toHaveBeenCalledWith({
+      where: { id: 'focus-1', userId: 'user-1', status: 'completed' },
+      select: { id: true },
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        sourceType: 'focus',
+        focusSessionId: 'focus-1',
+      }),
+    );
+  });
+
+  it('rejects a capture linked to a foreign or unfinished focus session', async () => {
+    const prisma = {
+      inspiration: { findFirst: jest.fn().mockResolvedValue(null) },
+      pomodoroSession: { findFirst: jest.fn().mockResolvedValue(null) },
+    };
+    const service = serviceWith(prisma);
+
+    await expect(
+      service.createCapture(
+        'user-1',
+        '不应该被关联',
+        [],
+        [],
+        'focus-capture-2',
+        'UTC',
+        'focus-other',
+      ),
+    ).rejects.toThrow('已完成的专注记录不存在');
+  });
+
   it('persists the first three eligible inspirations into a stable daily review batch', async () => {
     const batch = {
       id: 'batch-1',
@@ -526,12 +597,28 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       localDate: '2026-09-20',
       timeZone: 'Asia/Tokyo',
     };
-    const itemFindMany = jest.fn()
+    const itemFindMany = jest
+      .fn()
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        { id: 'item-1', state: 'pending', ordinal: 0, inspiration: { id: 'inspiration-1' } },
-        { id: 'item-2', state: 'pending', ordinal: 1, inspiration: { id: 'inspiration-2' } },
-        { id: 'item-3', state: 'pending', ordinal: 2, inspiration: { id: 'inspiration-3' } },
+        {
+          id: 'item-1',
+          state: 'pending',
+          ordinal: 0,
+          inspiration: { id: 'inspiration-1' },
+        },
+        {
+          id: 'item-2',
+          state: 'pending',
+          ordinal: 1,
+          inspiration: { id: 'inspiration-2' },
+        },
+        {
+          id: 'item-3',
+          state: 'pending',
+          ordinal: 2,
+          inspiration: { id: 'inspiration-3' },
+        },
       ]);
     const createMany = jest.fn().mockResolvedValue({ count: 3 });
     const prisma = {
@@ -543,12 +630,14 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
         createMany,
       },
       inspiration: {
-        findMany: jest.fn().mockResolvedValue([
-          { id: 'inspiration-1' },
-          { id: 'inspiration-2' },
-          { id: 'inspiration-3' },
-          { id: 'inspiration-4' },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { id: 'inspiration-1' },
+            { id: 'inspiration-2' },
+            { id: 'inspiration-3' },
+            { id: 'inspiration-4' },
+          ]),
       },
     };
     const service = serviceWith(prisma);
@@ -591,11 +680,14 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     };
     const prisma = {
       inspirationReviewBatchItem: {
-        findFirst: jest.fn()
+        findFirst: jest
+          .fn()
           .mockResolvedValueOnce(item)
           .mockResolvedValueOnce(finalItem),
       },
-      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) =>
+        callback(tx),
+      ),
     };
     const service = serviceWith(prisma);
 
@@ -620,16 +712,17 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
         clientRequestId: 'review-request-1',
       },
     });
-    expect(tx.inspiration.update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'inspiration-1' },
-      data: expect.objectContaining({
-        reviewCount: { increment: 1 },
-        nextReviewAt: expect.any(Date),
+    expect(tx.inspiration.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'inspiration-1' },
+        data: expect.objectContaining({
+          reviewCount: { increment: 1 },
+          nextReviewAt: expect.any(Date),
+        }),
       }),
-    }));
+    );
     expect(result).toBe(finalItem);
   });
-
 
   it('updates wall layout only when the expected version still matches', async () => {
     const existing = {
@@ -647,9 +740,12 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     };
     const updated = { ...existing, x: 50, y: 60, version: 4 };
     const prisma = {
-      inspiration: { findFirst: jest.fn().mockResolvedValue({ id: 'inspiration-1' }) },
+      inspiration: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'inspiration-1' }),
+      },
       inspirationWallLayout: {
-        findUnique: jest.fn()
+        findUnique: jest
+          .fn()
           .mockResolvedValueOnce(existing)
           .mockResolvedValueOnce(updated),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -668,27 +764,36 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
       rotation: 1,
     });
 
-    expect(prisma.inspirationWallLayout.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'layout-1', userId: 'user-1', version: 3 },
-      data: expect.objectContaining({ x: 50, y: 60, version: { increment: 1 } }),
-    }));
+    expect(prisma.inspirationWallLayout.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'layout-1', userId: 'user-1', version: 3 },
+        data: expect.objectContaining({
+          x: 50,
+          y: 60,
+          version: { increment: 1 },
+        }),
+      }),
+    );
     expect(result).toEqual(updated);
   });
 
   it('rejects a stale wall layout version instead of overwriting another device', async () => {
     const prisma = {
-      inspiration: { findFirst: jest.fn().mockResolvedValue({ id: 'inspiration-1' }) },
+      inspiration: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'inspiration-1' }),
+      },
       inspirationWallLayout: {
         findUnique: jest.fn().mockResolvedValue({ id: 'layout-1', version: 5 }),
       },
     };
     const service = serviceWith(prisma);
 
-    await expect(service.saveWallLayout('inspiration-1', 'user-1', {
-      expectedVersion: 4,
-      x: 1,
-      y: 2,
-    })).rejects.toThrow('自由墙布局已经变化');
+    await expect(
+      service.saveWallLayout('inspiration-1', 'user-1', {
+        expectedVersion: 4,
+        x: 1,
+        y: 2,
+      }),
+    ).rejects.toThrow('自由墙布局已经变化');
   });
-
 });

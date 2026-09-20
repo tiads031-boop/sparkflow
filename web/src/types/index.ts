@@ -101,6 +101,9 @@ export interface PomodoroState {
   effectiveDurationSeconds: number;
   pausedDurationSeconds: number;
   lastCompletedEffectiveSeconds: number;
+  lastCompletedSessionId: string | null;
+  lastCompletedStartedAt: string | null;
+  lastCompletedEndedAt: string | null;
   syncError: string | null;
   todayCount: number;
   totalFocusMinutes: number;

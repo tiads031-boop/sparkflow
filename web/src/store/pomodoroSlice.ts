@@ -10,6 +10,7 @@ interface FocusSessionResponse {
   status: "active" | "paused" | "completed" | "interrupted";
   revision: number;
   startedAt: string;
+  endedAt: string | null;
   plannedDurationSeconds: number;
   effectiveDurationSeconds: number;
   pausedDurationSeconds: number;
@@ -40,6 +41,9 @@ const INITIAL_POMODORO: PomodoroState = {
   effectiveDurationSeconds: 0,
   pausedDurationSeconds: 0,
   lastCompletedEffectiveSeconds: 0,
+  lastCompletedSessionId: null,
+  lastCompletedStartedAt: null,
+  lastCompletedEndedAt: null,
   syncError: null,
   todayCount: 0,
   totalFocusMinutes: 0,
@@ -66,6 +70,12 @@ function stateFromSession(
       session.status === "completed"
         ? session.effectiveDurationSeconds
         : current.lastCompletedEffectiveSeconds,
+    lastCompletedSessionId:
+      session.status === "completed" ? session.id : current.lastCompletedSessionId,
+    lastCompletedStartedAt:
+      session.status === "completed" ? session.startedAt : current.lastCompletedStartedAt,
+    lastCompletedEndedAt:
+      session.status === "completed" ? session.endedAt : current.lastCompletedEndedAt,
     syncError: null,
   };
 }
@@ -215,6 +225,9 @@ export const createPomodoroSlice: StateCreator<
         effectiveDurationSeconds: session.effectiveDurationSeconds,
         pausedDurationSeconds: session.pausedDurationSeconds,
         lastCompletedEffectiveSeconds: session.effectiveDurationSeconds,
+        lastCompletedSessionId: session.id,
+        lastCompletedStartedAt: session.startedAt,
+        lastCompletedEndedAt: session.endedAt,
         syncError: null,
       },
     }));
