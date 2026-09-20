@@ -13,7 +13,7 @@ import type {
   PlanningTurnInput,
   PlanningTurnResult,
 } from './ai-provider';
-import { requestOpenAICompatibleCompletion } from './provider-request';
+import { CompletionTruncatedError, requestOpenAICompatibleCompletion } from './provider-request';
 
 function extractJsonObject(text: string): unknown {
   const trimmed = text.trim();
@@ -571,9 +571,9 @@ export class OpenAICompatibleProvider implements AIProvider {
     const baseUrl = this.baseUrl();
     const isQwenPlatform = /dashscope\.aliyuncs\.com/i.test(baseUrl);
     const requestBody: Record<string, unknown> = {
-      model: input.model,
+      model: input.model || this.modelName,
       temperature: 0.2,
-      max_tokens: 2200,
+      max_tokens: 6000,
       messages: [
         {
           role: 'system',
@@ -666,35 +666,56 @@ export class OpenAICompatibleProvider implements AIProvider {
       requestBody.response_format = { type: 'json_object' };
     }
 
-    const content = await requestOpenAICompatibleCompletion({
-      baseUrl,
-      apiKey: key,
-      model: this.modelName,
-      operation: 'planning',
-      requestBody,
-      logger: this.logger,
-    });
-    try {
-      return toPlanningTurn(extractJsonObject(content));
-    } catch (error) {
-      const details = error instanceof Error
-        ? `${error.name}: ${error.message}`.slice(0, 300)
-        : String(error).slice(0, 300);
-      this.logger.error(JSON.stringify({
-        event: 'ai_provider_response_parse_failed',
-        providerHost: (() => {
-          try {
-            return new URL(baseUrl).host;
-          } catch {
-            return 'invalid-base-url';
-          }
-        })(),
-        model: this.modelName,
+    const model = input.model || this.modelName;
+    // Keep network retries and one format repair inside the client's 90s window.
+    const deadline = Date.now() + 75_000;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error('AI planning response deadline exceeded');
+      const content = await requestOpenAICompatibleCompletion({
+        baseUrl,
+        apiKey: key,
+        model,
         operation: 'planning',
-        details,
-      }));
-      throw error;
+        requestBody,
+        logger: this.logger,
+        timeoutMs: Math.min(60_000, remaining),
+        deadlineAt: deadline,
+        rejectTruncated: true,
+        maxAttempts: attempt === 0 ? 3 : 1,
+      }).catch((error: unknown) => {
+        if (error instanceof CompletionTruncatedError) return '';
+        throw error;
+      });
+      try {
+        return toPlanningTurn(extractJsonObject(content));
+      } catch (error) {
+        // SyntaxError messages can contain fragments of private model output.
+        const details = error instanceof SyntaxError ? 'invalid_json' : 'invalid_planning_schema';
+        const diagnostic = JSON.stringify({
+          event: 'ai_provider_response_parse_failed',
+          model,
+          operation: 'planning',
+          attempt: attempt + 1,
+          details,
+        });
+        if (attempt === 1) {
+          this.logger.error(diagnostic);
+          throw new Error('AI planning response validation failed after correction');
+        }
+        this.logger.warn(diagnostic);
+        requestBody.temperature = 0;
+        requestBody.messages = [
+          ...(requestBody.messages as Array<{ role: string; content: string }>),
+          ...(content ? [{ role: 'assistant', content: content.slice(0, 24_000) }] : []),
+          {
+            role: 'user',
+            content: 'Your previous response failed schema validation. Return one complete valid JSON object only, without Markdown. Include reply, readiness (clarify or ready), summary, openQuestions, researchQueries, actions, replanRequests, and context. Context must include arrays brief, constraints, preferences, strategy, and assumptions. Keep the reply concise; do not omit context or invent actions.',
+          },
+        ];
+      }
     }
+    throw new Error('AI planning response validation failed');
   }
 
 }
