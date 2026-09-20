@@ -4,7 +4,7 @@
 
 - **M1：✅ 已实现并完成生产核心链路** — PR #38，Capture → Review → Task。
 - **M2：🚧 代码/API/数据库已上线并进入真实 Provider 验收** — PR #39；生产环境已有 Qwen 调用证据，PR #43 进一步关闭默认 thinking、启用 JSON mode，并补齐 Provider 重试/超时与安全错误日志。
-- **M3：🚧 代码完成，最新 Android 已到 `5835e322`，Web/API 待显式对齐最新 master** — PR #40 完成 Insight → Task；腾讯云已验证的生产 API 基线仍为 `1e5f8356`、19 migrations up to date；PR #43 后续稳定性修复尚需按发布门禁显式部署并复验。
+- **M3：🚧 代码完成，Web/API/Android 待显式对齐最新 master** — PR #40 完成 Insight → Task；腾讯云已验证的生产 API 基线仍为旧版本；PR #43 后续稳定性修复及 C1 migration 尚需按发布流程显式部署并复验。
 - Web 发布策略改为 **GitHub CI 后显式 Production**，不再为每个 Git commit 自动创建 Vercel deployment。
 - M4 不提前启动，先完成 `master@e5978ecb` 的 Web/API 发布、真实 Qwen 洞察质量/失败恢复，以及 Android 真机闭环。
 
@@ -870,7 +870,7 @@ M2 验收：AI 生成的每个洞察都能追溯到真实来源，错误来源 i
 - [x] Insight 显示已产生行动。
 - [ ] 创建后直接打开 Planner（Task 已进入共享 Store，可进入 Planner；直接跳转体验待补）。
 
-M3 验收：从多张记录形成 Insight，再由用户确认生成 Task，任务可进入 Planner / Timeline / Focus。当前实现代码已完成，生产收口以 `5835e322` Web/API 对齐 + `android-5835e3223748` 真机链路为准。
+M3 验收：从多张记录形成 Insight，再由用户确认生成 Task，任务可进入 Planner / Timeline / Focus。当前实现代码已完成，生产收口以 `master@e5978ecb` Web/API 对齐、C1 migration 与新 Android 包真机链路为准。
 
 ### PR #43 — Qwen / 请求稳定性补丁（✅ 已合并）
 
@@ -878,7 +878,7 @@ M3 验收：从多张记录形成 Insight，再由用户确认生成 Task，任�
 - Provider 请求上限 60s；429/500/502/503/504 首次失败允许一次短重试。
 - 普通 Web API 请求默认 15s 超时；Insight 生成单独使用 75s。
 - 408 在前端显示明确超时信息；Provider 失败只记录安全错误摘要，不输出密钥或用户正文。
-- Android Release `android-5835e3223748` 已生成；Web/API Production 仍需显式发布最新 master 后复验。
+- Android 旧 Release 已生成；需基于 `master@e5978ecb` 生成新包，并与 Web/API Production 一起复验。
 
 ### M4 — 主动助手（P2）
 
