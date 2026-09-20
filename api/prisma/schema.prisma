@@ -21,6 +21,7 @@ model User {
   inspirations           Inspiration[]
   inspirationReflections InspirationReflection[]
   inspirationReviewBatches InspirationReviewBatch[]
+  inspirationWallLayouts InspirationWallLayout[]
   insights               Insight[]
   tasks                  Task[]
   pomodoroSessions       PomodoroSession[]
@@ -115,6 +116,7 @@ model Inspiration {
   insightLinks InsightInspiration[]
   attachments InspirationAttachment[]
   reviewBatchItems InspirationReviewBatchItem[]
+  wallLayouts InspirationWallLayout[]
 
   @@unique([userId, captureRequestId])
   @@index([userId])
@@ -195,6 +197,31 @@ model InspirationReviewBatchItem {
   @@index([inspirationId])
   @@index([batchId, state])
   @@map("inspiration_review_batch_items")
+}
+
+
+model InspirationWallLayout {
+  id            String   @id @default(uuid())
+  userId        String
+  inspirationId String
+  x             Float
+  y             Float
+  width         Float    @default(176)
+  height        Float    @default(156)
+  z             Int      @default(0)
+  color         String   @default("#f2f0e8")
+  rotation      Float    @default(0)
+  version       Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inspiration Inspiration @relation(fields: [inspirationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, inspirationId])
+  @@index([userId, z])
+  @@index([inspirationId])
+  @@map("inspiration_wall_layouts")
 }
 
 model Insight {
