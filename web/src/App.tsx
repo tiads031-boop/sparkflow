@@ -182,16 +182,6 @@ export default function App() {
       setFocusOpen(true);
       return;
     }
-    if (action === 'temporary') {
-      setPlannerSeed('我有一件临时事情需要安排：');
-      setPlannerOpen(true);
-      return;
-    }
-    if (action === 'planner') {
-      setPlannerSeed('');
-      setPlannerOpen(true);
-      return;
-    }
     if (action === 'task') handleOpenCreate('task');
   };
 
