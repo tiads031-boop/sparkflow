@@ -1,11 +1,11 @@
-import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react';
+import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PlanView } from '../../types';
 
 const viewLabels: Record<PlanView, string> = {
   month: '月视图',
   week: '周视图',
-  agenda: '日程视图',
-  timetable: '时间表',
+  agenda: '今天',
+  timetable: '课程表',
 };
 
 interface PlanHeaderProps {
@@ -18,8 +18,6 @@ interface PlanHeaderProps {
   onPrevious: () => void;
   onNext: () => void;
   onToday: () => void;
-  onQuickAdd: () => void;
-  onPlanner: () => void;
 }
 
 export default function PlanHeader({
@@ -32,25 +30,14 @@ export default function PlanHeader({
   onPrevious,
   onNext,
   onToday,
-  onQuickAdd,
-  onPlanner,
 }: PlanHeaderProps) {
   return (
     <header className="relative px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+18px)]">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
         <button type="button" onClick={onToday} className="min-w-0 text-left">
           <p className="truncate text-[11px] font-bold text-[var(--sf-text-tertiary)]">{subtitle}</p>
           <h1 className="mt-0.5 truncate text-xl font-black text-[var(--sf-text-primary)]">{title}</h1>
         </button>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={onQuickAdd} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm" aria-label="快速添加">
-            <Plus size={19} />
-          </button>
-          <button type="button" onClick={onPlanner} className="flex h-10 items-center gap-1.5 rounded-full bg-[#cae393] px-3 text-[#242424] shadow-sm" aria-label="AI 规划与临时调整">
-            <Sparkles size={17} />
-            <span className="text-xs font-black">AI 规划</span>
-          </button>
-        </div>
       </div>
 
       <div className="mt-3 flex items-center justify-between">

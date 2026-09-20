@@ -20,8 +20,8 @@ export interface WorkspaceNavigationItem {
 }
 
 export const workspaceNavigationRegistry: readonly WorkspaceNavigationItem[] = [
-  { id: 'today', label: '今天', description: '今日节奏与下一步', icon: 'today' },
-  { id: 'plan', label: '计划', description: '日历、待办与 AI 安排', icon: 'plan' },
+  { id: 'today', label: '日程', description: '今天、周、月与课程表', icon: 'today' },
+  { id: 'plan', label: '待办', description: '任务列表与四象限', icon: 'plan' },
   { id: 'records', label: '记录', description: '随手记、回顾与洞察', icon: 'records' },
   { id: 'study', label: '学习', description: '课程、文件夹与学习工作区', icon: 'study' },
   { id: 'profile', label: '我的', description: '账户、同步与设置', icon: 'profile' },

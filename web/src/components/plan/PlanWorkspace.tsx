@@ -22,9 +22,9 @@ interface PlanWorkspaceProps {
   onTaskClick: (task: Task) => void;
   onCourseClick?: (courseId: string) => void;
   onPlanner: () => void;
-  onQuickAdd: () => void;
   plannerPreview?: PlannerPreview | null;
   initialSection?: PlanSection;
+  sectionOnly?: PlanSection;
   initialTaskView?: TaskView;
   initialPlanView?: PlanView;
 }
@@ -50,9 +50,9 @@ export default function PlanWorkspace({
   onTaskClick,
   onCourseClick,
   onPlanner,
-  onQuickAdd,
   plannerPreview,
   initialSection = 'calendar',
+  sectionOnly,
   initialTaskView,
   initialPlanView,
 }: PlanWorkspaceProps) {
@@ -61,7 +61,7 @@ export default function PlanWorkspace({
   const courses = useAppStore((state) => state.courses);
   const semesters = useAppStore((state) => state.semesters);
   const activeSemesterId = useAppStore((state) => state.activeSemesterId);
-  const [section, setSection] = useState<PlanSection>(initialSection);
+  const [section, setSection] = useState<PlanSection>(sectionOnly ?? initialSection);
   const quadrantEnabled = readUserPreferences().quadrantEnabled;
   const [taskView, setTaskView] = useState<TaskView>(() => {
     const requested = initialTaskView ?? readTaskView();
@@ -112,7 +112,7 @@ export default function PlanWorkspace({
     setView(next);
     writeLastPlanView(next);
     setViewMenuOpen(false);
-    setSection('calendar');
+    if (!sectionOnly) setSection('calendar');
   };
 
   const shiftDate = (direction: -1 | 1) => {
@@ -140,7 +140,7 @@ export default function PlanWorkspace({
 
   return (
     <div className="min-h-full animate-page-enter pb-24">
-      <PlanHeader
+      {section !== 'tasks' && <PlanHeader
         view={view}
         title={headerCopy.title}
         subtitle={headerCopy.subtitle}
@@ -150,12 +150,10 @@ export default function PlanWorkspace({
         onPrevious={() => shiftDate(-1)}
         onNext={() => shiftDate(1)}
         onToday={() => setSelectedDate(new Date())}
-        onQuickAdd={onQuickAdd}
-        onPlanner={onPlanner}
-      />
+      />}
 
       <div className="px-3">
-        <nav aria-label="计划工作区" className="mb-3 grid grid-cols-2 rounded-2xl bg-[var(--sf-surface)] p-1 shadow-sm">
+        {!sectionOnly && <nav aria-label="计划工作区" className="mb-3 grid grid-cols-2 rounded-2xl bg-[var(--sf-surface)] p-1 shadow-sm">
           <button
             type="button"
             onClick={() => setSection('calendar')}
@@ -170,7 +168,7 @@ export default function PlanWorkspace({
           >
             <ListTodo size={14} /> 待办
           </button>
-        </nav>
+        </nav>}
 
         {section === 'calendar' && previewItems.length > 0 && (
           <button

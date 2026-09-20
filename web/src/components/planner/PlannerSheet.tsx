@@ -179,6 +179,7 @@ export default function PlannerSheet({
   scopeId,
   threadTitle,
   allowNewThread = true,
+  autoStartVoice = false,
 }: {
   open: boolean;
   selectedDate: Date;
@@ -190,6 +191,7 @@ export default function PlannerSheet({
   scopeId?: string;
   threadTitle?: string;
   allowNewThread?: boolean;
+  autoStartVoice?: boolean;
 }) {
   const [thread, setThread] = useState<PlanningThreadDetail | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
@@ -239,12 +241,20 @@ export default function PlannerSheet({
   const [scheduleMessage, setScheduleMessage] = useState('');
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const autoVoiceStartedRef = useRef(false);
   const close = useCallback(() => onClose(), [onClose]);
   const handleVoiceTranscript = useCallback((text: string) => {
     setMessageInput((current) => current.trim() ? `${current.trim()} ${text}` : text);
     setTurnMessage('语音已转写，可以先修改文字，再发送给 AI。');
   }, []);
   const voice = usePlanningVoiceInput(handleVoiceTranscript);
+  const {
+    state: voiceState,
+    configured: voiceConfigured,
+    supported: voiceSupported,
+    start: startVoice,
+    cancel: cancelVoice,
+  } = voice;
   useModalLifecycle(open, close);
 
   const loadLatestThread = useCallback(async () => {
@@ -343,8 +353,18 @@ export default function PlannerSheet({
   }, [open, selectedDate, initialPrompt, loadLatestThread, onPreviewChange]);
 
   useEffect(() => {
-    if (!open && voice.state === 'recording') voice.cancel();
-  }, [open, voice.state, voice.cancel]);
+    if (!open && voiceState === 'recording') cancelVoice();
+  }, [open, voiceState, cancelVoice]);
+
+  useEffect(() => {
+    if (!open) {
+      autoVoiceStartedRef.current = false;
+      return;
+    }
+    if (!autoStartVoice || autoVoiceStartedRef.current || voiceConfigured === null) return;
+    autoVoiceStartedRef.current = true;
+    if (voiceSupported) void startVoice();
+  }, [open, autoStartVoice, voiceConfigured, voiceSupported, startVoice]);
 
   useEffect(() => {
     if (!open) return;

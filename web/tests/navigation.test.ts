@@ -40,7 +40,7 @@ test('VNext workspace navigation is fixed to five user-facing destinations', () 
   );
   assert.deepEqual(
     workspaceNavigationRegistry.map((item) => item.label),
-    ['今天', '计划', '记录', '学习', '我的'],
+    ['日程', '待办', '记录', '学习', '我的'],
   );
 });
 

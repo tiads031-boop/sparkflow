@@ -9,6 +9,7 @@ import {
   getPlanRange,
   getSemesterWeekNumber,
   localDateKey,
+  mergePlanCourseItems,
 } from '../src/components/plan/planProjection.ts';
 
 const semester: Semester = {
@@ -221,6 +222,36 @@ test('Plan projection merges abbreviated course fragments at the same start time
   assert.equal(courseItems.length, 1);
   assert.equal(courseItems[0].title, '公证法');
   assert.equal(courseItems[0].end, new Date(2026, 8, 21, 9, 40).toISOString());
+});
+
+test('adjacent fragments of the same course and room merge into one class block', () => {
+  const firstStart = new Date(2026, 8, 22, 8, 0).toISOString();
+  const firstEnd = new Date(2026, 8, 22, 8, 45).toISOString();
+  const secondStart = new Date(2026, 8, 22, 8, 55).toISOString();
+  const secondEnd = new Date(2026, 8, 22, 9, 40).toISOString();
+  const merged = mergePlanCourseItems([
+    { id: 'part-1', kind: 'course', sourceId: 'part-1', title: '法律职业伦理', start: firstStart, end: firstEnd, color: '#cae393', locked: true, completed: false, location: '中心-305' },
+    { id: 'part-2', kind: 'course', sourceId: 'part-2', title: '法律职业伦理', start: secondStart, end: secondEnd, color: '#b0a8db', locked: true, completed: false, location: '中心-305' },
+  ]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].start, firstStart);
+  assert.equal(merged[0].end, secondEnd);
+});
+
+test('course fragments in different rooms or with a long gap remain separate', () => {
+  const base = { kind: 'course' as const, title: '公证法', color: '#cae393', locked: true, completed: false };
+  const differentRoom = mergePlanCourseItems([
+    { ...base, id: 'room-a', sourceId: 'room-a', start: new Date(2026, 8, 22, 13, 30).toISOString(), end: new Date(2026, 8, 22, 14, 15).toISOString(), location: '敏行楼-308' },
+    { ...base, id: 'room-b', sourceId: 'room-b', start: new Date(2026, 8, 22, 14, 25).toISOString(), end: new Date(2026, 8, 22, 15, 10).toISOString(), location: '敏行楼-309' },
+  ]);
+  const longGap = mergePlanCourseItems([
+    { ...base, id: 'morning', sourceId: 'morning', start: new Date(2026, 8, 22, 8, 0).toISOString(), end: new Date(2026, 8, 22, 8, 45).toISOString(), location: '敏行楼-308' },
+    { ...base, id: 'afternoon', sourceId: 'afternoon', start: new Date(2026, 8, 22, 13, 30).toISOString(), end: new Date(2026, 8, 22, 14, 15).toISOString(), location: '敏行楼-308' },
+  ]);
+
+  assert.equal(differentRoom.length, 2);
+  assert.equal(longGap.length, 2);
 });
 
 
