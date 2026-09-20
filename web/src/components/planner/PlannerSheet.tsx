@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
@@ -49,6 +49,8 @@ import {
   type CourseTemplateChangePreview,
   type CourseTemplateChangeRequest,
 } from '../../api/courses';
+
+const MarkdownMessage = lazy(() => import('./MarkdownMessage'));
 
 function dateInput(date: Date) {
   const year = date.getFullYear();
@@ -997,7 +999,13 @@ export default function PlannerSheet({
                         : 'rounded-bl-md bg-[var(--sf-bg)] text-[var(--sf-text-primary)]'
                     }`}
                   >
-                    {item.content}
+                    {item.role === 'assistant' ? (
+                      <Suspense fallback={<p className="whitespace-pre-wrap">{item.content}</p>}>
+                        <MarkdownMessage content={item.content} />
+                      </Suspense>
+                    ) : (
+                      <p className="whitespace-pre-wrap">{item.content}</p>
+                    )}
                   </div>
                 </div>
               ))}
