@@ -20,9 +20,9 @@
 ## 近期总原则
 
 1. **Phase 15 M1/M2/M3 与 Focus C1/C2 代码均已进入 master；不要再重复实现 Capture、Insight、Insight→Task 或专注记录底座。**
-2. **当前第一收口项已切换为最新 `master@56bdc80a` 的 API 同步与真实账号/真机验收；不要再继续重复实现 M4–M8 已完成能力。**
+2. **当前第一收口项已切换为最新 `master@e5978ecb` 的 API/Web 同步与真实账号/真机验收；不要再继续重复实现 M4–M8 与 Focus C1/C2 已完成能力。**
 3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 稳定性修复已随 `99ebb3c` API 镜像上线，下一步复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
-4. **腾讯云 API 仍运行 `99ebb3c`；Web Production 已从腾讯云 Nginx 发布 `master@56bdc80a`，公网首页、SPA 深层路由、Service Worker、API 健康检查均为 200。**
+4. **腾讯云 API/Web 仍需发布 `master@e5978ecb`；现有公网首页、SPA 深层路由、Service Worker、API 健康检查证据对应旧部署，不能视为 C1/C2 已上线。**
 5. **Android 继续以 commit-stamped Release 做真机验收；当前 VNext M3 包为 `android-7145ba0ea3d2`。**
 6. **VNext Plan M1–M3 已进入 master；用户已明确重定义下一阶段产品方向：学习改为独立 AI 目标规划、AI 安排升级为对话式调度、课程支持单次调课/换课、四象限手机同屏可关闭、Today 极简、多模态随手记、设置/通知/任务表单重做。按 M4–M8 新方案推进，不再沿用旧的“Study 关联 Course / M4 仅拖拽过滤”方向。**
 
@@ -152,7 +152,7 @@
 - [x] PR #49 / M2：Task / Course / CalendarEvent / Study Task 统一前端投影；真实月/周/日程/时间表；课程周次与重复来源去重。
 - [x] PR #50 / M3：Planner Preview 以临时时间块叠加到 Week / Agenda；Apply 后转为真实 Task 排程；Undo 恢复；未修改 Planner API 契约。
 - [x] 三批均通过 Web build/tests 与现有 API/fresh PostgreSQL CI。
-- [x] 腾讯云 Web Production 已从 `master@56bdc80a` 构建并由 Nginx 直接托管；`fish-life.cc.cd` / `www.fish-life.cc.cd` HTTPS、首页、SPA 深层路由、Service Worker 与 API 健康检查均通过公网验收。
+- [x] 腾讯云 Web Production 的旧基线已通过 HTTPS、首页、SPA 深层路由、Service Worker 与 API 健康检查验收；[ ] 仍需用 `master@e5978ecb` 重新发布并复验 Focus C1/C2。
 - [ ] Web/PWA 真实账号：Month / Week / Agenda / Timetable + Planner Preview → Apply → Undo。
 - [x] Android VNext M3 commit-stamped APK 已生成：Release `android-7145ba0ea3d2` / `sparkflow-7145ba0ea3d2-debug.apk`。
 - [ ] Android 真机：360px、safe-area、底栏、周视图密度、课表、Planner 闭环。
