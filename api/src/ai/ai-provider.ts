@@ -33,6 +33,9 @@ export interface AIProvider {
 
 export const AI_PROVIDER = Symbol('AI_PROVIDER');
 
+export const PLANNING_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'] as const;
+export type PlanningModel = (typeof PLANNING_MODELS)[number];
+
 
 export type PlanningFactStatus = 'confirmed' | 'inferred' | 'assumed';
 
@@ -232,6 +235,7 @@ export interface PlanningGoalExecutionSnapshot {
 }
 
 export interface PlanningTurnInput {
+  model: PlanningModel;
   message: string;
   context: PlanningContextSnapshot;
   recentMessages: PlanningConversationMessage[];
