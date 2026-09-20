@@ -155,7 +155,7 @@ export function mergeInsightScheduleSettings(
   return {
     ...objectValue(settings),
     insightSchedule: schedule,
-  } as Prisma.InputJsonValue;
+  } as unknown as Prisma.InputJsonValue;
 }
 
 export function resolveInsightScheduleWindow(
