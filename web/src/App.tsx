@@ -20,7 +20,6 @@ import { normalizeTaskSection } from './utils/taskSections';
 import { workspaceNavigationRegistry, workspaceTabForRoute } from './navigation';
 import AppShell from './components/shell/AppShell';
 import QuickAddSheet, { type QuickAddAction } from './components/shell/QuickAddSheet';
-import TodayView from './components/today/TodayView';
 import ScheduleEditor, { type ScheduleDraft } from './components/schedule/ScheduleEditor';
 import FocusSession from './components/focus/FocusSession';
 import PlannerSheet from './components/planner/PlannerSheet';
@@ -93,10 +92,11 @@ export default function App() {
   const [editingScheduleTask, setEditingScheduleTask] = useState<Task | null>(null);
   const [focusOpen, setFocusOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [plannerAutoVoice, setPlannerAutoVoice] = useState(false);
   const [plannerSeed, setPlannerSeed] = useState('');
   const [plannerPreview, setPlannerPreview] = useState<PlannerPreview | null>(null);
   const activeWorkspace = workspaceTabForRoute(activeTab) ?? 'today';
-  const isPlanRoute = activeTab === 'plan' || activeTab === 'tasks' || activeTab === 'board' || activeTab === 'timeline';
+  const isPlanRoute = activeTab === 'today' || activeTab === 'plan' || activeTab === 'tasks' || activeTab === 'board' || activeTab === 'timeline';
 
   useEffect(() => {
     loadTasks();
@@ -182,6 +182,12 @@ export default function App() {
       setFocusOpen(true);
       return;
     }
+    if (action === 'planner') {
+      setPlannerSeed('');
+      setPlannerAutoVoice(false);
+      setPlannerOpen(true);
+      return;
+    }
     if (action === 'task') handleOpenCreate('task');
   };
 
@@ -202,11 +208,6 @@ export default function App() {
       subtasks: [],
       section: 'personal',
     });
-  };
-
-  const handleEditSchedule = (task: Task) => {
-    setEditingScheduleTask(task);
-    setScheduleEditorOpen(true);
   };
 
   const handleOpenDetail = (item: any, context: string) =>
@@ -311,8 +312,13 @@ export default function App() {
       activeTab={activeWorkspace}
       setActiveTab={setActiveTab}
       navItems={workspaceNavItems}
-      immersive={activeWorkspace === 'plan'}
+      immersive={activeWorkspace === 'today' || activeWorkspace === 'plan'}
       onQuickAdd={() => setQuickAddOpen(true)}
+      onPlannerVoice={() => {
+        setPlannerSeed('');
+        setPlannerAutoVoice(true);
+        setPlannerOpen(true);
+      }}
       pushEnabled={pushEnabled}
       pushSupported={pushSupported}
       onTogglePush={() => pushEnabled ? unsubscribeFromPush() : subscribeToPush()}
@@ -355,27 +361,18 @@ export default function App() {
                   setViewingCourseId(courseId);
                   setActiveTab('courses');
                 }}
-                onPlanner={() => { setPlannerSeed(''); setPlannerOpen(true); }}
-                onQuickAdd={() => setQuickAddOpen(true)}
+                onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
                 plannerPreview={plannerPreview}
-                initialSection={activeTab === 'tasks' || activeTab === 'board' ? 'tasks' : 'calendar'}
+                initialSection={activeTab === 'today' || activeTab === 'timeline' ? 'calendar' : 'tasks'}
+                sectionOnly={activeTab === 'today' || activeTab === 'timeline' ? 'calendar' : 'tasks'}
                 initialTaskView={activeTab === 'board' ? 'quadrant' : undefined}
-                initialPlanView={activeTab === 'timeline' ? 'agenda' : undefined}
+                initialPlanView={activeTab === 'today' || activeTab === 'timeline' ? 'agenda' : undefined}
               />
             </Suspense>
           )}
           {/* Course detail view (full page) */}
-          {activeTab === 'courses' && viewingCourseId ? (
+          {activeTab === 'courses' && viewingCourseId && (
             <CourseTheme><CourseDetailView onBack={() => setViewingCourseId(null)} /></CourseTheme>
-          ) : activeTab === 'today' && (
-            <TodayView
-              onTaskClick={handleEditSchedule}
-              onCourseClick={(courseId) => {
-                loadCourseDetail(courseId);
-                setViewingCourseId(courseId);
-                setActiveTab('courses');
-              }}
-            />
           )}
           {activeTab === 'courses' && !viewingCourseId && (
             <CourseTheme>
@@ -465,10 +462,11 @@ export default function App() {
         <PlannerSheet
           open={plannerOpen}
           selectedDate={selectedDate}
-          onClose={() => setPlannerOpen(false)}
+          onClose={() => { setPlannerOpen(false); setPlannerAutoVoice(false); }}
           onApplied={loadTasks}
           onPreviewChange={setPlannerPreview}
           initialPrompt={plannerSeed}
+          autoStartVoice={plannerAutoVoice}
         />
     </AppShell>
   );

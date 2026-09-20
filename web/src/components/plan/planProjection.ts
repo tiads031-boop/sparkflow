@@ -163,14 +163,20 @@ function courseTitlesMatch(left: string, right: string): boolean {
   return shorter.length >= 2 && longer.startsWith(shorter);
 }
 
-function sameCourseOccurrence(left: PlanItem, right: PlanItem): boolean {
+const MAX_COURSE_FRAGMENT_GAP_MS = 30 * 60_000;
+
+function sameCourseBlock(left: PlanItem, right: PlanItem): boolean {
   if (left.kind !== 'course' || right.kind !== 'course') return false;
 
   const leftStart = new Date(left.start).getTime();
   const rightStart = new Date(right.start).getTime();
   const leftEnd = new Date(left.end).getTime();
   const rightEnd = new Date(right.end).getTime();
-  if (leftStart !== rightStart || leftStart >= rightEnd || rightStart >= leftEnd) return false;
+  if ([leftStart, rightStart, leftEnd, rightEnd].some(Number.isNaN)) return false;
+  if (localDateKey(left.start) !== localDateKey(right.start)) return false;
+
+  const gap = Math.max(leftStart, rightStart) - Math.min(leftEnd, rightEnd);
+  if (gap > MAX_COURSE_FRAGMENT_GAP_MS) return false;
 
   const leftLocation = normalizeOccurrenceText(left.location);
   const rightLocation = normalizeOccurrenceText(right.location);
@@ -178,7 +184,7 @@ function sameCourseOccurrence(left: PlanItem, right: PlanItem): boolean {
   return locationsMatch && courseTitlesMatch(left.title, right.title);
 }
 
-function mergePlanCourseItems(items: PlanItem[]): PlanItem[] {
+export function mergePlanCourseItems(items: PlanItem[]): PlanItem[] {
   const merged: PlanItem[] = [];
 
   for (const item of items) {
@@ -187,7 +193,7 @@ function mergePlanCourseItems(items: PlanItem[]): PlanItem[] {
       continue;
     }
 
-    const existingIndex = merged.findIndex((candidate) => sameCourseOccurrence(candidate, item));
+    const existingIndex = merged.findIndex((candidate) => sameCourseBlock(candidate, item));
     if (existingIndex < 0) {
       merged.push(item);
       continue;

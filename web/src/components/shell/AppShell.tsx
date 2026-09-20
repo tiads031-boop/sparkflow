@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import AppHeader from './AppHeader';
 import BottomNav, { type BottomNavItem } from './BottomNav';
+import FloatingActionButton from './FloatingActionButton';
 import type { ActiveTab } from '../../types';
 
 interface AppShellProps {
@@ -9,6 +10,7 @@ interface AppShellProps {
   setActiveTab: (tab: ActiveTab) => void;
   navItems: readonly BottomNavItem[];
   onQuickAdd: () => void;
+  onPlannerVoice: () => void;
   pushEnabled: boolean;
   pushSupported: boolean;
   onTogglePush: () => void;
@@ -22,7 +24,6 @@ export default function AppShell(props: AppShellProps) {
         {!props.immersive && (
           <header className="px-5 pb-0 relative z-20 app-safe-top">
             <AppHeader
-              onAddClick={props.onQuickAdd}
               pushEnabled={props.pushEnabled}
               pushSupported={props.pushSupported}
               onTogglePush={props.onTogglePush}
@@ -38,6 +39,7 @@ export default function AppShell(props: AppShellProps) {
         >
           {props.children}
         </main>
+        <FloatingActionButton onPress={props.onQuickAdd} onLongPress={props.onPlannerVoice} />
         <BottomNav activeTab={props.activeTab} setActiveTab={props.setActiveTab} items={props.navItems} />
       </div>
     </div>
