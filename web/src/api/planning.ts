@@ -1,5 +1,7 @@
 import { api } from './client';
 
+export type PlanningModel = 'deepseek-v4-flash' | 'deepseek-v4-pro';
+
 export type PlanningFactStatus = 'confirmed' | 'inferred' | 'assumed';
 
 export interface PlanningFact {
@@ -201,7 +203,12 @@ export function getPlanningThread(id: string) {
   });
 }
 
-export function sendPlanningTurn(id: string, message: string, expectedRevision: number) {
+export function sendPlanningTurn(
+  id: string,
+  message: string,
+  expectedRevision: number,
+  model: PlanningModel,
+) {
   let timeZone = 'UTC';
   try {
     timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -213,6 +220,7 @@ export function sendPlanningTurn(id: string, message: string, expectedRevision: 
     {
       message,
       expectedRevision,
+      model,
       currentTime: new Date().toISOString(),
       timeZone,
     },
