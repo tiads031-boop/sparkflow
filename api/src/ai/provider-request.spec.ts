@@ -18,6 +18,21 @@ function success(content = '{"ok":true}') {
 }
 
 describe('requestOpenAICompatibleCompletion', () => {
+  it('stops retrying when the shared request deadline is exhausted', async () => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1000);
+    const fetchImpl = jest.fn().mockRejectedValue(new Error('timeout'));
+    const sleepImpl = jest.fn().mockImplementation(async () => { now.mockReturnValue(2500); });
+    try {
+      await expect(requestOpenAICompatibleCompletion({
+        baseUrl: 'https://example.invalid/v1', apiKey: 'secret', model: 'test',
+        operation: 'planning', requestBody: {}, logger: logger(), fetchImpl, sleepImpl,
+        deadlineAt: 2000,
+      })).rejects.toThrow('deadline exceeded');
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    } finally {
+      now.mockRestore();
+    }
+  });
   it('retries a transport failure and returns the recovered completion', async () => {
     const fetchImpl = jest.fn()
       .mockRejectedValueOnce(new TypeError('socket reset'))

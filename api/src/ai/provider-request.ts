@@ -4,6 +4,13 @@ export interface ProviderRequestLogger {
   error(message: string): void;
 }
 
+export class CompletionTruncatedError extends Error {
+  constructor() {
+    super('AI provider completion was truncated');
+    this.name = 'CompletionTruncatedError';
+  }
+}
+
 interface CompletionRequestOptions {
   baseUrl: string;
   apiKey: string;
@@ -15,6 +22,8 @@ interface CompletionRequestOptions {
   sleepImpl?: (ms: number) => Promise<void>;
   timeoutMs?: number;
   maxAttempts?: number;
+  deadlineAt?: number;
+  rejectTruncated?: boolean;
 }
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -92,6 +101,9 @@ export async function requestOpenAICompatibleCompletion(
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const startedAt = Date.now();
+    const remainingMs = options.deadlineAt === undefined
+      ? timeoutMs : options.deadlineAt - startedAt;
+    if (remainingMs <= 0) throw new Error('AI provider request deadline exceeded');
     let response: Response;
 
     try {
@@ -101,7 +113,7 @@ export async function requestOpenAICompatibleCompletion(
           Authorization: `Bearer ${options.apiKey}`,
           'Content-Type': 'application/json',
         },
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: AbortSignal.timeout(Math.min(timeoutMs, remainingMs)),
         body: JSON.stringify(options.requestBody),
       });
     } catch (error) {
@@ -147,11 +159,11 @@ export async function requestOpenAICompatibleCompletion(
     }
 
     let payload: {
-      choices?: Array<{ message?: { content?: string | null } }>;
+      choices?: Array<{ finish_reason?: string; message?: { content?: string | null } }>;
     };
     try {
       payload = await response.json() as {
-        choices?: Array<{ message?: { content?: string | null } }>;
+        choices?: Array<{ finish_reason?: string; message?: { content?: string | null } }>;
       };
     } catch (error) {
       const finalAttempt = attempt >= maxAttempts;
@@ -173,6 +185,12 @@ export async function requestOpenAICompatibleCompletion(
       continue;
     }
 
+    if (options.rejectTruncated && payload.choices?.[0]?.finish_reason === 'length') {
+      options.logger.warn(logPayload(options, {
+        outcome: 'truncated_content', attempt, maxAttempts, upstreamRequestId,
+      }));
+      throw new CompletionTruncatedError();
+    }
     const content = payload.choices?.[0]?.message?.content?.trim();
     if (!content) {
       const finalAttempt = attempt >= maxAttempts;

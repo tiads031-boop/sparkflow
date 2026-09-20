@@ -1,4 +1,85 @@
-import { toPlanningTurn } from './openai-compatible.provider';
+import { Logger } from '@nestjs/common';
+import { OpenAICompatibleProvider, toPlanningTurn } from './openai-compatible.provider';
+import type { PlanningTurnInput } from './ai-provider';
+
+describe('planning response recovery', () => {
+  const complete = {
+    reply: '请确认调课草稿', readiness: 'ready', summary: '', openQuestions: [],
+    researchQueries: [], actions: [], replanRequests: [],
+    context: { brief: [], constraints: [], preferences: [], strategy: [], assumptions: [] },
+  };
+  const input = {
+    model: 'deepseek-v4-flash', message: '确认调课', recentMessages: [],
+    context: { ...complete.context, revision: 7 },
+  } as PlanningTurnInput;
+  function provider() {
+    const values: Record<string, string> = {
+      AI_API_KEY: 'secret', AI_BASE_URL: 'https://example.invalid/v1', AI_MODEL: 'default-model',
+    };
+    return new OpenAICompatibleProvider({ get: (key: string) => values[key] } as never);
+  }
+  function response(content: unknown) {
+    return new Response(JSON.stringify({ choices: [{ message: {
+      content: typeof content === 'string' ? content : JSON.stringify(content),
+    } }] }), { status: 200 });
+  }
+  afterEach(() => jest.restoreAllMocks());
+
+  it.each([
+    ['truncated JSON', '{"reply":"private-planning-content'],
+    ['missing context section', { ...complete, context: { brief: [] } }],
+    ['invalid readiness', { ...complete, readiness: 'done' }],
+  ])('corrects %s once while retaining the selected model and current context', async (_label, invalid) => {
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response(invalid)).mockResolvedValueOnce(response(complete));
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    await expect(provider().generatePlanningTurn(input)).resolves.toMatchObject(complete);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const first = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const repair = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(first.model).toBe('deepseek-v4-flash');
+    expect(first.max_tokens).toBe(6000);
+    expect(repair.model).toBe(first.model);
+    expect(repair.temperature).toBe(0);
+    expect(repair.messages.slice(0, first.messages.length)).toEqual(first.messages);
+    expect(repair.messages.at(-1).content).toContain('failed schema validation');
+    expect(JSON.stringify(warn.mock.calls)).toContain('deepseek-v4-flash');
+    expect(JSON.stringify(warn.mock.calls)).not.toContain('private-planning-content');
+  });
+
+  it('rejects two invalid responses without inventing a successful plan', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockImplementation(async () => response('private invalid output'));
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    await expect(provider().generatePlanningTurn(input)).rejects.toThrow('validation failed after correction');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(error.mock.calls)).not.toContain('private invalid output');
+  });
+
+  it('does not accept a length-limited completion even when its JSON parses', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{
+        finish_reason: 'length', message: { content: JSON.stringify(complete) },
+      }] }), { status: 200 }))
+      .mockResolvedValueOnce(response(complete));
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    await expect(provider().generatePlanningTurn(input)).resolves.toMatchObject(complete);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not repair a provider authentication rejection', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(new Response('', { status: 401 }));
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    await expect(provider().generatePlanningTurn(input)).rejects.toThrow('(401)');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts a valid first response without additional requests', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(response(complete));
+    await expect(provider().generatePlanningTurn(input)).resolves.toMatchObject(complete);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('planning response parser', () => {
   it('accepts complete structured planning context and trims unsafe excess', () => {
