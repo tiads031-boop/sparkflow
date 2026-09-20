@@ -6,7 +6,6 @@ import {
   LayoutGrid,
   List,
   Pencil,
-  Plus,
   RefreshCw,
   Sparkles,
   Trash2,
@@ -25,7 +24,6 @@ import {
   type ReviewQueue,
 } from '../api/inspirations';
 import { InsightPanel } from './insights/InsightPanel';
-import InspirationCaptureSheet from './records/InspirationCaptureSheet';
 import InspirationAttachmentList from './records/InspirationAttachmentList';
 
 interface SparksViewProps {
@@ -65,7 +63,6 @@ export default function SparksView(_props: SparksViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [captureOpen, setCaptureOpen] = useState(false);
   const [reviewText, setReviewText] = useState('');
   const [reviewBusy, setReviewBusy] = useState(false);
 
@@ -193,18 +190,9 @@ export default function SparksView(_props: SparksViewProps) {
 
   return (
     <div className="animate-page-enter space-y-4 pb-6">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--sf-text-primary)]">记录</h1>
-          <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">随手记下来，之后再想清楚。</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setCaptureOpen(true)}
-          className="flex items-center gap-1.5 rounded-full bg-[var(--sf-text-primary)] px-4 py-2 text-xs font-bold text-[var(--sf-surface)]"
-        >
-          <Plus size={14} /> 随手记
-        </button>
+      <header>
+        <h1 className="text-xl font-bold text-[var(--sf-text-primary)]">记录</h1>
+        <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">随手记下来，之后再想清楚。</p>
       </header>
 
       <div className="grid grid-cols-4 rounded-full bg-[var(--sf-surface)] p-1 shadow-sm" aria-label="记录视图">
@@ -324,14 +312,6 @@ export default function SparksView(_props: SparksViewProps) {
         </section>
       )}
 
-      <InspirationCaptureSheet
-        open={captureOpen}
-        onClose={() => setCaptureOpen(false)}
-        onSaved={async () => {
-          setMessage('已记下，明天会进入回顾候选。');
-          await Promise.all([loadRecords(), loadReviews()]);
-        }}
-      />
     </div>
   );
 }
