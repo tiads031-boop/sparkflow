@@ -122,7 +122,7 @@ export function InsightScheduleCard({ onInsightsChanged }: { onInsightsChanged: 
           onClick={() => setSchedule({ ...schedule, enabled: !schedule.enabled })}
           className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${schedule.enabled ? 'bg-[#242424]' : 'bg-[var(--sf-border)]'}`}
         >
-          <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${schedule.enabled ? 'translate-x-1' : '-translate-x-5'}`} />
+          <span className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${schedule.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
         </button>
       </div>
 
