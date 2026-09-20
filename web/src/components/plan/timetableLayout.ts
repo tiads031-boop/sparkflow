@@ -8,6 +8,38 @@ export type TimetableLayout<T extends TimetableInterval> = T & {
   laneCount: number;
 };
 
+/** Combines duplicate fragments of one course before collision lanes are assigned. */
+export function mergeTimetableIntervals<T extends TimetableInterval>(
+  items: T[],
+  getKey: (item: T) => string,
+  combine: (previous: T, incoming: T) => T = (previous, incoming) => ({
+    ...previous,
+    first: Math.min(previous.first, incoming.first),
+    last: Math.max(previous.last, incoming.last),
+  }),
+): T[] {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const key = getKey(item);
+    groups.set(key, [...(groups.get(key) || []), item]);
+  }
+
+  return [...groups.values()].flatMap((group) => {
+    const sorted = [...group].sort((a, b) => a.first - b.first || a.last - b.last);
+    const merged: T[] = [];
+
+    for (const item of sorted) {
+      const previous = merged.at(-1);
+      if (!previous || item.first > previous.last + 1) {
+        merged.push(item);
+        continue;
+      }
+      merged[merged.length - 1] = combine(previous, item);
+    }
+    return merged;
+  });
+}
+
 /**
  * Places overlapping timetable intervals into side-by-side lanes.
  * Intervals are inclusive because they represent school periods rather than
