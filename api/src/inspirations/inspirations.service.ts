@@ -34,7 +34,9 @@ function addDays(base: Date, days: number) {
 function normalizeTimeZone(value?: string) {
   const candidate = value?.trim() || 'UTC';
   try {
-    new Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date());
+    new Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(
+      new Date(),
+    );
     return candidate;
   } catch {
     return 'UTC';
@@ -204,7 +206,9 @@ export class InspirationsService {
     if (updated.count !== 1) {
       throw new BadRequestException('自由墙布局已经变化，请刷新后重试');
     }
-    return this.prisma.inspirationWallLayout.findUnique({ where: { id: existing.id } });
+    return this.prisma.inspirationWallLayout.findUnique({
+      where: { id: existing.id },
+    });
   }
 
   findOne(id: string, userId: string) {
@@ -263,6 +267,7 @@ export class InspirationsService {
     tags: string[] = [],
     requestId?: string,
     timeZone?: string,
+    focusSessionId?: string,
   ) {
     const normalizedRequestId = requestId?.trim() || undefined;
     if (normalizedRequestId) {
@@ -282,6 +287,21 @@ export class InspirationsService {
       throw new BadRequestException('请填写文字或添加至少一个附件');
     }
 
+    const normalizedFocusSessionId = focusSessionId?.trim() || undefined;
+    if (normalizedFocusSessionId) {
+      const focusSession = await this.prisma.pomodoroSession.findFirst({
+        where: {
+          id: normalizedFocusSessionId,
+          userId,
+          status: 'completed',
+        },
+        select: { id: true },
+      });
+      if (!focusSession) {
+        throw new NotFoundException('已完成的专注记录不存在');
+      }
+    }
+
     const id = randomUUID();
     const stored = await this.media.persist(id, files);
     try {
@@ -291,7 +311,8 @@ export class InspirationsService {
         data: {
           id,
           userId,
-          sourceType: 'manual',
+          sourceType: normalizedFocusSessionId ? 'focus' : 'manual',
+          focusSessionId: normalizedFocusSessionId || null,
           contentText: normalizedText || null,
           tags,
           captureRequestId: normalizedRequestId,
@@ -344,18 +365,17 @@ export class InspirationsService {
     return attachment;
   }
 
-  async transcribeAttachment(
-    id: string,
-    attachmentId: string,
-    userId: string,
-  ) {
+  async transcribeAttachment(id: string, attachmentId: string, userId: string) {
     const attachment = await this.getAttachment(id, attachmentId, userId);
     if (attachment.kind !== 'audio') {
       throw new BadRequestException('当前只支持音频附件转写');
     }
 
     const buffer = await this.media.read(attachment.storageKey);
-    const result = await this.voice.transcribeBuffer(buffer, attachment.mimeType);
+    const result = await this.voice.transcribeBuffer(
+      buffer,
+      attachment.mimeType,
+    );
 
     return this.prisma.inspirationAttachment.update({
       where: { id: attachment.id },
@@ -367,11 +387,7 @@ export class InspirationsService {
     });
   }
 
-  async analyzeAttachment(
-    id: string,
-    attachmentId: string,
-    userId: string,
-  ) {
+  async analyzeAttachment(id: string, attachmentId: string, userId: string) {
     const attachment = await this.prisma.inspirationAttachment.findFirst({
       where: {
         id: attachmentId,
@@ -395,7 +411,10 @@ export class InspirationsService {
     const context = [
       attachment.inspiration.title,
       attachment.inspiration.contentText,
-    ].filter(Boolean).join('\n').slice(0, 1000);
+    ]
+      .filter(Boolean)
+      .join('\n')
+      .slice(0, 1000);
     const buffer = await this.media.read(attachment.storageKey);
 
     try {
@@ -429,8 +448,8 @@ export class InspirationsService {
       });
     } catch (error) {
       if (
-        error instanceof BadRequestException
-        || error instanceof ServiceUnavailableException
+        error instanceof BadRequestException ||
+        error instanceof ServiceUnavailableException
       ) {
         throw error;
       }
@@ -438,11 +457,7 @@ export class InspirationsService {
     }
   }
 
-  async summarizeAttachment(
-    id: string,
-    attachmentId: string,
-    userId: string,
-  ) {
+  async summarizeAttachment(id: string, attachmentId: string, userId: string) {
     const attachment = await this.prisma.inspirationAttachment.findFirst({
       where: {
         id: attachmentId,
@@ -470,7 +485,10 @@ export class InspirationsService {
         context: [
           attachment.inspiration.title,
           attachment.inspiration.contentText,
-        ].filter(Boolean).join('\n').slice(0, 1000),
+        ]
+          .filter(Boolean)
+          .join('\n')
+          .slice(0, 1000),
       });
     } catch {
       throw new ServiceUnavailableException('AI 摘要暂时不可用，请稍后重试');
@@ -483,14 +501,18 @@ export class InspirationsService {
     });
   }
 
-  async update(id: string, userId: string, data: {
-    title?: string | null;
-    description?: string | null;
-    contentText?: string | null;
-    sourceUrl?: string | null;
-    sourceType?: string;
-    tags?: string[];
-  }) {
+  async update(
+    id: string,
+    userId: string,
+    data: {
+      title?: string | null;
+      description?: string | null;
+      contentText?: string | null;
+      sourceUrl?: string | null;
+      sourceType?: string;
+      tags?: string[];
+    },
+  ) {
     const existing = await this.prisma.inspiration.findFirst({
       where: { id, userId },
       select: { id: true },
@@ -500,11 +522,21 @@ export class InspirationsService {
     return this.prisma.inspiration.update({
       where: { id },
       data: {
-        ...(data.title !== undefined ? { title: data.title?.trim() || null } : {}),
-        ...(data.description !== undefined ? { description: data.description?.trim() || null } : {}),
-        ...(data.contentText !== undefined ? { contentText: data.contentText?.trim() || null } : {}),
-        ...(data.sourceUrl !== undefined ? { sourceUrl: data.sourceUrl?.trim() || null } : {}),
-        ...(data.sourceType !== undefined ? { sourceType: data.sourceType || 'manual' } : {}),
+        ...(data.title !== undefined
+          ? { title: data.title?.trim() || null }
+          : {}),
+        ...(data.description !== undefined
+          ? { description: data.description?.trim() || null }
+          : {}),
+        ...(data.contentText !== undefined
+          ? { contentText: data.contentText?.trim() || null }
+          : {}),
+        ...(data.sourceUrl !== undefined
+          ? { sourceUrl: data.sourceUrl?.trim() || null }
+          : {}),
+        ...(data.sourceType !== undefined
+          ? { sourceType: data.sourceType || 'manual' }
+          : {}),
         ...(data.tags !== undefined ? { tags: data.tags } : {}),
       },
       include: {
@@ -541,7 +573,9 @@ export class InspirationsService {
 
       const unsupportedInsightIds: string[] = [];
       for (const { insightId } of affectedLinks) {
-        const remainingSources = await tx.insightInspiration.count({ where: { insightId } });
+        const remainingSources = await tx.insightInspiration.count({
+          where: { insightId },
+        });
         if (remainingSources < 2) unsupportedInsightIds.push(insightId);
       }
       if (unsupportedInsightIds.length > 0) {
@@ -552,7 +586,9 @@ export class InspirationsService {
       return deleted;
     });
 
-    await this.media.removeMany(existing.attachments.map((item) => item.storageKey));
+    await this.media.removeMany(
+      existing.attachments.map((item) => item.storageKey),
+    );
     return deleted;
   }
 
@@ -582,11 +618,7 @@ export class InspirationsService {
     return { total, items };
   }
 
-  async getTodayReviewBatch(
-    userId: string,
-    timeZone?: string,
-    extend = false,
-  ) {
+  async getTodayReviewBatch(userId: string, timeZone?: string, extend = false) {
     const zone = normalizeTimeZone(timeZone);
     const now = new Date();
     const localDate = localDateKey(now, zone);
@@ -596,11 +628,13 @@ export class InspirationsService {
       update: {},
     });
 
-    const existingItems = await this.prisma.inspirationReviewBatchItem.findMany({
-      where: { batchId: batch.id },
-      select: { inspirationId: true, ordinal: true },
-      orderBy: { ordinal: 'asc' },
-    });
+    const existingItems = await this.prisma.inspirationReviewBatchItem.findMany(
+      {
+        where: { batchId: batch.id },
+        select: { inspirationId: true, ordinal: true },
+        orderBy: { ordinal: 'asc' },
+      },
+    );
     const requested = extend ? 3 : Math.max(0, 3 - existingItems.length);
 
     if (requested > 0) {
@@ -616,10 +650,11 @@ export class InspirationsService {
         take: 200,
       });
       const selected = randomSample(candidates, requested);
-      const firstOrdinal = existingItems.reduce(
-        (maximum, item) => Math.max(maximum, item.ordinal),
-        -1,
-      ) + 1;
+      const firstOrdinal =
+        existingItems.reduce(
+          (maximum, item) => Math.max(maximum, item.ordinal),
+          -1,
+        ) + 1;
       if (selected.length > 0) {
         await this.prisma.inspirationReviewBatchItem.createMany({
           data: selected.map((item, index) => ({
@@ -682,7 +717,8 @@ export class InspirationsService {
     }
 
     const now = new Date();
-    const days = input.action === 'reflection' ? 3 : input.action === 'later' ? 1 : 14;
+    const days =
+      input.action === 'reflection' ? 3 : input.action === 'later' ? 1 : 14;
     let resultReflectionId: string | undefined;
 
     await this.prisma.$transaction(async (tx) => {
@@ -695,7 +731,9 @@ export class InspirationsService {
         },
       });
       if (claimed.count === 0) {
-        const already = await tx.inspirationReviewBatchItem.findUnique({ where: { id: itemId } });
+        const already = await tx.inspirationReviewBatchItem.findUnique({
+          where: { id: itemId },
+        });
         if (already?.processedRequestId === requestId) return;
         throw new BadRequestException('这条回顾已经处理');
       }
@@ -765,7 +803,11 @@ export class InspirationsService {
     return this.findOne(id, userId);
   }
 
-  async applyReviewAction(id: string, userId: string, action: 'later' | 'digested') {
+  async applyReviewAction(
+    id: string,
+    userId: string,
+    action: 'later' | 'digested',
+  ) {
     if (!['later', 'digested'].includes(action)) {
       throw new BadRequestException('Unsupported review action');
     }
@@ -789,12 +831,16 @@ export class InspirationsService {
     });
   }
 
-  async createTaskFromInspiration(id: string, userId: string, data: {
-    title?: string;
-    description?: string;
-    estimatedMinutes?: number;
-    dueDate?: string | null;
-  } = {}) {
+  async createTaskFromInspiration(
+    id: string,
+    userId: string,
+    data: {
+      title?: string;
+      description?: string;
+      estimatedMinutes?: number;
+      dueDate?: string | null;
+    } = {},
+  ) {
     const inspiration = await this.prisma.inspiration.findFirst({
       where: { id, userId },
       include: { task: true },
@@ -802,8 +848,16 @@ export class InspirationsService {
     if (!inspiration) throw new NotFoundException('Inspiration not found');
     if (inspiration.task) return inspiration.task;
 
-    const sourceText = inspiration.contentText || inspiration.description || inspiration.title || '';
-    const title = data.title?.trim() || inspiration.title?.trim() || sourceText.trim().slice(0, 60) || '来自记录的待办';
+    const sourceText =
+      inspiration.contentText ||
+      inspiration.description ||
+      inspiration.title ||
+      '';
+    const title =
+      data.title?.trim() ||
+      inspiration.title?.trim() ||
+      sourceText.trim().slice(0, 60) ||
+      '来自记录的待办';
 
     return this.prisma.task.create({
       data: {
