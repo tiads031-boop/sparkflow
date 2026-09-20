@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Course, Semester } from '../../types';
 import { courseOccursOnDate, dedupeCoursesByOccurrence, getMonday, getSemesterWeekNumber, localDateKey } from './planProjection';
-import { layoutTimetableIntervals } from './timetableLayout';
+import { layoutTimetableIntervals, mergeTimetableIntervals } from './timetableLayout';
 
 const periods = [
   ['1', '08:00', '08:50'],
@@ -17,6 +17,9 @@ const periods = [
 ] as const;
 
 const ROW_HEIGHT = 76;
+const TIME_COLUMN_WIDTH = 52;
+const DAY_COLUMN_WIDTH = 68;
+const TIMETABLE_WIDTH = TIME_COLUMN_WIDTH + DAY_COLUMN_WIDTH * 7;
 
 function minutes(time: string) {
   const [hour, minute] = time.split(':').map(Number);
@@ -38,6 +41,15 @@ function coursePeriodRange(course: Course) {
 
 function cardBackground(color: string) {
   return /^#[0-9a-f]{6}$/i.test(color) ? `${color}30` : '#eef2ff';
+}
+
+function displayCourseKey(course: Course) {
+  const normalize = (value?: string | null) => (value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+  return [
+    normalize(course.name),
+    normalize(course.teacher),
+    normalize(course.room || course.location),
+  ].join('|');
 }
 
 interface TimetablePlanViewProps {
@@ -68,9 +80,8 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
     const scroller = scrollerRef.current;
     if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
     const selectedIndex = selectedWeekday - 1;
-    const timeColumnWidth = 56;
-    const dayWidth = (scroller.scrollWidth - timeColumnWidth) / 7;
-    const targetCenter = timeColumnWidth + (selectedIndex + 0.5) * dayWidth;
+    const dayWidth = (scroller.scrollWidth - TIME_COLUMN_WIDTH) / 7;
+    const targetCenter = TIME_COLUMN_WIDTH + (selectedIndex + 0.5) * dayWidth;
     const maxLeft = scroller.scrollWidth - scroller.clientWidth;
     scroller.scrollTo({ left: Math.max(0, Math.min(maxLeft, targetCenter - scroller.clientWidth / 2)) });
   }, [selectedKey, selectedWeekday]);
@@ -86,8 +97,11 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
       </div>
 
       <div ref={scrollerRef} className="overflow-x-auto overscroll-x-contain">
-        <div className="min-w-[560px]">
-          <div className="grid grid-cols-[56px_repeat(7,minmax(88px,1fr))] border-b border-black/5 px-1.5 py-2">
+        <div className="w-full" style={{ minWidth: TIMETABLE_WIDTH }}>
+          <div
+            className="grid border-b border-black/5 px-1.5 py-2"
+            style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(0, 1fr))` }}
+          >
             <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" />
             {days.map((day) => (
               <div key={day.toISOString()} className="text-center">
@@ -98,7 +112,10 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
           </div>
 
           <div className="max-h-[62svh] overflow-y-auto">
-            <div className="grid grid-cols-[56px_repeat(7,minmax(88px,1fr))] px-1.5">
+            <div
+              className="grid px-1.5"
+              style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(0, 1fr))` }}
+            >
               <div className="sticky left-0 z-20 bg-[var(--sf-surface)]">
                 {periods.map(([period, start, end]) => (
                   <div key={period} className="flex flex-col justify-center border-b border-black/5" style={{ height: ROW_HEIGHT }}>
@@ -113,10 +130,30 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
                 const dayCourses = semesterCourses.filter(
                   (course) => course.dayOfWeek === weekday && course.startTime && course.endTime,
                 );
-                const courseLayouts = layoutTimetableIntervals(dayCourses.flatMap((course) => {
+                const courseIntervals = dayCourses.flatMap((course) => {
                   const range = coursePeriodRange(course);
                   return range ? [{ course, ...range }] : [];
-                }));
+                });
+                const mergedCourses = mergeTimetableIntervals(
+                  courseIntervals,
+                  ({ course }) => displayCourseKey(course),
+                  (previous, incoming) => {
+                    const previousWeeks = previous.course.weeks?.length ? previous.course.weeks : null;
+                    const incomingWeeks = incoming.course.weeks?.length ? incoming.course.weeks : null;
+                    return {
+                      ...previous,
+                      first: Math.min(previous.first, incoming.first),
+                      last: Math.max(previous.last, incoming.last),
+                      course: {
+                        ...previous.course,
+                        weeks: previousWeeks && incomingWeeks
+                          ? [...new Set([...previousWeeks, ...incomingWeeks])].sort((a, b) => a - b)
+                          : undefined,
+                      },
+                    };
+                  },
+                );
+                const courseLayouts = layoutTimetableIntervals(mergedCourses);
 
                 return (
                   <div key={day.toISOString()} className="relative border-l border-black/[0.05]" style={{ height: periods.length * ROW_HEIGHT }}>

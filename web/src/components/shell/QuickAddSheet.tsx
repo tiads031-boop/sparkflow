@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { BrainCircuit, CalendarPlus, CheckSquare, Clock3, Focus, Lightbulb, X } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarPlus, CheckSquare, Focus, Lightbulb, X } from 'lucide-react';
 import InspirationCaptureSheet from '../records/InspirationCaptureSheet';
 
-export type QuickAddAction = 'task' | 'schedule' | 'spark' | 'temporary' | 'focus' | 'planner';
+export type QuickAddAction = 'task' | 'schedule' | 'spark' | 'focus';
 
 interface QuickAddSheetProps {
   open: boolean;
@@ -14,21 +14,11 @@ const actions = [
   { id: 'task', label: '新建任务', icon: CheckSquare, enabled: true },
   { id: 'schedule', label: '新建日程', icon: CalendarPlus, enabled: true },
   { id: 'spark', label: '随手记', icon: Lightbulb, enabled: true },
-  { id: 'temporary', label: '临时安排', icon: Clock3, enabled: true },
-  { id: 'planner', label: 'AI 规划与调整', icon: BrainCircuit, enabled: true },
   { id: 'focus', label: '开始专注', icon: Focus, enabled: true },
 ] as const;
 
 export default function QuickAddSheet({ open, onClose, onSelect }: QuickAddSheetProps) {
   const [captureMode, setCaptureMode] = useState(false);
-
-
-  useEffect(() => {
-    if (!open) {
-      setCaptureMode(false);
-
-    }
-  }, [open]);
 
   const handleSelect = (action: QuickAddAction) => {
     if (action === 'spark') {
