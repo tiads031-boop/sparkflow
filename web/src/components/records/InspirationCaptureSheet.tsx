@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FileAudio,
   Image as ImageIcon,
@@ -14,6 +15,7 @@ import {
   createMultimodalInspiration,
   type InspirationRecord,
 } from '../../api/inspirations';
+import { useModalLifecycle } from '../ui/useModalLifecycle';
 
 const MAX_FILES = 6;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -82,6 +84,11 @@ export default function InspirationCaptureSheet({
   const microphoneSupported = typeof window !== 'undefined'
     && typeof MediaRecorder !== 'undefined'
     && Boolean(navigator.mediaDevices?.getUserMedia);
+
+  const requestClose = () => {
+    if (!saving && !recording) onClose();
+  };
+  useModalLifecycle(open, requestClose, { isolateAppMain: true });
 
   const cleanupRecording = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -240,13 +247,11 @@ export default function InspirationCaptureSheet({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[115] flex items-end justify-center bg-black/30"
       role="presentation"
-      onClick={() => {
-        if (!saving && !recording) onClose();
-      }}
+      onClick={requestClose}
     >
       <section
         role="dialog"
@@ -264,7 +269,7 @@ export default function InspirationCaptureSheet({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             disabled={saving || recording}
             className="grid h-9 w-9 place-items-center rounded-full bg-[var(--sf-bg)] disabled:opacity-40"
             aria-label="关闭"
@@ -384,6 +389,7 @@ export default function InspirationCaptureSheet({
           {saving ? '正在保存附件…' : '保存记录'}
         </button>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
