@@ -20,6 +20,7 @@ model User {
 
   inspirations           Inspiration[]
   inspirationReflections InspirationReflection[]
+  inspirationReviewBatches InspirationReviewBatch[]
   insights               Insight[]
   tasks                  Task[]
   pomodoroSessions       PomodoroSession[]
@@ -104,6 +105,7 @@ model Inspiration {
   nextReviewAt   DateTime?
   lastReviewedAt DateTime?
   reviewCount    Int       @default(0)
+  captureRequestId String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -112,7 +114,9 @@ model Inspiration {
   reflections  InspirationReflection[]
   insightLinks InsightInspiration[]
   attachments InspirationAttachment[]
+  reviewBatchItems InspirationReviewBatchItem[]
 
+  @@unique([userId, captureRequestId])
   @@index([userId])
   @@index([status])
   @@index([tags])
@@ -143,14 +147,54 @@ model InspirationReflection {
   userId        String
   inspirationId String
   body          String   @db.Text
+  clientRequestId String?
   createdAt     DateTime @default(now())
 
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   inspiration Inspiration @relation(fields: [inspirationId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, clientRequestId])
   @@index([userId])
   @@index([inspirationId, createdAt])
   @@map("inspiration_reflections")
+}
+
+model InspirationReviewBatch {
+  id        String   @id @default(uuid())
+  userId    String
+  localDate String
+  timeZone  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items InspirationReviewBatchItem[]
+
+  @@unique([userId, localDate])
+  @@index([userId, createdAt])
+  @@map("inspiration_review_batches")
+}
+
+model InspirationReviewBatchItem {
+  id                String   @id @default(uuid())
+  batchId           String
+  inspirationId     String
+  ordinal           Int
+  state             String   @default("pending")
+  processedAt       DateTime?
+  processedRequestId String?
+  resultReflectionId String?
+  createdAt         DateTime @default(now())
+
+  batch       InspirationReviewBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  inspiration Inspiration            @relation(fields: [inspirationId], references: [id], onDelete: Cascade)
+
+  @@unique([batchId, inspirationId])
+  @@unique([batchId, ordinal])
+  @@unique([batchId, processedRequestId])
+  @@index([inspirationId])
+  @@index([batchId, state])
+  @@map("inspiration_review_batch_items")
 }
 
 model Insight {
