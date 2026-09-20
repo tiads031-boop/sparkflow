@@ -630,4 +630,65 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     expect(result).toBe(finalItem);
   });
 
+
+  it('updates wall layout only when the expected version still matches', async () => {
+    const existing = {
+      id: 'layout-1',
+      userId: 'user-1',
+      inspirationId: 'inspiration-1',
+      x: 10,
+      y: 20,
+      width: 176,
+      height: 156,
+      z: 1,
+      color: '#f2f0e8',
+      rotation: 0,
+      version: 3,
+    };
+    const updated = { ...existing, x: 50, y: 60, version: 4 };
+    const prisma = {
+      inspiration: { findFirst: jest.fn().mockResolvedValue({ id: 'inspiration-1' }) },
+      inspirationWallLayout: {
+        findUnique: jest.fn()
+          .mockResolvedValueOnce(existing)
+          .mockResolvedValueOnce(updated),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const service = serviceWith(prisma);
+
+    const result = await service.saveWallLayout('inspiration-1', 'user-1', {
+      expectedVersion: 3,
+      x: 50,
+      y: 60,
+      width: 176,
+      height: 156,
+      z: 2,
+      color: '#cae393',
+      rotation: 1,
+    });
+
+    expect(prisma.inspirationWallLayout.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'layout-1', userId: 'user-1', version: 3 },
+      data: expect.objectContaining({ x: 50, y: 60, version: { increment: 1 } }),
+    }));
+    expect(result).toEqual(updated);
+  });
+
+  it('rejects a stale wall layout version instead of overwriting another device', async () => {
+    const prisma = {
+      inspiration: { findFirst: jest.fn().mockResolvedValue({ id: 'inspiration-1' }) },
+      inspirationWallLayout: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'layout-1', version: 5 }),
+      },
+    };
+    const service = serviceWith(prisma);
+
+    await expect(service.saveWallLayout('inspiration-1', 'user-1', {
+      expectedVersion: 4,
+      x: 1,
+      y: 2,
+    })).rejects.toThrow('自由墙布局已经变化');
+  });
+
 });

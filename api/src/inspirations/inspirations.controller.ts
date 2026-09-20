@@ -107,6 +107,29 @@ export class InspirationsController {
     );
   }
 
+  @Get('wall/layouts')
+  listWallLayouts(@CurrentUserId() userId: string) {
+    return this.inspirationsService.listWallLayouts(userId);
+  }
+
+  @Patch('wall/:id')
+  saveWallLayout(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body() input: {
+      expectedVersion: number;
+      x: number;
+      y: number;
+      width?: number;
+      height?: number;
+      z?: number;
+      color?: string;
+      rotation?: number;
+    },
+  ) {
+    return this.inspirationsService.saveWallLayout(id, userId, input);
+  }
+
   @Get(':id/attachments/:attachmentId/file')
   async attachmentFile(
     @Param('id') id: string,

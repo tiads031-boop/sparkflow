@@ -68,6 +68,22 @@ export interface TodayReviewBatch {
   items: ReviewBatchItem[];
 }
 
+export interface InspirationWallLayout {
+  id: string;
+  userId: string;
+  inspirationId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  color: string;
+  rotation: number;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 function currentTimeZone() {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -222,5 +238,22 @@ export function createTaskFromInspiration(id: string) {
     `/inspirations/${encodeURIComponent(id)}/task`,
     {},
     { throwOnError: true },
+  );
+}
+
+export function listInspirationWallLayouts() {
+  return api.get<InspirationWallLayout[]>('/inspirations/wall/layouts', {
+    fallback: [],
+    throwOnError: true,
+  });
+}
+
+export function saveInspirationWallLayout(
+  inspirationId: string,
+  layout: Pick<InspirationWallLayout, 'x' | 'y' | 'width' | 'height' | 'z' | 'color' | 'rotation'> & { expectedVersion: number },
+) {
+  return patchJson<InspirationWallLayout>(
+    `/inspirations/wall/${encodeURIComponent(inspirationId)}`,
+    layout,
   );
 }

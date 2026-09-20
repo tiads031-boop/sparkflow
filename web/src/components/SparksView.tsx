@@ -2,29 +2,28 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
+  ChevronLeft,
   Clock3,
   LayoutGrid,
   List,
-  Pencil,
   RefreshCw,
   Sparkles,
-  Trash2,
 } from 'lucide-react';
 import type { Spark } from '../store/appStore';
 import { useAppStore } from '../store/appStore';
 import {
   createTaskFromInspiration,
-  deleteInspiration,
   extendTodayReviewBatch,
   getTodayReviewBatch,
   listInspirations,
   processReviewBatchItem,
-  updateInspiration,
   type InspirationRecord,
   type TodayReviewBatch,
 } from '../api/inspirations';
 import { InsightPanel } from './insights/InsightPanel';
 import InspirationAttachmentList from './records/InspirationAttachmentList';
+import InspirationWall from './records/InspirationWall';
+import InspirationDetailSheet from './records/InspirationDetailSheet';
 
 interface SparksViewProps {
   sparks: Spark[];
@@ -33,7 +32,8 @@ interface SparksViewProps {
   onAddClick: () => void;
 }
 
-type RecordViewMode = 'cards' | 'review' | 'insights' | 'wall';
+type RecordViewMode = 'cards' | 'wall';
+type RecordPanel = 'review' | 'insights' | null;
 
 function recordText(record: InspirationRecord) {
   if (record.contentText || record.description || record.title) {
@@ -58,6 +58,8 @@ function sourceLabel(record: InspirationRecord) {
 export default function SparksView(_props: SparksViewProps) {
   const loadTasks = useAppStore((state) => state.loadTasks);
   const [mode, setMode] = useState<RecordViewMode>('cards');
+  const [panel, setPanel] = useState<RecordPanel>(null);
+  const [selectedRecord, setSelectedRecord] = useState<InspirationRecord | null>(null);
   const [records, setRecords] = useState<InspirationRecord[]>([]);
   const [reviewBatch, setReviewBatch] = useState<TodayReviewBatch>({ id: '', localDate: '', timeZone: 'UTC', total: 0, pending: 0, items: [] });
   const [loading, setLoading] = useState(true);
@@ -110,7 +112,7 @@ export default function SparksView(_props: SparksViewProps) {
       loadReviews();
     };
     const startReview = () => {
-      setMode('review');
+      setPanel('review');
       loadReviews();
     };
     window.addEventListener('sparkflow:records-changed', refresh);
@@ -131,27 +133,6 @@ export default function SparksView(_props: SparksViewProps) {
   const refreshAll = async () => {
     setLoading(true);
     await Promise.all([loadRecords(), loadReviews()]);
-  };
-
-  const editRecord = async (record: InspirationRecord) => {
-    const next = window.prompt('编辑记录', recordText(record));
-    if (next === null || !next.trim() || next.trim() === recordText(record).trim()) return;
-    try {
-      await updateInspiration(record.id, { contentText: next.trim() });
-      await loadRecords();
-    } catch (err: any) {
-      setError(err?.message || '编辑失败');
-    }
-  };
-
-  const removeRecord = async (record: InspirationRecord) => {
-    if (!window.confirm('删除这条记录？已有 Reflection 会一并删除，已转成的待办会保留并断开来源。')) return;
-    try {
-      await deleteInspiration(record.id);
-      await Promise.all([loadRecords(), loadReviews()]);
-    } catch (err: any) {
-      setError(err?.message || '删除失败');
-    }
   };
 
   const finishReviewAction = async (action: 'later' | 'digested') => {
@@ -211,17 +192,56 @@ export default function SparksView(_props: SparksViewProps) {
         <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">随手记下来，之后再想清楚。</p>
       </header>
 
-      <div className="grid grid-cols-4 rounded-full bg-[var(--sf-surface)] p-1 shadow-sm" aria-label="记录视图">
-        <button type="button" onClick={() => setMode('cards')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'cards' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><List size={12} /> 卡片</button>
-        <button type="button" onClick={() => { setMode('review'); loadReviews(); }} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'review' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><RefreshCw size={12} /> 回顾{reviewBatch.pending > 0 ? ` ${reviewBatch.pending}` : ''}</button>
-        <button type="button" onClick={() => setMode('insights')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'insights' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><Sparkles size={12} /> 洞察</button>
-        <button type="button" onClick={() => setMode('wall')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'wall' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><LayoutGrid size={12} /> 自由墙</button>
-      </div>
+      {panel ? (
+        <div className="flex items-center justify-between rounded-2xl bg-[var(--sf-surface)] px-3 py-2 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setPanel(null)}
+            className="flex items-center gap-1 rounded-full bg-[var(--sf-bg)] px-3 py-2 text-[11px] font-bold"
+          >
+            <ChevronLeft size={13} /> 返回记录
+          </button>
+          <strong className="text-xs text-[var(--sf-text-primary)]">
+            {panel === 'review' ? '每日回顾' : '周期洞察'}
+          </strong>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 rounded-full bg-[var(--sf-surface)] p-1 shadow-sm" aria-label="记录视图">
+            <button type="button" onClick={() => setMode('cards')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'cards' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><List size={12} /> 卡片</button>
+            <button type="button" onClick={() => setMode('wall')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'wall' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><LayoutGrid size={12} /> 自由墙</button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => { setPanel('review'); void loadReviews(); }}
+              className="flex items-center justify-between rounded-2xl bg-[var(--sf-surface)] px-4 py-3 text-left shadow-sm"
+            >
+              <span>
+                <strong className="block text-xs">每日回顾</strong>
+                <span className="mt-0.5 block text-[10px] text-[var(--sf-text-tertiary)]">固定抽取 · 跨端同步</span>
+              </span>
+              {reviewBatch.pending > 0 && <span className="rounded-full bg-[#cae393] px-2 py-1 text-[10px] font-black text-[#242424]">{reviewBatch.pending}</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel('insights')}
+              className="flex items-center justify-between rounded-2xl bg-[var(--sf-surface)] px-4 py-3 text-left shadow-sm"
+            >
+              <span>
+                <strong className="block text-xs">周期洞察</strong>
+                <span className="mt-0.5 block text-[10px] text-[var(--sf-text-tertiary)]">回看变化与行动</span>
+              </span>
+              <Sparkles size={14} className="text-[var(--sf-marker-purple)]" />
+            </button>
+          </div>
+        </>
+      )}
 
       {error && <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div>}
       {message && <div className="rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-surface)] px-4 py-3 text-xs text-[var(--sf-text-secondary)]">{message}</div>}
 
-      {mode === 'cards' && (
+      {!panel && mode === 'cards' && (
         <section className="space-y-3">
           <div className="flex items-center justify-between text-xs text-[var(--sf-text-tertiary)]">
             <span>{records.length} 条记录 · {reflectionCount} 条 Reflection</span>
@@ -236,10 +256,13 @@ export default function SparksView(_props: SparksViewProps) {
                   <p className="text-[11px] text-[var(--sf-text-tertiary)]">{new Date(record.createdAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })} · {sourceLabel(record)}</p>
                   <p className="mt-2 whitespace-pre-wrap text-sm font-medium leading-6 text-[var(--sf-text-primary)]">{recordText(record)}</p>
                 </div>
-                <div className="flex shrink-0 gap-1">
-                  <button type="button" aria-label="编辑记录" onClick={() => editRecord(record)} className="rounded-full bg-[var(--sf-bg)] p-2"><Pencil size={13} /></button>
-                  <button type="button" aria-label="删除记录" onClick={() => removeRecord(record)} className="rounded-full bg-[var(--sf-bg)] p-2"><Trash2 size={13} /></button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRecord(record)}
+                  className="shrink-0 rounded-full bg-[var(--sf-bg)] px-3 py-2 text-[10px] font-bold text-[var(--sf-text-secondary)]"
+                >
+                  查看
+                </button>
               </div>
               <InspirationAttachmentList
                 inspirationId={record.id}
@@ -256,31 +279,17 @@ export default function SparksView(_props: SparksViewProps) {
         </section>
       )}
 
-      {mode === 'insights' && <InsightPanel recordCount={records.length} />}
+      {panel === 'insights' && <InsightPanel recordCount={records.length} />}
 
-      {mode === 'wall' && (
-        <section>
-          {records.length === 0 ? (
-            <p className="rounded-[var(--sf-radius-md)] bg-[var(--sf-surface)] p-5 text-sm text-[var(--sf-text-secondary)]">自由墙会使用同一份记录数据，不再维护第二套 Spark。</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {records.map((record, index) => {
-                const backgrounds = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f2f0e8]'];
-                const rotations = ['-rotate-1', 'rotate-1', 'rotate-0', '-rotate-2'];
-                return (
-                  <article key={record.id} className={`min-h-36 rounded-3xl p-4 shadow-sm ${backgrounds[index % backgrounds.length]} ${rotations[index % rotations.length]}`}>
-                    <Sparkles size={14} className="mb-3 opacity-40" />
-                    <p className="text-sm font-medium leading-6 text-[#242424]">{recordText(record)}</p>
-                    <p className="mt-4 text-[10px] text-[#242424]/45">{new Date(record.createdAt).toLocaleDateString('zh-CN')}</p>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+      {!panel && mode === 'wall' && (
+        records.length === 0 ? (
+          <p className="rounded-[var(--sf-radius-md)] bg-[var(--sf-surface)] p-5 text-sm text-[var(--sf-text-secondary)]">自由墙会使用同一份记录数据，不维护第二套正文。</p>
+        ) : (
+          <InspirationWall records={records} onOpen={setSelectedRecord} />
+        )
       )}
 
-      {mode === 'review' && (
+      {panel === 'review' && (
         <section className="space-y-4">
           {!currentReview ? (
             <div className="rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-6 text-center">
@@ -338,6 +347,14 @@ export default function SparksView(_props: SparksViewProps) {
         </section>
       )}
 
+      <InspirationDetailSheet
+        record={selectedRecord}
+        onClose={() => setSelectedRecord(null)}
+        onChanged={async () => {
+          await Promise.all([loadRecords(), loadReviews()]);
+          window.dispatchEvent(new CustomEvent('sparkflow:records-changed'));
+        }}
+      />
     </div>
   );
 }
