@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Course, Semester } from '../../types';
 import { courseOccursOnDate, dedupeCoursesByOccurrence, getMonday, getSemesterWeekNumber, localDateKey } from './planProjection';
+import { layoutTimetableIntervals } from './timetableLayout';
 
 const periods = [
   ['1', '08:00', '08:50'],
@@ -55,6 +56,7 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
   });
   const week = getSemesterWeekNumber(selectedDate, semester);
   const selectedKey = localDateKey(selectedDate);
+  const selectedWeekday = selectedDate.getDay() || 7;
   const scrollerRef = useRef<HTMLDivElement>(null);
   const semesterCourses = dedupeCoursesByOccurrence(
     semester
@@ -65,14 +67,13 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
-    const selectedWeekday = selectedDate.getDay() || 7;
     const selectedIndex = selectedWeekday - 1;
     const timeColumnWidth = 56;
     const dayWidth = (scroller.scrollWidth - timeColumnWidth) / 7;
     const targetCenter = timeColumnWidth + (selectedIndex + 0.5) * dayWidth;
     const maxLeft = scroller.scrollWidth - scroller.clientWidth;
     scroller.scrollTo({ left: Math.max(0, Math.min(maxLeft, targetCenter - scroller.clientWidth / 2)) });
-  }, [selectedKey]);
+  }, [selectedKey, selectedWeekday]);
 
   return (
     <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
@@ -86,7 +87,7 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
 
       <div ref={scrollerRef} className="overflow-x-auto overscroll-x-contain">
         <div className="min-w-[560px]">
-          <div className="grid grid-cols-[56px_repeat(7,minmax(68px,1fr))] border-b border-black/5 px-1.5 py-2">
+          <div className="grid grid-cols-[56px_repeat(7,minmax(88px,1fr))] border-b border-black/5 px-1.5 py-2">
             <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" />
             {days.map((day) => (
               <div key={day.toISOString()} className="text-center">
@@ -97,7 +98,7 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
           </div>
 
           <div className="max-h-[62svh] overflow-y-auto">
-            <div className="grid grid-cols-[56px_repeat(7,minmax(68px,1fr))] px-1.5">
+            <div className="grid grid-cols-[56px_repeat(7,minmax(88px,1fr))] px-1.5">
               <div className="sticky left-0 z-20 bg-[var(--sf-surface)]">
                 {periods.map(([period, start, end]) => (
                   <div key={period} className="flex flex-col justify-center border-b border-black/5" style={{ height: ROW_HEIGHT }}>
@@ -112,6 +113,10 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
                 const dayCourses = semesterCourses.filter(
                   (course) => course.dayOfWeek === weekday && course.startTime && course.endTime,
                 );
+                const courseLayouts = layoutTimetableIntervals(dayCourses.flatMap((course) => {
+                  const range = coursePeriodRange(course);
+                  return range ? [{ course, ...range }] : [];
+                }));
 
                 return (
                   <div key={day.toISOString()} className="relative border-l border-black/[0.05]" style={{ height: periods.length * ROW_HEIGHT }}>
@@ -123,30 +128,37 @@ export default function TimetablePlanView({ selectedDate, courses, semester, onC
                       />
                     ))}
 
-                    {dayCourses.map((course) => {
-                      const range = coursePeriodRange(course);
-                      if (!range) return null;
+                    {courseLayouts.map(({ course, first, last, lane, laneCount }) => {
                       const active = courseOccursOnDate(course, day, semester);
-                      const top = range.first * ROW_HEIGHT + 3;
-                      const height = (range.last - range.first + 1) * ROW_HEIGHT - 6;
+                      const top = first * ROW_HEIGHT + 3;
+                      const height = (last - first + 1) * ROW_HEIGHT - 6;
                       const titleMaxHeight = height >= ROW_HEIGHT * 1.5 ? 55 : 33;
+                      const laneWidth = 100 / laneCount;
+                      const compact = laneCount > 1;
 
                       return (
                         <button
                           key={course.id}
                           type="button"
                           onClick={() => onCourseClick?.(course.id)}
-                          className={`absolute left-1 right-1 overflow-hidden rounded-lg border-l-2 px-1.5 py-1.5 text-left shadow-sm ${active ? '' : 'opacity-35'}`}
-                          style={{ top, height, borderLeftColor: course.color, backgroundColor: cardBackground(course.color) }}
+                          className={`absolute overflow-hidden rounded-lg border-l-2 py-1.5 text-left shadow-sm ${compact ? 'px-1' : 'px-1.5'} ${active ? '' : 'opacity-35'}`}
+                          style={{
+                            top,
+                            height,
+                            left: `calc(${lane * laneWidth}% + 2px)`,
+                            width: `calc(${laneWidth}% - 4px)`,
+                            borderLeftColor: course.color,
+                            backgroundColor: cardBackground(course.color),
+                          }}
                           title={course.name}
                         >
                           <span
-                            className="block overflow-hidden break-words text-[9px] font-black leading-[11px] text-[#242424]"
+                            className={`block overflow-hidden [overflow-wrap:anywhere] font-black text-[#242424] ${compact ? 'text-[8px] leading-[10px]' : 'text-[9px] leading-[11px]'}`}
                             style={{ maxHeight: titleMaxHeight }}
                           >
                             {course.name}
                           </span>
-                          {height >= 64 && (course.room || course.location) && (
+                          {!compact && height >= 64 && (course.room || course.location) && (
                             <span className="mt-1 block truncate text-[8px] leading-[10px] text-gray-500">
                               @{course.room || course.location}
                             </span>
