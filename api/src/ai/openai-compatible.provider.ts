@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
   AIProvider,
@@ -451,6 +451,8 @@ function retryDelayMs(response: Response) {
 
 @Injectable()
 export class OpenAICompatibleProvider implements AIProvider {
+  private readonly logger = new Logger(OpenAICompatibleProvider.name);
+
   constructor(private readonly config: ConfigService) {}
 
   private providerName() {
@@ -712,33 +714,73 @@ export class OpenAICompatibleProvider implements AIProvider {
       requestBody.response_format = { type: 'json_object' };
     }
 
-    let response: Response | undefined;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-        body: JSON.stringify(requestBody),
-      });
+    let previousInvalidContent = '';
+    let lastValidationError: unknown;
 
-      if (response.ok) break;
-      if (attempt === 0 && RETRYABLE_PROVIDER_STATUSES.has(response.status)) {
-        await sleep(retryDelayMs(response));
-        continue;
+    for (let validationAttempt = 0; validationAttempt < 2; validationAttempt += 1) {
+      const messages = Array.isArray(requestBody.messages) ? requestBody.messages : [];
+      const attemptBody = validationAttempt === 0
+        ? requestBody
+        : {
+            ...requestBody,
+            temperature: 0,
+            messages: [
+              ...messages,
+              { role: 'assistant', content: previousInvalidContent },
+              {
+                role: 'system',
+                content: [
+                  'Your previous response failed schema validation.',
+                  'Return a corrected complete JSON object only.',
+                  'Include reply, readiness, summary, openQuestions, researchQueries, actions, replanRequests, and context.',
+                  'Context must include arrays for brief, constraints, preferences, strategy, and assumptions.',
+                ].join(' '),
+              },
+            ],
+          };
+
+      let response: Response | undefined;
+      for (let requestAttempt = 0; requestAttempt < 2; requestAttempt += 1) {
+        response = await fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${key}`,
+            'Content-Type': 'application/json',
+          },
+          signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+          body: JSON.stringify(attemptBody),
+        });
+
+        if (response.ok) break;
+        if (requestAttempt === 0 && RETRYABLE_PROVIDER_STATUSES.has(response.status)) {
+          await sleep(retryDelayMs(response));
+          continue;
+        }
+        throw new Error(`AI provider request failed (${response.status})`);
       }
-      throw new Error(`AI provider request failed (${response.status})`);
+
+      if (!response?.ok) throw new Error('AI provider request failed');
+      const payload = await response.json() as {
+        choices?: Array<{ message?: { content?: string | null } }>;
+      };
+      const content = payload.choices?.[0]?.message?.content;
+      if (!content) throw new Error('AI provider returned an empty response');
+
+      try {
+        return toPlanningTurn(extractJsonObject(content));
+      } catch (error) {
+        lastValidationError = error;
+        previousInvalidContent = content.slice(0, 12_000);
+        const reason = error instanceof Error ? error.message : 'unknown validation error';
+        this.logger.warn(
+          `AI planning response validation failed (attempt ${validationAttempt + 1}/2): ${reason}`,
+        );
+      }
     }
 
-    if (!response?.ok) throw new Error('AI provider request failed');
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string | null } }>;
-    };
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) throw new Error('AI provider returned an empty response');
-    return toPlanningTurn(extractJsonObject(content));
+    throw lastValidationError instanceof Error
+      ? lastValidationError
+      : new Error('AI planning response validation failed');
   }
 
 }
