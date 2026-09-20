@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
   AIProvider,
@@ -13,6 +13,7 @@ import type {
   PlanningTurnInput,
   PlanningTurnResult,
 } from './ai-provider';
+import { requestOpenAICompatibleCompletion } from './provider-request';
 
 function extractJsonObject(text: string): unknown {
   const trimmed = text.trim();
@@ -433,24 +434,10 @@ export function toPlanningTurn(value: unknown): PlanningTurnResult {
   };
 }
 
-const PROVIDER_TIMEOUT_MS = 60_000;
-const RETRYABLE_PROVIDER_STATUSES = new Set([429, 500, 502, 503, 504]);
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function retryDelayMs(response: Response) {
-  const retryAfter = response.headers.get('retry-after');
-  if (retryAfter) {
-    const seconds = Number(retryAfter);
-    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 5_000);
-  }
-  return 1_200;
-}
-
 @Injectable()
 export class OpenAICompatibleProvider implements AIProvider {
+  private readonly logger = new Logger(OpenAICompatibleProvider.name);
+
   constructor(private readonly config: ConfigService) {}
 
   private providerName() {
@@ -516,32 +503,14 @@ export class OpenAICompatibleProvider implements AIProvider {
       requestBody.response_format = { type: 'json_object' };
     }
 
-    let response: Response | undefined;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-        body: JSON.stringify(requestBody),
-      });
-
-      if (response.ok) break;
-      if (attempt === 0 && RETRYABLE_PROVIDER_STATUSES.has(response.status)) {
-        await sleep(retryDelayMs(response));
-        continue;
-      }
-      throw new Error(`AI provider request failed (${response.status})`);
-    }
-
-    if (!response?.ok) throw new Error('AI provider request failed');
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string | null } }>;
-    };
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) throw new Error('AI provider returned an empty response');
+    const content = await requestOpenAICompatibleCompletion({
+      baseUrl,
+      apiKey: key,
+      model: this.modelName,
+      operation: 'insights',
+      requestBody,
+      logger: this.logger,
+    });
     return toGeneratedInsights(extractJsonObject(content));
   }
 
@@ -584,32 +553,14 @@ export class OpenAICompatibleProvider implements AIProvider {
       requestBody.enable_thinking = false;
     }
 
-    let response: Response | undefined;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-        body: JSON.stringify(requestBody),
-      });
-
-      if (response.ok) break;
-      if (attempt === 0 && RETRYABLE_PROVIDER_STATUSES.has(response.status)) {
-        await sleep(retryDelayMs(response));
-        continue;
-      }
-      throw new Error(`AI provider request failed (${response.status})`);
-    }
-
-    if (!response?.ok) throw new Error('AI provider request failed');
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string | null } }>;
-    };
-    const content = payload.choices?.[0]?.message?.content?.trim();
-    if (!content) throw new Error('AI provider returned an empty summary');
+    const content = await requestOpenAICompatibleCompletion({
+      baseUrl,
+      apiKey: key,
+      model: this.modelName,
+      operation: 'summary',
+      requestBody,
+      logger: this.logger,
+    });
     return content.slice(0, 4000);
   }
 
@@ -712,33 +663,35 @@ export class OpenAICompatibleProvider implements AIProvider {
       requestBody.response_format = { type: 'json_object' };
     }
 
-    let response: Response | undefined;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${key}`,
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-        body: JSON.stringify(requestBody),
-      });
-
-      if (response.ok) break;
-      if (attempt === 0 && RETRYABLE_PROVIDER_STATUSES.has(response.status)) {
-        await sleep(retryDelayMs(response));
-        continue;
-      }
-      throw new Error(`AI provider request failed (${response.status})`);
+    const content = await requestOpenAICompatibleCompletion({
+      baseUrl,
+      apiKey: key,
+      model: this.modelName,
+      operation: 'planning',
+      requestBody,
+      logger: this.logger,
+    });
+    try {
+      return toPlanningTurn(extractJsonObject(content));
+    } catch (error) {
+      const details = error instanceof Error
+        ? `${error.name}: ${error.message}`.slice(0, 300)
+        : String(error).slice(0, 300);
+      this.logger.error(JSON.stringify({
+        event: 'ai_provider_response_parse_failed',
+        providerHost: (() => {
+          try {
+            return new URL(baseUrl).host;
+          } catch {
+            return 'invalid-base-url';
+          }
+        })(),
+        model: this.modelName,
+        operation: 'planning',
+        details,
+      }));
+      throw error;
     }
-
-    if (!response?.ok) throw new Error('AI provider request failed');
-    const payload = await response.json() as {
-      choices?: Array<{ message?: { content?: string | null } }>;
-    };
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) throw new Error('AI provider returned an empty response');
-    return toPlanningTurn(extractJsonObject(content));
   }
 
 }
