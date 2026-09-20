@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-20 | **代码基线**：`master@301955c7`
+> **最后更新**：2026-09-20 | **代码基线**：`master@e5978ecb`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,7 +8,7 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4–M8 主体代码/CI 已进入 `master@301955c7`；当前只保留最新 master 的生产部署、PWA/Android 真机验收与真实账号闭环 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4–M8 与 Focus C1/C2 代码/CI 已进入 `master@e5978ecb`；当前只保留最新 master 的生产部署、PWA/Android 真机验收与真实账号闭环 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
@@ -16,7 +16,7 @@
 
 | 文件 | Phase | 状态 | 启动条件 |
 |---|---|---|---|
-| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3 已实现，生产收尾 | PR #38/#39/#40 已合并；PR #43 已补 Qwen/请求超时稳定性；真实 Provider 已有生产调用证据，当前需发布 `5835e322` 并完成真实 AI/真机验收 |
+| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3、Focus C1/C2 已实现，生产收尾 | PR #38/#39/#40/#105/#106 已合并；当前需完成 C1 migration 生产发布、Focus/多模态真实账号验收与 Android/PWA 回归 |
 
 ## 候选方案（已完成设计、未排期实施）
 
@@ -59,6 +59,8 @@
 | PR #74 VNext M8.1 | ✅ 已合并 | Inspiration 私有图片/音频/视频附件与语音录制/媒体预览 |
 | PR #77 VNext M8.2 | ✅ 已合并 | 账户级任务/课程通知偏好、安静时段、时区与测试通知 |
 | PR #78 VNext M8.3 | ✅ 已合并 | Settings 视觉收尾与跟随系统/浅色/深色外观；`master@301955c7` |
+| PR #105 Focus C1 | ✅ 已合并 | 精确专注分段、可恢复计时、CAS 完成、Focus 日历投影与 Inspiration 会话回链 |
+| PR #106 Focus C2 | ✅ 已合并 | 完成后多模态专注记录、连续追加记录、5–180 分钟时长盘与精确输入；合并提交 `e5978ecb` |
 
 
 ## 活跃执行 Issue
