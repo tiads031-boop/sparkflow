@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -264,6 +265,8 @@ export function buildGoalExecutionSnapshot(
 
 @Injectable()
 export class PlanningService {
+  private readonly logger = new Logger(PlanningService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AI_PROVIDER) private readonly ai: AIProvider,
@@ -679,7 +682,9 @@ export class PlanningService {
           }
         }
       }
-    } catch {
+    } catch (error) {
+      const reason = error instanceof Error ? error.stack || error.message : String(error);
+      this.logger.error('AI planning turn failed', reason);
       throw new ServiceUnavailableException('AI planning is temporarily unavailable');
     }
 
