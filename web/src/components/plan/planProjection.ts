@@ -152,25 +152,61 @@ export function dedupeCoursesByOccurrence(courses: Course[]): Course[] {
   return [...unique.values()];
 }
 
-function planCourseOccurrenceKey(item: PlanItem): string {
-  return [
-    normalizeOccurrenceText(item.title),
-    new Date(item.start).getTime(),
-    new Date(item.end).getTime(),
-    normalizeOccurrenceText(item.location),
-  ].join('|');
+function courseTitlesMatch(left: string, right: string): boolean {
+  const normalizedLeft = normalizeOccurrenceText(left);
+  const normalizedRight = normalizeOccurrenceText(right);
+  if (normalizedLeft === normalizedRight) return true;
+
+  const [shorter, longer] = normalizedLeft.length <= normalizedRight.length
+    ? [normalizedLeft, normalizedRight]
+    : [normalizedRight, normalizedLeft];
+  return shorter.length >= 2 && longer.startsWith(shorter);
 }
 
-function dedupePlanCourseItems(items: PlanItem[]): PlanItem[] {
-  const seen = new Set<string>();
+function sameCourseOccurrence(left: PlanItem, right: PlanItem): boolean {
+  if (left.kind !== 'course' || right.kind !== 'course') return false;
 
-  return items.filter((item) => {
-    if (item.kind !== 'course') return true;
-    const key = planCourseOccurrenceKey(item);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const leftStart = new Date(left.start).getTime();
+  const rightStart = new Date(right.start).getTime();
+  const leftEnd = new Date(left.end).getTime();
+  const rightEnd = new Date(right.end).getTime();
+  if (leftStart !== rightStart || leftStart >= rightEnd || rightStart >= leftEnd) return false;
+
+  const leftLocation = normalizeOccurrenceText(left.location);
+  const rightLocation = normalizeOccurrenceText(right.location);
+  const locationsMatch = !leftLocation || !rightLocation || leftLocation === rightLocation;
+  return locationsMatch && courseTitlesMatch(left.title, right.title);
+}
+
+function mergePlanCourseItems(items: PlanItem[]): PlanItem[] {
+  const merged: PlanItem[] = [];
+
+  for (const item of items) {
+    if (item.kind !== 'course') {
+      merged.push(item);
+      continue;
+    }
+
+    const existingIndex = merged.findIndex((candidate) => sameCourseOccurrence(candidate, item));
+    if (existingIndex < 0) {
+      merged.push(item);
+      continue;
+    }
+
+    const existing = merged[existingIndex];
+    const richer = normalizeOccurrenceText(item.title).length > normalizeOccurrenceText(existing.title).length
+      ? item
+      : existing;
+    merged[existingIndex] = {
+      ...richer,
+      start: new Date(Math.min(new Date(existing.start).getTime(), new Date(item.start).getTime())).toISOString(),
+      end: new Date(Math.max(new Date(existing.end).getTime(), new Date(item.end).getTime())).toISOString(),
+      location: richer.location || existing.location || item.location,
+      locked: existing.locked || item.locked,
+    };
+  }
+
+  return merged;
 }
 
 function combineLocalDateAndTime(date: Date, time: string): Date {
@@ -314,7 +350,7 @@ export function buildPlanItems(input: {
     ...buildCourseFallbackItems(input.courses, input.calendarEvents, input.semester, input.range),
   ];
 
-  return dedupePlanCourseItems(items)
+  return mergePlanCourseItems(items)
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 

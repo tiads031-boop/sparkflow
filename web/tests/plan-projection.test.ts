@@ -195,6 +195,53 @@ test('Plan projection removes visually identical course occurrences from duplica
 });
 
 
+test('Plan projection merges abbreviated course fragments at the same start time', () => {
+  const calendarEvents: CalendarEvent[] = [{
+    id: 'abbreviated-fragment',
+    title: '公证',
+    startTime: new Date(2026, 8, 21, 8, 0).toISOString(),
+    endTime: new Date(2026, 8, 21, 8, 50).toISOString(),
+    eventType: 'course',
+    courseId: 'legacy-course-row',
+  }];
+  const fullCourse: Course = {
+    ...course,
+    name: '公证法',
+  };
+
+  const items = buildPlanItems({
+    tasks: [],
+    courses: [fullCourse],
+    calendarEvents,
+    semester,
+    range: getPlanRange(new Date(2026, 8, 21, 12, 0), 'week'),
+  });
+  const courseItems = items.filter((item) => item.kind === 'course');
+
+  assert.equal(courseItems.length, 1);
+  assert.equal(courseItems[0].title, '公证法');
+  assert.equal(courseItems[0].end, new Date(2026, 8, 21, 9, 40).toISOString());
+});
+
+
+test('Plan projection keeps genuinely different simultaneous courses separate', () => {
+  const otherCourse: Course = {
+    ...course,
+    id: 'course-2',
+    name: '法律文书写作',
+  };
+  const items = buildPlanItems({
+    tasks: [],
+    courses: [course, otherCourse],
+    calendarEvents: [],
+    semester,
+    range: getPlanRange(new Date(2026, 8, 21, 12, 0), 'week'),
+  });
+
+  assert.equal(items.filter((item) => item.kind === 'course').length, 2);
+});
+
+
 test('Planner preview projects into temporary AI items without mutating Task schedule facts', () => {
   const original = task({ id: 'preview-task', scheduledStart: undefined, scheduledEnd: undefined, scheduleSource: undefined });
   const previewItems = buildPlannerPreviewItems({
