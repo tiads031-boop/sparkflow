@@ -20,7 +20,7 @@ export interface WorkspaceNavigationItem {
 }
 
 export const workspaceNavigationRegistry: readonly WorkspaceNavigationItem[] = [
-  { id: 'today', label: '日程', description: '今天、周、月与课程表', icon: 'today' },
+  { id: 'today', label: '日程', description: '今天、周与月日程', icon: 'today' },
   { id: 'plan', label: '待办', description: '任务列表与四象限', icon: 'plan' },
   { id: 'records', label: '记录', description: '随手记、回顾与洞察', icon: 'records' },
   { id: 'study', label: '学习', description: '课程、文件夹与学习工作区', icon: 'study' },
@@ -58,8 +58,8 @@ export const defaultNavVisibility = Object.fromEntries(
 const workspaceRouteMap: Record<string, WorkspaceTab> = {
   dashboard: 'today',
   today: 'today',
-  calendar: 'plan',
-  timeline: 'plan',
+  calendar: 'today',
+  timeline: 'today',
   tasks: 'plan',
   board: 'plan',
   plan: 'plan',
@@ -78,7 +78,7 @@ export function workspaceTabForRoute(value: unknown): WorkspaceTab | null {
 
 const legacyRouteMap: Record<string, ActiveTab> = {
   dashboard: 'today',
-  calendar: 'timeline',
+  calendar: 'today',
 };
 
 export function migrateNavigationId(value: unknown): ActiveTab | null {

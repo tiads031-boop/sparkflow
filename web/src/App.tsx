@@ -314,7 +314,7 @@ export default function App() {
       activeTab={activeWorkspace}
       setActiveTab={setActiveTab}
       navItems={workspaceNavItems}
-      immersive={activeWorkspace === 'today' || activeWorkspace === 'plan'}
+      edgeToEdge={activeWorkspace === 'today' || activeWorkspace === 'plan'}
       onQuickAdd={() => setQuickAddOpen((open) => !open)}
       onPlannerVoice={() => {
         setQuickAddOpen(false);

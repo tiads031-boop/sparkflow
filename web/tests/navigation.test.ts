@@ -12,7 +12,7 @@ import {
 
 test('legacy dashboard and calendar routes migrate to V5 routes', () => {
   assert.equal(migrateNavigationId('dashboard'), 'today');
-  assert.equal(migrateNavigationId('calendar'), 'timeline');
+  assert.equal(migrateNavigationId('calendar'), 'today');
 });
 
 test('unknown navigation ids are rejected without hiding future registered items', () => {
@@ -45,15 +45,15 @@ test('VNext workspace navigation is fixed to five user-facing destinations', () 
 });
 
 test('legacy routes resolve into the matching VNext workspace without deleting compatibility ids', () => {
-  assert.equal(workspaceTabForRoute('timeline'), 'plan');
+  assert.equal(workspaceTabForRoute('timeline'), 'today');
   assert.equal(workspaceTabForRoute('tasks'), 'plan');
   assert.equal(workspaceTabForRoute('board'), 'plan');
-  assert.equal(workspaceTabForRoute('calendar'), 'plan');
+  assert.equal(workspaceTabForRoute('calendar'), 'today');
   assert.equal(workspaceTabForRoute('sparks'), 'records');
   assert.equal(workspaceTabForRoute('courses'), 'study');
   assert.equal(workspaceTabForRoute('settings'), 'profile');
   assert.equal(workspaceTabForRoute('unknown-route'), null);
 
-  assert.equal(migrateNavigationId('calendar'), 'timeline');
+  assert.equal(migrateNavigationId('calendar'), 'today');
   assert.equal(migrateNavigationId('courses'), 'courses');
 });

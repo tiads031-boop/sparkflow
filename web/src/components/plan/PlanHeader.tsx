@@ -5,7 +5,6 @@ const viewLabels: Record<PlanView, string> = {
   month: '月视图',
   week: '周视图',
   agenda: '今天',
-  timetable: '课程表',
 };
 
 interface PlanHeaderProps {
@@ -32,7 +31,7 @@ export default function PlanHeader({
   onToday,
 }: PlanHeaderProps) {
   return (
-    <header className="relative px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+18px)]">
+    <header className="relative px-4 pb-3 pt-4">
       <div className="flex items-start gap-3">
         <button type="button" onClick={onToday} className="min-w-0 text-left">
           <p className="truncate text-[11px] font-bold text-[var(--sf-text-tertiary)]">{subtitle}</p>
@@ -55,7 +54,7 @@ export default function PlanHeader({
       </div>
 
       {viewMenuOpen && (
-        <div className="absolute left-4 top-[calc(env(safe-area-inset-top,0px)+104px)] z-30 w-44 rounded-2xl border border-black/5 bg-[var(--sf-surface)] p-1.5 shadow-xl">
+        <div className="absolute left-4 top-[86px] z-30 w-44 rounded-2xl border border-black/5 bg-[var(--sf-surface)] p-1.5 shadow-xl">
           {(Object.keys(viewLabels) as PlanView[]).map((item) => (
             <button
               key={item}

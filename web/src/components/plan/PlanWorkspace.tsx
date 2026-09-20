@@ -6,7 +6,6 @@ import QuadrantView from '../QuadrantView';
 import AgendaPlanView from './AgendaPlanView';
 import MonthPlanView from './MonthPlanView';
 import PlanHeader from './PlanHeader';
-import TimetablePlanView from './TimetablePlanView';
 import WeekPlanView from './WeekPlanView';
 import { readLastPlanView, writeLastPlanView } from './planPreferences';
 import { buildPlannerPreviewItems, getMonday, getSemesterWeekNumber, localDateKey, type PlanItem } from './planProjection';
@@ -58,7 +57,6 @@ export default function PlanWorkspace({
 }: PlanWorkspaceProps) {
   const selectedDate = useAppStore((state) => state.selectedDate);
   const setSelectedDate = useAppStore((state) => state.setSelectedDate);
-  const courses = useAppStore((state) => state.courses);
   const semesters = useAppStore((state) => state.semesters);
   const activeSemesterId = useAppStore((state) => state.activeSemesterId);
   const [section, setSection] = useState<PlanSection>(sectionOnly ?? initialSection);
@@ -218,14 +216,6 @@ export default function PlanWorkspace({
                 selectedDate={selectedDate}
                 items={visibleItems}
                 onItemClick={handlePlanItemClick}
-              />
-            )}
-            {view === 'timetable' && (
-              <TimetablePlanView
-                selectedDate={selectedDate}
-                courses={courses}
-                semester={activeSemester}
-                onCourseClick={onCourseClick}
               />
             )}
           </>
