@@ -1,15 +1,77 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Pause, Play, RotateCcw } from 'lucide-react';
+import { Check, Pause, PenLine, Play, RotateCcw } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import ModalCloseButton from '../ui/ModalCloseButton';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
+import InspirationCaptureSheet from '../records/InspirationCaptureSheet';
+import {
+  clampFocusDuration,
+  durationFromPointer,
+  durationToDegrees,
+  MAX_FOCUS_MINUTES,
+  MIN_FOCUS_MINUTES,
+} from './focusDuration';
 
-const DURATIONS = [15, 25, 45, 60];
+const DURATIONS = [25, 45, 60];
 
 function formatTime(seconds: number) {
   const safe = Math.max(0, seconds);
   return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return '';
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
+function DurationDial({ value, onChange }: { value: number; onChange: (minutes: number) => void }) {
+  const update = (event: PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    onChange(durationFromPointer(event.clientX, event.clientY, rect.left + rect.width / 2, rect.top + rect.height / 2));
+  };
+  const degrees = durationToDegrees(value);
+
+  return (
+    <div
+      className="relative mx-auto h-48 w-48 touch-none select-none rounded-full bg-[var(--sf-bg)]"
+      style={{ background: `conic-gradient(var(--sf-marker-purple) ${degrees}deg, var(--sf-bg) 0deg)` }}
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        update(event);
+      }}
+      onPointerMove={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) update(event);
+      }}
+      role="slider"
+      aria-label="专注时长"
+      aria-valuemin={MIN_FOCUS_MINUTES}
+      aria-valuemax={MAX_FOCUS_MINUTES}
+      aria-valuenow={value}
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowRight') onChange(clampFocusDuration(value + 5));
+        if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') onChange(clampFocusDuration(value - 5));
+      }}
+    >
+      <div className="absolute inset-2 grid place-items-center rounded-full bg-[var(--sf-surface)]">
+        <div className="text-center">
+          <strong className="block text-4xl tabular-nums">{value}</strong>
+          <span className="text-xs text-[var(--sf-text-tertiary)]">分钟</span>
+        </div>
+      </div>
+      <span
+        className="absolute left-1/2 top-1/2 h-[42%] w-0.5 origin-bottom bg-[var(--sf-text-primary)]"
+        style={{ transform: `translate(-50%, -100%) rotate(${degrees}deg)` }}
+        aria-hidden="true"
+      />
+    </div>
+  );
 }
 
 export default function FocusSession({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -27,6 +89,8 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
   const [hasStarted, setHasStarted] = useState(pomodoro.isRunning);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [savedRecordCount, setSavedRecordCount] = useState(0);
   const ended = hasStarted && !pomodoro.isRunning;
   const progress = pomodoro.duration > 0 ? Math.max(0, Math.min(1, pomodoro.timeLeft / pomodoro.duration)) : 0;
   const task = tasks.find((candidate) => candidate.id === (pomodoro.activeTaskId || taskId));
@@ -40,6 +104,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
     setMessage('');
     try {
       await startPomodoro(taskId || undefined, duration);
+      setSavedRecordCount(0);
       setHasStarted(true);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '无法开始专注');
@@ -135,18 +200,32 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
             </label>
             <div>
               <p className="mb-2 text-sm font-bold">专注时长</p>
-              <div className="grid grid-cols-4 gap-2">
+              <DurationDial value={duration} onChange={setDuration} />
+              <div className="mt-4 flex items-center justify-center gap-2">
                 {DURATIONS.map((minutes) => (
                   <button
                     type="button"
                     key={minutes}
                     onClick={() => setDuration(minutes)}
-                    className={`rounded-2xl py-3 text-sm font-bold ${duration === minutes ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'bg-[var(--sf-bg)]'}`}
+                    className={`rounded-2xl px-4 py-2 text-xs font-bold ${duration === minutes ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'bg-[var(--sf-bg)]'}`}
                   >
                     {minutes} 分
                   </button>
                 ))}
               </div>
+              <label className="mx-auto mt-3 flex w-fit items-center gap-2 text-xs text-[var(--sf-text-secondary)]">
+                精确输入
+                <input
+                  type="number"
+                  min={MIN_FOCUS_MINUTES}
+                  max={MAX_FOCUS_MINUTES}
+                  step={1}
+                  value={duration}
+                  onChange={(event) => setDuration(clampFocusDuration(Number(event.target.value)))}
+                  className="w-20 rounded-xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-2 text-center font-bold outline-none"
+                />
+                分钟
+              </label>
             </div>
             <button
               type="button"
@@ -170,7 +249,25 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
                 {pomodoro.pausedDurationSeconds > 0 ? ` · 暂停 ${Math.round(pomodoro.pausedDurationSeconds / 60)} 分钟` : ''}
                 {task ? ` · ${task.title}` : ''}
               </p>
+              {pomodoro.lastCompletedStartedAt && pomodoro.lastCompletedEndedAt && (
+                <p className="mt-2 text-xs text-[var(--sf-text-tertiary)]">
+                  {formatDateTime(pomodoro.lastCompletedStartedAt)} – {formatDateTime(pomodoro.lastCompletedEndedAt)}
+                </p>
+              )}
             </div>
+            {pomodoro.lastCompletedSessionId && (
+              <button
+                type="button"
+                onClick={() => setCaptureOpen(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-marker-purple)] py-4 font-bold"
+              >
+                <PenLine size={18} />
+                {savedRecordCount > 0 ? '再记一条' : '记录一下'}
+              </button>
+            )}
+            {savedRecordCount > 0 && (
+              <p className="text-xs text-[var(--sf-text-secondary)]">已保存 {savedRecordCount} 条专注记录</p>
+            )}
             {task && (
               <button
                 type="button"
@@ -185,7 +282,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
               onClick={onClose}
               className="w-full rounded-full bg-[var(--sf-surface)] py-4 font-bold"
             >
-              返回今天
+              {savedRecordCount > 0 ? '完成' : '稍后'}
             </button>
           </section>
         ) : (
@@ -244,6 +341,12 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
           </p>
         )}
       </main>
+      <InspirationCaptureSheet
+        open={captureOpen}
+        focusSessionId={pomodoro.lastCompletedSessionId || undefined}
+        onClose={() => setCaptureOpen(false)}
+        onSaved={() => setSavedRecordCount((count) => count + 1)}
+      />
     </div>,
     document.body,
   );
