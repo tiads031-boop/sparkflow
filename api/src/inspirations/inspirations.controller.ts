@@ -49,8 +49,14 @@ export class InspirationsController {
   }
 
   @Get('review/queue')
-  getReviewQueue(@CurrentUserId() userId: string, @Query('limit') limit?: string) {
-    return this.inspirationsService.getReviewQueue(userId, limit ? Number(limit) : undefined);
+  getReviewQueue(
+    @CurrentUserId() userId: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.inspirationsService.getReviewQueue(
+      userId,
+      limit ? Number(limit) : undefined,
+    );
   }
 
   @Get('review/today')
@@ -58,7 +64,11 @@ export class InspirationsController {
     @CurrentUserId() userId: string,
     @Query('timeZone') timeZone?: string,
   ) {
-    return this.inspirationsService.getTodayReviewBatch(userId, timeZone, false);
+    return this.inspirationsService.getTodayReviewBatch(
+      userId,
+      timeZone,
+      false,
+    );
   }
 
   @Post('review/today/more')
@@ -73,22 +83,29 @@ export class InspirationsController {
   processReviewItem(
     @Param('itemId') itemId: string,
     @CurrentUserId() userId: string,
-    @Body() input: {
+    @Body()
+    input: {
       action: 'reflection' | 'later' | 'digested';
       requestId: string;
       body?: string;
     },
   ) {
-    return this.inspirationsService.processReviewBatchItem(itemId, userId, input);
+    return this.inspirationsService.processReviewBatchItem(
+      itemId,
+      userId,
+      input,
+    );
   }
 
   @Post('capture')
-  @UseInterceptors(FilesInterceptor('files', MAX_INSPIRATION_ATTACHMENTS, {
-    limits: {
-      fileSize: MAX_INSPIRATION_FILE_BYTES,
-      files: MAX_INSPIRATION_ATTACHMENTS,
-    },
-  }))
+  @UseInterceptors(
+    FilesInterceptor('files', MAX_INSPIRATION_ATTACHMENTS, {
+      limits: {
+        fileSize: MAX_INSPIRATION_FILE_BYTES,
+        files: MAX_INSPIRATION_ATTACHMENTS,
+      },
+    }),
+  )
   capture(
     @CurrentUserId() userId: string,
     @UploadedFiles() files: Express.Multer.File[],
@@ -96,6 +113,7 @@ export class InspirationsController {
     @Body('tags') tags?: string,
     @Body('requestId') requestId?: string,
     @Body('timeZone') timeZone?: string,
+    @Body('focusSessionId') focusSessionId?: string,
   ) {
     return this.inspirationsService.createCapture(
       userId,
@@ -104,6 +122,7 @@ export class InspirationsController {
       parseCaptureTags(tags),
       requestId,
       timeZone,
+      focusSessionId,
     );
   }
 
@@ -116,7 +135,8 @@ export class InspirationsController {
   saveWallLayout(
     @Param('id') id: string,
     @CurrentUserId() userId: string,
-    @Body() input: {
+    @Body()
+    input: {
       expectedVersion: number;
       x: number;
       y: number;
@@ -167,11 +187,7 @@ export class InspirationsController {
     @Param('attachmentId') attachmentId: string,
     @CurrentUserId() userId: string,
   ) {
-    return this.inspirationsService.analyzeAttachment(
-      id,
-      attachmentId,
-      userId,
-    );
+    return this.inspirationsService.analyzeAttachment(id, attachmentId, userId);
   }
 
   @Post(':id/attachments/:attachmentId/summary')
@@ -193,22 +209,30 @@ export class InspirationsController {
   }
 
   @Post()
-  create(@CurrentUserId() userId: string, @Body() data: {
-    userId?: string;
-    sourceUrl?: string | null;
-    sourceType?: string;
-    title?: string;
-    description?: string;
-    contentText?: string;
-    coverImage?: string;
-    author?: string;
-    tags?: string[];
-  }) {
+  create(
+    @CurrentUserId() userId: string,
+    @Body()
+    data: {
+      userId?: string;
+      sourceUrl?: string | null;
+      sourceType?: string;
+      title?: string;
+      description?: string;
+      contentText?: string;
+      coverImage?: string;
+      author?: string;
+      tags?: string[];
+    },
+  ) {
     return this.inspirationsService.create({ ...data, userId });
   }
 
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @CurrentUserId() userId: string, @Body('status') status: string) {
+  updateStatus(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body('status') status: string,
+  ) {
     return this.inspirationsService.updateStatus(id, userId, status);
   }
 
@@ -234,7 +258,13 @@ export class InspirationsController {
   createTask(
     @Param('id') id: string,
     @CurrentUserId() userId: string,
-    @Body() data: { title?: string; description?: string; estimatedMinutes?: number; dueDate?: string | null },
+    @Body()
+    data: {
+      title?: string;
+      description?: string;
+      estimatedMinutes?: number;
+      dueDate?: string | null;
+    },
   ) {
     return this.inspirationsService.createTaskFromInspiration(id, userId, data);
   }
@@ -243,7 +273,8 @@ export class InspirationsController {
   update(
     @Param('id') id: string,
     @CurrentUserId() userId: string,
-    @Body() data: {
+    @Body()
+    data: {
       title?: string | null;
       description?: string | null;
       contentText?: string | null;
