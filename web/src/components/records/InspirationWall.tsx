@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { Grid2X2, Hand, Loader2, Minus, Move, Plus, RotateCcw, Save, Sparkles } from 'lucide-react';
 import {
   listInspirationWallLayouts,
@@ -120,7 +121,7 @@ export default function InspirationWall({
     return next;
   };
 
-  const beginCardDrag = (event: React.PointerEvent, record: InspirationRecord) => {
+  const beginCardDrag = (event: ReactPointerEvent, record: InspirationRecord) => {
     if (!organizing) return;
     event.preventDefault();
     event.stopPropagation();
@@ -141,7 +142,7 @@ export default function InspirationWall({
     }));
   };
 
-  const moveCard = (event: React.PointerEvent) => {
+  const moveCard = (event: ReactPointerEvent) => {
     const drag = dragRef.current;
     if (!drag) return;
     event.preventDefault();
@@ -159,7 +160,7 @@ export default function InspirationWall({
     }));
   };
 
-  const finishCardDrag = async (event: React.PointerEvent) => {
+  const finishCardDrag = async (event: ReactPointerEvent) => {
     const drag = dragRef.current;
     if (!drag) return;
     event.stopPropagation();
@@ -200,7 +201,7 @@ export default function InspirationWall({
     return Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y);
   };
 
-  const beginCanvasPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+  const beginCanvasPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (organizing) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -217,7 +218,7 @@ export default function InspirationWall({
     }
   };
 
-  const moveCanvasPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+  const moveCanvasPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!pointersRef.current.has(event.pointerId) || organizing) return;
     pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointersRef.current.size >= 2 && pinchRef.current) {
@@ -240,7 +241,7 @@ export default function InspirationWall({
     }
   };
 
-  const endCanvasPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+  const endCanvasPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     pointersRef.current.delete(event.pointerId);
     if (pointersRef.current.size < 2) pinchRef.current = null;
     if (pointersRef.current.size === 0) panStartRef.current = null;
