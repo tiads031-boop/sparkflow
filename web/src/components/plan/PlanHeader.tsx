@@ -1,4 +1,4 @@
-import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, MoreHorizontal, Plus, Sparkles } from 'lucide-react';
+import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Plus, Sparkles } from 'lucide-react';
 import type { PlanView } from '../../types';
 
 const viewLabels: Record<PlanView, string> = {
@@ -43,24 +43,19 @@ export default function PlanHeader({
           <h1 className="mt-0.5 truncate text-xl font-black text-[var(--sf-text-primary)]">{title}</h1>
         </button>
         <div className="flex items-center gap-1">
-          <button type="button" onClick={onToggleViewMenu} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm" aria-label="切换计划视图">
-            <CalendarRange size={18} />
-          </button>
           <button type="button" onClick={onQuickAdd} className="grid h-10 w-10 place-items-center rounded-full bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm" aria-label="快速添加">
             <Plus size={19} />
           </button>
-          <button type="button" onClick={onPlanner} className="grid h-10 w-10 place-items-center rounded-full bg-[#cae393] text-[#242424] shadow-sm" aria-label="AI 帮我安排">
-            <Sparkles size={18} />
-          </button>
-          <button type="button" className="grid h-10 w-10 place-items-center rounded-full bg-[var(--sf-surface)] text-[var(--sf-text-tertiary)] shadow-sm" aria-label="更多">
-            <MoreHorizontal size={19} />
+          <button type="button" onClick={onPlanner} className="flex h-10 items-center gap-1.5 rounded-full bg-[#cae393] px-3 text-[#242424] shadow-sm" aria-label="AI 规划与临时调整">
+            <Sparkles size={17} />
+            <span className="text-xs font-black">AI 规划</span>
           </button>
         </div>
       </div>
 
       <div className="mt-3 flex items-center justify-between">
-        <button type="button" onClick={onToggleViewMenu} className="inline-flex items-center gap-1 rounded-full bg-[var(--sf-surface)] px-3 py-1.5 text-xs font-bold text-[var(--sf-text-primary)] shadow-sm">
-          {viewLabels[view]} <ChevronDown size={13} />
+        <button type="button" onClick={onToggleViewMenu} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--sf-surface)] px-3 py-1.5 text-xs font-bold text-[var(--sf-text-primary)] shadow-sm" aria-expanded={viewMenuOpen}>
+          <CalendarRange size={14} /> {viewLabels[view]} <ChevronDown size={13} />
         </button>
         <div className="flex items-center gap-1">
           <button type="button" onClick={onPrevious} className="grid h-8 w-8 place-items-center rounded-full bg-[var(--sf-surface)] text-[var(--sf-text-secondary)] shadow-sm" aria-label="上一时间段">
