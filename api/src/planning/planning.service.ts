@@ -10,12 +10,14 @@ import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import {
   AI_PROVIDER,
+  PLANNING_MODELS,
   type AIProvider,
   type PlanningActionProposal,
   type PlanningContextSnapshot,
   type PlanningCourseOccurrenceSnapshot,
   type PlanningCourseSnapshot,
   type PlanningGoalExecutionSnapshot,
+  type PlanningModel,
   type PlanningReplanRequest,
   type PlanningEvidenceItem,
   type PlanningFact,
@@ -26,6 +28,7 @@ import { WebResearchService } from '../research/web-research.service';
 
 const SCOPE_TYPES = new Set(['general', 'goal', 'day', 'task', 'course']);
 const FACT_STATUSES = new Set<PlanningFactStatus>(['confirmed', 'inferred', 'assumed']);
+const PLANNING_MODEL_SET = new Set<PlanningModel>(PLANNING_MODELS);
 
 function normalizeFacts(value: unknown): PlanningFact[] {
   if (value === undefined) return [];
@@ -418,6 +421,7 @@ export class PlanningService {
     data: {
       message: string;
       expectedRevision: number;
+      model?: string;
       currentTime?: string;
       timeZone?: string;
     },
@@ -427,6 +431,10 @@ export class PlanningService {
     if (message.length > 4000) throw new BadRequestException('message is too long');
     if (!Number.isInteger(data.expectedRevision) || data.expectedRevision < 1) {
       throw new BadRequestException('expectedRevision is required');
+    }
+    const model = data.model || 'deepseek-v4-flash';
+    if (!PLANNING_MODEL_SET.has(model as PlanningModel)) {
+      throw new BadRequestException('planning model is invalid');
     }
     const currentTime = data.currentTime ? new Date(data.currentTime) : new Date();
     if (Number.isNaN(currentTime.getTime())) {
@@ -621,6 +629,7 @@ export class PlanningService {
     let result;
 
     const planningInputBase = {
+      model: model as PlanningModel,
       message,
       context: contextFromThread(thread),
       recentMessages,
