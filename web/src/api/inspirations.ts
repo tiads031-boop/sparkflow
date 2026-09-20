@@ -47,6 +47,35 @@ export interface ReviewQueue {
   items: InspirationRecord[];
 }
 
+export interface ReviewBatchItem {
+  id: string;
+  batchId: string;
+  inspirationId: string;
+  ordinal: number;
+  state: 'pending' | 'reflected' | 'later' | 'digested';
+  processedAt?: string | null;
+  processedRequestId?: string | null;
+  resultReflectionId?: string | null;
+  inspiration: InspirationRecord;
+}
+
+export interface TodayReviewBatch {
+  id: string;
+  localDate: string;
+  timeZone: string;
+  total: number;
+  pending: number;
+  items: ReviewBatchItem[];
+}
+
+function currentTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 async function patchJson<T>(path: string, body: unknown): Promise<T> {
   const response = await apiRequest(path, {
     method: 'PATCH',
@@ -75,10 +104,13 @@ export function createMultimodalInspiration(
   contentText: string,
   files: File[] = [],
   tags: string[] = [],
+  options: { requestId?: string; timeZone?: string } = {},
 ) {
   const form = new FormData();
   if (contentText.trim()) form.append('contentText', contentText.trim());
   form.append('tags', JSON.stringify(tags));
+  form.append('requestId', options.requestId || crypto.randomUUID());
+  form.append('timeZone', options.timeZone || currentTimeZone());
   files.forEach((file) => form.append('files', file, file.name));
   return api.post<InspirationRecord>(
     '/inspirations/capture',
@@ -147,6 +179,32 @@ export function getReviewQueue(limit = 5) {
     fallback: { total: 0, items: [] },
     throwOnError: true,
   });
+}
+
+export function getTodayReviewBatch() {
+  const timeZone = encodeURIComponent(currentTimeZone());
+  return api.get<TodayReviewBatch>(`/inspirations/review/today?timeZone=${timeZone}`, {
+    fallback: { id: '', localDate: '', timeZone: currentTimeZone(), total: 0, pending: 0, items: [] },
+    throwOnError: true,
+  });
+}
+
+export function extendTodayReviewBatch() {
+  return api.post<TodayReviewBatch>('/inspirations/review/today/more', {
+    timeZone: currentTimeZone(),
+  }, { throwOnError: true });
+}
+
+export function processReviewBatchItem(
+  itemId: string,
+  action: 'reflection' | 'later' | 'digested',
+  options: { requestId: string; body?: string },
+) {
+  return api.post<ReviewBatchItem>(
+    `/inspirations/review/items/${encodeURIComponent(itemId)}/process`,
+    { action, requestId: options.requestId, body: options.body },
+    { throwOnError: true },
+  );
 }
 
 export function addReflection(id: string, body: string) {

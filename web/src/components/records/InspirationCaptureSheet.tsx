@@ -16,6 +16,8 @@ import {
   type InspirationRecord,
 } from '../../api/inspirations';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
+import { useAppStore } from '../../store/appStore';
+import { deleteCaptureDraft, readCaptureDraft, writeCaptureDraft } from '../../utils/captureDraft';
 
 const MAX_FILES = 6;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -67,6 +69,8 @@ export default function InspirationCaptureSheet({
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [draftReady, setDraftReady] = useState(false);
+  const currentUserId = useAppStore((state) => state.currentUserId);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,11 +79,30 @@ export default function InspirationCaptureSheet({
   const chunksRef = useRef<BlobPart[]>([]);
   const recordingStartedAtRef = useRef(0);
   const recordingStopTimerRef = useRef<number | null>(null);
+  const captureRequestIdRef = useRef<string>(crypto.randomUUID());
 
   const totalBytes = useMemo(
     () => files.reduce((total, file) => total + file.size, 0),
     [files],
   );
+
+  useEffect(() => {
+    if (!open || !draftReady || !currentUserId) return;
+    const timer = window.setTimeout(() => {
+      if (!text.trim() && files.length === 0) {
+        void deleteCaptureDraft(currentUserId);
+        return;
+      }
+      void writeCaptureDraft({
+        userId: currentUserId,
+        text,
+        files,
+        requestId: captureRequestIdRef.current,
+        updatedAt: new Date().toISOString(),
+      });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [open, draftReady, currentUserId, text, files]);
 
   const microphoneSupported = typeof window !== 'undefined'
     && typeof MediaRecorder !== 'undefined'
@@ -110,14 +133,40 @@ export default function InspirationCaptureSheet({
         // Ignore recorder shutdown during close.
       }
       cleanupRecording();
-      setText('');
-      setFiles([]);
       setSaving(false);
       setError(null);
+      setDraftReady(false);
       return;
     }
-    window.setTimeout(() => textareaRef.current?.focus(), 30);
-  }, [open]);
+
+    let cancelled = false;
+    setDraftReady(false);
+    void (async () => {
+      if (currentUserId) {
+        const draft = await readCaptureDraft(currentUserId);
+        if (cancelled) return;
+        if (draft) {
+          setText(draft.text);
+          setFiles(draft.files || []);
+          captureRequestIdRef.current = draft.requestId || crypto.randomUUID();
+        } else {
+          setText('');
+          setFiles([]);
+          captureRequestIdRef.current = crypto.randomUUID();
+        }
+      } else {
+        setText('');
+        setFiles([]);
+        captureRequestIdRef.current = crypto.randomUUID();
+      }
+      setDraftReady(true);
+      window.setTimeout(() => textareaRef.current?.focus(), 30);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, currentUserId]);
 
   useEffect(() => {
     if (!recording) return;
@@ -234,9 +283,16 @@ export default function InspirationCaptureSheet({
     setSaving(true);
     setError(null);
     try {
-      const record = await createMultimodalInspiration(text, files);
+      const record = await createMultimodalInspiration(text, files, [], {
+        requestId: captureRequestIdRef.current,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      });
       window.dispatchEvent(new CustomEvent('sparkflow:records-changed'));
       await onSaved?.(record);
+      if (currentUserId) await deleteCaptureDraft(currentUserId);
+      setText('');
+      setFiles([]);
+      captureRequestIdRef.current = crypto.randomUUID();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败，请稍后重试');
@@ -382,7 +438,7 @@ export default function InspirationCaptureSheet({
         <button
           type="button"
           onClick={() => void save()}
-          disabled={saving || recording || (!text.trim() && files.length === 0)}
+          disabled={!draftReady || saving || recording || (!text.trim() && files.length === 0)}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-black text-[var(--sf-surface)] disabled:opacity-40"
         >
           {saving && <Loader2 size={15} className="animate-spin" />}

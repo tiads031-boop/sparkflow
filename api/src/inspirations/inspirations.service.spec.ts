@@ -488,4 +488,146 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     )).rejects.toThrow('当前附件请使用音频转写/摘要功能');
   });
 
+
+  it('returns an existing capture for the same request id without persisting files again', async () => {
+    const media = mediaMock();
+    const existing = {
+      id: 'inspiration-existing',
+      userId: 'user-1',
+      captureRequestId: 'capture-request-1',
+      attachments: [],
+    };
+    const prisma = {
+      inspiration: {
+        findFirst: jest.fn().mockResolvedValue(existing),
+        create: jest.fn(),
+      },
+    };
+    const service = serviceWith(prisma, media);
+
+    const result = await service.createCapture(
+      'user-1',
+      'same capture',
+      [],
+      [],
+      'capture-request-1',
+      'Asia/Tokyo',
+    );
+
+    expect(result).toBe(existing);
+    expect(media.persist).not.toHaveBeenCalled();
+    expect(prisma.inspiration.create).not.toHaveBeenCalled();
+  });
+
+  it('persists the first three eligible inspirations into a stable daily review batch', async () => {
+    const batch = {
+      id: 'batch-1',
+      userId: 'user-1',
+      localDate: '2026-09-20',
+      timeZone: 'Asia/Tokyo',
+    };
+    const itemFindMany = jest.fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        { id: 'item-1', state: 'pending', ordinal: 0, inspiration: { id: 'inspiration-1' } },
+        { id: 'item-2', state: 'pending', ordinal: 1, inspiration: { id: 'inspiration-2' } },
+        { id: 'item-3', state: 'pending', ordinal: 2, inspiration: { id: 'inspiration-3' } },
+      ]);
+    const createMany = jest.fn().mockResolvedValue({ count: 3 });
+    const prisma = {
+      inspirationReviewBatch: {
+        upsert: jest.fn().mockResolvedValue(batch),
+      },
+      inspirationReviewBatchItem: {
+        findMany: itemFindMany,
+        createMany,
+      },
+      inspiration: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'inspiration-1' },
+          { id: 'inspiration-2' },
+          { id: 'inspiration-3' },
+          { id: 'inspiration-4' },
+        ]),
+      },
+    };
+    const service = serviceWith(prisma);
+
+    const result = await service.getTodayReviewBatch('user-1', 'Asia/Tokyo');
+
+    expect(createMany).toHaveBeenCalledTimes(1);
+    expect(createMany.mock.calls[0][0].data).toHaveLength(3);
+    expect(result.total).toBe(3);
+    expect(result.pending).toBe(3);
+  });
+
+  it('claims a review batch item once and schedules reflection by calendar day', async () => {
+    const item = {
+      id: 'item-1',
+      batchId: 'batch-1',
+      inspirationId: 'inspiration-1',
+      state: 'pending',
+      processedRequestId: null,
+      batch: { id: 'batch-1', userId: 'user-1', timeZone: 'Asia/Tokyo' },
+    };
+    const finalItem = {
+      ...item,
+      state: 'reflected',
+      processedRequestId: 'review-request-1',
+      inspiration: { id: 'inspiration-1' },
+    };
+    const tx = {
+      inspirationReviewBatchItem: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUnique: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      inspirationReflection: {
+        create: jest.fn().mockResolvedValue({ id: 'reflection-1' }),
+      },
+      inspiration: {
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    const prisma = {
+      inspirationReviewBatchItem: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(item)
+          .mockResolvedValueOnce(finalItem),
+      },
+      $transaction: jest.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    };
+    const service = serviceWith(prisma);
+
+    const result = await service.processReviewBatchItem('item-1', 'user-1', {
+      action: 'reflection',
+      requestId: 'review-request-1',
+      body: '新的理解',
+    });
+
+    expect(tx.inspirationReviewBatchItem.updateMany).toHaveBeenCalledWith({
+      where: { id: 'item-1', state: 'pending' },
+      data: expect.objectContaining({
+        state: 'reflected',
+        processedRequestId: 'review-request-1',
+      }),
+    });
+    expect(tx.inspirationReflection.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'user-1',
+        inspirationId: 'inspiration-1',
+        body: '新的理解',
+        clientRequestId: 'review-request-1',
+      },
+    });
+    expect(tx.inspiration.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'inspiration-1' },
+      data: expect.objectContaining({
+        reviewCount: { increment: 1 },
+        nextReviewAt: expect.any(Date),
+      }),
+    }));
+    expect(result).toBe(finalItem);
+  });
+
 });
