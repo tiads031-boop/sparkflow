@@ -21,11 +21,6 @@ export default function AgendaPlanView({ selectedDate, items, onItemClick }: Age
 
   return (
     <section className="rounded-[1.75rem] bg-[var(--sf-surface)] p-4 shadow-sm">
-      <div className="mb-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--sf-text-tertiary)]">Agenda</p>
-        <h2 className="text-lg font-black text-[var(--sf-text-primary)]">{selectedDate.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</h2>
-      </div>
-
       {dayItems.length ? (
         <div className="relative space-y-2 before:absolute before:bottom-2 before:left-[42px] before:top-2 before:w-px before:bg-black/[0.07]">
           {dayItems.map((item) => {
