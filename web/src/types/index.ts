@@ -96,6 +96,12 @@ export interface PomodoroState {
   duration: number;
   activeTaskId: string | null;
   activeSessionId: string | null;
+  revision: number | null;
+  startedAt: string | null;
+  effectiveDurationSeconds: number;
+  pausedDurationSeconds: number;
+  lastCompletedEffectiveSeconds: number;
+  syncError: string | null;
   todayCount: number;
   totalFocusMinutes: number;
 }
@@ -120,6 +126,13 @@ export interface CalendarEvent {
   overrideGroupId?: string | null;
   extendedProps?: { taskId?: string; eventType?: string };
   taskId?: string | null;
+  focusSessionId?: string | null;
+  focusSession?: {
+    id: string;
+    taskId?: string | null;
+    effectiveDurationSeconds: number;
+    pausedDurationSeconds: number;
+  } | null;
   externalSource?: string | null;
   location?: string | null;
   scheduleLocked?: boolean;

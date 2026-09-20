@@ -74,6 +74,7 @@ export default function App() {
   const toggleSubtask = useAppStore((s) => s.toggleSubtask);
   const loadTasks = useAppStore((s) => s.loadTasks);
   const loadPomodoroStats = useAppStore((s) => s.loadPomodoroStats);
+  const loadActivePomodoro = useAppStore((s) => s.loadActivePomodoro);
   const tick = useAppStore((s) => s.tick);
   const pushEnabled = useAppStore((s) => s.pushEnabled);
   const pushSupported = useAppStore((s) => s.pushSupported);
@@ -103,6 +104,7 @@ export default function App() {
   useEffect(() => {
     loadTasks();
     loadPomodoroStats();
+    loadActivePomodoro();
     checkPushStatus();
     checkGoogleStatus();
     loadCourses();
@@ -116,7 +118,7 @@ export default function App() {
       .catch(() => {
         // Notification preference hydration is best-effort; local cache remains usable.
       });
-  }, [loadTasks, loadPomodoroStats, checkPushStatus, checkGoogleStatus, loadCourses, loadSemesters]);
+  }, [loadTasks, loadPomodoroStats, loadActivePomodoro, checkPushStatus, checkGoogleStatus, loadCourses, loadSemesters]);
 
   // ── Capacitor 生命周期：APP 从后台恢复时刷新关键状态 ──
   useEffect(() => {
@@ -137,6 +139,7 @@ export default function App() {
             checkPushStatus();
             checkGoogleStatus();
             loadTasks();
+            loadActivePomodoro();
           }
         });
         cleanup = handler.remove;
@@ -146,7 +149,7 @@ export default function App() {
     })();
 
     return () => { cleanup?.(); };
-  }, [checkPushStatus, checkGoogleStatus, loadTasks]);
+  }, [checkPushStatus, checkGoogleStatus, loadTasks, loadActivePomodoro]);
 
   // 切换到课程 tab 时加载课程数据
   useEffect(() => {
@@ -157,6 +160,14 @@ export default function App() {
     const interval = setInterval(() => tick(), 1000);
     return () => clearInterval(interval);
   }, [tick]);
+
+  useEffect(() => {
+    const refreshFocus = () => {
+      if (document.visibilityState === 'visible') void loadActivePomodoro();
+    };
+    document.addEventListener('visibilitychange', refreshFocus);
+    return () => document.removeEventListener('visibilitychange', refreshFocus);
+  }, [loadActivePomodoro]);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;

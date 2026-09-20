@@ -9,6 +9,7 @@ interface AgendaPlanViewProps {
 }
 
 function typeLabel(item: PlanItem) {
+  if (item.kind === 'focus') return `实际专注${item.effectiveDurationSeconds ? ` · ${Math.round(item.effectiveDurationSeconds / 60)} 分钟` : ''}`;
   if (item.kind === 'course') return '课程';
   if (item.kind === 'study-task') return '学习任务';
   if (item.kind === 'task') return '任务';

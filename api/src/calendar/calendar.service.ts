@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface ImportLocalCalendarEventDto {
@@ -81,7 +81,17 @@ export class CalendarService {
     return this.prisma.calendarEvent.findMany({
       where,
       orderBy: { startTime: 'asc' },
-      include: { task: true },
+      include: {
+        task: true,
+        focusSession: {
+          select: {
+            id: true,
+            taskId: true,
+            effectiveDurationSeconds: true,
+            pausedDurationSeconds: true,
+          },
+        },
+      },
     });
   }
 
@@ -113,7 +123,14 @@ export class CalendarService {
     });
   }
 
-  update(id: string, userId: string, data: Record<string, any>) {
+  async update(id: string, userId: string, data: Record<string, any>) {
+    const existing = await this.prisma.calendarEvent.findFirst({
+      where: { id, userId }, select: { focusSessionId: true },
+    });
+    if (!existing) throw new NotFoundException('Calendar event not found');
+    if (existing.focusSessionId) {
+      throw new ConflictException('Focus events are managed by the focus session');
+    }
     const { userId: _ignoredUserId, ...updateData } = data;
     if (data.startTime) updateData.startTime = new Date(data.startTime);
     if (data.endTime) updateData.endTime = new Date(data.endTime);
@@ -123,7 +140,14 @@ export class CalendarService {
     });
   }
 
-  remove(id: string, userId: string) {
+  async remove(id: string, userId: string) {
+    const existing = await this.prisma.calendarEvent.findFirst({
+      where: { id, userId }, select: { focusSessionId: true },
+    });
+    if (!existing) throw new NotFoundException('Calendar event not found');
+    if (existing.focusSessionId) {
+      throw new ConflictException('Focus events are managed by the focus session');
+    }
     return this.prisma.calendarEvent.delete({ where: { id, userId } });
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Pause, Play, RotateCcw } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
@@ -22,7 +22,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
   const completePomodoro = useAppStore((state) => state.completePomodoro);
   const updateTask = useAppStore((state) => state.updateTask);
   const availableTasks = useMemo(() => tasks.filter((task) => !['Done', 'Cancelled'].includes(task.status)), [tasks]);
-  const [taskId, setTaskId] = useState(pomodoro.activeTaskId ?? availableTasks[0]?.id ?? '');
+  const [taskId, setTaskId] = useState(pomodoro.activeTaskId ?? '');
   const [duration, setDuration] = useState(Math.round(pomodoro.duration / 60) || 25);
   const [hasStarted, setHasStarted] = useState(pomodoro.isRunning);
   const [busy, setBusy] = useState(false);
@@ -30,6 +30,10 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
   const ended = hasStarted && !pomodoro.isRunning;
   const progress = pomodoro.duration > 0 ? Math.max(0, Math.min(1, pomodoro.timeLeft / pomodoro.duration)) : 0;
   const task = tasks.find((candidate) => candidate.id === (pomodoro.activeTaskId || taskId));
+
+  useEffect(() => {
+    if (open && pomodoro.isRunning) setHasStarted(true);
+  }, [open, pomodoro.isRunning]);
 
   const start = async () => {
     setBusy(true);
@@ -56,11 +60,11 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
     }
   };
 
-  const exit = useCallback(async () => {
-    if (pomodoro.isRunning) await stopPomodoro();
+  const exit = useCallback(() => {
+    if (!pomodoro.isRunning) setHasStarted(false);
     onClose();
-  }, [onClose, pomodoro.isRunning, stopPomodoro]);
-  const requestClose = useCallback(() => { void exit(); }, [exit]);
+  }, [onClose, pomodoro.isRunning]);
+  const requestClose = useCallback(() => { exit(); }, [exit]);
 
   useModalLifecycle(open, requestClose);
   if (!open) return null;
@@ -68,6 +72,32 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
   const finishTask = async () => {
     if (task) await updateTask(task.id, { status: 'Done' });
     onClose();
+  };
+
+  const abandon = async () => {
+    if (!window.confirm('放弃本次专注？已投入时间不会写入日程。')) return;
+    setBusy(true);
+    try {
+      await stopPomodoro();
+      setHasStarted(false);
+      onClose();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '放弃专注失败，请重试');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const togglePause = async () => {
+    setBusy(true);
+    setMessage('');
+    try {
+      await (pomodoro.isPaused ? resumePomodoro() : pausePomodoro());
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '专注状态同步失败');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return createPortal(
@@ -82,7 +112,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
           <p className="text-xs font-bold tracking-[0.22em] text-[var(--sf-marker-purple)]">FOCUS</p>
           <h2 className="text-lg font-bold">专注这一件事</h2>
         </div>
-        <ModalCloseButton onClick={() => void exit()} label="退出专注" />
+        <ModalCloseButton onClick={exit} label="收起专注" />
       </header>
 
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-7 overflow-y-auto px-6 py-4">
@@ -136,7 +166,9 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
             <div>
               <h3 className="text-2xl font-bold">完成一次专注</h3>
               <p className="mt-1 text-sm text-[var(--sf-text-secondary)]">
-                本次记录 {duration} 分钟{task ? ` · ${task.title}` : ''}
+                有效专注 {Math.max(1, Math.round(pomodoro.lastCompletedEffectiveSeconds / 60))} 分钟
+                {pomodoro.pausedDurationSeconds > 0 ? ` · 暂停 ${Math.round(pomodoro.pausedDurationSeconds / 60)} 分钟` : ''}
+                {task ? ` · ${task.title}` : ''}
               </p>
             </div>
             {task && (
@@ -175,7 +207,8 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => void exit()}
+                disabled={busy}
+                onClick={() => void abandon()}
                 className="grid h-12 w-12 place-items-center rounded-full bg-[var(--sf-surface)]"
                 aria-label="放弃本次专注"
               >
@@ -183,7 +216,8 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
               </button>
               <button
                 type="button"
-                onClick={pomodoro.isPaused ? resumePomodoro : pausePomodoro}
+                disabled={busy}
+                onClick={() => void togglePause()}
                 className="grid h-16 w-16 place-items-center rounded-full bg-[var(--sf-marker-purple)]"
                 aria-label={pomodoro.isPaused ? '继续' : '暂停'}
               >
@@ -204,7 +238,11 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
             </p>
           </section>
         )}
-        {message && <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{message}</p>}
+        {(message || pomodoro.syncError) && (
+          <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            {message || pomodoro.syncError}
+          </p>
+        )}
       </main>
     </div>,
     document.body,

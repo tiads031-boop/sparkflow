@@ -108,6 +108,7 @@ model Inspiration {
   lastReviewedAt DateTime?
   reviewCount    Int       @default(0)
   captureRequestId String?
+  focusSessionId String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -118,12 +119,14 @@ model Inspiration {
   attachments InspirationAttachment[]
   reviewBatchItems InspirationReviewBatchItem[]
   wallLayouts InspirationWallLayout[]
+  focusSession PomodoroSession? @relation(fields: [focusSessionId], references: [id], onDelete: SetNull)
 
   @@unique([userId, captureRequestId])
   @@index([userId])
   @@index([status])
   @@index([tags])
   @@index([userId, nextReviewAt])
+  @@index([focusSessionId])
   @@map("inspirations")
 }
 
@@ -341,18 +344,42 @@ model PomodoroSession {
   userId            String
   taskId            String?
   duration          Int       @default(25)
+  plannedDurationSeconds Int   @default(1500)
+  effectiveDurationSeconds Int @default(0)
+  pausedDurationSeconds Int    @default(0)
   startedAt         DateTime  @default(now())
   endedAt           DateTime?
-  status             String    @default("active") // active/completed/interrupted
+  lastResumedAt      DateTime?
+  pausedAt           DateTime?
+  status             String    @default("active") // active/paused/completed/interrupted
   interruptionCount Int       @default(0)
+  revision           Int       @default(1)
+  clientRequestId    String?
   notes              String?
 
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task          Task?              @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  segments      PomodoroSegment[]
+  calendarEvent CalendarEvent?
+  inspirations  Inspiration[]
 
   @@index([userId])
   @@index([taskId])
+  @@unique([userId, clientRequestId])
   @@map("pomodoro_sessions")
+}
+
+model PomodoroSegment {
+  id        String   @id @default(uuid())
+  sessionId String
+  startedAt DateTime
+  endedAt   DateTime?
+  createdAt DateTime @default(now())
+
+  session PomodoroSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, startedAt])
+  @@map("pomodoro_segments")
 }
 
 model CalendarEvent {
@@ -360,6 +387,7 @@ model CalendarEvent {
   userId              String
   taskId              String?
   courseId            String?
+  focusSessionId      String?   @unique
   title               String
   eventType           String    @default("task") // task/focus/meeting/reminder/course
   startTime           DateTime
@@ -385,6 +413,7 @@ model CalendarEvent {
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
   course Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  focusSession PomodoroSession? @relation(fields: [focusSessionId], references: [id], onDelete: Cascade)
 
   @@unique([userId, externalSource, externalEventId])
   @@index([userId])
