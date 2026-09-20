@@ -138,6 +138,75 @@ export class InspirationsService {
     });
   }
 
+  listWallLayouts(userId: string) {
+    return this.prisma.inspirationWallLayout.findMany({
+      where: { userId },
+      orderBy: [{ z: 'asc' }, { updatedAt: 'asc' }],
+    });
+  }
+
+  async saveWallLayout(
+    inspirationId: string,
+    userId: string,
+    input: {
+      expectedVersion: number;
+      x: number;
+      y: number;
+      width?: number;
+      height?: number;
+      z?: number;
+      color?: string;
+      rotation?: number;
+    },
+  ) {
+    const inspiration = await this.prisma.inspiration.findFirst({
+      where: { id: inspirationId, userId },
+      select: { id: true },
+    });
+    if (!inspiration) throw new NotFoundException('Inspiration not found');
+
+    const existing = await this.prisma.inspirationWallLayout.findUnique({
+      where: { userId_inspirationId: { userId, inspirationId } },
+    });
+    const data = {
+      x: Number(input.x),
+      y: Number(input.y),
+      width: Math.max(120, Math.min(360, Number(input.width) || 176)),
+      height: Math.max(100, Math.min(420, Number(input.height) || 156)),
+      z: Math.max(0, Math.floor(Number(input.z) || 0)),
+      color: input.color?.trim() || '#f2f0e8',
+      rotation: Math.max(-12, Math.min(12, Number(input.rotation) || 0)),
+    };
+    if (!Number.isFinite(data.x) || !Number.isFinite(data.y)) {
+      throw new BadRequestException('Invalid wall coordinates');
+    }
+
+    if (!existing) {
+      if (input.expectedVersion !== 0) {
+        throw new BadRequestException('自由墙布局已经变化，请刷新后重试');
+      }
+      try {
+        return await this.prisma.inspirationWallLayout.create({
+          data: { userId, inspirationId, ...data },
+        });
+      } catch {
+        throw new BadRequestException('自由墙布局已经变化，请刷新后重试');
+      }
+    }
+
+    if (existing.version !== input.expectedVersion) {
+      throw new BadRequestException('自由墙布局已经变化，请刷新后重试');
+    }
+    const updated = await this.prisma.inspirationWallLayout.updateMany({
+      where: { id: existing.id, userId, version: input.expectedVersion },
+      data: { ...data, version: { increment: 1 } },
+    });
+    if (updated.count !== 1) {
+      throw new BadRequestException('自由墙布局已经变化，请刷新后重试');
+    }
+    return this.prisma.inspirationWallLayout.findUnique({ where: { id: existing.id } });
+  }
+
   findOne(id: string, userId: string) {
     return this.prisma.inspiration.findFirst({
       where: { id, userId },
