@@ -79,7 +79,7 @@ export default function InspirationCaptureSheet({
   const chunksRef = useRef<BlobPart[]>([]);
   const recordingStartedAtRef = useRef(0);
   const recordingStopTimerRef = useRef<number | null>(null);
-  const captureRequestIdRef = useRef(crypto.randomUUID());
+  const captureRequestIdRef = useRef<string>(crypto.randomUUID());
 
   const totalBytes = useMemo(
     () => files.reduce((total, file) => total + file.size, 0),
