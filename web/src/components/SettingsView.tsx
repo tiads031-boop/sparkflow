@@ -218,10 +218,11 @@ function Toggle({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative h-7 w-12 rounded-full transition-colors disabled:opacity-40 ${checked ? 'bg-[#242424]' : 'bg-gray-200'}`}
+      className={`relative h-7 w-12 shrink-0 overflow-hidden rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8f7bd8]/50 disabled:opacity-40 ${checked ? 'bg-[#242424]' : 'bg-gray-200'}`}
     >
       <span
-        className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
+        aria-hidden="true"
+        className={`pointer-events-none absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
       />
     </button>
   );
