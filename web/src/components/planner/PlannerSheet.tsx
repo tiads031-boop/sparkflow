@@ -31,6 +31,7 @@ import {
   type PlanningContextSnapshot,
   type PlanningReplanRequest,
   type PlanningEvidenceItem,
+  type PlanningModel,
   type PlanningThreadDetail,
 } from '../../api/planning';
 import type { PlannerPreview, PlannerReplanPreview } from '../../types';
@@ -196,6 +197,15 @@ export default function PlannerSheet({
   const [thread, setThread] = useState<PlanningThreadDetail | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
   const [messageInput, setMessageInput] = useState('');
+  const [planningModel, setPlanningModel] = useState<PlanningModel>(() => {
+    try {
+      return localStorage.getItem('sparkflow.planningModel') === 'deepseek-v4-pro'
+        ? 'deepseek-v4-pro'
+        : 'deepseek-v4-flash';
+    } catch {
+      return 'deepseek-v4-flash';
+    }
+  });
   const [turnBusy, setTurnBusy] = useState(false);
   const [turnMessage, setTurnMessage] = useState('');
   const [readiness, setReadiness] = useState<'clarify' | 'ready' | null>(null);
@@ -239,6 +249,14 @@ export default function PlannerSheet({
   const [planId, setPlanId] = useState<string | null>(null);
   const [scheduleBusy, setScheduleBusy] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState('');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('sparkflow.planningModel', planningModel);
+    } catch {
+      // Local storage may be unavailable in private browsing contexts.
+    }
+  }, [planningModel]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const autoVoiceStartedRef = useRef(false);
@@ -434,6 +452,7 @@ export default function PlannerSheet({
         activeThread.id,
         message,
         activeThread.revision,
+        planningModel,
       );
       const detail = await getPlanningThread(activeThread.id);
       setThread(detail);
@@ -962,6 +981,19 @@ export default function PlannerSheet({
               </button>
             )}
           </div>
+          <label className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[var(--sf-bg)] px-3 py-2">
+            <span className="text-[10px] font-bold text-[var(--sf-text-tertiary)]">文字模型</span>
+            <select
+              value={planningModel}
+              onChange={(event) => setPlanningModel(event.target.value as PlanningModel)}
+              disabled={turnBusy}
+              className="min-w-0 bg-transparent text-right text-xs font-bold text-[var(--sf-text-primary)] outline-none disabled:opacity-50"
+              aria-label="选择文字模型"
+            >
+              <option value="deepseek-v4-flash">DeepSeek V4 Flash</option>
+              <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
+            </select>
+          </label>
         </header>
 
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">

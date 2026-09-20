@@ -79,6 +79,7 @@ export class PlanningController {
     @Body() data: {
       message: string;
       expectedRevision: number;
+      model?: string;
       currentTime?: string;
       timeZone?: string;
     },
