@@ -13,15 +13,15 @@ import {
 import type { Spark } from '../store/appStore';
 import { useAppStore } from '../store/appStore';
 import {
-  addReflection,
-  applyReviewAction,
   createTaskFromInspiration,
   deleteInspiration,
-  getReviewQueue,
+  extendTodayReviewBatch,
+  getTodayReviewBatch,
   listInspirations,
+  processReviewBatchItem,
   updateInspiration,
   type InspirationRecord,
-  type ReviewQueue,
+  type TodayReviewBatch,
 } from '../api/inspirations';
 import { InsightPanel } from './insights/InsightPanel';
 import InspirationAttachmentList from './records/InspirationAttachmentList';
@@ -59,7 +59,7 @@ export default function SparksView(_props: SparksViewProps) {
   const loadTasks = useAppStore((state) => state.loadTasks);
   const [mode, setMode] = useState<RecordViewMode>('cards');
   const [records, setRecords] = useState<InspirationRecord[]>([]);
-  const [reviewQueue, setReviewQueue] = useState<ReviewQueue>({ total: 0, items: [] });
+  const [reviewBatch, setReviewBatch] = useState<TodayReviewBatch>({ id: '', localDate: '', timeZone: 'UTC', total: 0, pending: 0, items: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -80,10 +80,22 @@ export default function SparksView(_props: SparksViewProps) {
 
   const loadReviews = useCallback(async () => {
     try {
-      const data = await getReviewQueue(5);
-      setReviewQueue(data);
+      const data = await getTodayReviewBatch();
+      setReviewBatch(data);
     } catch (err: any) {
       setError(err?.message || '回顾列表加载失败');
+    }
+  }, []);
+
+  const loadMoreReviews = useCallback(async () => {
+    try {
+      setReviewBusy(true);
+      const data = await extendTodayReviewBatch();
+      setReviewBatch(data);
+    } catch (err: any) {
+      setError(err?.message || '追加回顾失败');
+    } finally {
+      setReviewBusy(false);
     }
   }, []);
 
@@ -109,7 +121,8 @@ export default function SparksView(_props: SparksViewProps) {
     };
   }, [loadRecords, loadReviews]);
 
-  const currentReview = reviewQueue.items[0];
+  const currentReviewItem = reviewBatch.items.find((item) => item.state === 'pending');
+  const currentReview = currentReviewItem?.inspiration;
   const reflectionCount = useMemo(
     () => records.reduce((total, record) => total + (record._count?.reflections || record.reflections?.length || 0), 0),
     [records],
@@ -145,7 +158,7 @@ export default function SparksView(_props: SparksViewProps) {
     if (!currentReview || reviewBusy) return;
     setReviewBusy(true);
     try {
-      await applyReviewAction(currentReview.id, action);
+      await processReviewBatchItem(currentReviewItem!.id, action, { requestId: crypto.randomUUID() });
       setReviewText('');
       setMessage(action === 'later' ? '明天再看看这条记录。' : '已消化，14 天后才会重新进入候选。');
       await Promise.all([loadReviews(), loadRecords()]);
@@ -160,7 +173,10 @@ export default function SparksView(_props: SparksViewProps) {
     if (!currentReview || !reviewText.trim() || reviewBusy) return;
     setReviewBusy(true);
     try {
-      await addReflection(currentReview.id, reviewText.trim());
+      await processReviewBatchItem(currentReviewItem!.id, 'reflection', {
+        requestId: crypto.randomUUID(),
+        body: reviewText.trim(),
+      });
       setReviewText('');
       setMessage('新的理解已作为 Reflection 保存，不会覆盖原记录。');
       await Promise.all([loadReviews(), loadRecords()]);
@@ -176,7 +192,7 @@ export default function SparksView(_props: SparksViewProps) {
     setReviewBusy(true);
     try {
       const task = await createTaskFromInspiration(currentReview.id);
-      await applyReviewAction(currentReview.id, 'digested');
+      await processReviewBatchItem(currentReviewItem!.id, 'digested', { requestId: crypto.randomUUID() });
       await loadTasks();
       setMessage(`已创建待办「${task.title}」，来源记录已保留。`);
       setReviewText('');
@@ -197,7 +213,7 @@ export default function SparksView(_props: SparksViewProps) {
 
       <div className="grid grid-cols-4 rounded-full bg-[var(--sf-surface)] p-1 shadow-sm" aria-label="记录视图">
         <button type="button" onClick={() => setMode('cards')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'cards' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><List size={12} /> 卡片</button>
-        <button type="button" onClick={() => { setMode('review'); loadReviews(); }} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'review' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><RefreshCw size={12} /> 回顾{reviewQueue.total > 0 ? ` ${reviewQueue.total}` : ''}</button>
+        <button type="button" onClick={() => { setMode('review'); loadReviews(); }} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'review' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><RefreshCw size={12} /> 回顾{reviewBatch.pending > 0 ? ` ${reviewBatch.pending}` : ''}</button>
         <button type="button" onClick={() => setMode('insights')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'insights' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><Sparkles size={12} /> 洞察</button>
         <button type="button" onClick={() => setMode('wall')} className={`flex items-center justify-center gap-1 rounded-full py-2 text-[11px] font-semibold ${mode === 'wall' ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'text-[var(--sf-text-secondary)]'}`}><LayoutGrid size={12} /> 自由墙</button>
       </div>
@@ -269,13 +285,23 @@ export default function SparksView(_props: SparksViewProps) {
           {!currentReview ? (
             <div className="rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-6 text-center">
               <CheckCircle2 className="mx-auto mb-3 text-[var(--sf-text-secondary)]" size={30} />
-              <h2 className="text-base font-bold">今天的回顾完成了</h2>
-              <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">新记录会在次日进入候选，Reflection 后会在 3 天后再出现。</p>
+              <h2 className="text-base font-bold">今天这批回顾完成了</h2>
+              <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">
+                今日已固定抽取 {reviewBatch.total} 张；同一账号在其他设备会看到同一批和同一进度。
+              </p>
+              <button
+                type="button"
+                disabled={reviewBusy}
+                onClick={() => void loadMoreReviews()}
+                className="mt-4 rounded-full bg-[var(--sf-text-primary)] px-5 py-2.5 text-xs font-bold text-[var(--sf-surface)] disabled:opacity-40"
+              >
+                再抽 3 张
+              </button>
             </div>
           ) : (
             <>
               <div className="flex items-center justify-between text-xs text-[var(--sf-text-tertiary)]">
-                <span>待回顾 {reviewQueue.total} 条</span>
+                <span>今日批次 {reviewBatch.total} 张 · 待回顾 {reviewBatch.pending} 张</span>
                 <span>{new Date(currentReview.createdAt).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}</span>
               </div>
               <article className="rounded-[2rem] bg-[#f2f0e8] p-6 shadow-sm">
