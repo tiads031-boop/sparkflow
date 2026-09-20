@@ -11,6 +11,7 @@ import {
   type InsightType,
 } from '../../api/insights';
 import { useAppStore } from '../../store/appStore';
+import { InsightScheduleCard } from './InsightScheduleCard';
 
 const typeLabels: Record<InsightType, string> = {
   theme: '主题',
@@ -152,6 +153,8 @@ export function InsightPanel({ recordCount }: InsightPanelProps) {
         </div>
         {recordCount < 2 && <p className="mt-3 text-[11px] text-[#242424]/45">至少需要 2 条近期记录。</p>}
       </div>
+
+      <InsightScheduleCard onInsightsChanged={() => void load()} />
 
       {error && <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div>}
       {message && <div className="rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-surface)] px-4 py-3 text-xs text-[var(--sf-text-secondary)]">{message}</div>}
