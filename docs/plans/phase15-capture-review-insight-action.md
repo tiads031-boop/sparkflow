@@ -1,19 +1,27 @@
 # Phase 15 — Capture → Review → Insight → Action
 
-## 当前实施状态（2026-09-18）
+## 当前实施状态（2026-09-20）
 
 - **M1：✅ 已实现并完成生产核心链路** — PR #38，Capture → Review → Task。
 - **M2：🚧 代码/API/数据库已上线并进入真实 Provider 验收** — PR #39；生产环境已有 Qwen 调用证据，PR #43 进一步关闭默认 thinking、启用 JSON mode，并补齐 Provider 重试/超时与安全错误日志。
 - **M3：🚧 代码完成，最新 Android 已到 `5835e322`，Web/API 待显式对齐最新 master** — PR #40 完成 Insight → Task；腾讯云已验证的生产 API 基线仍为 `1e5f8356`、19 migrations up to date；PR #43 后续稳定性修复尚需按发布门禁显式部署并复验。
 - Web 发布策略改为 **GitHub CI 后显式 Production**，不再为每个 Git commit 自动创建 Vercel deployment。
-- M4 不提前启动，先完成 `master@5835e322` 的 Web/API 发布、真实 Qwen 洞察质量/失败恢复，以及 Android 真机闭环。
+- M4 不提前启动，先完成 `master@e5978ecb` 的 Web/API 发布、真实 Qwen 洞察质量/失败恢复，以及 Android 真机闭环。
+
+### Focus C1/C2 扩展 — ✅ 代码/CI 完成，🚧 生产验收
+
+- **C1 / PR #105**：专注会话支持精确分段、暂停/恢复、CAS 完成与 Focus 日历投影；`Inspiration.focusSessionId` 已建立回链。
+- **C2 / PR #106**：专注完成页支持“记录一下 / 稍后 / 再记一条”；每条记录可包含文字、语音、图片、视频，并由后端校验会话属于当前用户且已 completed。
+- 时长选择支持 5–180 分钟；拖拽按 5 分钟吸附，另有精确分钟输入。
+- API/Web build/test、Prisma fresh migration 与课程导入幂等 CI 已通过；C1 migration 仍需在生产数据库执行后再发布服务器。
+- 下一步：真实账号完成一次专注 → 多条记录 → 记录回顾，并在 PWA/Android 验证麦克风、附件播放、safe-area 与网络失败恢复。
 
 ---
 
 > **状态**：⬜ 方案已确认，未实施  
 > **最后更新**：2026-09-17  
 > **最初设计基线**：`master@27f64066`  
-> **当前实现基线**：`master@5835e322`
+> **当前实现基线**：`master@e5978ecb`
 > **定位**：把 SparkFlow 现有的记录、Today、待办、Planner、Timeline、Focus 串成一个从想法到行动的闭环，而不是新增一套独立笔记 App。
 
 ---
