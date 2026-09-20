@@ -106,3 +106,73 @@ export async function createTaskFromInsight(insightId: string, input: CreateInsi
   });
   return response.json() as Promise<InsightActionTask>;
 }
+
+
+export type InsightCadence = 'weekly' | 'interval';
+
+export interface InsightSchedulePreferences {
+  enabled: boolean;
+  cadence: InsightCadence;
+  weekDay: number;
+  hour: number;
+  minute: number;
+  intervalDays: number;
+  timeZone: string;
+  anchorDate: string;
+}
+
+export type InsightRunStatus = 'queued' | 'running' | 'completed' | 'skipped' | 'failed';
+
+export interface InsightGenerationRun {
+  id: string;
+  runKey: string;
+  trigger: 'automatic' | 'regenerate';
+  cadence: InsightCadence;
+  timeZone: string;
+  periodStart: string;
+  periodEnd: string;
+  scheduledFor: string;
+  status: InsightRunStatus;
+  sourceCount: number;
+  insightCount: number;
+  retryCount: number;
+  errorMessage?: string | null;
+  createdAt: string;
+  completedAt?: string | null;
+  insights: Array<Pick<InsightRecord, 'id' | 'title' | 'type' | 'status'>>;
+}
+
+export function getInsightSchedule() {
+  return api.get<InsightSchedulePreferences>('/insights/schedule', {
+    throwOnError: true,
+  });
+}
+
+export function updateInsightSchedule(patch: Partial<InsightSchedulePreferences>) {
+  return api.patch<InsightSchedulePreferences>('/insights/schedule', patch, {
+    throwOnError: true,
+  });
+}
+
+export function listInsightRuns() {
+  return api.get<InsightGenerationRun[]>('/insights/runs', {
+    fallback: [],
+    throwOnError: true,
+  });
+}
+
+export function retryInsightRun(id: string) {
+  return api.post<InsightGenerationRun>(
+    `/insights/runs/${encodeURIComponent(id)}/retry`,
+    {},
+    { throwOnError: true, timeoutMs: 75_000 },
+  );
+}
+
+export function regenerateInsightRun(id: string) {
+  return api.post<InsightGenerationRun>(
+    `/insights/runs/${encodeURIComponent(id)}/regenerate`,
+    {},
+    { throwOnError: true, timeoutMs: 75_000 },
+  );
+}
