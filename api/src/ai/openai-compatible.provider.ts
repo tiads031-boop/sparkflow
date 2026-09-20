@@ -571,7 +571,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     const baseUrl = this.baseUrl();
     const isQwenPlatform = /dashscope\.aliyuncs\.com/i.test(baseUrl);
     const requestBody: Record<string, unknown> = {
-      model: this.modelName,
+      model: input.model,
       temperature: 0.2,
       max_tokens: 2200,
       messages: [
