@@ -1,8 +1,8 @@
 # SparkFlow VNext M4–M8：AI 调度中枢、目标学习、课程变动、多模态记录与界面重整
 
-> 状态：M4–M8 主体代码/CI 已完成；生产 / PWA / Android 验收待收口  
-> 代码基线：`master@301955c7`  
-> 目标：把 SparkFlow 从“多个功能入口”收敛为“记录 → 澄清 → 规划 → 排程 → 提醒 → 调整”的统一闭环。
+> 状态：✅ M4–M8 主体代码/CI 已完成；🚧 生产 / PWA / Android 剩余验收；⚠️ 不再作为新开发队列  
+> 最后核对：2026-09-22；当前仓库已前进至 `master@56a5554`  
+> 目标：保留 AI 调度、学习目标、课程变动、多模态记录与设置重整的架构来源；下一轮实施见 [Execution Intelligence & UI System](vnext-execution-intelligence-ui-system.md)。
 
 ---
 
