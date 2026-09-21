@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { BrainCircuit, CalendarPlus, CheckSquare, Focus, Lightbulb } from 'lucide-react';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
+import GlassSurface from '../ui/GlassSurface';
 
 export type QuickAddAction = 'task' | 'schedule' | 'spark' | 'focus' | 'planner';
 
@@ -35,20 +36,22 @@ export default function QuickAddSheet({ open, onClose, onSelect }: QuickAddSheet
         className="pointer-events-none absolute flex flex-col items-end gap-2"
         style={{
           right: 'max(20px, calc((100vw - 32rem) / 2 + 20px))',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 136px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 164px)',
         }}
         onClick={(event) => event.stopPropagation()}
       >
         {actions.map(({ id, label, icon: Icon }) => (
-          <button
+          <GlassSurface
+            as="button"
+            variant="composer"
             type="button"
             key={id}
             onClick={() => onSelect(id)}
-            className="pointer-events-auto flex min-h-12 items-center gap-2 rounded-full border border-[var(--sf-border)] bg-[var(--sf-surface)] px-4 py-2.5 text-sm font-bold text-[var(--sf-text-primary)] shadow-lg transition-transform active:scale-95"
+            className="sf-quick-action pointer-events-auto flex min-h-12 items-center gap-2 px-4 py-2.5 text-sm font-extrabold text-[var(--sf-text-primary)] transition-transform active:scale-95"
           >
             <Icon size={18} />
             <span>{label}</span>
-          </button>
+          </GlassSurface>
         ))}
       </section>
     </div>,

@@ -1,7 +1,7 @@
 # SparkFlow — 下一步执行队列
 
 > **最后更新**：2026-09-22  
-> **仓库代码基线**：`master@b40854c76cfac6801f866ef9bbd63110e780aaac`
+> **仓库代码基线**：`master@990edabb9a2b3d26f523f17850ed9080a7507ff8`
 > **M1/M2 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)，CI 全绿，均已 squash 合并
 > **最近已确认生产版本**：`9f72d16b`（生产仍落后于当前 master；后续部署必须重新核对 buildSha）  
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
@@ -64,7 +64,31 @@
 
 ---
 
-## 2. 新主线：Execution Intelligence & UI System
+## 2. 新主线：V11 真实业务 UI 落地
+
+完整规格：
+
+[v11-production-ui-real-code-implementation.md](v11-production-ui-real-code-implementation.md)
+
+当前实施顺序：
+
+- [x] R1 代码：Graphite Aurora tokens、Hyalite 本地依赖与 fallback、GlassProvider、悬浮五栏导航、去除全局顶栏、QuickAdd、density / reduceMotion；
+- [x] R1 本地验证：Web 76 tests、生产构建、新增文件定向 ESLint；
+- [ ] R1 远端 CI、360px / PWA / Android WebView 与 Hyalite supported/fallback 视觉验收；
+- [ ] R2 Today + Plan + Task + Actual；
+- [ ] R3 Planner + Focus + Records + Study/Course + Profile；
+- [ ] R4 Time Analytics；
+- [ ] R5 Scene Core；
+- [ ] R6 Scene AI + Time Record Settings；
+- [ ] R7 Goal Progress；
+- [ ] R8 AI Execution Feedback；
+- [ ] R9 Android Usage。
+
+R1 实现分支：`feat/ui-v11-foundation-shell`。代码存在、合并、部署和真机验收继续分别记录。
+
+---
+
+## 3. Execution Intelligence & UI System
 
 完整方案：
 
@@ -162,7 +186,7 @@ M1 当前收口顺序：
 
 ---
 
-## 3. 文档状态处理
+## 4. 文档状态处理
 
 ### 3.1 已归档 / 不再单独推进
 
@@ -190,16 +214,16 @@ M1 当前收口顺序：
 
 ---
 
-## 4. 当前执行顺序
+## 5. 当前执行顺序
 
 ```text
-A. 生产/真机关键路径收口
+A. V11 R1 合并与移动端视觉验收
         ↓
-B. M1 部署与移动验收
+B. 生产/真机关键路径收口
         ↓
-C. M2 Timeline 2.0
+C. V11 R2 / R3 现有业务视觉收敛
         ↓
-D. M3 Time Analytics
+D. V11 R4 / Execution Intelligence M3 Time Analytics
         ↓
 E. M4 Goal Progress
         ↓
@@ -212,7 +236,7 @@ G. M6 Android Usage Tracking
 
 ---
 
-## 5. 文档维护规则
+## 6. 文档维护规则
 
 1. 近期优先级只更新 `NEXT.md`。
 2. 新产品范围更新对应方案文档，不把 NEXT 写成超长设计稿。

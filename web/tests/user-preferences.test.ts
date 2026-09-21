@@ -8,6 +8,8 @@ import {
 
 test('legacy preference fallback keeps appearance on system', () => {
   assert.equal(DEFAULT_USER_PREFERENCES.appearance, 'system');
+  assert.equal(DEFAULT_USER_PREFERENCES.density, 'comfortable');
+  assert.equal(DEFAULT_USER_PREFERENCES.reduceMotion, false);
   assert.equal(readUserPreferences().appearance, 'system');
 });
 

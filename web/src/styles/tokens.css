@@ -1,23 +1,73 @@
 :root {
   color-scheme: light;
-  --sf-bg: #f4f4f6;
+
+  /* Graphite Aurora — V11 production palette. */
+  --sf-bg: #f2f3f2;
   --sf-surface: #ffffff;
   --sf-surface-elevated: #ffffff;
-  --sf-text-primary: #242424;
-  --sf-text-secondary: #626267;
-  --sf-text-tertiary: #96969d;
-  --sf-border: rgba(36, 36, 36, 0.08);
-  --sf-divider: rgba(36, 36, 36, 0.06);
-  --sf-accent: #242424;
-  --sf-marker-purple: #b0a8db;
-  --sf-marker-pink: #eeb6c8;
-  --sf-marker-yellow: #ead887;
-  --sf-marker-green: #cae393;
-  --sf-marker-blue: #a9c9ec;
+  --sf-text-primary: #202322;
+  --sf-text-secondary: #7d827f;
+  --sf-text-tertiary: #a4a8a5;
+  --sf-border: #e5e8e5;
+  --sf-divider: rgba(32, 35, 34, 0.065);
+  --sf-graphite: #222625;
+  --sf-graphite-soft: #2b302e;
+  --sf-green: #d9f2a6;
+  --sf-green-strong: #c9e992;
+  --sf-purple: #b9b0e7;
+  --sf-purple-soft: #e8e4f6;
+  --sf-blue: #b8d4ee;
+  --sf-pink: #e8b8cb;
+  --sf-amber: #eed695;
+
+  /* Compatibility aliases while legacy screens move to semantic V11 names. */
+  --sf-accent: var(--sf-graphite);
+  --sf-marker-purple: var(--sf-purple);
+  --sf-marker-pink: var(--sf-pink);
+  --sf-marker-yellow: var(--sf-amber);
+  --sf-marker-green: var(--sf-green);
+  --sf-marker-blue: var(--sf-blue);
   --sf-marker-cyan: #a9dedc;
-  --sf-radius-sm: 16px;
-  --sf-radius-md: 20px;
+
+  --sf-radius-control: 14px;
+  --sf-radius-sm: 18px;
+  --sf-radius-md: 22px;
   --sf-radius-lg: 28px;
+  --sf-radius-sheet: 32px;
   --sf-radius-pill: 999px;
+
+  --sf-page-gutter: 20px;
+  --sf-section-gap: 20px;
+  --sf-card-padding: 16px;
+  --sf-row-min-height: 52px;
+  --sf-motion-fast: 160ms;
+  --sf-motion-base: 280ms;
 }
 
+[data-sf-density='compact'] {
+  --sf-section-gap: 14px;
+  --sf-card-padding: 13px;
+  --sf-row-min-height: 46px;
+}
+
+[data-sf-theme='dark'] {
+  color-scheme: dark;
+  --sf-bg: #151817;
+  --sf-surface: #202422;
+  --sf-surface-elevated: #292e2b;
+  --sf-text-primary: #f0f3f1;
+  --sf-text-secondary: #b0b7b2;
+  --sf-text-tertiary: #858d88;
+  --sf-border: #343a36;
+  --sf-divider: rgba(255, 255, 255, 0.075);
+  --sf-graphite: #eef2ef;
+  --sf-graphite-soft: #dce3de;
+  --sf-green: #b6ce85;
+  --sf-green-strong: #c6df91;
+  --sf-purple: #9991c4;
+  --sf-purple-soft: #39354a;
+  --sf-blue: #89a6bd;
+  --sf-pink: #bd8da0;
+  --sf-amber: #b9a66e;
+  --sf-accent: var(--sf-graphite);
+}

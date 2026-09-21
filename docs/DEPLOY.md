@@ -153,6 +153,10 @@ sudo certbot renew --dry-run
 
 如果没有启用 `www.fish-life.cc.cd`，从 Nginx 配置和证书命令中同时移除该名称，避免证书签发因未解析的域名失败。
 
+### Hyalite 与 CSP
+
+V11 的液态玻璃脚本固定在站点本地 `/vendor/hyalite/hyalite.js`，生产环境不依赖运行时 CDN。Hyalite 会为位移贴图生成 `data:` URL；如果以后为前端启用严格 Content Security Policy，`img-src` 必须保留 `data:`，否则 Chromium 中会退化为普通模糊表面。Safari、Firefox 和不支持 SVG backdrop filter 的 WebView 本来就使用 CSS fallback。
+
 ## 6. 部署后强制验证
 
 先确认本地容器与公网 API 都健康，并读取实际部署 commit：

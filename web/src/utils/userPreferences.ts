@@ -1,9 +1,12 @@
 export type AppearancePreference = 'system' | 'light' | 'dark';
+export type DensityPreference = 'comfortable' | 'compact';
 
 export interface UserPreferences {
   quadrantEnabled: boolean;
   defaultReminderMinutes: number;
   appearance: AppearancePreference;
+  density: DensityPreference;
+  reduceMotion: boolean;
 }
 
 const STORAGE_KEY = 'sparkflow.userPreferences';
@@ -12,6 +15,8 @@ export const DEFAULT_USER_PREFERENCES: UserPreferences = {
   quadrantEnabled: true,
   defaultReminderMinutes: 30,
   appearance: 'system',
+  density: 'comfortable',
+  reduceMotion: false,
 };
 
 export function readUserPreferences(): UserPreferences {
@@ -31,6 +36,8 @@ export function readUserPreferences(): UserPreferences {
         parsed.appearance === 'light' || parsed.appearance === 'dark'
           ? parsed.appearance
           : 'system',
+      density: parsed.density === 'compact' ? 'compact' : 'comfortable',
+      reduceMotion: parsed.reduceMotion === true,
     };
   } catch {
     return DEFAULT_USER_PREFERENCES;
@@ -66,4 +73,15 @@ export function applyAppearancePreference(
   document.documentElement.dataset.sfTheme = resolved;
   document.documentElement.style.colorScheme = resolved;
   return resolved;
+}
+
+export function applyVisualPreferences(
+  preferences: UserPreferences = readUserPreferences(),
+) {
+  const appearance = applyAppearancePreference(preferences.appearance);
+  if (typeof document !== 'undefined') {
+    document.documentElement.dataset.sfDensity = preferences.density;
+    document.documentElement.dataset.sfReduceMotion = String(preferences.reduceMotion);
+  }
+  return { appearance, density: preferences.density, reduceMotion: preferences.reduceMotion };
 }

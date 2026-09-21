@@ -76,10 +76,6 @@ export default function App() {
   const loadPomodoroStats = useAppStore((s) => s.loadPomodoroStats);
   const loadActivePomodoro = useAppStore((s) => s.loadActivePomodoro);
   const tick = useAppStore((s) => s.tick);
-  const pushEnabled = useAppStore((s) => s.pushEnabled);
-  const pushSupported = useAppStore((s) => s.pushSupported);
-  const subscribeToPush = useAppStore((s) => s.subscribeToPush);
-  const unsubscribeFromPush = useAppStore((s) => s.unsubscribeFromPush);
   const checkPushStatus = useAppStore((s) => s.checkPushStatus);
   const checkGoogleStatus = useAppStore((s) => s.checkStatus);
 
@@ -337,9 +333,6 @@ export default function App() {
         setPlannerAutoVoice(true);
         setPlannerOpen(true);
       }}
-      pushEnabled={pushEnabled}
-      pushSupported={pushSupported}
-      onTogglePush={() => pushEnabled ? unsubscribeFromPush() : subscribeToPush()}
     >
       {/* CSS custom properties injection */}
       <style>{`
@@ -358,7 +351,6 @@ export default function App() {
         .task-block.dragging { box-shadow: 0 12px 40px rgba(0,0,0,0.18); z-index: 50 !important; }
         .task-block:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: box-shadow 0.2s; }
         .task-block { transition: box-shadow 0.2s, transform 0.1s; }
-        .app-safe-top { padding-top: calc(env(safe-area-inset-top, 0px) + 28px); }
       `}</style>
 
           {appMessage && (

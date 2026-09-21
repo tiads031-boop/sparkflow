@@ -26,7 +26,7 @@ export function PageHeader({ title, eyebrow, subtitle, onBack, action }: {
 }
 
 export function SectionCard({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-[1.65rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 shadow-sm ${className}`}>{children}</section>;
+  return <section className={`rounded-[1.65rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] shadow-sm ${className}`} style={{ padding: 'var(--sf-card-padding)' }}>{children}</section>;
 }
 
 export function SegmentControl<T extends string>({ value, options, onChange, ariaLabel }: {
@@ -62,9 +62,9 @@ export function InfoRow({ icon, label, value, onClick, children }: {
     </>
   );
   return onClick ? (
-    <button type="button" onClick={onClick} className="flex w-full items-center gap-2 border-b border-[var(--sf-divider)] px-1 py-3 text-left last:border-0">{content}</button>
+    <button type="button" onClick={onClick} className="flex w-full items-center gap-2 border-b border-[var(--sf-divider)] px-1 py-3 text-left last:border-0" style={{ minHeight: 'var(--sf-row-min-height)' }}>{content}</button>
   ) : (
-    <div className="flex w-full items-center gap-2 border-b border-[var(--sf-divider)] px-1 py-3 last:border-0">{content}</div>
+    <div className="flex w-full items-center gap-2 border-b border-[var(--sf-divider)] px-1 py-3 last:border-0" style={{ minHeight: 'var(--sf-row-min-height)' }}>{content}</div>
   );
 }
 
