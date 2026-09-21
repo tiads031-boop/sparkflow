@@ -2,8 +2,9 @@
 
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
-> **最后更新**：2026-09-21
-> **代码同步基线**：`master@9f6b1fe7`（生产运行版本 `9f72d16b`）
+> **最后更新**：2026-09-22
+> **GitHub 当前代码**：`master@56a555490a09a1290a1b09c2139dc796a09651fb`
+> **生产最后已验证版本**：`9f72d16b`（GitHub 最新代码不自动等于已部署）
 
 ---
 
@@ -30,6 +31,14 @@ Phase 15 继续补齐：
 ```
 
 这些链路继续共享 Task、Course、Calendar、Planner、Focus 等现有事实源；Study 不再把 Course 当作组成部分，也不建立第二套 Task/Calendar。
+
+下一阶段产品主线由 [VNext 时间账本、智能分类与统一 UI 系统](docs/plans/vnext-time-ledger-tagging-ui-system.md) 承接：
+
+```text
+计划 → AI 分类 → Planned Time → Actual Time → Timeline / 分析 / 进度 → AI 增量调整
+```
+
+其中 Folder 表示长期目标容器，Project 表示目标内阶段，Tag 表示横向分类与统计；Agenda 继续表达计划，Actual Timeline 表达真实执行。
 
 ---
 
@@ -63,6 +72,9 @@ Phase 15 继续补齐：
 | 24 | 课程周期与单次变动 | 单次调课/换课/停课/补课使用 CalendarEvent occurrence override；“以后都改”使用 Course template Preview/Apply/Undo | 保留历史课次与单次例外，避免一次调整污染整学期模板 |
 | 25 | 通知偏好 | 任务/课程提醒、默认提前量、安静时段、时区保存在既有 `User.settings.notification`；NotificationDelivery 继续去重 | PWA/Android 共用账户偏好，同时避免再建第二套通知设置表 |
 | 26 | 外观 | “跟随系统 / 浅色 / 深色”使用现有前端 UserPreferences + CSS Token / `data-sf-theme` | 外观是设备 UI 偏好，不修改业务事实，也不引入无后端能力的假 AI 设置 |
+| 27 | Folder / Project / Tag | StudyFolder = 长期目标容器；Task.project = 阶段 / 里程碑；Tag = 横向分类 / 搜索 / 时间统计 | 防止 AI 为孤立事项滥建文件夹，并让分类直接服务 Timeline / Analytics |
+| 28 | Planned / Actual 时间语义 | Planned 继续来自 Task 排程 / Course / CalendarEvent；Actual 来自 Focus、手工补记与未来 AppUsageSession | 不把截止时间、计划日程与真实执行混成同一种 CalendarEvent |
+| 29 | VNext UI 系统 | Graphite Aurora：统一 PageHeader / InfoRow / SegmentControl / TagChip / BottomActionBar 等；3D 只保留在少数卡片切换场景 | 保留产品记忆点，同时解决页面风格割裂和高频表单可读性问题 |
 
 ---
 
@@ -79,7 +91,7 @@ Phase 15 继续补齐：
 | PR #23 Study Mode 早期提案 | ❌ 已关闭 | PR #25 / `docs/study-mode/` |
 | Android 仅靠临时 Actions artifact | ❌ 已替代 | commit-stamped APK + GitHub prerelease |
 
-历史审计与旧方案保留在 `docs/archive/` 与冻结 Phase 文档中。
+历史审计与已被后续实现覆盖的方案统一保留在 `docs/archive/`。2026-09-22 已将 Phase 09、Phase 10、旧 P0 Phase 12、课程表增强、甘特/四象限设计以及已实施的 VNext IA M1–M3 方案迁出活跃 `docs/plans/`。
 
 ---
 

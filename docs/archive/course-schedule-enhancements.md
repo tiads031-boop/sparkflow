@@ -1,3 +1,5 @@
+> **归档说明（2026-09-22）**：本文已从活跃方案目录迁出，仅保留历史决策与实现背景。当前执行顺序以 [NEXT](../plans/NEXT.md) 与 [VNext 时间账本、智能分类与统一 UI 系统](../plans/vnext-time-ledger-tagging-ui-system.md) 为准。不要从本文恢复旧优先级。
+
 # 课程表功能完善
 
 > **状态**：⚠️ 历史实现记录，2026-09-15 起不再单独推进。下文“已实现/未接入”反映记录形成时的边界；当前任务以 [NEXT.md](NEXT.md)、[Phase 12](phase12-course-import-experience.md) 和 [Phase 14](phase14-rhythm-experience.md) 为准。

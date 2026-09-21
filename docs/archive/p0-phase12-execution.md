@@ -1,3 +1,5 @@
+> **归档说明（2026-09-22）**：本文已从活跃方案目录迁出，仅保留历史决策与实现背景。当前执行顺序以 [NEXT](../plans/NEXT.md) 与 [VNext 时间账本、智能分类与统一 UI 系统](../plans/vnext-time-ledger-tagging-ui-system.md) 为准。不要从本文恢复旧优先级。
+
 # SparkFlow P0 + Phase 12 旧执行清单
 
 > **原更新日期**：2026-09-13 | **状态**：⚠️ 冻结、已被替代

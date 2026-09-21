@@ -1,3 +1,5 @@
+> **归档说明（2026-09-22）**：本文已从活跃方案目录迁出，仅保留历史决策与实现背景。当前执行顺序以 [NEXT](../plans/NEXT.md) 与 [VNext 时间账本、智能分类与统一 UI 系统](../plans/vnext-time-ledger-tagging-ui-system.md) 为准。不要从本文恢复旧优先级。
+
 # SparkFlow VNext 信息架构与「计划」工作区重构方案
 
 > 状态：方案完成，待排期实施  
