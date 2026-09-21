@@ -1,16 +1,13 @@
-import { useEffect, useRef } from 'react';
 import { LockKeyhole, Sparkles } from 'lucide-react';
 import type { PlanItem } from './planProjection';
 import { itemsForLocalDay, localDateKey } from './planProjection';
 import { layoutTimetableIntervals } from './timetableLayout';
 
-const START_HOUR = 8;
-const END_HOUR = 21;
-const HOUR_HEIGHT = 52;
+const START_HOUR = 0;
+const END_HOUR = 24;
+const HOUR_HEIGHT = 36;
 const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
-const TIME_COLUMN_WIDTH = 42;
-const DAY_COLUMN_WIDTH = 60;
-const WEEK_CANVAS_WIDTH = TIME_COLUMN_WIDTH + DAY_COLUMN_WIDTH * 7;
+const TIME_COLUMN_WIDTH = 36;
 
 function minutesOfDay(date: Date) {
   return date.getHours() * 60 + date.getMinutes();
@@ -39,24 +36,10 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
     return day;
   });
   const now = new Date();
-  const selectedKey = localDateKey(date);
-  const scrollerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
-    const selectedIndex = days.findIndex((day) => localDateKey(day) === selectedKey);
-    if (selectedIndex < 0) return;
-    const dayWidth = (scroller.scrollWidth - TIME_COLUMN_WIDTH) / 7;
-    const targetCenter = TIME_COLUMN_WIDTH + (selectedIndex + 0.5) * dayWidth;
-    const maxLeft = scroller.scrollWidth - scroller.clientWidth;
-    scroller.scrollTo({ left: Math.max(0, Math.min(maxLeft, targetCenter - scroller.clientWidth / 2)) });
-  }, [selectedKey]);
 
   return (
     <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
-      <div ref={scrollerRef} className="overflow-x-auto overscroll-x-contain">
-        <div className="w-full" style={{ minWidth: WEEK_CANVAS_WIDTH }}>
+      <div className="w-full">
           <div
             className="grid border-b border-black/5 px-1 py-2"
             style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(0, 1fr))` }}
@@ -72,17 +55,17 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
             ))}
           </div>
 
-          <div className="max-h-[62svh] overflow-y-auto">
+          <div className="max-h-[66svh] overflow-y-auto">
             <div
               className="grid px-1"
               style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(0, 1fr))` }}
             >
               <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" style={{ height: TOTAL_HEIGHT }}>
-                {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, index) => (
+                {Array.from({ length: END_HOUR - START_HOUR }, (_, index) => (
                   <span
                     key={index}
                     className="absolute right-1 text-[8px] font-semibold text-[var(--sf-text-tertiary)]"
-                    style={{ top: index * HOUR_HEIGHT - 5 }}
+                    style={{ top: index * HOUR_HEIGHT + 2 }}
                   >
                     {String(START_HOUR + index).padStart(2, '0')}:00
                   </span>
@@ -106,13 +89,22 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
 
                 return (
                   <div key={day.toISOString()} className="relative border-l border-black/[0.05]" style={{ height: TOTAL_HEIGHT }}>
-                    {Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, index) => (
+                    {Array.from({ length: (END_HOUR - START_HOUR) * 2 + 1 }, (_, index) => (
                       <span
                         key={index}
-                        className="absolute left-0 right-0 border-t border-black/[0.045]"
-                        style={{ top: index * HOUR_HEIGHT }}
+                        className={`absolute left-0 right-0 border-t ${index % 2 === 0 ? 'border-black/[0.07]' : 'border-dashed border-black/[0.035]'}`}
+                        style={{ top: index * HOUR_HEIGHT / 2 }}
                       />
                     ))}
+
+                    {localDateKey(day) === localDateKey(now) && (
+                      <span
+                        className="absolute left-0 right-0 z-20 border-t border-[#8aad42]"
+                        style={{ top: ((minutesOfDay(now) - START_HOUR * 60) / 60) * HOUR_HEIGHT }}
+                      >
+                        <span className="absolute -left-1 -top-1 h-2 w-2 rounded-full bg-[#8aad42]" />
+                      </span>
+                    )}
 
                     {itemLayouts.map(({ item, first: visibleStart, last, lane, laneCount }) => {
                       const visibleEnd = last + 1;
@@ -162,7 +154,6 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
               })}
             </div>
           </div>
-        </div>
       </div>
     </section>
   );
