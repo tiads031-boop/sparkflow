@@ -115,13 +115,12 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-function browserTimeZone() {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
-}
+const TIME_ZONE_OPTIONS = [
+  { value: 'Asia/Shanghai', label: '中国标准时间（Asia/Shanghai）' },
+  { value: 'Asia/Tokyo', label: '日本标准时间（Asia/Tokyo）' },
+  { value: 'America/Los_Angeles', label: '美国太平洋时间（America/Los_Angeles）' },
+  { value: 'UTC', label: '协调世界时（UTC）' },
+] as const;
 
 function PageHeader({
   title,
@@ -320,19 +319,10 @@ export default function SettingsView() {
       getNotificationPreferences(),
     ])
       .then(async ([, serverPreferences]) => {
-        let resolved = serverPreferences;
-        const timeZone = browserTimeZone();
-        if (serverPreferences.timeZone !== timeZone) {
-          try {
-            resolved = await updateNotificationPreferences({ timeZone });
-          } catch {
-            // Timezone sync is best-effort; existing server preferences remain usable.
-          }
-        }
         if (!active) return;
-        setNotificationPreferences(resolved);
+        setNotificationPreferences(serverPreferences);
         const nextLocal = updateUserPreferences({
-          defaultReminderMinutes: resolved.defaultReminderMinutes,
+          defaultReminderMinutes: serverPreferences.defaultReminderMinutes,
         });
         setPreferences(nextLocal);
       })
@@ -880,6 +870,28 @@ export default function SettingsView() {
                 安静时段
               </h2>
               <InlineCard>
+                <label className="block border-b border-black/[0.05] pb-4">
+                  <span className="text-sm font-bold text-[#242424]">账户时区</span>
+                  <span className="mt-0.5 block text-[10px] leading-4 text-gray-400">
+                    用于“今天/明天”、课程冲突、回顾日期和账户提醒；不会随当前浏览器自动改变。
+                  </span>
+                  <select
+                    aria-label="账户时区"
+                    value={serverPreferences.timeZone}
+                    disabled={notificationSaving}
+                    onChange={(event) =>
+                      void saveNotificationPreference({ timeZone: event.target.value })}
+                    className="mt-2 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm font-medium outline-none disabled:opacity-50"
+                  >
+                    {!TIME_ZONE_OPTIONS.some((option) => option.value === serverPreferences.timeZone) && (
+                      <option value={serverPreferences.timeZone}>{serverPreferences.timeZone}</option>
+                    )}
+                    {TIME_ZONE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-[#242424]">启用安静时段</p>
