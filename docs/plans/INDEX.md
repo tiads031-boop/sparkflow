@@ -8,7 +8,7 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4–M8 与 Focus C1/C2 已进入主线，腾讯云 API/Web 已对齐 `master@9f72d16b`；生产 31 个 migrations 已直接核验；当前只保留 PWA/Android 真机验收与真实账号闭环 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4–M8 与 Focus C1/C2 已进入主线，腾讯云 API/Web 已对齐 `master@9f72d16b`；生产 31 个 migrations 已直接核验；Web 真实账号核心闭环已通过；当前只保留剩余 PWA/Android 真机与教务/多模态路径验收 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
@@ -16,14 +16,14 @@
 
 | 文件 | Phase | 状态 | 启动条件 |
 |---|---|---|---|
-| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3、Focus C1/C2 已实现，生产收尾 | PR #38/#39/#40/#105/#106 已合并，API/Web 已发布最新 master；生产 31 个 migrations（含 C1）已直接核验；当前需完成 Focus/多模态真实账号验收与 Android/PWA 回归 |
+| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3、Focus C1/C2 已实现，生产收尾 | PR #38/#39/#40/#105/#106 已合并，API/Web 已发布最新 master；生产 31 个 migrations（含 C1）已直接核验；Web 已完成 Focus 文字多记录真实账号验收；当前需完成多模态、Android/PWA 回归 |
 
 ## 候选方案（已完成设计、未排期实施）
 
 | 文件 | 范围 | 状态 | 说明 |
 |---|---|---|---|
 | [vnext-information-architecture-plan-workspace.md](vnext-information-architecture-plan-workspace.md) | VNext 信息架构、五工作空间、Plan 四视图、课程/任务/Planner 统一投影 | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合并；Web Production `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，五项导航/M3 bundle 已静态核验；Android M3 Release `android-7145ba0ea3d2` 已生成 |
-| [vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md) | VNext M4–M8：AI 调度中枢、目标学习、课程变动、多模态记录、通知/设置/任务表单重整 | ✅ 代码/CI 完成，🚧 验收 | PR #80 完成显式音频转写/摘要；#81 完成显式图片/视频 AI 理解。当前只剩生产同步与 PWA/Android 真机验收 |
+| [vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md) | VNext M4–M8：AI 调度中枢、目标学习、课程变动、多模态记录、通知/设置/任务表单重整 | ✅ 代码/CI 完成，🚧 验收 | PR #80 完成显式音频转写/摘要；#81 完成显式图片/视频 AI 理解。生产同步与 Web 核心真实账号验收已完成；当前只剩 PWA/Android 真机和多模态余项 |
 | [../study-mode/README.md](../study-mode/README.md) | 旧 Study Mode 方案 | ⚠️ 历史参考 | M1 已实现，但“Study 关联 Course”的产品方向已被 VNext M6 替代；后续学习以独立 AI 目标规划为准 |
 | [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 / Local Codex Bridge | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后再启动；不进入云端 API/数据库控制链 |
 
@@ -51,7 +51,7 @@
 | PR #48 VNext Plan M1 | ✅ 已合并 | 固定五项主导航、PlanWorkspace、四视图壳层、旧入口兼容与视图记忆 |
 | PR #49 VNext Plan M2 | ✅ 已合并 | Task/Course/CalendarEvent/Study Task 统一投影，真实 Month/Week/Agenda/Timetable |
 | PR #50 VNext Plan M3 | ✅ 已合并 | Planner Preview 临时时间块、Apply 转真实排程、Undo 恢复；CI 全绿 |
-| VNext Web Production | ✅ 腾讯云自托管已发布 / 🚧 待业务验收 | 2026-09-21 公网 API health 返回 `9f72d16b`；Nginx 首页 HTTPS 200，主 bundle 与本地同 SHA 构建哈希一致并包含 Focus C2 文案；真实账号/PWA/Android 验收未完成 |
+| VNext Web Production | ✅ 腾讯云自托管已发布 / 🚧 剩余路径验收 | 2026-09-21 公网 API health 返回 `9f72d16b`；Nginx 首页 HTTPS 200；Web 真实账号已通过登录/Session、AI Planner Preview→Apply→Undo、Focus 暂停/恢复/提前完成与连续两条记录；PWA/Android/多模态余项未完成 |
 | Android Focus C2 | ✅ APK 已生成 / 🚧 待真机 | Release `android-e5978ecbbc24`；asset `sparkflow-e5978ecbbc24-debug.apk`；对应功能提交 `e5978ecbbc24`；SHA-256 `6db099865fdb8ee3febc6febf65c1f9b8b7a65c3db3bc0d2532e4fa7efe67d70` |
 | PR #27 legacy Phase 12 tests | ✅ 已关闭 | 被 #28/#29/#30/#36 更完整的安全与真实 PostgreSQL 验证覆盖 |
 | PR #66/#68/#69 VNext M6 | ✅ 已合并 | Study 独立 AI 学习目标、阶段/里程碑共享 Task 投影、执行反馈与显式目标变化 |
@@ -91,7 +91,7 @@
 - ~~腾讯云运行镜像 buildSha / production migration 状态~~：已确认 `master@7405d3b7`、19 migrations up to date。
 - Web 真实学校导入、重复提交与未知网络结果恢复。
 - Android 最新 Release 的真机登录、Session、SchoolImport/文件导入与窄屏交互。
-- Planner 生产 Preview → Apply → Undo。
+- ~~Planner 生产 Preview → Apply → Undo~~：2026-09-21 已用可删除 QA 任务完成真实账号验收并成功 Undo。
 - HTTP 层“客户端超时/断连但服务端已经提交”的端到端恢复验证。
 
 ## 平台 / 发布状态
