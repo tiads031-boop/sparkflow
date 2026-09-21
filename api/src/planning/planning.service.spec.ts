@@ -52,6 +52,71 @@ describe('goal execution snapshot', () => {
 });
 
 describe('PlanningService goal scope', () => {
+  it('creates or reuses one AI folder and preserves exact scheduled task times', async () => {
+    const taskCreateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const folderCreate = jest.fn().mockResolvedValue({ id: 'folder-listening' });
+    const folderTaskCreateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const tx = {
+      studyFolder: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: folderCreate,
+      },
+      task: {
+        createMany: taskCreateMany,
+        findFirst: jest.fn().mockResolvedValue({ id: 'proposal-listening-1' }),
+      },
+      studyFolderTask: { createMany: folderTaskCreateMany },
+      aIConversation: { update: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      aIConversation: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'conversation-listening',
+          context: {
+            actions: [{
+              proposalId: 'proposal-listening-1',
+              type: 'create_task',
+              title: 'Day 1：六级听力长对话',
+              estimatedMinutes: 60,
+              scheduledStart: '2026-09-22T06:00:00.000Z',
+              scheduledEnd: '2026-09-22T07:00:00.000Z',
+              folderName: '六级听力训练',
+              milestoneTitle: '长对话',
+            }],
+            appliedActionIds: [],
+          },
+          planningThread: { scopeType: 'general', scopeId: null },
+        }),
+      },
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+    const service = new PlanningService(prisma as never, {} as never, {} as never);
+
+    const result = await service.applyActions('user-1', 'thread-1', {
+      conversationId: 'conversation-listening',
+      proposalIds: ['proposal-listening-1'],
+    });
+
+    expect(folderCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ userId: 'user-1', name: '六级听力训练' }),
+      select: { id: true },
+    });
+    expect(taskCreateMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({
+        section: 'study',
+        project: '长对话',
+        scheduledStart: new Date('2026-09-22T06:00:00.000Z'),
+        scheduledEnd: new Date('2026-09-22T07:00:00.000Z'),
+      })],
+      skipDuplicates: true,
+    });
+    expect(folderTaskCreateMany).toHaveBeenCalledWith({
+      data: [{ folderId: 'folder-listening', taskId: 'proposal-listening-1' }],
+      skipDuplicates: true,
+    });
+    expect(result.createdFolderIds).toEqual(['folder-listening']);
+  });
+
   it('applies all 30 selected task proposals in one transaction', async () => {
     const actions = Array.from({ length: 30 }, (_, index) => ({
       proposalId: `proposal-${index + 1}`,
@@ -233,6 +298,8 @@ describe('PlanningService goal scope', () => {
               taskTitle: '完成民法第一轮',
               changes: {
                 milestoneTitle: '强化训练',
+                scheduledStart: '2026-09-23T06:00:00.000Z',
+                scheduledEnd: '2026-09-23T07:00:00.000Z',
               },
             }],
             appliedActionIds: [],
@@ -263,7 +330,11 @@ describe('PlanningService goal scope', () => {
         userId: 'user-1',
         studyFolders: { some: { folderId: 'goal-1' } },
       },
-      data: { project: '强化训练' },
+      data: {
+        project: '强化训练',
+        scheduledStart: new Date('2026-09-23T06:00:00.000Z'),
+        scheduledEnd: new Date('2026-09-23T07:00:00.000Z'),
+      },
     });
     expect(conversationUpdate).toHaveBeenCalled();
   });
