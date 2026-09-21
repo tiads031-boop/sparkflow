@@ -143,6 +143,7 @@ describe('planning response parser', () => {
   it('recognizes explicit daily and numbered task counts', () => {
     expect(requestedCreateTaskCount('30天六级听力训练，每天一个具体练习')).toBe(30);
     expect(requestedCreateTaskCount('请创建 12 个任务')).toBe(12);
+    expect(requestedCreateTaskCount('重新整理现有30天任务，每天一个')).toBeNull();
     expect(requestedCreateTaskCount('帮我规划六级听力')).toBeNull();
   });
 
@@ -216,7 +217,10 @@ describe('planning response parser', () => {
           priority: 'medium',
           estimatedMinutes: 20,
           dueDate: '2026-09-20T10:00:00.000Z',
+          scheduledStart: '2026-09-20T09:00:00.000Z',
+          scheduledEnd: '2026-09-20T09:20:00.000Z',
           milestoneTitle: '基础建立',
+          folderName: '生活事项',
         },
         {
           type: 'update_task',
@@ -226,6 +230,9 @@ describe('planning response parser', () => {
             priority: 'high',
             estimatedMinutes: 90,
             milestoneTitle: '强化训练',
+            scheduledStart: '2026-09-21T06:00:00.000Z',
+            scheduledEnd: '2026-09-21T07:30:00.000Z',
+            folderName: '法考训练',
           },
         },
         {
@@ -252,17 +259,35 @@ describe('planning response parser', () => {
       title: '拿快递',
       estimatedMinutes: 20,
       milestoneTitle: '基础建立',
+      scheduledStart: '2026-09-20T09:00:00.000Z',
+      scheduledEnd: '2026-09-20T09:20:00.000Z',
+      folderName: '生活事项',
     }));
     expect(result.actions[1]).toEqual(expect.objectContaining({
       type: 'update_task',
       taskId: 'task-1',
-      changes: expect.objectContaining({ milestoneTitle: '强化训练' }),
+      changes: expect.objectContaining({
+        milestoneTitle: '强化训练',
+        scheduledStart: '2026-09-21T06:00:00.000Z',
+        scheduledEnd: '2026-09-21T07:30:00.000Z',
+        folderName: '法考训练',
+      }),
     }));
     expect(result.actions[2]).toEqual(expect.objectContaining({
       type: 'update_goal',
       goalTitle: '通过法考',
       changes: expect.objectContaining({ name: '2027 年通过法考' }),
     }));
+  });
+
+  it('drops a create-task draft with only half of a scheduled interval', () => {
+    const result = toPlanningTurn({
+      reply: '安排草案。', readiness: 'ready', summary: '', openQuestions: [], researchQueries: [],
+      actions: [{ type: 'create_task', title: '不完整安排', scheduledStart: '2026-09-22T06:00:00.000Z' }],
+      replanRequests: [],
+      context: { brief: [], constraints: [], preferences: [], strategy: [], assumptions: [] },
+    });
+    expect(result.actions).toEqual([]);
   });
 
   it('parses a reviewable one-off course change draft', () => {
