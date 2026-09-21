@@ -211,6 +211,14 @@ function readActionProposals(value: unknown): PlanningActionProposal[] {
     ) {
       return [candidate as unknown as PlanningActionProposal];
     }
+
+    if (
+      candidate.type === 'delete_course' &&
+      typeof candidate.courseId === 'string' &&
+      typeof candidate.courseName === 'string'
+    ) {
+      return [candidate as unknown as PlanningActionProposal];
+    }
     return [];
   });
 }
@@ -766,6 +774,18 @@ export class PlanningService {
         continue;
       }
 
+      if (action.type === 'delete_course') {
+        if (thread.scopeType === 'goal') continue;
+        const course = currentCourseById.get(action.courseId);
+        if (!course) continue;
+        actionProposals.push({
+          ...action,
+          courseName: course.name,
+          proposalId: randomUUID(),
+        });
+        continue;
+      }
+
       if (action.type === 'course_change') {
         if (thread.scopeType === 'goal') continue;
 
@@ -817,10 +837,18 @@ export class PlanningService {
     }));
 
     const requestedCourseActions = result.actions.filter(
-      (action) => action.type === 'course_change' || action.type === 'course_template_change',
+      (action) => (
+        action.type === 'course_change' ||
+        action.type === 'course_template_change' ||
+        action.type === 'delete_course'
+      ),
     ).length;
     const executableCourseActions = actionProposals.filter(
-      (action) => action.type === 'course_change' || action.type === 'course_template_change',
+      (action) => (
+        action.type === 'course_change' ||
+        action.type === 'course_template_change' ||
+        action.type === 'delete_course'
+      ),
     ).length;
     let assistantReply = result.reply;
     if (executableCourseActions > 0) {
@@ -955,6 +983,7 @@ export class PlanningService {
       const createdTaskIds: string[] = [];
       const updatedTaskIds: string[] = [];
       const updatedGoalIds: string[] = [];
+      const deletedCourseIds: string[] = [];
       const externalActionIds: string[] = [];
       const createdFolderIds: string[] = [];
       const folderByName = new Map<string, string>();
@@ -999,6 +1028,20 @@ export class PlanningService {
       }
 
       for (const action of selected) {
+        if (action.type === 'delete_course') {
+          await tx.calendarEvent.deleteMany({
+            where: { userId, courseId: action.courseId },
+          });
+          const deleted = await tx.course.deleteMany({
+            where: { id: action.courseId, userId },
+          });
+          if (deleted.count !== 1) {
+            throw new NotFoundException('Course to delete was not found');
+          }
+          deletedCourseIds.push(action.courseId);
+          continue;
+        }
+
         if (action.type === 'course_change' || action.type === 'course_template_change') {
           // Course data is written only through Course/Template Preview → Apply → Undo.
           // This endpoint only records that the already-applied external proposal
@@ -1138,6 +1181,7 @@ export class PlanningService {
         createdTaskIds,
         updatedTaskIds,
         updatedGoalIds: [...new Set(updatedGoalIds)],
+        deletedCourseIds,
         createdFolderIds,
         externalActionIds,
       };

@@ -26,6 +26,10 @@ test('maps a legacy course import response to an actionable version message', ()
 
 test('maps network failures without exposing implementation details', () => {
   assert.equal(
+    new ApiError(0).message,
+    '无法连接服务器，请检查网络或稍后重试',
+  );
+  assert.equal(
     courseImportErrorMessage(new TypeError('Failed to fetch'), 'preview'),
     '本地预览已生成，但无法连接课程导入服务，请检查网络后重试',
   );

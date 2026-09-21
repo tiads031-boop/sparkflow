@@ -203,6 +203,11 @@ export type PlanningActionDraft =
         room?: string | null;
         location?: string | null;
       };
+    }
+  | {
+      type: 'delete_course';
+      courseId: string;
+      courseName: string;
     };
 
 export type PlanningActionProposal = PlanningActionDraft & {

@@ -90,6 +90,7 @@ export interface Spark {
 // ════════════════════════════════════════════════════
 
 export interface PomodoroState {
+  focusMode: 'countdown' | 'countup';
   isRunning: boolean;
   isPaused: boolean;
   timeLeft: number;

@@ -14,6 +14,7 @@ import {
 } from './focusDuration';
 
 const DURATIONS = [25, 45, 60];
+type FocusMode = 'countdown' | 'countup';
 
 function formatTime(seconds: number) {
   const safe = Math.max(0, seconds);
@@ -86,13 +87,18 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
   const availableTasks = useMemo(() => tasks.filter((task) => !['Done', 'Cancelled'].includes(task.status)), [tasks]);
   const [taskId, setTaskId] = useState(pomodoro.activeTaskId ?? '');
   const [duration, setDuration] = useState(Math.round(pomodoro.duration / 60) || 25);
+  const [focusMode, setFocusMode] = useState<FocusMode>(pomodoro.focusMode || 'countdown');
   const [hasStarted, setHasStarted] = useState(pomodoro.isRunning);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [captureOpen, setCaptureOpen] = useState(false);
   const [savedRecordCount, setSavedRecordCount] = useState(0);
   const ended = hasStarted && !pomodoro.isRunning;
-  const progress = pomodoro.duration > 0 ? Math.max(0, Math.min(1, pomodoro.timeLeft / pomodoro.duration)) : 0;
+  const progress = pomodoro.focusMode === 'countup'
+    ? 1
+    : pomodoro.duration > 0
+      ? Math.max(0, Math.min(1, pomodoro.timeLeft / pomodoro.duration))
+      : 0;
   const task = tasks.find((candidate) => candidate.id === (pomodoro.activeTaskId || taskId));
 
   useEffect(() => {
@@ -103,7 +109,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
     setBusy(true);
     setMessage('');
     try {
-      await startPomodoro(taskId || undefined, duration);
+      await startPomodoro(taskId || undefined, duration, focusMode);
       setSavedRecordCount(0);
       setHasStarted(true);
     } catch (error) {
@@ -199,33 +205,63 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
               </select>
             </label>
             <div>
-              <p className="mb-2 text-sm font-bold">专注时长</p>
-              <DurationDial value={duration} onChange={setDuration} />
-              <div className="mt-4 flex items-center justify-center gap-2">
-                {DURATIONS.map((minutes) => (
+              <p className="mb-2 text-sm font-bold">计时方式</p>
+              <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-[var(--sf-bg)] p-1">
+                {([
+                  ['countdown', '倒计时'],
+                  ['countup', '正计时'],
+                ] as const).map(([mode, label]) => (
                   <button
                     type="button"
-                    key={minutes}
-                    onClick={() => setDuration(minutes)}
-                    className={`rounded-2xl px-4 py-2 text-xs font-bold ${duration === minutes ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'bg-[var(--sf-bg)]'}`}
+                    key={mode}
+                    aria-pressed={focusMode === mode}
+                    onClick={() => setFocusMode(mode)}
+                    className={`rounded-xl px-4 py-2.5 text-sm font-bold ${focusMode === mode ? 'bg-[var(--sf-surface)] shadow-sm' : 'text-[var(--sf-text-secondary)]'}`}
                   >
-                    {minutes} 分
+                    {label}
                   </button>
                 ))}
               </div>
-              <label className="mx-auto mt-3 flex w-fit items-center gap-2 text-xs text-[var(--sf-text-secondary)]">
-                精确输入
-                <input
-                  type="number"
-                  min={MIN_FOCUS_MINUTES}
-                  max={MAX_FOCUS_MINUTES}
-                  step={1}
-                  value={duration}
-                  onChange={(event) => setDuration(clampFocusDuration(Number(event.target.value)))}
-                  className="w-20 rounded-xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-2 text-center font-bold outline-none"
-                />
-                分钟
-              </label>
+              {focusMode === 'countdown' ? (
+                <>
+                  <p className="mb-2 text-center text-xs text-[var(--sf-text-secondary)]">
+                    选择固定时长或自定义倒计时
+                  </p>
+                  <DurationDial value={duration} onChange={setDuration} />
+                  <div className="mt-4 flex items-center justify-center gap-2">
+                    {DURATIONS.map((minutes) => (
+                      <button
+                        type="button"
+                        key={minutes}
+                        onClick={() => setDuration(minutes)}
+                        className={`rounded-2xl px-4 py-2 text-xs font-bold ${duration === minutes ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]' : 'bg-[var(--sf-bg)]'}`}
+                      >
+                        {minutes} 分
+                      </button>
+                    ))}
+                  </div>
+                  <label className="mx-auto mt-3 flex w-fit items-center gap-2 text-xs text-[var(--sf-text-secondary)]">
+                    精确输入
+                    <input
+                      type="number"
+                      min={MIN_FOCUS_MINUTES}
+                      max={MAX_FOCUS_MINUTES}
+                      step={1}
+                      value={duration}
+                      onChange={(event) => setDuration(clampFocusDuration(Number(event.target.value)))}
+                      className="w-20 rounded-xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-2 text-center font-bold outline-none"
+                    />
+                    分钟
+                  </label>
+                </>
+              ) : (
+                <div className="rounded-3xl bg-[var(--sf-bg)] px-5 py-8 text-center">
+                  <strong className="block text-4xl font-light tabular-nums">00:00</strong>
+                  <p className="mt-2 text-xs text-[var(--sf-text-secondary)]">
+                    从 0 开始记录，完成时手动停止
+                  </p>
+                </div>
+              )}
             </div>
             <button
               type="button"
@@ -331,7 +367,11 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
               </button>
             </div>
             <p className="text-xs text-[var(--sf-text-tertiary)]">
-              {pomodoro.isPaused ? '已暂停，准备好后继续' : '保持呼吸，把注意力留在当下'}
+              {pomodoro.isPaused
+                ? '已暂停，准备好后继续'
+                : pomodoro.focusMode === 'countup'
+                  ? '正在正计时，完成时点击勾号'
+                  : '保持呼吸，把注意力留在当下'}
             </p>
           </section>
         )}

@@ -51,7 +51,11 @@ export class PomodoroService {
     const session = await this.findOpen(userId);
     if (!session) return null;
     const presented = this.present(session);
-    if (session.status === 'active' && presented.remainingSeconds === 0) {
+    if (
+      session.status === 'active' &&
+      session.focusMode !== 'countup' &&
+      presented.remainingSeconds === 0
+    ) {
       return this.complete(session.id, userId, session.revision);
     }
     return presented;
@@ -103,6 +107,7 @@ export class PomodoroService {
     userId: string;
     taskId?: string;
     duration?: number;
+    focusMode?: 'countdown' | 'countup';
     notes?: string;
     clientRequestId?: string;
   }) {
@@ -116,11 +121,17 @@ export class PomodoroService {
     const existing = await this.findOpen(data.userId);
     if (existing) {
       const presented = this.present(existing);
-      if (existing.status !== 'active' || presented.remainingSeconds > 0) return presented;
+      if (
+        existing.status !== 'active' ||
+        existing.focusMode === 'countup' ||
+        presented.remainingSeconds > 0
+      )
+        return presented;
       await this.complete(existing.id, data.userId, existing.revision);
     }
 
     const now = new Date();
+    const focusMode = data.focusMode === 'countup' ? 'countup' : 'countdown';
     const duration = Math.min(
       180,
       Math.max(5, Math.round(data.duration ?? 25)),
@@ -131,7 +142,8 @@ export class PomodoroService {
           userId: data.userId,
           taskId: data.taskId || null,
           duration,
-          plannedDurationSeconds: duration * 60,
+          focusMode,
+          plannedDurationSeconds: focusMode === 'countup' ? 0 : duration * 60,
           lastResumedAt: now,
           notes: data.notes,
           clientRequestId: data.clientRequestId,
@@ -154,7 +166,11 @@ export class PomodoroService {
 
   async pause(id: string, userId: string, expectedRevision?: number) {
     const open = await this.findOpen(userId);
-    if (open?.id === id && this.present(open).remainingSeconds === 0) {
+    if (
+      open?.id === id &&
+      open.focusMode !== 'countup' &&
+      this.present(open).remainingSeconds === 0
+    ) {
       return this.complete(id, userId, expectedRevision);
     }
     return this.prisma.$transaction(async (tx) => {
@@ -208,7 +224,11 @@ export class PomodoroService {
 
   async resume(id: string, userId: string, expectedRevision?: number) {
     const open = await this.findOpen(userId);
-    if (open?.id === id && this.present(open).remainingSeconds === 0) {
+    if (
+      open?.id === id &&
+      open.focusMode !== 'countup' &&
+      this.present(open).remainingSeconds === 0
+    ) {
       return this.complete(id, userId, expectedRevision);
     }
     return this.prisma.$transaction(async (tx) => {

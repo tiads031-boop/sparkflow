@@ -126,6 +126,12 @@ export type PlanningActionProposal =
         room?: string | null;
         location?: string | null;
       };
+    }
+  | {
+      proposalId: string;
+      type: 'delete_course';
+      courseId: string;
+      courseName: string;
     };
 
 export interface PlanningConversationRow {
@@ -282,6 +288,7 @@ export function applyPlanningActions(
     createdTaskIds: string[];
     updatedTaskIds: string[];
     updatedGoalIds: string[];
+    deletedCourseIds: string[];
     createdFolderIds: string[];
     externalActionIds: string[];
   }>(

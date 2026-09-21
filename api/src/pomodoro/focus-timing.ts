@@ -7,6 +7,7 @@ export interface FocusSessionTimingLike {
   startedAt: Date;
   endedAt: Date | null;
   status: string;
+  focusMode?: string;
   plannedDurationSeconds: number;
   segments: FocusSegmentLike[];
 }
@@ -17,6 +18,7 @@ export function focusCompletionTime(
 ) {
   if (session.endedAt) return session.endedAt;
   if (session.status !== 'active') return now;
+  if (session.focusMode === 'countup') return now;
   const open = session.segments.find((segment) => !segment.endedAt);
   if (!open) return now;
   const closedSeconds = session.segments.reduce((total, segment) => {
@@ -54,7 +56,9 @@ export function calculateFocusTiming(
     );
   }, 0);
   const effectiveDurationSeconds = Math.round(
-    Math.min(session.plannedDurationSeconds, rawEffective),
+    session.focusMode === 'countup'
+      ? rawEffective
+      : Math.min(session.plannedDurationSeconds, rawEffective),
   );
   const elapsedDurationSeconds = Math.max(
     0,
@@ -67,9 +71,12 @@ export function calculateFocusTiming(
       0,
       elapsedDurationSeconds - effectiveDurationSeconds,
     ),
-    remainingSeconds: Math.max(
-      0,
-      session.plannedDurationSeconds - effectiveDurationSeconds,
-    ),
+    remainingSeconds:
+      session.focusMode === 'countup'
+        ? 0
+        : Math.max(
+            0,
+            session.plannedDurationSeconds - effectiveDurationSeconds,
+          ),
   };
 }
