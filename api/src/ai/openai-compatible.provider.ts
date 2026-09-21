@@ -91,11 +91,23 @@ function normalizedMinutes(value: unknown): number | null | undefined {
   return Math.max(5, Math.min(720, Math.round(value)));
 }
 
+const MAX_PLANNING_ACTIONS = 60;
+
+export function requestedCreateTaskCount(message: string): number | null {
+  const normalized = message.replace(/[，。！？、]/g, ' ');
+  const daily = normalized.match(/(\d{1,2})\s*天[^\n]{0,80}(?:每天|每日)\s*(?:一|1)\s*(?:个|项|条)?/);
+  if (daily) return Math.min(Number(daily[1]), MAX_PLANNING_ACTIONS);
+
+  const explicit = normalized.match(/(?:创建|生成|安排|新建)[^\n]{0,40}?(\d{1,2})\s*(?:个|项|条)\s*任务/);
+  if (explicit) return Math.min(Number(explicit[1]), MAX_PLANNING_ACTIONS);
+  return null;
+}
+
 function toPlanningActions(value: unknown): PlanningActionDraft[] {
   if (!Array.isArray(value)) return [];
   const actions: PlanningActionDraft[] = [];
 
-  for (const item of value.slice(0, 8)) {
+  for (const item of value.slice(0, MAX_PLANNING_ACTIONS)) {
     if (!item || typeof item !== 'object') continue;
     const candidate = item as Record<string, unknown>;
 
@@ -573,7 +585,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     const requestBody: Record<string, unknown> = {
       model: input.model || this.modelName,
       temperature: 0.2,
-      max_tokens: 6000,
+      max_tokens: 12000,
       messages: [
         {
           role: 'system',
@@ -597,6 +609,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             'When the user clearly asks to change an existing task, you may propose update_task, but taskId must be copied exactly from currentTasks.',
             'Do not create task actions from vague goals, brainstorms, or unresolved questions. Ask first when important task details are unclear.',
             'Task actions are only drafts for user confirmation. Never claim they are already applied.',
+            `A response may contain at most ${MAX_PLANNING_ACTIONS} actions. When the user explicitly requests N separate tasks within that limit, especially "N days, one task per day", emit exactly N create_task actions with distinct dates/titles; never summarize them into fewer actions while claiming N were created.`,
             'Course changes are allowed only as reviewable course_change drafts. They never mean the course has already changed.',
             'For course_change, copy every courseId/eventId exactly from currentCourses/currentCourseOccurrences. Never invent or infer database ids from names.',
             'Use course_change only for one-off occurrence changes: reschedule, cancel, swap, or extra.',
@@ -604,8 +617,11 @@ export class OpenAICompatibleProvider implements AIProvider {
             'For swap, both eventId and otherEventId must be exact occurrence ids and must be different.',
             'For extra, courseId must be copied exactly from currentCourses and the user must have made clear which course should get the extra occurrence.',
             'Use currentTime and timeZone to resolve relative course phrases such as 明天/本周五. If the target instant is materially unclear, ask before emitting course_change.',
-            'For public-holiday or make-up-workday requests, first request official web evidence when it is not already supplied. Treat national holiday notices and a school-specific teaching calendar as different facts.',
-            'Never apply a holiday adjustment merely because a date is a public holiday or make-up workday. Identify the affected course occurrences, explain the proposed mapping, and emit reviewable course_change drafts only after the user intent and any school-specific rule are clear.',
+            'holidayCalendar is the server-supplied China statutory holiday calendar derived from the annual State Council arrangement. isOffDay=true means a statutory/rest day; isOffDay=false means a designated make-up workday.',
+            'When holidayCalendar contains the relevant dates, use it instead of asking for another public-holiday search. Treat this national calendar and a school-specific teaching calendar as different facts.',
+            'If the user asks to rest on statutory holidays, identify exact currentCourseOccurrences on isOffDay=true dates and emit one-off cancel course_change drafts.',
+            'A national make-up workday does not reveal which weekday timetable a school follows. For isOffDay=false dates, ask for the school calendar or the explicit weekday mapping before proposing swaps, extras, or reschedules.',
+            'Never silently apply holiday adjustments. Explain the affected occurrences and emit reviewable course_change drafts; execution still requires the user confirmation handled by SparkFlow.',
             'A one-off holiday cancellation, moved class, or make-up class uses course_change. A permanent recurring timetable change uses course_template_change. Do not rewrite the whole course template for a single holiday.',
             'If the user explicitly says a recurring course rule should change permanently (for example 以后都改到周五 or 从下周开始都改), use course_template_change instead of course_change.',
             'course_template_change.courseId must be copied exactly from currentCourses. Never infer an id from the course name.',
@@ -649,6 +665,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             currentTasks: input.currentTasks || [],
             currentCourses: input.currentCourses || [],
             currentCourseOccurrences: input.currentCourseOccurrences || [],
+            holidayCalendar: input.holidayCalendar || [],
             planningScope: input.planningScope || null,
             goalExecution: input.goalExecution || null,
             currentTime: input.currentTime || new Date().toISOString(),
@@ -688,7 +705,13 @@ export class OpenAICompatibleProvider implements AIProvider {
         throw error;
       });
       try {
-        return toPlanningTurn(extractJsonObject(content));
+        const parsed = toPlanningTurn(extractJsonObject(content));
+        const requestedCount = requestedCreateTaskCount(input.message);
+        const createdCount = parsed.actions.filter((action) => action.type === 'create_task').length;
+        if (requestedCount !== null && createdCount !== requestedCount) {
+          throw new Error(`expected_${requestedCount}_create_tasks_received_${createdCount}`);
+        }
+        return parsed;
       } catch (error) {
         // SyntaxError messages can contain fragments of private model output.
         const details = error instanceof SyntaxError ? 'invalid_json' : 'invalid_planning_schema';
@@ -710,7 +733,7 @@ export class OpenAICompatibleProvider implements AIProvider {
           ...(content ? [{ role: 'assistant', content: content.slice(0, 24_000) }] : []),
           {
             role: 'user',
-            content: 'Your previous response failed schema validation. Return one complete valid JSON object only, without Markdown. Include reply, readiness (clarify or ready), summary, openQuestions, researchQueries, actions, replanRequests, and context. Context must include arrays brief, constraints, preferences, strategy, and assumptions. Keep the reply concise; do not omit context or invent actions.',
+            content: `Your previous response failed validation. Return one complete valid JSON object only, without Markdown. Include reply, readiness (clarify or ready), summary, openQuestions, researchQueries, actions, replanRequests, and context. Context must include arrays brief, constraints, preferences, strategy, and assumptions. Keep the reply concise; do not omit context or invent actions.${requestedCreateTaskCount(input.message) !== null ? ` The user requested exactly ${requestedCreateTaskCount(input.message)} separate create_task actions, so the actions array must contain exactly that many valid create_task objects.` : ''}`,
           },
         ];
       }
