@@ -52,6 +52,9 @@ export type PlanningActionProposal =
       estimatedMinutes?: number | null;
       dueDate?: string | null;
       milestoneTitle?: string | null;
+      scheduledStart?: string | null;
+      scheduledEnd?: string | null;
+      folderName?: string | null;
     }
   | {
       proposalId: string;
@@ -65,6 +68,9 @@ export type PlanningActionProposal =
         estimatedMinutes?: number | null;
         dueDate?: string | null;
         milestoneTitle?: string | null;
+        scheduledStart?: string | null;
+        scheduledEnd?: string | null;
+        folderName?: string | null;
       };
     }
   | {
@@ -276,6 +282,7 @@ export function applyPlanningActions(
     createdTaskIds: string[];
     updatedTaskIds: string[];
     updatedGoalIds: string[];
+    createdFolderIds: string[];
     externalActionIds: string[];
   }>(
     `/planning/threads/${threadId}/actions/apply`,
