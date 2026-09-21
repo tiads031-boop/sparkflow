@@ -1,10 +1,10 @@
 # Phase 14 — Rhythm Experience / SparkFlow V5
 
-> **状态**：🚧 部分完成，继续收口  
-> **最后更新**：2026-09-17  
-> **当前代码基线**：`master@fad1a619`  
+> **状态**：⚠️ 历史架构参考；主体已被后续 VNext 实现覆盖  
+> **最后核对**：2026-09-22  
+> **当前仓库基线**：`master@56a5554`  
 > **近期顺序**：以 [NEXT.md](NEXT.md) 为唯一执行队列  
-> **Timeline M3 执行源**：Issue #26；旧 PR #14 已关闭且不再作为可合并基线
+> **后续 Timeline 方向**：由 [Execution Intelligence & UI System](vnext-execution-intelligence-ui-system.md) 的 Timeline 2.0 接管；本文件不再单独恢复旧 M3
 
 ---
 
