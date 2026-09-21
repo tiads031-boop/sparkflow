@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { CalendarDays, Grid2X2, ListTodo, Loader2 } from 'lucide-react';
+import { apiRequest } from '../../api/client';
 import type { PlannerPreview, PlanView, Task } from '../../types';
 import TasksView from '../TasksView';
 import QuadrantView from '../QuadrantView';
@@ -136,6 +137,13 @@ export default function PlanWorkspace({
     if (item.courseId) onCourseClick?.(item.courseId);
   };
 
+  const handleFocusDelete = async (item: PlanItem) => {
+    if (!item.focusSessionId) return;
+    if (!window.confirm('删除这条专注记录？删除后将从日程和专注统计中移除。')) return;
+    await apiRequest(`/pomodoro/${item.focusSessionId}`, { method: 'DELETE' });
+    window.dispatchEvent(new Event('sparkflow:calendar-changed'));
+  };
+
   return (
     <div className="min-h-full animate-page-enter pb-24">
       {section !== 'tasks' && <PlanHeader
@@ -216,6 +224,7 @@ export default function PlanWorkspace({
                 selectedDate={selectedDate}
                 items={visibleItems}
                 onItemClick={handlePlanItemClick}
+                onFocusDelete={handleFocusDelete}
               />
             )}
           </>

@@ -87,6 +87,18 @@ export class PomodoroService {
     };
   }
 
+  async remove(id: string, userId: string) {
+    const session = await this.prisma.pomodoroSession.findFirst({
+      where: { id, userId },
+      select: { id: true, status: true },
+    });
+    if (!session) throw new NotFoundException('Pomodoro session not found');
+    if (openStatuses.includes(session.status)) {
+      throw new ConflictException('Active focus sessions cannot be deleted');
+    }
+    return this.prisma.pomodoroSession.delete({ where: { id } });
+  }
+
   async create(data: {
     userId: string;
     taskId?: string;
