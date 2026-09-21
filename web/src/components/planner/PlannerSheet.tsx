@@ -660,7 +660,7 @@ export default function PlannerSheet({
       ));
       setSelectedActionIds([]);
       setActionMessage(
-        `已应用 ${result.appliedActionIds.length} 项操作：新增 ${result.createdTaskIds.length} 个任务，更新 ${result.updatedTaskIds.length} 个任务，修改 ${result.updatedGoalIds.length} 个学习目标。`,
+        `已应用 ${result.appliedActionIds.length} 项操作：新增 ${result.createdTaskIds.length} 个任务${result.createdFolderIds.length ? `，创建 ${result.createdFolderIds.length} 个学习文件夹` : ''}，更新 ${result.updatedTaskIds.length} 个任务，修改 ${result.updatedGoalIds.length} 个学习目标。`,
       );
       await onApplied();
       const refreshed = await getPlanningThread(thread.id);
@@ -1824,7 +1824,11 @@ export default function PlannerSheet({
                         action.milestoneTitle ? `阶段：${action.milestoneTitle}` : null,
                         action.priority ? `优先级：${action.priority}` : null,
                         action.estimatedMinutes ? `${action.estimatedMinutes} 分钟` : null,
+                        action.scheduledStart && action.scheduledEnd
+                          ? `日程：${new Date(action.scheduledStart).toLocaleString('zh-CN')}–${new Date(action.scheduledEnd).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                          : null,
                         action.dueDate ? `截止：${new Date(action.dueDate).toLocaleString('zh-CN')}` : null,
+                        action.folderName ? `文件夹：${action.folderName}` : null,
                       ].filter(Boolean)
                     : action.type === 'update_task'
                       ? [
@@ -1833,8 +1837,16 @@ export default function PlannerSheet({
                             : null,
                           action.changes.priority ? `优先级 → ${action.changes.priority}` : null,
                           action.changes.estimatedMinutes !== undefined ? `时长 → ${action.changes.estimatedMinutes ?? '未设置'} 分钟` : null,
+                          action.changes.scheduledStart !== undefined && action.changes.scheduledEnd !== undefined
+                            ? action.changes.scheduledStart && action.changes.scheduledEnd
+                              ? `日程 → ${new Date(action.changes.scheduledStart).toLocaleString('zh-CN')}–${new Date(action.changes.scheduledEnd).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                              : '日程 → 清除'
+                            : null,
                           action.changes.dueDate !== undefined
                             ? `截止 → ${action.changes.dueDate ? new Date(action.changes.dueDate).toLocaleString('zh-CN') : '清除'}`
+                            : null,
+                          action.changes.folderName !== undefined
+                            ? `文件夹 → ${action.changes.folderName || '保持现状'}`
                             : null,
                         ].filter(Boolean)
                       : [
