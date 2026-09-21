@@ -10,6 +10,9 @@ const taskSourceInclude = {
       _count: { select: { sources: true } },
     },
   },
+  studyFolders: {
+    include: { folder: { select: { id: true, name: true, color: true } } },
+  },
 } as const;
 
 @Injectable()
@@ -108,6 +111,7 @@ export class TasksService {
     scheduleLocked?: boolean;
     scheduleSource?: string;
     scheduleColor?: string | null;
+    studyFolderId?: string | null;
   }) {
     if (data.courseId) {
       const course = await this.prisma.course.findFirst({ where: { id: data.courseId, userId: data.userId }, select: { id: true } });
@@ -121,23 +125,49 @@ export class TasksService {
       const insight = await this.prisma.insight.findFirst({ where: { id: data.insightId, userId: data.userId }, select: { id: true } });
       if (!insight) throw new NotFoundException('Insight not found');
     }
+    const { studyFolderId, ...taskData } = data;
+    if (studyFolderId) {
+      const folder = await this.prisma.studyFolder.findFirst({ where: { id: studyFolderId, userId: data.userId, status: 'active' }, select: { id: true } });
+      if (!folder) throw new NotFoundException('Study folder not found');
+    }
     return this.prisma.task.create({
-      data: this.normalizeTaskDates(data),
+      data: {
+        ...this.normalizeTaskDates(taskData),
+        ...(studyFolderId ? { studyFolders: { create: { folderId: studyFolderId } } } : {}),
+      },
       include: taskSourceInclude,
     });
   }
 
-  update(id: string, userId: string, data: Record<string, any>) {
+  async update(id: string, userId: string, data: Record<string, any>) {
     const {
       userId: _ignoredUserId,
       inspirationId: _ignoredInspirationId,
       insightId: _ignoredInsightId,
+      studyFolderId,
       ...safeData
     } = data;
-    return this.prisma.task.update({
-      where: { id, userId },
-      data: this.normalizeTaskDates(safeData),
-      include: taskSourceInclude,
+    if (studyFolderId) {
+      const folder = await this.prisma.studyFolder.findFirst({ where: { id: studyFolderId, userId, status: 'active' }, select: { id: true } });
+      if (!folder) throw new NotFoundException('Study folder not found');
+    }
+    if (studyFolderId === undefined) {
+      return this.prisma.task.update({
+        where: { id, userId },
+        data: this.normalizeTaskDates(safeData),
+        include: taskSourceInclude,
+      });
+    }
+    return this.prisma.$transaction(async (tx) => {
+      if (studyFolderId !== undefined) {
+        await tx.studyFolderTask.deleteMany({ where: { taskId: id, folder: { userId } } });
+        if (studyFolderId) await tx.studyFolderTask.create({ data: { taskId: id, folderId: studyFolderId } });
+      }
+      return tx.task.update({
+        where: { id, userId },
+        data: this.normalizeTaskDates(safeData),
+        include: taskSourceInclude,
+      });
     });
   }
 

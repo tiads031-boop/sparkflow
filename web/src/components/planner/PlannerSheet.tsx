@@ -1834,6 +1834,7 @@ export default function PlannerSheet({
                           : null,
                         action.dueDate ? `截止：${new Date(action.dueDate).toLocaleString('zh-CN')}` : null,
                         action.folderName ? `文件夹：${action.folderName}` : null,
+                        action.tags?.length ? `标签：${action.tags.map((tag) => `#${tag}`).join(' ')}` : null,
                       ].filter(Boolean)
                     : action.type === 'update_task'
                       ? [
@@ -1852,6 +1853,9 @@ export default function PlannerSheet({
                             : null,
                           action.changes.folderName !== undefined
                             ? `文件夹 → ${action.changes.folderName || '保持现状'}`
+                            : null,
+                          action.changes.tags !== undefined
+                            ? `标签 → ${action.changes.tags.map((tag) => `#${tag}`).join(' ') || '清空'}`
                             : null,
                         ].filter(Boolean)
                       : action.type === 'delete_course'

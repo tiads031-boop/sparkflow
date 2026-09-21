@@ -16,6 +16,9 @@ import {
   presetTaskSections,
   readCustomTaskSections,
 } from '../utils/taskSections';
+import TagSelector from './tags/TagSelector';
+import { fetchStudyFolders } from '../api/study';
+import type { StudyFolder } from '../types';
 
 interface ModalConfig {
   isOpen: boolean;
@@ -44,6 +47,8 @@ export interface SaveParams {
   repeatEndDate?: string;
   /** 持续时长 (分钟) */
   duration?: number;
+  tags?: string[];
+  studyFolderId?: string | null;
 }
 
 interface Props {
@@ -55,10 +60,10 @@ interface Props {
 }
 
 const LAYERS = [
-  { rot: 0, ty: 0, sc: 1, z: 10, op: 1, sh: '0 22px 65px rgba(0,0,0,0.72)' },
-  { rot: -6.5, ty: 12, sc: 0.97, z: 9, op: 1, sh: '0 12px 38px rgba(0,0,0,0.54)' },
-  { rot: 6.5, ty: 12, sc: 0.97, z: 8, op: 0.9, sh: '0 7px 24px rgba(0,0,0,0.4)' },
-  { rot: 0, ty: 22, sc: 0.94, z: 7, op: 0 },
+  { rot: 0, ty: 0, sc: 1, z: 10, op: 1, sh: '0 24px 70px rgba(0,0,0,0.42)' },
+  { rot: -2.2, ty: 13, sc: 0.93, z: 9, op: 0.58, sh: '0 16px 44px rgba(0,0,0,0.28)' },
+  { rot: 2.2, ty: 20, sc: 0.90, z: 8, op: 0.34, sh: '0 10px 28px rgba(0,0,0,0.2)' },
+  { rot: 0, ty: 28, sc: 0.88, z: 7, op: 0 },
 ];
 
 type RepeatRule = 'none' | 'daily' | 'weekly' | 'monthly';
@@ -143,6 +148,9 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const [dueDate, setDueDate] = useState('');
   const [section, setSection] = useState<TaskSection>('personal');
   const [folder, setFolder] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [studyFolderId, setStudyFolderId] = useState('');
+  const [studyFolders, setStudyFolders] = useState<StudyFolder[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // ---- subtask state (edit mode only) ----
@@ -216,6 +224,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setDueDate('');
         setSection(getDefaultSectionForProfile(professions, statusNeeds));
         setFolder('');
+        setTags([]);
+        setStudyFolderId('');
         setHasDueDate(false);
         setStartTime('');
         setScheduledStart('');
@@ -236,6 +246,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setDueDate(localDueDate);
         setSection(normalizeTaskSection(config.data.section));
         setFolder(config.data.project || '');
+        setTags(config.data.tags || []);
+        setStudyFolderId(config.data.studyFolderId || '');
         setSubtasks(config.data.subtasks || []);
         setHasDueDate(hasExistingDueDate);
         setStartTime(config.data.startTime || '');
@@ -253,6 +265,13 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
     }
   }, [config.isOpen, isCreate, config.data, professions, statusNeeds]);
 
+  useEffect(() => {
+    if (!config.isOpen || !isTask) return;
+    let active = true;
+    fetchStudyFolders().then((folders) => { if (active) setStudyFolders(folders); }).catch(() => { if (active) setStudyFolders([]); });
+    return () => { active = false; };
+  }, [config.isOpen, isTask]);
+
   if (!config.isOpen) return null;
 
   const doSave = (_notifyBeforeDeadline = false) => {
@@ -268,6 +287,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       dueDate: isTask ? (hasDueDate && dueDate ? dueDate : undefined) : undefined,
       section: isTask ? section : undefined,
       project: isTask ? (folder || undefined) : undefined,
+      tags: isTask ? tags : undefined,
+      studyFolderId: isTask ? (isCreate ? (studyFolderId || undefined) : (studyFolderId || null)) : undefined,
       subtasks: isTask && !isCreate ? subtasks : undefined,
       startTime: isTask ? getTimePart(resolvedStart) : undefined,
       scheduledStart: isTask ? (scheduledStart || undefined) : undefined,
@@ -641,7 +662,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       {/* Section + Folder row */}
       <div className="flex gap-3 mb-3">
         <div className="flex-1">
-          <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">分类</span>
+          <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">领域</span>
           <div className="flex gap-1 mb-2">
             {sectionOptions.map((option) => (
               <button
@@ -661,13 +682,26 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
             type="text"
             value={folder}
             onChange={(e) => setFolder(e.target.value)}
-            placeholder={getTaskSectionPlaceholder(section)}
+            placeholder="阶段 / Project（可选）"
             className="w-full bg-white/10 text-white text-[10px] px-2 py-1 rounded-lg outline-none border border-white/10 focus:border-[#cae393]/50 placeholder:text-white/20 transition-all"
           />
         </div>
       </div>
 
+      <div className="mb-3">
+        <span className="mb-1.5 block text-[10px] font-medium uppercase tracking-wider text-white/40">长期目标 / Folder</span>
+        <select value={studyFolderId} onChange={(event) => setStudyFolderId(event.target.value)} className="w-full rounded-lg border border-white/10 bg-white/10 px-2 py-1.5 text-[10px] text-white outline-none" data-no-drag>
+          <option value="">不归入长期目标</option>
+          {studyFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+        </select>
+      </div>
+
       {/* Deadline toggle */}
+      {isTask && (
+        <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.06] p-3" data-no-drag>
+          <TagSelector value={tags} onChange={setTags} compact />
+        </div>
+      )}
       {isTask && renderTaskScheduleFields('compact')}
       <div className="hidden">
         <div className="flex items-center justify-between mb-1.5">
@@ -927,7 +961,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
     return (
       <div
         key={cardIndex}
-        className="absolute w-full h-full bg-[#272727] backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 flex flex-col overflow-hidden will-change-transform"
+        className="absolute h-full w-full overflow-hidden rounded-[2rem] border border-white/10 bg-[#292b2a] p-6 backdrop-blur-2xl will-change-transform flex flex-col"
         style={{
           transform: currentTransform,
           opacity: currentOpacity,
@@ -1236,7 +1270,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
           </h2>
           <p className="text-gray-400 text-xs mb-4 leading-relaxed max-w-[85%]">
             {order[0] === 0
-              ? '左右滑动切换卡片，在此编辑任务信息。'
+              ? '编辑任务信息、归属与时间安排。'
               : order[0] === 1
                 ? '开始一个 25 分钟的专注时段。'
                 : '在此添加、勾选或删除子任务，点击保存提交。'}

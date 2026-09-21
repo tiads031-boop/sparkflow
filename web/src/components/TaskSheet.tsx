@@ -9,6 +9,10 @@ import {
   presetTaskSections,
   readCustomTaskSections,
 } from '../utils/taskSections';
+import TagSelector from './tags/TagSelector';
+import { BottomActionBar, SectionCard, SegmentControl } from './ui/foundation';
+import { fetchStudyFolders } from '../api/study';
+import type { StudyFolder } from '../types';
 
 type RepeatRule = 'none' | 'daily' | 'weekly' | 'monthly';
 
@@ -32,6 +36,9 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
   const [description, setDescription] = useState('');
   const [section, setSection] = useState<TaskSection>('personal');
   const [project, setProject] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [studyFolderId, setStudyFolderId] = useState('');
+  const [studyFolders, setStudyFolders] = useState<StudyFolder[]>([]);
   const [priority, setPriority] = useState<Task['priority']>('Medium');
   const [duration, setDuration] = useState<number | undefined>(30);
   const [dueDate, setDueDate] = useState('');
@@ -60,6 +67,8 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
     setDescription('');
     setSection('personal');
     setProject('');
+    setTags([]);
+    setStudyFolderId('');
     setPriority('Medium');
     setDuration(30);
     setDueDate('');
@@ -73,6 +82,13 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
     setError(null);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    fetchStudyFolders().then((folders) => { if (active) setStudyFolders(folders); }).catch(() => { if (active) setStudyFolders([]); });
+    return () => { active = false; };
+  }, [open]);
+
   if (!open) return null;
 
   const buildParams = (): SaveParams => ({
@@ -83,6 +99,8 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
     priority,
     section,
     project: project.trim() || undefined,
+    tags,
+    studyFolderId: studyFolderId || undefined,
     dueDate: dueDate || undefined,
     scheduledStart: scheduledStart || undefined,
     startTime: scheduledStart ? scheduledStart.split('T')[1]?.slice(0, 5) : undefined,
@@ -167,31 +185,32 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
               </select>
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-[var(--sf-text-secondary)]">项目 / 文件夹</span>
+              <span className="mb-1.5 block text-xs font-bold text-[var(--sf-text-secondary)]">阶段 / Project</span>
               <input
                 value={project}
                 onChange={(event) => setProject(event.target.value)}
-                placeholder={getTaskSectionPlaceholder(section)}
+                placeholder={section === 'study' ? '例如：强化训练' : getTaskSectionPlaceholder(section)}
                 className="w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-3 text-sm outline-none"
               />
             </label>
           </div>
 
-          <div>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-[var(--sf-text-secondary)]">长期目标 / Folder</span>
+            <select value={studyFolderId} onChange={(event) => setStudyFolderId(event.target.value)} className="w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm outline-none">
+              <option value="">不归入长期目标</option>
+              {studyFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+            </select>
+          </label>
+
+          <SectionCard className="!p-3">
             <span className="mb-2 block text-xs font-bold text-[var(--sf-text-secondary)]">优先级</span>
-            <div className="grid grid-cols-3 gap-2">
-              {priorities.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => setPriority(item.value)}
-                  className={`rounded-full px-3 py-2 text-xs font-bold transition-colors ${priority === item.value ? 'bg-[#242424] text-white' : 'bg-[var(--sf-bg)] text-[var(--sf-text-secondary)]'}`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
+            <SegmentControl value={priority} options={priorities} onChange={setPriority} ariaLabel="任务优先级" />
+          </SectionCard>
+
+          <SectionCard>
+            <TagSelector value={tags} onChange={setTags} />
+          </SectionCard>
 
           <div>
             <span className="mb-2 flex items-center gap-1.5 text-xs font-bold text-[var(--sf-text-secondary)]"><Clock3 size={13} />预计时长</span>
@@ -294,7 +313,8 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
 
         {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">{error}</p>}
 
-        <div className="sticky bottom-0 mt-5 grid grid-cols-[1fr_1.25fr] gap-2 bg-[var(--sf-surface)] pt-3">
+        <BottomActionBar>
+        <div className="grid grid-cols-[1fr_1.25fr] gap-2">
           <button
             type="button"
             disabled={!title.trim() || saving}
@@ -312,6 +332,7 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
             <BrainCircuit size={16} /> 保存并交给 AI 安排
           </button>
         </div>
+        </BottomActionBar>
       </section>
     </div>
   );

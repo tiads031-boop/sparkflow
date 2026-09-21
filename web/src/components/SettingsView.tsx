@@ -24,6 +24,7 @@ import {
   Sun,
   Trash2,
   Upload,
+  Tag as TagIcon,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import type { SparkFlowProfession, SparkFlowStatusNeed } from '../store/appStore';
@@ -54,11 +55,13 @@ import {
   requestCalendarPermission,
 } from '../capacitor/calendar';
 import CourseWebDavBackup from './CourseWebDavBackup';
+import TagManagementView from './tags/TagManagementView';
 
 type SettingsPage =
   | 'home'
   | 'appearance'
   | 'task'
+  | 'tags'
   | 'notifications'
   | 'connections'
   | 'data'
@@ -706,6 +709,10 @@ export default function SettingsView() {
     );
   }
 
+  if (page === 'tags') {
+    return <TagManagementView onBack={() => setPage('home')} />;
+  }
+
   if (page === 'notifications') {
     const serverPreferences = notificationPreferences;
     return (
@@ -1280,6 +1287,13 @@ export default function SettingsView() {
           description="四象限、分组与任务显示方式"
           value={preferences.quadrantEnabled ? '四象限已开启' : '仅列表'}
           onClick={() => setPage('task')}
+        />
+        <SettingRow
+          icon={<TagIcon size={17} />}
+          title="标签管理"
+          description="名称、颜色、二级关系与归档"
+          value="横向分类"
+          onClick={() => setPage('tags')}
         />
         <SettingRow
           icon={<Bell size={17} />}

@@ -90,6 +90,7 @@ export interface PlanningTaskSnapshot {
   scheduledEnd: string | null;
   scheduleLocked: boolean;
   project: string | null;
+  tags: string[];
 }
 
 export interface PlanningCourseSnapshot {
@@ -160,6 +161,7 @@ export type PlanningActionDraft =
       scheduledStart?: string | null;
       scheduledEnd?: string | null;
       folderName?: string | null;
+      tags?: string[];
     }
   | {
       type: 'update_task';
@@ -175,6 +177,7 @@ export type PlanningActionDraft =
         scheduledStart?: string | null;
         scheduledEnd?: string | null;
         folderName?: string | null;
+        tags?: string[];
       };
     }
   | {
@@ -257,6 +260,7 @@ export interface PlanningTurnInput {
   context: PlanningContextSnapshot;
   recentMessages: PlanningConversationMessage[];
   currentTasks?: PlanningTaskSnapshot[];
+  currentTags?: string[];
   currentCourses?: PlanningCourseSnapshot[];
   currentCourseOccurrences?: PlanningCourseOccurrenceSnapshot[];
   holidayCalendar?: PlanningHolidayDaySnapshot[];

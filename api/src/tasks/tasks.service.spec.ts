@@ -49,6 +49,27 @@ describe('TasksService schedule metadata', () => {
     expect(result.section).toBe('study');
     expect(result.tags).toEqual(['作业']);
   });
+
+  it('links a new task to one owned active study folder', async () => {
+    const create = jest.fn(({ data }) => data);
+    const findFirst = jest.fn().mockResolvedValue({ id: 'folder-1' });
+    const prisma = { task: { create }, studyFolder: { findFirst } };
+    const service = new TasksService(prisma as never);
+
+    const result = await service.create({
+      userId: 'user-1',
+      title: '长对话精听',
+      project: '强化训练',
+      tags: ['英语', '听力'],
+      studyFolderId: 'folder-1',
+    });
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { id: 'folder-1', userId: 'user-1', status: 'active' },
+      select: { id: true },
+    });
+    expect(result.studyFolders).toEqual({ create: { folderId: 'folder-1' } });
+  });
 });
 
 

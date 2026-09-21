@@ -231,7 +231,7 @@ export default function App() {
 
   const handleSaveItem = async ({
     id, title, content, context, status, priority, dueDate, section, subtasks, project, startTime,
-    scheduledStart, reminderAt, repeatRule, repeatStartDate, repeatEndDate, duration,
+    scheduledStart, reminderAt, repeatRule, repeatStartDate, repeatEndDate, duration, tags, studyFolderId,
   }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
 
@@ -266,6 +266,8 @@ export default function App() {
           repeatStartDate: normalizedRepeatStartDate,
           repeatEndDate: normalizedRepeatEndDate,
           estimatedMinutes: duration,
+          tags: tags || [],
+          studyFolderId: studyFolderId || '',
           ...(subtasks !== undefined ? { subtasks } : {}),
         } as Partial<Task>);
       } else {
@@ -288,6 +290,8 @@ export default function App() {
           repeatStartDate: normalizedRepeatStartDate,
           repeatEndDate: normalizedRepeatEndDate,
           duration: duration || undefined,
+          tags: tags || [],
+          studyFolderId: studyFolderId || undefined,
         } as Task;
         await addTask(newTask);
         setActiveTab('plan');

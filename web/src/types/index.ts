@@ -35,6 +35,10 @@ export interface Task {
   section?: TaskSection;
   /** 文件夹 / 项目名称 */
   project?: string;
+  /** 长期目标容器；与阶段 project、横向 tags 分离 */
+  studyFolderId?: string;
+  studyFolderName?: string;
+  studyFolderColor?: string;
   /** 关联课程；课程详情与待办列表共享同一任务记录 */
   courseId?: string;
   /** Phase 15：任务来源记录，用于回答“为什么做这件事” */

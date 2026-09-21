@@ -55,6 +55,7 @@ export type PlanningActionProposal =
       scheduledStart?: string | null;
       scheduledEnd?: string | null;
       folderName?: string | null;
+      tags?: string[];
     }
   | {
       proposalId: string;
@@ -71,6 +72,7 @@ export type PlanningActionProposal =
         scheduledStart?: string | null;
         scheduledEnd?: string | null;
         folderName?: string | null;
+        tags?: string[];
       };
     }
   | {

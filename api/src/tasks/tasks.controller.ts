@@ -40,6 +40,7 @@ export class TasksController {
     scheduleLocked?: boolean;
     scheduleSource?: string;
     scheduleColor?: string | null;
+    studyFolderId?: string | null;
   }) {
     return this.tasksService.create({ ...data, userId });
   }

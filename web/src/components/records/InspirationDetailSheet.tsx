@@ -8,6 +8,7 @@ import {
 } from '../../api/inspirations';
 import InspirationAttachmentList from './InspirationAttachmentList';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
+import TagSelector from '../tags/TagSelector';
 
 export default function InspirationDetailSheet({
   record,
@@ -20,7 +21,7 @@ export default function InspirationDetailSheet({
 }) {
   const open = Boolean(record);
   const [text, setText] = useState('');
-  const [tags, setTags] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,7 +30,7 @@ export default function InspirationDetailSheet({
   useEffect(() => {
     if (!record) return;
     setText(record.contentText || record.description || record.title || '');
-    setTags(record.tags.join(', '));
+    setTags(record.tags);
     setError('');
   }, [record]);
 
@@ -42,7 +43,7 @@ export default function InspirationDetailSheet({
     try {
       await updateInspiration(record.id, {
         contentText: text.trim(),
-        tags: tags.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 30),
+        tags,
       });
       await onChanged();
       onClose();
@@ -99,15 +100,9 @@ export default function InspirationDetailSheet({
             />
           </label>
 
-          <label className="block">
-            <span className="text-xs font-bold text-[var(--sf-text-secondary)]">标签</span>
-            <input
-              value={tags}
-              onChange={(event) => setTags(event.target.value)}
-              placeholder="用逗号分隔"
-              className="mt-2 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm outline-none focus:border-[var(--sf-text-primary)]"
-            />
-          </label>
+          <div className="rounded-2xl border border-[var(--sf-border)] p-3">
+            <TagSelector value={tags} onChange={setTags} compact />
+          </div>
 
           <InspirationAttachmentList inspirationId={record.id} attachments={record.attachments} />
 
