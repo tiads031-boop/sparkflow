@@ -1,4 +1,4 @@
-import { CalendarClock, LockKeyhole, Sparkles } from 'lucide-react';
+import { CalendarClock, LockKeyhole, Sparkles, Trash2 } from 'lucide-react';
 import type { PlanItem } from './planProjection';
 import { itemsForLocalDay } from './planProjection';
 
@@ -6,6 +6,7 @@ interface AgendaPlanViewProps {
   selectedDate: Date;
   items: PlanItem[];
   onItemClick?: (item: PlanItem) => void;
+  onFocusDelete?: (item: PlanItem) => void;
 }
 
 function typeLabel(item: PlanItem) {
@@ -16,7 +17,7 @@ function typeLabel(item: PlanItem) {
   return '日程';
 }
 
-export default function AgendaPlanView({ selectedDate, items, onItemClick }: AgendaPlanViewProps) {
+export default function AgendaPlanView({ selectedDate, items, onItemClick, onFocusDelete }: AgendaPlanViewProps) {
   const dayItems = itemsForLocalDay(items, selectedDate);
   const now = new Date();
 
@@ -51,6 +52,20 @@ export default function AgendaPlanView({ selectedDate, items, onItemClick }: Age
                   </span>
                   {item.preview && item.reason && <span className="mt-1 block line-clamp-2 text-[9px] text-[#6d638e]">{item.reason}</span>}
                 </span>
+                {item.kind === 'focus' && !item.preview && onFocusDelete && (
+                  <span className="flex shrink-0 items-center">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label="删除专注记录"
+                      onClick={(event) => { event.stopPropagation(); onFocusDelete(item); }}
+                      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onFocusDelete(item); } }}
+                      className="grid h-8 w-8 place-items-center rounded-full text-[var(--sf-text-tertiary)] hover:bg-red-50 hover:text-red-500"
+                    >
+                      <Trash2 size={14} />
+                    </span>
+                  </span>
+                )}
               </button>
             );
           })}
