@@ -5,7 +5,7 @@ SparkFlow 是一个面向个人学习、工作与日常安排的智能效率应�
 项目采用 React + TypeScript 构建 Web/PWA 前端，NestJS + Prisma + PostgreSQL 提供服务端能力，并通过 Capacitor 复用同一套前端构建 Android 应用。
 
 > 当前产品主线：**今天 → 待办 → 时间轴 → AI 安排 → 专注 → 完成**  
-> 后续 Phase 15 将继续补齐：**记录 → 回顾 → 洞察 → 行动**
+> Phase 15 已补齐代码主链路：**记录 → 回顾 → 洞察 → 行动**；当前进入真实账号与真机验收
 
 ---
 
@@ -90,9 +90,7 @@ SparkFlow 的 AI 排程遵循“建议优先、用户确认”的原则：
 
 ### 灵感 / 记录
 
-当前版本已有灵感卡片与自由墙视图；前端 Sparks 仍属于旧的轻量状态模型，因此这一部分暂时不代表完整的服务端“记录”体系。
-
-Phase 15 **规划** 将这一部分升级为“记录”，并统一到服务端 `Inspiration`：
+当前版本已经把“记录”统一到服务端 `Inspiration`，支持多模态随手记、回顾、可解释 Insight、Insight/Inspiration → Task，以及专注完成后的连续记录：
 
 ```text
 随手记
@@ -108,7 +106,7 @@ AI 把多张卡片串成洞察
 Planner → Timeline → Focus
 ```
 
-计划内容包括：
+已实现内容包括：
 
 - Quick Capture 随手记。
 - 服务端记录持久化。
@@ -314,8 +312,8 @@ SparkFlow 仍处于持续开发阶段。当前重点包括：
 
 1. 完成课程导入的数据安全与真实 Web / Android 验收。
 2. 继续收口 Timeline、Planner 与移动端体验。
-3. 推进 Phase 15 M1：**Capture → Review → Task**。
-4. 在真实记录 / 回顾流程稳定后，再实现 AI Insight 与 Insight → Action。
+3. 完成 Phase 15 与 Focus C1/C2 的真实账号、PWA 和 Android 真机验收。
+4. 留存生产 migration 直接证据，并验证课程导入、Planner 与未知网络结果恢复。
 
 详细状态请查看：
 
