@@ -2,8 +2,8 @@
 
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
-> **最后更新**：2026-09-21
-> **代码同步基线**：`master@9f6b1fe7`（生产运行版本 `9f72d16b`）
+> **最后更新**：2026-09-22
+> **代码同步基线**：`master@56a555490a09a1290a1b09c2139dc796a09651fb`（最近确认生产版本 `9f72d16b`，生产落后于当前 master）
 
 ---
 
@@ -11,13 +11,25 @@
 
 SparkFlow 是一个面向个人学习、工作与日常安排的智能效率系统。目标不是分别做“任务 App”“日历 App”或“笔记 App”，而是把 **记录、计划、排程、专注、复盘与学习** 串在同一条可追溯工作流中。
 
+当前稳定工作空间为：
+
+```text
+今天 / 计划 / 记录 / 学习 / 我的
+```
+
 当前核心效率链路：
 
 ```text
-今天 → 待办 / 课程 / 日历 → 时间轴 → AI / Scheduler 安排 → 专注 → 完成
+目标 / 记录 / 任务 → AI / Scheduler 安排 → 日程 → Focus / 实际执行 → 回顾 / 洞察
 ```
 
-Phase 15 继续补齐：
+下一轮 Execution Intelligence 在此基础上补齐：
+
+```text
+分类（Folder / Project / Tag） → Planned vs Actual → Timeline → Analytics → Goal Progress → AI 增量调整
+```
+
+Phase 15 已补齐：
 
 ```text
 记录 → 回顾 → 洞察 → 行动 → Planner / Timeline / Focus
@@ -63,6 +75,11 @@ Phase 15 继续补齐：
 | 24 | 课程周期与单次变动 | 单次调课/换课/停课/补课使用 CalendarEvent occurrence override；“以后都改”使用 Course template Preview/Apply/Undo | 保留历史课次与单次例外，避免一次调整污染整学期模板 |
 | 25 | 通知偏好 | 任务/课程提醒、默认提前量、安静时段、时区保存在既有 `User.settings.notification`；NotificationDelivery 继续去重 | PWA/Android 共用账户偏好，同时避免再建第二套通知设置表 |
 | 26 | 外观 | “跟随系统 / 浅色 / 深色”使用现有前端 UserPreferences + CSS Token / `data-sf-theme` | 外观是设备 UI 偏好，不修改业务事实，也不引入无后端能力的假 AI 设置 |
+| 27 | 分类语义 | StudyFolder=长期目标容器，Task.project=阶段/项目，Tag=横向分类/检索/统计 | 避免 AI 为每个短期事项创建文件夹，也让统计维度稳定 |
+| 28 | Planned / Actual | Task/Course/CalendarEvent 表达计划；PomodoroSession 和后续 AppUsageSession 表达实际执行 | 截止、计划与真实行为不能继续混成一种时间事实 |
+| 29 | Timeline 2.0 | Agenda 保持“已排入日程”；Timeline 转向实际时间流水，并可与计划对照 | 同时回答“准备做什么”和“实际做了什么” |
+| 30 | UI System | 新一轮采用 Graphite Aurora；3D 仅用于有卡片层级意义的任务/目标/回顾/方案预览 | 保留产品记忆点，同时避免不同页面各自形成视觉体系 |
+| 31 | Android Usage | 后续使用 UsageStatsManager / UsageEvents 生成独立 AppUsageSession，默认关闭且不读取页面内容 | 系统观察到的 App 使用不是 CalendarEvent、Focus 或 Inspiration，必须保持语义独立 |
 
 ---
 
@@ -79,7 +96,7 @@ Phase 15 继续补齐：
 | PR #23 Study Mode 早期提案 | ❌ 已关闭 | PR #25 / `docs/study-mode/` |
 | Android 仅靠临时 Actions artifact | ❌ 已替代 | commit-stamped APK + GitHub prerelease |
 
-历史审计与旧方案保留在 `docs/archive/` 与冻结 Phase 文档中。
+历史审计与已完成/被替代方案集中保留在 `docs/archive/`。2026-09-22 已将 Phase 09、Phase 10、旧 P0 Phase 12、课程表完善记录以及甘特/四象限设计移出活跃 plans。
 
 ---
 
@@ -125,11 +142,13 @@ flowchart TD
 - 列表、四象限、甘特图等组织方式。
 - PR #24 已合并：课程任务统一进入共享 Task Store，并保留 `courseId`、标签、状态和删除能力。
 
-### Timeline / Calendar
+### Plan / Timeline
 
-- Task 与 CalendarEvent 统一投影。
-- 当前 master 保留既有 `CalendarView` 与 Gantt 能力。
-- 旧 PR #14 不直接合并；剩余 M3 要求由 Issue #26 从最新 master 重做。
+- Month / Week / Agenda 继续使用 Task / Course / CalendarEvent 统一投影。
+- 周视图已覆盖 00:00–24:00、半小时辅助线和当前时间线。
+- 未排期待办不再因为 dueDate 被伪装成真实日程。
+- 下一轮 Timeline 2.0 将把 PomodoroSession 等真实执行数据作为 Actual Time，并与 Planned Time 分层展示。
+- 详细方案见 `docs/plans/vnext-execution-intelligence-ui-system.md`。
 
 ### VNext Plan Workspace
 
@@ -253,16 +272,17 @@ VNext M6 已进入主线：
 | Phase | 状态 | 当前说明 |
 |---|---|---|
 | Phase 1–8 | ✅ 历史完成 | PWA、REST、课程基础、Google Calendar、Capacitor 等；旧 md/Render/Supabase 描述已被替代 |
-| Phase 09 | ⚠️ 冻结重估 | 多项能力已被后续实现覆盖 |
-| Phase 10 | ⚠️ 冻结重估 | md 方案取消；认证已完成；灵感转任务由 Phase 15 接管 |
+| Phase 09 | ✅ 已归档 | 多项能力已由 Course / Plan / Study / Timeline 覆盖；历史核对移入 docs/archive |
+| Phase 10 | ✅ 已归档 | 历史待办已完成、取消或迁移到后续主线 |
 | Phase 11 | ✅ 归档 | 早期账户/Onboarding 历史方案 |
 | Phase 12 | 🚧 当前 P0：真实链路验收 | 安全代码、migration CI、真实 PG 顺序/并发 replay、rollback、用户隔离、部署追溯、Android CORS/Release 门禁已具备；Issue #31 承接生产和真机证据 |
 | Phase 13 | ⬜ P2 | Local Codex Bridge，等待用户主链路稳定 |
-| Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
+| Phase 14 | ⚠️ 主体被后续 VNext 覆盖 | Today/Planner/Focus/四象限等已进入主线；旧 Timeline 余项由 Execution Intelligence 的 Timeline 2.0 吸收 |
 | Phase 15 | 🚧 M1–M3 + Focus C1/C2 已实现，真实链路收尾 | API/Web 已对齐 `9f72d16b`；31 migrations、Web AI Planner 与 Focus 文字多记录已真实核验；真实 Qwen Insight、多模态与 Android 链路仍需验收 |
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待剩余 PWA/真机 | PR #48/#49/#50 已合入；Web 真实账号 Planner Preview→Apply→Undo 已通过，最新 Focus C2 APK `android-e5978ecbbc24` 已生成；四视图/PWA/Android 真机仍需验收 |
-| VNext AI Orchestration | ✅ M4–M8 代码/CI；🚧 最终验收 | PR #59–#81 与 #105/#106 已完成主体能力；31 migrations、Web AI 对话/草案/Planner Undo 与 Focus 多记录已真实核验；剩余 PWA/Android 真机、多模态/通知/外观验收 |
+| VNext AI Orchestration | ✅ M4–M8 代码/CI；🚧 最终验收 | PR #59–#81 与 #105/#106 已完成主体能力；剩余 PWA/Android 真机、多模态/通知/外观验收 |
+| Execution Intelligence & UI | 🚧 新主线 | M1 Tags + Task Edit Deck → M2 Actual Timeline → M3 Analytics → M4 Goal Progress → M5 AI Behavior Feedback → M6 Android Usage |
 
 ---
 
@@ -393,8 +413,9 @@ flowchart TD
 - **方案索引**：[`docs/plans/INDEX.md`](docs/plans/INDEX.md)
 - **Phase 12**：`docs/plans/phase12-course-import-experience.md`
 - **Phase 12 生产验收**：GitHub Issue #31
-- **Phase 14**：`docs/plans/phase14-rhythm-experience.md` + Issue #26
-- **Phase 15**：`docs/plans/phase15-capture-review-insight-action.md`
+- **Execution Intelligence & UI**：`docs/plans/vnext-execution-intelligence-ui-system.md`
+- **Phase 14 历史参考**：`docs/plans/phase14-rhythm-experience.md`
+- **Phase 15 / Focus**：`docs/plans/phase15-capture-review-insight-action.md`
 - **Study Mode**：`docs/study-mode/README.md` + `docs/study-mode/roadmap.md`
 - **自托管部署**：`docs/DEPLOY.md`
 - **历史方案**：`docs/archive/`

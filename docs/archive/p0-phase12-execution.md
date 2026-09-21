@@ -1,5 +1,8 @@
 # SparkFlow P0 + Phase 12 旧执行清单
 
+> **归档说明（2026-09-22）**：本文件已退出活跃实施队列，仅保留历史设计与实现来源。当前执行顺序见 [NEXT](../plans/NEXT.md)，新一轮产品方案见 [Execution Intelligence & UI System](../plans/vnext-execution-intelligence-ui-system.md)。
+
+
 > **原更新日期**：2026-09-13 | **状态**：⚠️ 冻结、已被替代
 >
 > 原清单以 Render、Supabase 和较早 Git 基线为前提，已不适用于当前生产。完整历史可通过 Git 读取本文件的旧版本。
@@ -9,8 +12,8 @@
 | 旧内容 | 当前去向 |
 |---|---|
 | Render/Supabase 生产基线 | 已由腾讯云 Nginx + NestJS API + 独立 PostgreSQL + 自建认证替代；见 [部署手册](../DEPLOY.md) |
-| P0 执行顺序 | 由 [NEXT.md](NEXT.md) 统一维护 |
-| Phase 12 交互、幂等与验收 | 由 [phase12-course-import-experience.md](phase12-course-import-experience.md) 维护 |
+| P0 执行顺序 | 由 [NEXT.md](../plans/NEXT.md) 统一维护 |
+| Phase 12 交互、幂等与验收 | 由 [phase12-course-import-experience.md](../plans/phase12-course-import-experience.md) 维护 |
 | M2.1/M2.2/M2.3 旧合并状态 | 三批均已合并；当前优先级为服务端幂等/冲突策略与真实导入验收 |
 
 ## 保留的有效原则

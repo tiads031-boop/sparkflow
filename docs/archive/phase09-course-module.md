@@ -1,8 +1,11 @@
 # Phase 09 — Course 模块深化（现状核对）
 
+> **归档说明（2026-09-22）**：本文件已退出活跃实施队列，仅保留历史设计与实现来源。当前执行顺序见 [NEXT](../plans/NEXT.md)，新一轮产品方案见 [Execution Intelligence & UI System](../plans/vnext-execution-intelligence-ui-system.md)。
+
+
 > **创建时间**：2026-05-28 | **最后核对**：2026-09-15 | **状态**：⚠️ 冻结，剩余项待重估
 >
-> Phase 09 的大量目标已由现有课程页、Today/Schedule Layer、课程导入和 Timeline V2 覆盖。本文件保留代码核对结果，不作为近期执行队列；近期工作见 [NEXT.md](NEXT.md)。
+> Phase 09 的大量目标已由现有课程页、Today/Schedule Layer、课程导入和 Timeline V2 覆盖。本文件保留代码核对结果，不作为近期执行队列；近期工作见 [NEXT.md](../plans/NEXT.md)。
 
 ## 1. 当前事实
 
@@ -39,6 +42,6 @@
 
 ## 4. 重启条件
 
-- 完成 [Phase 12](phase12-course-import-experience.md) 的服务端幂等、冲突策略和 Web/Android 真实导入验收。
-- 合并并稳定 [Phase 14](phase14-rhythm-experience.md) M3，避免再次在旧 CalendarView 上重复建设。
+- 完成 [Phase 12](../plans/phase12-course-import-experience.md) 的服务端幂等、冲突策略和 Web/Android 真实导入验收。
+- 合并并稳定 [Phase 14](../plans/phase14-rhythm-experience.md) M3，避免再次在旧 CalendarView 上重复建设。
 - 每个剩余项有明确用户场景、验收样例和数据回滚路径后，拆成新的短期方案，而不是整体恢复 Phase 09。

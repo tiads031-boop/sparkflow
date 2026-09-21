@@ -1,8 +1,11 @@
 # Phase 10 — 历史待办收束
 
+> **归档说明（2026-09-22）**：本文件已退出活跃实施队列，仅保留历史设计与实现来源。当前执行顺序见 [NEXT](../plans/NEXT.md)，新一轮产品方案见 [Execution Intelligence & UI System](../plans/vnext-execution-intelligence-ui-system.md)。
+
+
 > **创建时间**：2026-06-03 | **最后核对**：2026-09-15 | **状态**：⚠️ 冻结，逐项重估
 >
-> 本文保留 Phase 10 的历史待办及其去向，不再作为近期执行队列。唯一近期队列见 [NEXT.md](NEXT.md)。
+> 本文保留 Phase 10 的历史待办及其去向，不再作为近期执行队列。唯一近期队列见 [NEXT.md](../plans/NEXT.md)。
 
 ## 状态核对
 

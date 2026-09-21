@@ -4,8 +4,8 @@ SparkFlow 是一个面向个人学习、工作与日常安排的智能效率应�
 
 项目采用 React + TypeScript 构建 Web/PWA 前端，NestJS + Prisma + PostgreSQL 提供服务端能力，并通过 Capacitor 复用同一套前端构建 Android 应用。
 
-> 当前产品主线：**今天 → 待办 → 时间轴 → AI 安排 → 专注 → 完成**  
-> Phase 15 已补齐代码主链路：**记录 → 回顾 → 洞察 → 行动**；当前进入真实账号与真机验收
+> 当前稳定工作空间：**今天 / 计划 / 记录 / 学习 / 我的**  
+> 已完成主链路：**记录 → AI 规划 → 日程 → Focus → 回顾/洞察**；下一轮主线开始建设 **标签 → Actual Timeline → 时间分析 → 目标进度 → AI 执行反馈**。
 
 ---
 
@@ -15,10 +15,10 @@ SparkFlow 是一个面向个人学习、工作与日常安排的智能效率应�
 
 以“今天要怎么过”为入口，而不是单纯展示任务列表：
 
-- 今日课程、任务、日历事项统一聚合。
-- 周日期切换与每日安排查看。
-- 今日节奏、空闲时间与完成进度。
-- 点击任务可直接进入安排与编辑流程。
+- 今日课程、已排期任务与日历事项统一聚合。
+- Today 固定回答“今天要做什么”，不承担周/月分析。
+- 点击任务可直接进入编辑、安排或专注流程。
+- 后续只在存在真实执行数据时显示轻量“今日投入”摘要。
 
 ### 待办与四象限
 
@@ -31,15 +31,15 @@ SparkFlow 是一个面向个人学习、工作与日常安排的智能效率应�
 - 根据重要性和紧急程度整理任务。
 - 桌面端拖放与移动端移动操作。
 
-### 时间轴、日历与甘特图
+### 计划、日历与 Timeline
 
-统一展示来自不同来源的时间安排：
+“计划”工作区统一承载时间安排与待办：
 
-- Task 与 CalendarEvent 统一投影为 ScheduleItem。
-- 月 / 周 / 时间轴等日程视图。
-- 支持课程、普通任务、Google Calendar 与本地日历来源。
-- 任务可排期、拖动、调整持续时间与锁定。
-- 甘特图用于查看任务跨度、截止节点和阶段安排。
+- Task、Course 与 CalendarEvent 统一投影到 Month / Week / Agenda。
+- 周视图覆盖 00:00–24:00，并区分真实排期与截止时间。
+- 待办支持列表 / 四象限。
+- Planner Preview 以临时时间块展示，Apply 后才成为真实排期。
+- 下一轮 Timeline 2.0 将明确区分 Planned Time 与 Actual Time，并接入 Focus 与后续 Android 使用记录。
 
 ### AI 智能安排
 
@@ -57,10 +57,11 @@ SparkFlow 的 AI 排程遵循“建议优先、用户确认”的原则：
 
 任务安排完成后可以继续进入执行：
 
-- 从任务进入专注流程。
-- 记录专注时长与完成情况。
-- Pomodoro 数据由服务端保存。
-- 与 Today / Task 形成“安排 → 执行 → 完成”的闭环。
+- 可关联任务，也可自由专注。
+- 支持倒计时 / 正计时、暂停 / 恢复和提前完成。
+- 服务端保存真实有效专注时长与分段。
+- 完成后可连续记录文字、语音、图片或视频。
+- Focus 将作为 Actual Timeline 的第一批真实执行数据。
 
 ### 课程与课表
 
@@ -310,10 +311,13 @@ api/.env.example
 
 SparkFlow 仍处于持续开发阶段。当前重点包括：
 
-1. 完成课程导入的数据安全与真实 Web / Android 验收。
-2. 继续收口 Timeline、Planner 与移动端体验。
-3. 完成 Phase 15 与 Focus C1/C2 的真实账号、PWA 和 Android 真机验收。
-4. 留存生产 migration 直接证据，并验证课程导入、Planner 与未知网络结果恢复。
+1. 完成最新 master 的腾讯云部署对齐，以及课程导入 / 多模态 / Android 真机剩余验收。
+2. M1：统一 Task Edit Deck 与 UI Foundation，补齐正式标签系统。
+3. M2–M3：建设 Actual Timeline 与时间分析，明确“计划”与“实际执行”。
+4. M4–M5：长期目标量化进度与 AI 执行反馈。
+5. M6：在标签、Timeline、分析成熟后再接 Android App Usage Tracking。
+
+新一轮完整方案见 [`docs/plans/vnext-execution-intelligence-ui-system.md`](docs/plans/vnext-execution-intelligence-ui-system.md)。
 
 详细状态请查看：
 

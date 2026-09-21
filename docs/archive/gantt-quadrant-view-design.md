@@ -1,5 +1,8 @@
 # 甘特图与四象限视图设计
 
+> **归档说明（2026-09-22）**：本文件已退出活跃实施队列，仅保留历史设计与实现来源。当前执行顺序见 [NEXT](../plans/NEXT.md)，新一轮产品方案见 [Execution Intelligence & UI System](../plans/vnext-execution-intelligence-ui-system.md)。
+
+
 ## 结论
 
 不增加底部导航入口。将两种新视图放进现有信息架构：

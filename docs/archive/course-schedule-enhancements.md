@@ -1,6 +1,9 @@
 # 课程表功能完善
 
-> **状态**：⚠️ 历史实现记录，2026-09-15 起不再单独推进。下文“已实现/未接入”反映记录形成时的边界；当前任务以 [NEXT.md](NEXT.md)、[Phase 12](phase12-course-import-experience.md) 和 [Phase 14](phase14-rhythm-experience.md) 为准。
+> **归档说明（2026-09-22）**：本文件已退出活跃实施队列，仅保留历史设计与实现来源。当前执行顺序见 [NEXT](../plans/NEXT.md)，新一轮产品方案见 [Execution Intelligence & UI System](../plans/vnext-execution-intelligence-ui-system.md)。
+
+
+> **状态**：⚠️ 历史实现记录，2026-09-15 起不再单独推进。下文“已实现/未接入”反映记录形成时的边界；当前任务以 [NEXT.md](../plans/NEXT.md)、[Phase 12](../plans/phase12-course-import-experience.md) 和 [Phase 14](../plans/phase14-rhythm-experience.md) 为准。
 
 参考：[拾光课程表](https://github.com/XingHeYuZhuan/shiguangschedule)。查阅其 `WidgetUpdateHelper.kt`、`IcsExportTool.kt`、`BackupRepository.kt`、`NotificationSettingsViewModel.kt` 和 `Theme.kt`，学习课程实例统一、今日/明日视图、版本化备份、提前提醒和主题跟随系统的设计。代码按 SparkFlow 的 React + Zustand + NestJS + Prisma + Capacitor 架构独立实现。
 
