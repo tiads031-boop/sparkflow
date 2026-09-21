@@ -190,6 +190,7 @@ function SettingRow({
       onClick={onClick}
       disabled={!onClick || disabled}
       className="flex w-full items-center gap-3 border-b border-[var(--sf-divider)] px-4 py-3.5 text-left last:border-b-0 disabled:cursor-default"
+      style={{ minHeight: 'var(--sf-row-min-height)' }}
     >
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-[var(--sf-bg)] text-[var(--sf-text-primary)]">
         {icon}
@@ -639,6 +640,41 @@ export default function SettingsView() {
               </button>
             );
           })}
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <Group title="界面密度">
+            <div className="grid grid-cols-2 gap-2 p-3" role="group" aria-label="界面密度">
+              {([
+                { id: 'comfortable', label: '舒适', detail: '留白更充足' },
+                { id: 'compact', label: '紧凑', detail: '同屏显示更多' },
+              ] as const).map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={preferences.density === option.id}
+                  onClick={() => savePreferences({ density: option.id })}
+                  className={`rounded-2xl border px-3 py-3 text-left ${preferences.density === option.id ? 'border-[var(--sf-text-primary)] bg-[var(--sf-bg)]' : 'border-[var(--sf-border)]'}`}
+                >
+                  <strong className="block text-xs text-[var(--sf-text-primary)]">{option.label}</strong>
+                  <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">{option.detail}</span>
+                </button>
+              ))}
+            </div>
+          </Group>
+
+          <Group title="动态效果">
+            <div className="flex items-center gap-3 px-4 py-3.5" style={{ minHeight: 'var(--sf-row-min-height)' }}>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-[var(--sf-bg)] text-[var(--sf-text-primary)]">
+                <SlidersHorizontal size={17} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <strong className="block text-sm font-bold text-[var(--sf-text-primary)]">减少动态</strong>
+                <span className="mt-0.5 block text-[10px] leading-4 text-[var(--sf-text-tertiary)]">关闭页面入场与玻璃材质化动画。</span>
+              </span>
+              <Toggle checked={preferences.reduceMotion} onChange={(reduceMotion) => savePreferences({ reduceMotion })} />
+            </div>
+          </Group>
         </div>
       </div>
     );

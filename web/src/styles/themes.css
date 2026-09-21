@@ -1,13 +1,12 @@
-[data-sf-theme='dark'] {
-  color-scheme: dark;
-  --sf-bg: #171719;
-  --sf-surface: #222225;
-  --sf-surface-elevated: #2a2a2e;
-  --sf-text-primary: #f4f4f2;
-  --sf-text-secondary: #b7b7bd;
-  --sf-text-tertiary: #85858d;
-  --sf-border: rgba(255, 255, 255, 0.1);
-  --sf-divider: rgba(255, 255, 255, 0.07);
-  --sf-accent: #f4f4f2;
+/* Component-level theme surfaces live here; palette tokens stay in tokens.css. */
+:root {
+  --sf-glass-fill: rgba(252, 253, 252, 0.78);
+  --sf-glass-border: rgba(31, 37, 34, 0.08);
+  --sf-glass-shadow: 0 14px 36px rgba(31, 37, 34, 0.13);
 }
 
+[data-sf-theme='dark'] {
+  --sf-glass-fill: rgba(31, 35, 33, 0.78);
+  --sf-glass-border: rgba(255, 255, 255, 0.11);
+  --sf-glass-shadow: 0 16px 42px rgba(0, 0, 0, 0.34);
+}

@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { LucideProps } from 'lucide-react';
 import type { ActiveTab } from '../../types';
+import GlassSurface from '../ui/GlassSurface';
 
 export interface BottomNavItem {
   id: ActiveTab;
@@ -16,10 +17,12 @@ interface BottomNavProps {
 
 export default function BottomNav({ activeTab, setActiveTab, items }: BottomNavProps) {
   return (
-    <nav
+    <GlassSurface
+      as="nav"
+      variant="nav"
       aria-label="主导航"
-      className="fixed bottom-0 left-1/2 z-40 w-full -translate-x-1/2 border-t border-black/[0.06] bg-[var(--sf-bg)]/95 px-2 pt-1.5 backdrop-blur-xl sm:max-w-lg"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 6px)' }}
+      className="fixed left-1/2 z-40 h-[72px] w-[calc(100%_-_24px)] max-w-[488px] -translate-x-1/2 px-2 py-1.5"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
     >
       <div className="grid grid-cols-5">
         {items.map((tab) => {
@@ -31,14 +34,14 @@ export default function BottomNav({ activeTab, setActiveTab, items }: BottomNavP
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-bold transition-all ${
+              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1 text-[10px] font-extrabold transition-all ${
                 isActive
                   ? 'text-[var(--sf-text-primary)]'
                   : 'text-[var(--sf-text-tertiary)]'
               }`}
             >
-              <span className={`grid h-7 w-9 place-items-center rounded-full transition-all ${
-                isActive ? 'bg-[#cae393]' : 'bg-transparent'
+              <span className={`grid h-7 w-10 place-items-center rounded-full transition-all ${
+                isActive ? 'bg-[var(--sf-green)]' : 'bg-transparent'
               }`}>
                 <Icon size={17} strokeWidth={isActive ? 2.5 : 2} />
               </span>
@@ -47,6 +50,6 @@ export default function BottomNav({ activeTab, setActiveTab, items }: BottomNavP
           );
         })}
       </div>
-    </nav>
+    </GlassSurface>
   );
 }

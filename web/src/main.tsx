@@ -7,12 +7,12 @@ import App from './App.tsx'
 import ErrorBoundary from './ErrorBoundary.tsx'
 import AuthGate from './components/AuthGate.tsx'
 import {
-  applyAppearancePreference,
+  applyVisualPreferences,
   readUserPreferences,
 } from './utils/userPreferences.ts'
 
 const applyCurrentAppearance = () => {
-  applyAppearancePreference(readUserPreferences().appearance);
+  applyVisualPreferences(readUserPreferences());
 };
 
 applyCurrentAppearance();

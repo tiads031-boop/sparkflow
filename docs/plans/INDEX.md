@@ -1,7 +1,7 @@
 # SparkFlow — 实施方案索引
 
 > **最后更新**：2026-09-22  
-> **仓库代码基线**：`master@b40854c76cfac6801f866ef9bbd63110e780aaac`
+> **仓库代码基线**：`master@990edabb9a2b3d26f523f17850ed9080a7507ff8`
 > **M1/M2 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)，CI 全绿，均已 squash 合并
 > **最近已确认生产版本**：`9f72d16b`  
 > **唯一近期执行队列**：[NEXT.md](NEXT.md)
@@ -15,6 +15,7 @@
 | 文件 | 定位 | 状态 |
 |---|---|---|
 | [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 当前 |
+| [v11-production-ui-real-code-implementation.md](v11-production-ui-real-code-implementation.md) | V11 视觉与真实业务代码的主实施规格 | 🚧 R1 已实现，待 CI / 移动端验收 |
 | [vnext-execution-intelligence-ui-system.md](vnext-execution-intelligence-ui-system.md) | 新一轮产品与 UI 总方案：Tags → Actual Timeline → Analytics → Goal Progress → AI Feedback → Android Usage | 🚧 M1/M2 代码已合并，待生产/移动验收 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、幂等、冲突、Web/Android 真实验收 | 🚧 剩余生产/真机验收 |
 | [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | Capture → Review → Insight → Action 与 Focus 多模态链路 | 🚧 主体完成，剩余 PWA/Android/多模态验收 |

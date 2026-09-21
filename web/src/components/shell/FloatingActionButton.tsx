@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { useRef } from 'react';
+import GlassSurface from '../ui/GlassSurface';
 
 const LONG_PRESS_MS = 520;
 
@@ -34,7 +35,9 @@ export default function FloatingActionButton({
   };
 
   return (
-    <button
+    <GlassSurface
+      as="button"
+      variant="control"
       type="button"
       aria-label="快速新建；长按语音 AI 规划"
       title="短按快速新建，长按语音 AI 规划"
@@ -48,13 +51,15 @@ export default function FloatingActionButton({
         if (event.pointerType === 'mouse') clearTimer();
       }}
       onContextMenu={(event) => event.preventDefault()}
-      className="fixed z-[45] grid h-14 w-14 touch-none select-none place-items-center rounded-full bg-[var(--sf-text-primary)] text-[var(--sf-surface)] shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-transform active:scale-95"
+      className="fixed z-[45] grid h-14 w-14 touch-none select-none place-items-center bg-[var(--sf-graphite)] text-[var(--sf-bg)] transition-transform active:scale-95"
       style={{
         right: 'max(20px, calc((100vw - 32rem) / 2 + 20px))',
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 94px)',
+        background: 'rgba(34, 38, 37, 0.92)',
+        color: '#f2f3f2',
       }}
     >
       <Plus size={25} strokeWidth={2.6} />
-    </button>
+    </GlassSurface>
   );
 }

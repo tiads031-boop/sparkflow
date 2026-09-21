@@ -19,8 +19,66 @@ body {
   background: var(--sf-bg);
 }
 
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.sf-glass {
+  background: var(--sf-glass-fill);
+  border: 1px solid var(--sf-glass-border);
+  -webkit-backdrop-filter: var(--hyalite, blur(18px) saturate(1.08));
+  backdrop-filter: var(--hyalite, blur(18px) saturate(1.08));
+  box-shadow: var(--hyalite-edge, var(--sf-glass-shadow));
+  isolation: isolate;
+}
+
+.sf-glass-nav {
+  border-radius: 28px;
+}
+
+.sf-glass-surface,
+.sf-glass-preview,
+.sf-glass-composer {
+  border-radius: 22px;
+}
+
+.sf-glass-control {
+  border-radius: 999px;
+}
+
+.sf-quick-action {
+  border-radius: 999px;
+}
+
+[data-sf-reduce-motion='true'] *,
+[data-sf-reduce-motion='true'] *::before,
+[data-sf-reduce-motion='true'] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 #root {
   min-height: 100svh;
+}
+
+.app-safe-top {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 22px);
 }
 
 /* Hide scrollbar */
