@@ -88,6 +88,12 @@ function statusLabel(status: 'confirmed' | 'inferred' | 'assumed') {
   return '暂时假设';
 }
 
+function isExplicitApplyAllMessage(message: string) {
+  const compact = message.replace(/[\s，,。.!！?？]/g, '');
+  return /^(确认|确定|同意)(全部|都)?(执行|应用|取消)$/.test(compact)
+    || /^(确认|确定|同意)(全部|都)取消$/.test(compact);
+}
+
 type CourseChangeAction = Extract<PlanningActionProposal, { type: 'course_change' }>;
 type CourseTemplateChangeAction = Extract<PlanningActionProposal, { type: 'course_template_change' }>;
 type DirectPlanningAction = Exclude<PlanningActionProposal, CourseChangeAction | CourseTemplateChangeAction>;
@@ -226,6 +232,8 @@ export default function PlannerSheet({
   const [courseChangeMessage, setCourseChangeMessage] = useState('');
   const [courseChangePlanId, setCourseChangePlanId] = useState<string | null>(null);
   const [lastAppliedCourseAction, setLastAppliedCourseAction] = useState<CourseChangeAction | null>(null);
+  const [batchCourseChangePlanIds, setBatchCourseChangePlanIds] = useState<string[]>([]);
+  const [batchAppliedCourseActions, setBatchAppliedCourseActions] = useState<CourseChangeAction[]>([]);
 
   const [activeTemplateProposalId, setActiveTemplateProposalId] = useState<string | null>(null);
   const [templateChangePreview, setTemplateChangePreview] = useState<CourseTemplateChangePreview | null>(null);
@@ -328,6 +336,8 @@ export default function PlannerSheet({
       setCourseChangePlanId(null);
       setCourseChangeMessage('');
       setLastAppliedCourseAction(null);
+      setBatchCourseChangePlanIds([]);
+      setBatchAppliedCourseActions([]);
       setActiveTemplateProposalId(null);
       setTemplateChangePreview(null);
       setTemplateChangePlanId(null);
@@ -483,6 +493,16 @@ export default function PlannerSheet({
   const sendMessage = async () => {
     const message = messageInput.trim();
     if (!message || turnBusy) return;
+
+    if (
+      isExplicitApplyAllMessage(message) &&
+      courseChangeProposals.length > 0 &&
+      courseChangeProposals.every((action) => action.change.type === 'cancel')
+    ) {
+      setMessageInput('');
+      await applyConfirmedCourseChanges(courseChangeProposals);
+      return;
+    }
 
     setTurnBusy(true);
     setTurnMessage('');
@@ -736,6 +756,77 @@ export default function PlannerSheet({
       await onApplied();
     } catch (error) {
       setCourseChangeMessage(error instanceof Error ? error.message : '撤销课程变动失败');
+    } finally {
+      setCourseChangeBusy(false);
+    }
+  };
+
+  const applyConfirmedCourseChanges = async (actions: CourseChangeAction[]) => {
+    if (!thread || !actionConversationId || courseChangeBusy || !actions.length) return;
+    setCourseChangeBusy(true);
+    setCourseChangeMessage('正在检查全部课程变动…');
+    const appliedPlanIds: string[] = [];
+    try {
+      const previews = await Promise.all(
+        actions.map((action) => previewCourseChange(courseChangeRequest(action))),
+      );
+      const conflicts = previews.flatMap((item) => item.conflicts);
+      if (conflicts.length > 0) {
+        setCourseChangeMessage(`发现 ${conflicts.length} 个日程冲突，尚未修改任何课程。`);
+        return;
+      }
+
+      for (const action of actions) {
+        const applied = await applyCourseChange(courseChangeRequest(action));
+        appliedPlanIds.push(applied.planId);
+      }
+
+      await applyPlanningActions(
+        thread.id,
+        actionConversationId,
+        actions.map((action) => action.proposalId),
+      );
+      setActionProposals((current) => current.filter(
+        (proposal) => !actions.some((action) => action.proposalId === proposal.proposalId),
+      ));
+      setBatchCourseChangePlanIds(appliedPlanIds);
+      setBatchAppliedCourseActions(actions);
+      setCourseChangeMessage(`已实际取消 ${actions.length} 节课程，日程已刷新。关闭前可以整体撤销。`);
+      await onApplied();
+      const refreshed = await getPlanningThread(thread.id);
+      setThread(refreshed);
+    } catch (error) {
+      for (const planId of [...appliedPlanIds].reverse()) {
+        try {
+          await undoCourseChange(planId);
+        } catch {
+          // Preserve the original error; any rollback failure is visible after refresh.
+        }
+      }
+      await onApplied();
+      setCourseChangeMessage(error instanceof Error
+        ? `批量取消失败，已回滚本轮修改：${error.message}`
+        : '批量取消失败，已回滚本轮修改。');
+    } finally {
+      setCourseChangeBusy(false);
+    }
+  };
+
+  const undoAppliedCourseChangeBatch = async () => {
+    if (!batchCourseChangePlanIds.length || courseChangeBusy) return;
+    setCourseChangeBusy(true);
+    try {
+      let restored = 0;
+      for (const planId of [...batchCourseChangePlanIds].reverse()) {
+        const result = await undoCourseChange(planId);
+        restored += result.restoredCount;
+      }
+      setBatchCourseChangePlanIds([]);
+      setBatchAppliedCourseActions([]);
+      setCourseChangeMessage(`已撤销批量课程变动，恢复 ${restored} 个课程实例。`);
+      await onApplied();
+    } catch (error) {
+      setCourseChangeMessage(error instanceof Error ? error.message : '撤销批量课程变动失败');
     } finally {
       setCourseChangeBusy(false);
     }
@@ -1490,6 +1581,43 @@ export default function PlannerSheet({
                   onClick={() => {
                     setCourseChangePlanId(null);
                     setLastAppliedCourseAction(null);
+                    setCourseChangeMessage('');
+                  }}
+                  disabled={courseChangeBusy}
+                  className="rounded-full bg-[#242424] py-3 text-xs font-black text-[#cae393] disabled:opacity-40"
+                >
+                  保留变动
+                </button>
+              </div>
+            </div>
+          )}
+
+          {batchCourseChangePlanIds.length > 0 && batchAppliedCourseActions.length > 0 && (
+            <div className="mt-4 rounded-[1.6rem] border border-[#cae393]/60 bg-[#f7faef] p-4">
+              <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#72804f]">
+                批量课程变动已应用
+              </span>
+              <strong className="mt-1 block text-sm text-[#242424]">
+                已取消 {batchAppliedCourseActions.length} 节课程
+              </strong>
+              {courseChangeMessage && (
+                <p className="mt-1 text-[10px] leading-4 text-[#667252]">{courseChangeMessage}</p>
+              )}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => void undoAppliedCourseChangeBatch()}
+                  disabled={courseChangeBusy}
+                  className="flex items-center justify-center gap-2 rounded-full bg-white py-3 text-xs font-bold text-[#5f5687] disabled:opacity-40"
+                >
+                  {courseChangeBusy ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  整体撤销
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBatchCourseChangePlanIds([]);
+                    setBatchAppliedCourseActions([]);
                     setCourseChangeMessage('');
                   }}
                   disabled={courseChangeBusy}
