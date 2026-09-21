@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
 import { PomodoroService } from './pomodoro.service';
 import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 
@@ -61,6 +61,11 @@ export class PomodoroController {
     @Body() data: { revision?: number } = {},
   ) {
     return this.pomodoroService.complete(id, userId, data.revision);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @CurrentUserId() userId: string) {
+    return this.pomodoroService.remove(id, userId);
   }
 
   @Post(':id/interrupt')
