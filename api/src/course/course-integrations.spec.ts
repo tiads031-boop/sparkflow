@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { CourseService } from './course.service';
-import { CourseIntegrationsService, parseHolidays, webdavTarget } from './course-integrations.service';
+import { CourseIntegrationsService, parseHolidayCalendar, parseHolidays, webdavTarget } from './course-integrations.service';
 
 describe('course integrations', () => {
   const backup = { format: 'sparkflow-courses', version: 1, semesters: [], courses: [] };
@@ -9,7 +9,12 @@ describe('course integrations', () => {
   }
   afterEach(() => jest.restoreAllMocks());
   it('excludes make-up workdays and rejects invalid holiday dates', () => {
-    expect(parseHolidays({ year: 2026, days: [{ date: '2026-10-01', isOffDay: true }, { date: '2026-10-10', isOffDay: false }] }, 2026)).toEqual(['2026-10-01']);
+    const calendar = { year: 2026, days: [{ date: '2026-10-01', name: '国庆节', isOffDay: true }, { date: '2026-10-10', name: '国庆节调休', isOffDay: false }] };
+    expect(parseHolidays(calendar, 2026)).toEqual(['2026-10-01']);
+    expect(parseHolidayCalendar(calendar, 2026)).toEqual([
+      { date: '2026-10-01', name: '国庆节', isOffDay: true },
+      { date: '2026-10-10', name: '国庆节调休', isOffDay: false },
+    ]);
     expect(() => parseHolidays({ year: 2026, days: [{ date: '2026-99-01', isOffDay: true }] }, 2026)).toThrow();
     expect(() => parseHolidays({ year: 2027, days: [] }, 2026)).toThrow();
   });
@@ -44,7 +49,7 @@ describe('course integrations', () => {
       const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({ year: 2026, days: [{ date: '2026-10-01', isOffDay: true }] }))).mockRejectedValueOnce(new Error('offline'));
       const s = service(); await s.holidays(2026);
       jest.setSystemTime(Date.parse('2026-09-03T00:00:00Z'));
-      expect(await s.holidays(2026)).toMatchObject({ dates: ['2026-10-01'], stale: true });
+      expect(await s.holidays(2026)).toMatchObject({ dates: ['2026-10-01'], workdays: [], stale: true });
       expect(fetchMock).toHaveBeenCalledTimes(2);
     } finally { jest.useRealTimers(); }
   });
