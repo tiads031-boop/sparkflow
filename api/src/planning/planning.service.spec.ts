@@ -52,6 +52,43 @@ describe('goal execution snapshot', () => {
 });
 
 describe('PlanningService goal scope', () => {
+  it('applies all 30 selected task proposals in one transaction', async () => {
+    const actions = Array.from({ length: 30 }, (_, index) => ({
+      proposalId: `proposal-${index + 1}`,
+      type: 'create_task',
+      title: `听力训练第 ${index + 1} 天`,
+      dueDate: new Date(Date.UTC(2026, 8, 22 + index)).toISOString(),
+    }));
+    const taskCreateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const tx = {
+      task: {
+        createMany: taskCreateMany,
+        findFirst: jest.fn(async ({ where }: { where: { id: string } }) => ({ id: where.id })),
+      },
+      aIConversation: { update: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      aIConversation: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'conversation-30',
+          context: { actions, appliedActionIds: [] },
+          planningThread: { scopeType: 'general', scopeId: null },
+        }),
+      },
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+    const service = new PlanningService(prisma as never, {} as never, {} as never);
+
+    const result = await service.applyActions('user-1', 'thread-1', {
+      conversationId: 'conversation-30',
+      proposalIds: actions.map((action) => action.proposalId),
+    });
+
+    expect(result.createdTaskIds).toHaveLength(30);
+    expect(result.appliedActionIds).toHaveLength(30);
+    expect(taskCreateMany).toHaveBeenCalledTimes(30);
+  });
+
   it('reuses the active planning thread for the same owned learning goal', async () => {
     const existing = {
       id: 'thread-1',
