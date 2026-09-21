@@ -61,13 +61,13 @@ export function getMonday(date: Date): Date {
   return result;
 }
 
-export function getPlanRange(date: Date, view: 'month' | 'week' | 'agenda' | 'timetable'): DateRange {
+export function getPlanRange(date: Date, view: 'month' | 'week' | 'agenda' | 'timeline' | 'timetable'): DateRange {
   if (view === 'month') {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
     return { start, end: new Date(date.getFullYear(), date.getMonth() + 1, 1) };
   }
 
-  if (view === 'agenda') {
+  if (view === 'agenda' || view === 'timeline') {
     const start = startOfLocalDay(date);
     return { start, end: addLocalDays(start, 1) };
   }
@@ -284,9 +284,12 @@ function buildCalendarItems(events: CalendarEvent[], range: DateRange): PlanItem
 
     const isCourse = event.eventType?.toLowerCase() === 'course' || Boolean(event.courseId);
     const isFocus = event.eventType?.toLowerCase() === 'focus' || Boolean(event.focusSessionId);
+    // Focus CalendarEvents are compatibility projections. Actual Timeline reads
+    // PomodoroSession directly so planned views never double-count execution.
+    if (isFocus) return [];
     return [{
       id: `calendar:${event.id}`,
-      kind: isFocus ? 'focus' : isCourse ? 'course' : 'calendar',
+      kind: isCourse ? 'course' : 'calendar',
       sourceId: event.id,
       title: event.title,
       start: start.toISOString(),

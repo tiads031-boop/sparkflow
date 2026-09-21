@@ -5,6 +5,9 @@ function session(overrides: Record<string, unknown> = {}) {
     id: 'focus-1',
     userId: 'user-1',
     taskId: 'task-1',
+    title: null,
+    entrySource: 'focus',
+    tags: [],
     duration: 25,
     focusMode: 'countdown',
     plannedDurationSeconds: 1500,
@@ -35,6 +38,104 @@ function session(overrides: Record<string, unknown> = {}) {
 }
 
 describe('PomodoroService reliable completion', () => {
+  it('creates a completed manual actual-time entry with one effective segment', async () => {
+    const created = session({
+      id: 'manual-1',
+      taskId: null,
+      task: null,
+      title: '阅读判例',
+      entrySource: 'manual',
+      tags: ['学习'],
+      focusMode: 'countup',
+      plannedDurationSeconds: 0,
+      status: 'completed',
+      startedAt: new Date('2026-09-20T08:00:00.000Z'),
+      endedAt: new Date('2026-09-20T08:45:00.000Z'),
+      effectiveDurationSeconds: 2700,
+      duration: 45,
+      segments: [
+        {
+          id: 'manual-segment',
+          sessionId: 'manual-1',
+          startedAt: new Date('2026-09-20T08:00:00.000Z'),
+          endedAt: new Date('2026-09-20T08:45:00.000Z'),
+          createdAt: new Date('2026-09-20T08:45:00.000Z'),
+        },
+      ],
+    });
+    const tx = {
+      task: { findFirst: jest.fn() },
+      tag: { upsert: jest.fn().mockResolvedValue({ id: 'tag-1' }) },
+      pomodoroSession: { create: jest.fn().mockResolvedValue(created) },
+    };
+    const prisma = { $transaction: jest.fn((run) => run(tx)) };
+
+    const result = await new PomodoroService(prisma as never).createManual({
+      userId: 'user-1',
+      title: '阅读判例',
+      startedAt: '2026-09-20T08:00:00.000Z',
+      endedAt: '2026-09-20T08:45:00.000Z',
+      tags: ['#学习', '学习'],
+      clientRequestId: 'manual-request',
+    });
+
+    expect(tx.pomodoroSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          entrySource: 'manual',
+          effectiveDurationSeconds: 2700,
+          tags: ['学习'],
+          status: 'completed',
+          segments: {
+            create: expect.objectContaining({
+              endedAt: new Date('2026-09-20T08:45:00.000Z'),
+            }),
+          },
+        }),
+      }),
+    );
+    expect(result.effectiveDurationSeconds).toBe(2700);
+  });
+
+  it('returns actual timeline entries from sessions rather than calendar projections', async () => {
+    const prisma = {
+      pomodoroSession: {
+        findMany: jest.fn().mockResolvedValue([
+          session({
+            status: 'completed',
+            endedAt: new Date('2026-09-20T10:18:00.000Z'),
+            effectiveDurationSeconds: 1080,
+            tags: [],
+            task: { id: 'task-1', title: '复习民法', tags: ['法学'] },
+          }),
+        ]),
+      },
+    };
+
+    const result = await new PomodoroService(prisma as never).findTimeline(
+      'user-1',
+      '2026-09-20T00:00:00.000Z',
+      '2026-09-21T00:00:00.000Z',
+    );
+
+    expect(prisma.pomodoroSession.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: 'user-1',
+          effectiveDurationSeconds: { gt: 0 },
+        }),
+      }),
+    );
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        title: '复习民法',
+        source: 'focus',
+        tags: ['法学'],
+        effectiveDurationSeconds: 1080,
+      }),
+    );
+  });
+
   it('creates a count-up session without an automatic cutoff', async () => {
     const created = session({
       taskId: null,

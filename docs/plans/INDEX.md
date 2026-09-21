@@ -15,7 +15,7 @@
 | 文件 | 定位 | 状态 |
 |---|---|---|
 | [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 当前 |
-| [vnext-execution-intelligence-ui-system.md](vnext-execution-intelligence-ui-system.md) | 新一轮产品与 UI 总方案：Tags → Actual Timeline → Analytics → Goal Progress → AI Feedback → Android Usage | 🚧 M1 已合并，待部署/移动验收 |
+| [vnext-execution-intelligence-ui-system.md](vnext-execution-intelligence-ui-system.md) | 新一轮产品与 UI 总方案：Tags → Actual Timeline → Analytics → Goal Progress → AI Feedback → Android Usage | 🚧 M1 已合并；M2 代码完成，待 PR/数据库/移动验收 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、幂等、冲突、Web/Android 真实验收 | 🚧 剩余生产/真机验收 |
 | [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | Capture → Review → Insight → Action 与 Focus 多模态链路 | 🚧 主体完成，剩余 PWA/Android/多模态验收 |
 

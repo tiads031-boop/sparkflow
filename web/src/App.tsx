@@ -384,7 +384,7 @@ export default function App() {
                 initialSection={activeTab === 'today' || activeTab === 'timeline' ? 'calendar' : 'tasks'}
                 sectionOnly={activeTab === 'today' || activeTab === 'timeline' ? 'calendar' : 'tasks'}
                 initialTaskView={activeTab === 'board' ? 'quadrant' : undefined}
-                initialPlanView={activeTab === 'today' || activeTab === 'timeline' ? 'agenda' : undefined}
+                initialPlanView={activeTab === 'today' ? 'agenda' : activeTab === 'timeline' ? 'timeline' : undefined}
               />
             </Suspense>
           )}

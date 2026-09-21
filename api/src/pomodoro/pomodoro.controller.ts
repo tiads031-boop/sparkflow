@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { PomodoroService } from './pomodoro.service';
 import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 
@@ -21,6 +29,15 @@ export class PomodoroController {
     return this.pomodoroService.findActive(userId);
   }
 
+  @Get('timeline')
+  timeline(
+    @CurrentUserId() userId: string,
+    @Query('start') start: string,
+    @Query('end') end: string,
+  ) {
+    return this.pomodoroService.findTimeline(userId, start, end);
+  }
+
   @Post()
   create(
     @CurrentUserId() userId: string,
@@ -35,6 +52,23 @@ export class PomodoroController {
     },
   ) {
     return this.pomodoroService.create({ ...data, userId });
+  }
+
+  @Post('manual')
+  createManual(
+    @CurrentUserId() userId: string,
+    @Body()
+    data: {
+      title?: string;
+      taskId?: string;
+      startedAt: string;
+      endedAt: string;
+      notes?: string;
+      tags?: string[];
+      clientRequestId?: string;
+    },
+  ) {
+    return this.pomodoroService.createManual({ ...data, userId });
   }
 
   @Post(':id/pause')

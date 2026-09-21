@@ -81,6 +81,7 @@ Phase 15 已补齐：
 | 30 | UI System | 新一轮采用 Graphite Aurora；3D 仅用于有卡片层级意义的任务/目标/回顾/方案预览 | 保留产品记忆点，同时避免不同页面各自形成视觉体系 |
 | 31 | Android Usage | 后续使用 UsageStatsManager / UsageEvents 生成独立 AppUsageSession，默认关闭且不读取页面内容 | 系统观察到的 App 使用不是 CalendarEvent、Focus 或 Inspiration，必须保持语义独立 |
 | 32 | Tag 元数据 | 新增最小 `Tag` 元数据表管理层级、颜色、排序与归档；Task/Inspiration `tags` 数组继续保存实体快照 | 支持稳定标签管理与重命名传播，同时不复制任务/记录正文或引入第二套分类事实源 |
+| 33 | Actual Timeline 事实源 | Timeline 直接读取 PomodoroSession；手工补记也写入 PomodoroSession 并以 `entrySource=manual` 标识；Focus CalendarEvent 仅保留兼容投影，不进入 Planned 视图 | 统一有效时长口径、排除暂停并避免同一 Focus 在计划与实际中重复统计 |
 
 ---
 
@@ -283,13 +284,14 @@ VNext M6 已进入主线：
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待剩余 PWA/真机 | PR #48/#49/#50 已合入；Web 真实账号 Planner Preview→Apply→Undo 已通过，最新 Focus C2 APK `android-e5978ecbbc24` 已生成；四视图/PWA/Android 真机仍需验收 |
 | VNext AI Orchestration | ✅ M4–M8 代码/CI；🚧 最终验收 | PR #59–#81 与 #105/#106 已完成主体能力；剩余 PWA/Android 真机、多模态/通知/外观验收 |
-| Execution Intelligence & UI | 🚧 M1 已合并，待验收 | PR #118 已合并；待部署及 360px/PWA/Android 验收后进入 M2 Actual Timeline |
+| Execution Intelligence & UI | 🚧 M1 已合并；M2 代码完成 | M2 Actual Timeline、手工补记、计划对照与 Focus 去重已在 `codex/m2-timeline-actual` 实现；待 PR、migration CI、真实 API 与移动验收 |
 
 ---
 
 ## 七、仓库与近期里程碑
 
 - 🚧 PR #118 已 squash 合并为 `master@c856b4f`：Execution Intelligence M1 的 Tag metadata/API/管理页、Task/Inspiration 标签选择、Folder/Project/Tag 分离、Planner 分类可见与 Task Edit Deck 视觉收敛已进入主线；CI run #310 全绿，待部署和移动端验收。
+- 🚧 Execution Intelligence M2 分支 `codex/m2-timeline-actual`：Timeline 直接消费 PomodoroSession，支持手工补记、仅实际/计划对照、暂停时长排除与 CalendarEvent Focus 投影去重；本地 API 159 tests、Web 73 tests 与两端 build 通过，待 PR/数据库/移动验收。
 - ✅ PR #23 已关闭，由 #25 / Study Mode 正式方案替代。
 - ✅ PR #24 `fad1a619`：Course linked tasks。
 - ✅ PR #14 已关闭，Issue #26 承接 Timeline M3 余项。

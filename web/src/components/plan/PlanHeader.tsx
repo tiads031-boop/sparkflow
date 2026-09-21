@@ -5,6 +5,7 @@ const viewLabels: Record<PlanView, string> = {
   month: '月视图',
   week: '周视图',
   agenda: '今天',
+  timeline: '时间线',
 };
 
 interface PlanHeaderProps {
