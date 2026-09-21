@@ -1,6 +1,6 @@
 # SparkFlow — 下一步执行队列
 
-> **最后更新**：2026-09-21 | **代码基线**：`master@9f72d16b`
+> **最后更新**：2026-09-21 | **代码基线**：`master@9f6b1fe7`（生产运行版本 `9f72d16b`）
 >
 > 本文件是唯一近期执行队列。其他 Phase 文档只负责范围、约束与验收细节；若与本文件冲突，以代码/生产事实和本文件顺序为准。
 
@@ -9,20 +9,20 @@
 | 范围 | 已确认事实 |
 |---|---|
 | 数据与认证 | 腾讯云独立自建 PostgreSQL + SparkFlow API 自建密码/会话认证；与 DeepTutor 数据库隔离 |
-| API | `https://api.fish-life.cc.cd`，2026-09-21 公网 `/api/health.buildSha` 已确认运行 `master@9f72d16b`；进程与版本追溯通过。生产库此前 20 个 migrations 已 up to date；Focus C1 migration 仍需通过服务器 `prisma migrate status` 留存直接证据 |
+| API | `https://api.fish-life.cc.cd`，2026-09-21 公网 `/api/health.buildSha` 已确认运行 `master@9f72d16b`；进程与版本追溯通过。2026-09-21 已在服务器直接执行 `prisma migrate status`：31 个 migrations，`Database schema is up to date!` |
 | Web | 腾讯云 Nginx 直接托管 `/var/www/sparkflow`；2026-09-21 首页 HTTPS 200，生产主 bundle 与本地 `master@9f72d16b` 构建哈希一致，并静态核到 Focus C2“记录一下 / 再记一条 / 保存专注记录”文案 |
-| GitHub | `master@9f72d16b`；运行时代码基线为 `e5978ecb`，其后提交为状态文档同步。VNext M4–M8 与 Focus C1/C2 代码/CI 已完成；2026-09-21 本地复验 API 141/141、Web 71/71 与两端 build 均通过 |
+| GitHub | `master@9f6b1fe7`；生产运行版本为 `9f72d16b`，功能代码基线为 `e5978ecb`，其后提交为状态文档同步。VNext M4–M8 与 Focus C1/C2 代码/CI 已完成；2026-09-21 本地复验 API 141/141、Web 71/71 与两端 build 均通过 |
 | Phase 12 CI | PostgreSQL 16 全量 migration、API build/test、顺序 replay、并发 replay、rollback、跨用户隔离真实 Prisma/PostgreSQL E2E 已纳入 CI |
 | Android | Capacitor CORS 已补齐 `https://localhost` / `capacitor://localhost`；APK CI 会核验生产 API、写入 commit 标识并发布 GitHub prerelease |
-| 最新功能 APK | Release `android-7145ba0ea3d2`；`sparkflow-7145ba0ea3d2-debug.apk`；对应 VNext M3 功能提交 `7145ba0ea3d2`，Android CI 成功；之后 `e883b9a3` 仅改文档，未触发 APK |
+| 最新功能 APK | Release `android-e5978ecbbc24`；`sparkflow-e5978ecbbc24-debug.apk`；对应 Focus C2 功能提交 `e5978ecbbc24`，生产 API 目标校验通过；SHA-256 `6db099865fdb8ee3febc6febf65c1f9b8b7a65c3db3bc0d2532e4fa7efe67d70` |
 | Web 部署 | 已退出 Vercel 流量路径；DNS TTL 为 600 秒。服务器没有宿主机 Node.js，部署脚本会自动复用现有 `sparkflow-api:latest` 镜像中的 Node.js/npm 构建静态站 |
 
 ## 近期总原则
 
 1. **Phase 15 M1/M2/M3 与 Focus C1/C2 代码均已进入 master；不要再重复实现 Capture、Insight、Insight→Task 或专注记录底座。**
-2. **最新 `master@9f72d16b` 的 API/Web 同步已确认；当前第一收口项是生产 migration 直接证据、真实账号与 Android/PWA 真机验收。不要再继续重复实现 M4–M8 与 Focus C1/C2 已完成能力。**
+2. **最新 `master@9f72d16b` 的 API/Web 同步已确认；生产 migration 直接证据已取得；当前第一收口项是真实账号与 Android/PWA 真机验收。不要再继续重复实现 M4–M8 与 Focus C1/C2 已完成能力。**
 3. **M2 已出现真实 Qwen Provider 生产调用；PR #43 稳定性修复已随 `99ebb3c` API 镜像上线，下一步复验真实生成质量与失败恢复，禁止用伪造洞察代替。**
-4. **腾讯云 API/Web 已发布 `master@9f72d16b`，但 health 200 与静态 bundle 只能证明版本上线；C1 migration 状态和真实业务闭环仍需单独验收。**
+4. **腾讯云 API/Web 已发布 `master@9f72d16b`，但 health 200 与静态 bundle 只能证明版本上线；C1 migration 已由服务器直接核验；真实业务闭环仍需单独验收。**
 5. **Android 继续以 commit-stamped Release 做真机验收；当前 VNext M3 包为 `android-7145ba0ea3d2`。**
 6. **VNext Plan M1–M3 已进入 master；用户已明确重定义下一阶段产品方向：学习改为独立 AI 目标规划、AI 安排升级为对话式调度、课程支持单次调课/换课、四象限手机同屏可关闭、Today 极简、多模态随手记、设置/通知/任务表单重做。按 M4–M8 新方案推进，不再沿用旧的“Study 关联 Course / M4 仅拖拽过滤”方向。**
 
@@ -59,7 +59,7 @@
 
 - [x] 已从 `master@99ebb3c` 构建腾讯云 API 镜像并写入 `BUILD_SHA`。
 - [x] 公网 `/api/health.buildSha`、服务器 Git HEAD、运行镜像均已对齐 `99ebb3c`。
-- [x] 腾讯云生产库 `prisma migrate status` 已核验：20 migrations，schema up to date。
+- [x] 腾讯云生产库 `prisma migrate status` 已再次直接核验：31 migrations，`Database schema is up to date!`；Focus C1 migration 已进入生产链。
 - [x] `20260919130000_add_study_folders` 已应用并通过 StudyController 路由启动核验。
 - [x] `20260914050000_add_schedule_plans` 已包含在生产 migration chain。
 - [x] `20260915120000_add_course_import_idempotency` 已包含在生产 migration chain。
@@ -86,7 +86,7 @@
 
 使用最新 GitHub Release APK：
 
-- [ ] 安装 VNext M3 Release `sparkflow-7145ba0ea3d2-debug.apk`（或之后同机制生成的更新包）。
+- [ ] 安装最新 Focus C2 Release `sparkflow-e5978ecbbc24-debug.apk`。
 - [ ] 登录成功；确认此前 CORS 分叉已消失。
 - [ ] Session 刷新/重启后恢复。
 - [ ] SchoolImport / 文件降级 → 返回 SparkFlow → 预览 → 导入。
@@ -154,7 +154,7 @@
 - [x] 三批均通过 Web build/tests 与现有 API/fresh PostgreSQL CI。
 - [x] 腾讯云 API/Web 已对齐 `master@9f72d16b`；公网 health buildSha、首页 HTTPS 与 Focus C2 bundle 文案已核验。
 - [ ] Web/PWA 真实账号：Month / Week / Agenda / Timetable + Planner Preview → Apply → Undo。
-- [x] Android VNext M3 commit-stamped APK 已生成：Release `android-7145ba0ea3d2` / `sparkflow-7145ba0ea3d2-debug.apk`。
+- [x] Android Focus C2 commit-stamped APK 已生成：Release `android-e5978ecbbc24` / `sparkflow-e5978ecbbc24-debug.apk`。
 - [ ] Android 真机：360px、safe-area、底栏、周视图密度、课表、Planner 闭环。
 - [ ] M4（拖拽、过滤、视觉细化）仅在上述真实验收稳定后启动。
 
@@ -182,7 +182,7 @@
 - [x] **M8.4 / 显式附件 AI**：PR #80 已完成音频“转写 → 摘要”；PR #81 已完成图片信息提取与视频“语音转写 + 画面/语音综合摘要”。全部只在用户主动点击时调用 AI；上传本身不自动消耗额度。
 - [x] **M8.5 / Focus C1**：PR #105 已完成精确专注分段、暂停/恢复计时、CAS 完成、Focus 日历投影与 `Inspiration.focusSessionId` 数据关联。
 - [x] **M8.6 / Focus C2**：PR #106 已完成完成后“记录一下 / 稍后 / 再记一条”多模态记录，后端校验会话归属与 completed 状态；支持 5–180 分钟圆盘拖拽（5 分钟吸附）与精确输入。
-- [ ] **M8 最终验收**：API/Web 已同步到 `master@9f72d16b`；继续用真实账号在 PWA / Android 真机验证麦克风、文件选择、私有附件播放、音频/图片/视频显式 AI、Focus 多条记录、通知、深浅色、safe-area 与网络失败恢复。
+- [ ] **M8 最终验收**：API/Web 已同步到 `master@9f72d16b`；生产 31 个 migrations 已直接核验；继续用真实账号在 PWA / Android 真机验证麦克风、文件选择、私有附件播放、音频/图片/视频显式 AI、Focus 多条记录、通知、深浅色、safe-area 与网络失败恢复。
 
 ### M5 实施记录 — ✅ 代码/CI 完成
 
@@ -209,7 +209,7 @@
 - PR #81：图片附件主动提取可见信息；视频附件主动生成语音转写与画面/语音综合摘要；图片/视频 AI 处理上限独立于存储上限。
 - PR #105：精确专注分段、可恢复暂停/恢复、CAS 完成与 Focus 日历投影；为 Inspiration 增加专注会话回链字段。
 - PR #106：完成后关联多条文字/语音/图片/视频记录；专注时长圆盘拖拽与精确输入；API/Web build/test 与 fresh PostgreSQL CI 全部通过。
-- 当前仓库与腾讯云 API/Web 已对齐 `master@9f72d16b`；这仍不等于生产 migration、真实账号业务路径或 Android 真机已经验收。
+- 当前仓库为 `master@9f6b1fe7`；腾讯云 API/Web 运行 `9f72d16b`（两者差异仅为状态文档提交）。生产 31 个 migrations 已直接核验；真实账号业务路径与 Android 真机仍未验收。
 
 ### M4 第一优先级安全修复 — ✅ 已完成
 
@@ -265,7 +265,7 @@ PR #55 已完成：
 - [x] Action 洞察点击“加入待办”后先显示确认 Sheet；用户可改标题、时长、截止日期、优先级。
 - [x] Task ↔ Insight 双向回链；Task 详情显示洞察与来源记录数量。
 - [x] 普通 Task 编辑不能重新绑定 `insightId/inspirationId`；创建时校验 Insight 属于当前用户。
-- [x] 腾讯云 API 已部署 `master@9f72d16b`；此前生产库 20 个 migrations 状态 up to date，Focus C1 migration 仍需直接复核。
+- [x] 腾讯云 API 已部署 `master@9f72d16b`；此前生产库 20 个 migrations 状态 up to date，生产 31 个 migrations（含 Focus C1）已直接复核。
 - [x] GitHub CI 与最新 Android APK `android-5835e3223748` 成功；该包已包含 PR #43 的前端请求超时治理。
 - [x] **Web Production 已发布 `master@9f72d16b`**：首页 HTTPS 200，bundle 与同 SHA 本地构建一致；仍需真实账户验证 Insight 75s 专用超时与普通 API 15s 有界超时。
 - [ ] Web/Android 真机跑完整链路：记录 → 回顾 → Insight → 确认 Task → Planner → Timeline → Focus → Done。
