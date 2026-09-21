@@ -9,6 +9,7 @@ export async function readDav(config: DavConfig): Promise<DavRemote> {
 export async function writeDav(config: DavConfig, etag?: string | null) {
   return (await apiRequest(`/course-integrations/webdav/write?userId=${encodeURIComponent(DEFAULT_USER_ID)}`, { method: 'POST', body: JSON.stringify({ ...config, etag: etag || undefined }) })).json();
 }
-export async function fetchHolidays(year: number): Promise<{ dates: string[]; fetchedAt: string; year: number; stale: boolean }> {
+export interface HolidayCalendarDay { date: string; name: string | null; isOffDay: boolean }
+export async function fetchHolidays(year: number): Promise<{ dates: string[]; workdays: string[]; days: HolidayCalendarDay[]; fetchedAt: string; year: number; stale: boolean }> {
   return (await apiRequest(`/course-integrations/holidays?year=${year}`)).json();
 }
