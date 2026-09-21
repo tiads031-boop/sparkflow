@@ -118,7 +118,8 @@ M1 当前收口顺序：
 - [x] Agenda 继续只展示真正排入日程的事项；
 - [x] 计划 / 实际切换或对照；
 - [x] Focus 直接读取 PomodoroSession，有效时长排除暂停且不与 CalendarEvent 投影重复统计；
-- [ ] fresh PostgreSQL migration CI 与真实 API 链路；
+- [x] fresh PostgreSQL migration CI、API/Web build/tests 与真实数据库导入验证；
+- [ ] 生产环境真实 API 链路与 migration 应用；
 - [ ] 360px / PWA / Android Timeline 视觉与交互验收。
 
 实现分支：`codex/m2-timeline-actual`，PR [#119](https://github.com/tiads031-boop/sparkflow/pull/119) 已 squash 合并为 `master@b40854c`。本地 Prisma validate、API/Web build、API 159 tests、Web 73 tests 与新增前端专项 ESLint 已通过；CI run #313 的 fresh PostgreSQL migration/API/Web jobs 全绿。浏览器自动化守护进程仍无法在当前环境启动，因此移动视觉验收不标记为完成。

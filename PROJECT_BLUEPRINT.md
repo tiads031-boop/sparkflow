@@ -291,7 +291,7 @@ VNext M6 已进入主线：
 ## 七、仓库与近期里程碑
 
 - 🚧 PR #118 已 squash 合并为 `master@c856b4f`：Execution Intelligence M1 的 Tag metadata/API/管理页、Task/Inspiration 标签选择、Folder/Project/Tag 分离、Planner 分类可见与 Task Edit Deck 视觉收敛已进入主线；CI run #310 全绿，待部署和移动端验收。
-- 🚧 Execution Intelligence M2 分支 `codex/m2-timeline-actual`：Timeline 直接消费 PomodoroSession，支持手工补记、仅实际/计划对照、暂停时长排除与 CalendarEvent Focus 投影去重；本地 API 159 tests、Web 73 tests 与两端 build 通过，待 PR/数据库/移动验收。
+- 🚧 Execution Intelligence M2 分支 `codex/m2-timeline-actual`：Timeline 直接消费 PomodoroSession，支持手工补记、仅实际/计划对照、暂停时长排除与 CalendarEvent Focus 投影去重；本地 API 159 tests、Web 73 tests 与两端 build 通过，PR 与 fresh PostgreSQL CI 已完成，待生产 migration、真实 API 与移动验收。
 - 🚧 PR #119 已 squash 合并为 `master@b40854c`：M2 CI run #313 全绿；代码已进入主线，生产 migration、真实 API 与移动端验收仍待完成。
 - ✅ PR #23 已关闭，由 #25 / Study Mode 正式方案替代。
 - ✅ PR #24 `fad1a619`：Course linked tasks。
