@@ -1,7 +1,7 @@
 # SparkFlow VNext — Execution Intelligence & UI System
 
-> **状态**：🚧 M1 代码已实现，待 PR 与 360px/PWA/Android 验收
-> **仓库基线**：`master@56a555490a09a1290a1b09c2139dc796a09651fb`  
+> **状态**：🚧 M1 代码已实现，PR #118 开放；远端 Web CI 修复中，待合并、部署与 360px/PWA/Android 验收
+> **仓库基线**：`master@a815ecb09bb74ba6bf63095a4eff480afcdbd066`；实现分支 `codex/m1-ui-tags@30b0c8e`
 > **最后核对**：2026-09-22  
 > **定位**：在现有“今天 / 计划 / 记录 / 学习 / 我的”五工作空间和 AI Planner、Focus、Course、Inspiration 能力之上，把 SparkFlow 从“能规划”升级为“能理解计划、执行、时间去向与目标进度，并据此持续调整”的个人执行系统。
 
@@ -928,4 +928,6 @@ M1 稳定后再进入 Timeline 2.0，不把 Android Usage Tracking 提前塞进�
 - Task 编辑明确区分 StudyFolder（长期目标）、Task.project（阶段）和 Tag（横向分类）；
 - Planner 上下文读取现有标签，草案展示标签，并在确认应用时复用/补齐 Tag 元数据；孤立事项仍默认不创建 Folder；
 - Task Edit Deck 保留卡片切换，但降低旋转、缩放、阴影和后卡不透明度；
-- API/Web build、Prisma validate、API 156 tests、Web 73 tests 通过；真实 360px/PWA/Android 视觉验收仍待完成。
+- 已创建 PR [#118](https://github.com/tiads031-boop/sparkflow/pull/118)，当前开放、可合并但不能合并：API CI（含 fresh PostgreSQL migration、build、tests 与真实数据库导入验证）通过；Web CI 因远端 `PlannerSheet.tsx` 内容异常被 TypeScript 判为 binary 而失败；
+- 本地 Prisma validate、API/Web build、API 157 tests、Web 73 tests 均通过；需先修复 PR 分支文件内容并让远端 CI 全绿；
+- 真实 360px/PWA/Android 视觉验收与 Tag migration 生产应用仍待完成；M2 在这些收口项之后启动。
