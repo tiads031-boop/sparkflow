@@ -1,8 +1,8 @@
 # SparkFlow — 实施方案索引
 
 > **最后更新**：2026-09-22  
-> **仓库代码基线**：`master@c856b4f24b650e6555d11dceb5606b51936421f5`
-> **M1 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)，CI 全绿，已 squash 合并
+> **仓库代码基线**：`master@b40854c76cfac6801f866ef9bbd63110e780aaac`
+> **M1/M2 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)，CI 全绿，均已 squash 合并
 > **最近已确认生产版本**：`9f72d16b`  
 > **唯一近期执行队列**：[NEXT.md](NEXT.md)
 
@@ -15,7 +15,7 @@
 | 文件 | 定位 | 状态 |
 |---|---|---|
 | [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 当前 |
-| [vnext-execution-intelligence-ui-system.md](vnext-execution-intelligence-ui-system.md) | 新一轮产品与 UI 总方案：Tags → Actual Timeline → Analytics → Goal Progress → AI Feedback → Android Usage | 🚧 M1 已合并；M2 代码完成，待 PR/数据库/移动验收 |
+| [vnext-execution-intelligence-ui-system.md](vnext-execution-intelligence-ui-system.md) | 新一轮产品与 UI 总方案：Tags → Actual Timeline → Analytics → Goal Progress → AI Feedback → Android Usage | 🚧 M1/M2 代码已合并，待生产/移动验收 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、幂等、冲突、Web/Android 真实验收 | 🚧 剩余生产/真机验收 |
 | [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | Capture → Review → Insight → Action 与 Focus 多模态链路 | 🚧 主体完成，剩余 PWA/Android/多模态验收 |
 

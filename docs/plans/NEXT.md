@@ -1,8 +1,8 @@
 # SparkFlow — 下一步执行队列
 
 > **最后更新**：2026-09-22  
-> **仓库代码基线**：`master@c856b4f24b650e6555d11dceb5606b51936421f5`
-> **M1 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)，CI 全绿，已 squash 合并
+> **仓库代码基线**：`master@b40854c76cfac6801f866ef9bbd63110e780aaac`
+> **M1/M2 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)，CI 全绿，均已 squash 合并
 > **最近已确认生产版本**：`9f72d16b`（生产仍落后于当前 master；后续部署必须重新核对 buildSha）  
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
@@ -109,7 +109,7 @@ M1 当前收口顺序：
 2. 完成 360px/PWA/Android 与标签真实链路验收；
 3. M2 代码可并行推进，但正式发布仍需同时核对 M1/M2 migration 与移动端链路。
 
-### M2 — Timeline 2.0（代码完成，待 PR / 数据库 / 移动验收）
+### M2 — Timeline 2.0（代码已合并，待生产 / 移动验收）
 
 - [x] 明确 Planned Time 与 Actual Time；
 - [x] Focus Session 作为第一批 Actual Timeline 真实数据；
@@ -121,7 +121,7 @@ M1 当前收口顺序：
 - [ ] fresh PostgreSQL migration CI 与真实 API 链路；
 - [ ] 360px / PWA / Android Timeline 视觉与交互验收。
 
-实现分支：`codex/m2-timeline-actual`。本地 Prisma validate、API/Web build、API 159 tests、Web 73 tests 与新增前端专项 ESLint 已通过；浏览器自动化守护进程仍无法在当前环境启动，因此移动视觉验收不标记为完成。
+实现分支：`codex/m2-timeline-actual`，PR [#119](https://github.com/tiads031-boop/sparkflow/pull/119) 已 squash 合并为 `master@b40854c`。本地 Prisma validate、API/Web build、API 159 tests、Web 73 tests 与新增前端专项 ESLint 已通过；CI run #313 的 fresh PostgreSQL migration/API/Web jobs 全绿。浏览器自动化守护进程仍无法在当前环境启动，因此移动视觉验收不标记为完成。
 
 ### M3 — Time Analytics
 

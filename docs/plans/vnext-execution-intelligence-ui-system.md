@@ -1,7 +1,7 @@
 # SparkFlow VNext — Execution Intelligence & UI System
 
-> **状态**：🚧 M1 已合并；M2 Timeline 2.0 代码已实现，待 PR、数据库与 360px/PWA/Android 验收
-> **仓库基线**：`master@c856b4f24b650e6555d11dceb5606b51936421f5`
+> **状态**：🚧 M1/M2 代码已合并；待生产 migration、真实 API 与 360px/PWA/Android 验收
+> **仓库基线**：`master@b40854c76cfac6801f866ef9bbd63110e780aaac`
 > **最后核对**：2026-09-22  
 > **定位**：在现有“今天 / 计划 / 记录 / 学习 / 我的”五工作空间和 AI Planner、Focus、Course、Inspiration 能力之上，把 SparkFlow 从“能规划”升级为“能理解计划、执行、时间去向与目标进度，并据此持续调整”的个人执行系统。
 
@@ -940,3 +940,5 @@ M1 稳定后再进入 Timeline 2.0，不把 Android Usage Tracking 提前塞进�
 - 提前结束的 Focus 会结算真实有效时长；统计统一纳入有有效投入的 completed/interrupted session，暂停时间不计入投入；
 - 新增 `title / entrySource / tags` migration 和 `(userId, status, startedAt)` 索引；
 - 本地 Prisma validate、API/Web build、API 159 tests、Web 73 tests 和新增前端专项 ESLint 通过；自动浏览器 daemon 仍无法启动，fresh PostgreSQL CI、真实 API 与移动端验收留到 PR/部署阶段。
+- PR [#119](https://github.com/tiads031-boop/sparkflow/pull/119) 已通过 CI run #313 并 squash 合并为 `master@b40854c`；fresh PostgreSQL migration、API/Web build/tests 与真实数据库导入验证均通过。
+- M2 仍需生产应用 migration、真实 API 冒烟，以及 360px/PWA/Android Timeline 视觉和交互验收。
