@@ -956,6 +956,39 @@ export class PlanningService {
       const updatedTaskIds: string[] = [];
       const updatedGoalIds: string[] = [];
       const externalActionIds: string[] = [];
+      const createdFolderIds: string[] = [];
+      const folderByName = new Map<string, string>();
+
+      const resolveTaskFolder = async (folderName?: string | null) => {
+        if (goalScopeId) return goalScopeId;
+        const name = folderName?.trim();
+        if (!name) return null;
+        const cached = folderByName.get(name);
+        if (cached) return cached;
+
+        const existingFolder = await tx.studyFolder.findFirst({
+          where: { userId, status: 'active', name },
+          select: { id: true },
+        });
+        if (existingFolder) {
+          folderByName.set(name, existingFolder.id);
+          return existingFolder.id;
+        }
+
+        const createdFolder = await tx.studyFolder.create({
+          data: {
+            userId,
+            name,
+            description: '由 AI 规划自动归纳创建',
+            icon: 'target',
+            color: '#cae393',
+          },
+          select: { id: true },
+        });
+        folderByName.set(name, createdFolder.id);
+        createdFolderIds.push(createdFolder.id);
+        return createdFolder.id;
+      };
 
       if (goalScopeId) {
         const ownedGoal = await tx.studyFolder.findFirst({
@@ -1003,6 +1036,7 @@ export class PlanningService {
         }
 
         if (action.type === 'create_task') {
+          const taskFolderId = await resolveTaskFolder(action.folderName);
 
           await tx.task.createMany({
             data: [{
@@ -1012,10 +1046,12 @@ export class PlanningService {
               description: action.description ?? null,
               status: 'todo',
               priority: action.priority || 'medium',
-              section: goalScopeId ? 'study' : 'personal',
-              project: goalScopeId ? (action.milestoneTitle || null) : null,
+              section: taskFolderId ? 'study' : 'personal',
+              project: taskFolderId ? (action.milestoneTitle || null) : null,
               estimatedMinutes: action.estimatedMinutes ?? null,
               dueDate: action.dueDate ? new Date(action.dueDate) : null,
+              scheduledStart: action.scheduledStart ? new Date(action.scheduledStart) : null,
+              scheduledEnd: action.scheduledEnd ? new Date(action.scheduledEnd) : null,
               scheduleSource: 'ai',
               tags: [],
             }],
@@ -1027,9 +1063,9 @@ export class PlanningService {
           });
           if (!task) throw new ConflictException('Task proposal id is already in use');
 
-          if (goalScopeId) {
+          if (taskFolderId) {
             await tx.studyFolderTask.createMany({
-              data: [{ folderId: goalScopeId, taskId: task.id }],
+              data: [{ folderId: taskFolderId, taskId: task.id }],
               skipDuplicates: true,
             });
           }
@@ -1046,7 +1082,17 @@ export class PlanningService {
         if (action.changes.dueDate !== undefined) {
           changes.dueDate = action.changes.dueDate ? new Date(action.changes.dueDate) : null;
         }
-        if (goalScopeId && action.changes.milestoneTitle !== undefined) {
+        if (action.changes.scheduledStart !== undefined) {
+          changes.scheduledStart = action.changes.scheduledStart
+            ? new Date(action.changes.scheduledStart)
+            : null;
+        }
+        if (action.changes.scheduledEnd !== undefined) {
+          changes.scheduledEnd = action.changes.scheduledEnd
+            ? new Date(action.changes.scheduledEnd)
+            : null;
+        }
+        if ((goalScopeId || action.changes.folderName) && action.changes.milestoneTitle !== undefined) {
           changes.project = action.changes.milestoneTitle || null;
         }
 
@@ -1061,6 +1107,15 @@ export class PlanningService {
           data: changes,
         });
         if (updated.count !== 1) throw new NotFoundException('Task to update was not found');
+        const targetFolderId = action.changes.folderName
+          ? await resolveTaskFolder(action.changes.folderName)
+          : null;
+        if (targetFolderId) {
+          await tx.studyFolderTask.createMany({
+            data: [{ folderId: targetFolderId, taskId: action.taskId }],
+            skipDuplicates: true,
+          });
+        }
         updatedTaskIds.push(action.taskId);
       }
 
@@ -1083,6 +1138,7 @@ export class PlanningService {
         createdTaskIds,
         updatedTaskIds,
         updatedGoalIds: [...new Set(updatedGoalIds)],
+        createdFolderIds,
         externalActionIds,
       };
     });

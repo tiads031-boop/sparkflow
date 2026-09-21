@@ -23,6 +23,15 @@ export default function AgendaPlanView({ selectedDate, items, onItemClick, onFoc
 
   return (
     <section className="rounded-[1.75rem] bg-[var(--sf-surface)] p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between px-1">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">Scheduled</p>
+          <h2 className="text-sm font-black text-[var(--sf-text-primary)]">已排入日程</h2>
+        </div>
+        <span className="rounded-full bg-[var(--sf-bg)] px-2.5 py-1 text-[9px] font-bold text-[var(--sf-text-tertiary)]">
+          未排期事项留在待办
+        </span>
+      </div>
       {dayItems.length ? (
         <div className="relative space-y-2 before:absolute before:bottom-2 before:left-[42px] before:top-2 before:w-px before:bg-black/[0.07]">
           {dayItems.map((item) => {

@@ -95,6 +95,9 @@ const MAX_PLANNING_ACTIONS = 60;
 
 export function requestedCreateTaskCount(message: string): number | null {
   const normalized = message.replace(/[，。！？、]/g, ' ');
+  if (/(?:已有|现有|这些|当前).{0,12}(?:任务|待办)|(?:重新安排|调整|整理).{0,12}(?:已有|现有|这些|任务|待办)/.test(normalized)) {
+    return null;
+  }
   const daily = normalized.match(/(\d{1,2})\s*天[^\n]{0,80}(?:每天|每日)\s*(?:一|1)\s*(?:个|项|条)?/);
   if (daily) return Math.min(Number(daily[1]), MAX_PLANNING_ACTIONS);
 
@@ -125,13 +128,33 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       const priority = normalizedPriority(candidate.priority);
       const estimatedMinutes = normalizedMinutes(candidate.estimatedMinutes);
       const dueDate = normalizedDate(candidate.dueDate);
+      const scheduledStart = normalizedDate(candidate.scheduledStart);
+      const scheduledEnd = normalizedDate(candidate.scheduledEnd);
       if (priority) action.priority = priority;
       if (estimatedMinutes !== undefined) action.estimatedMinutes = estimatedMinutes;
       if (dueDate !== undefined) action.dueDate = dueDate;
+      if (scheduledStart === null || scheduledEnd === null) {
+        if (scheduledStart !== scheduledEnd) continue;
+        action.scheduledStart = null;
+        action.scheduledEnd = null;
+      } else if (scheduledStart !== undefined || scheduledEnd !== undefined) {
+        if (
+          typeof scheduledStart !== 'string' ||
+          typeof scheduledEnd !== 'string' ||
+          new Date(scheduledEnd) <= new Date(scheduledStart)
+        ) continue;
+        action.scheduledStart = scheduledStart;
+        action.scheduledEnd = scheduledEnd;
+      }
       if (typeof candidate.milestoneTitle === 'string') {
         action.milestoneTitle = candidate.milestoneTitle.trim().slice(0, 120) || null;
       } else if (candidate.milestoneTitle === null) {
         action.milestoneTitle = null;
+      }
+      if (typeof candidate.folderName === 'string') {
+        action.folderName = candidate.folderName.trim().slice(0, 60) || null;
+      } else if (candidate.folderName === null) {
+        action.folderName = null;
       }
       actions.push(action);
       continue;
@@ -318,13 +341,32 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       const priority = normalizedPriority(rawChanges.priority);
       const estimatedMinutes = normalizedMinutes(rawChanges.estimatedMinutes);
       const dueDate = normalizedDate(rawChanges.dueDate);
+      const scheduledStart = normalizedDate(rawChanges.scheduledStart);
+      const scheduledEnd = normalizedDate(rawChanges.scheduledEnd);
       if (priority) changes.priority = priority;
       if (estimatedMinutes !== undefined) changes.estimatedMinutes = estimatedMinutes;
       if (dueDate !== undefined) changes.dueDate = dueDate;
+      if (scheduledStart === null || scheduledEnd === null) {
+        if (scheduledStart !== scheduledEnd) continue;
+        changes.scheduledStart = null;
+        changes.scheduledEnd = null;
+      } else if (scheduledStart !== undefined || scheduledEnd !== undefined) {
+        if (
+          typeof scheduledStart !== 'string' ||
+          typeof scheduledEnd !== 'string' ||
+          new Date(scheduledEnd) <= new Date(scheduledStart)
+        ) continue;
+        changes.scheduledStart = scheduledStart;
+        changes.scheduledEnd = scheduledEnd;
+      }
       if (typeof rawChanges.milestoneTitle === 'string') {
         changes.milestoneTitle = rawChanges.milestoneTitle.trim().slice(0, 120) || null;
       } else if (rawChanges.milestoneTitle === null) {
         changes.milestoneTitle = null;
+      }
+      if (typeof rawChanges.folderName === 'string') {
+        const folderName = rawChanges.folderName.trim().slice(0, 60);
+        if (folderName) changes.folderName = folderName;
       }
       if (!Object.keys(changes).length) continue;
 
@@ -607,9 +649,13 @@ export class OpenAICompatibleProvider implements AIProvider {
             'If evidence conflicts or is weak, say so in the reply and keep readiness clarify when the unresolved fact materially affects the plan.',
             'When the user clearly asks to create a new actionable task, you may propose create_task.',
             'When the user clearly asks to change an existing task, you may propose update_task, but taskId must be copied exactly from currentTasks.',
+            'When an existing multi-day plan has incorrect calendar placement or missing grouping, use update_task with exact scheduledStart/scheduledEnd and folderName. Do not create duplicate replacement tasks.',
             'Do not create task actions from vague goals, brainstorms, or unresolved questions. Ask first when important task details are unclear.',
             'Task actions are only drafts for user confirmation. Never claim they are already applied.',
             `A response may contain at most ${MAX_PLANNING_ACTIONS} actions. When the user explicitly requests N separate tasks within that limit, especially "N days, one task per day", emit exactly N create_task actions with distinct dates/titles; never summarize them into fewer actions while claiming N were created.`,
+            'dueDate is a deadline, not a calendar placement. When the user specifies or you derive an actual day and time for doing a task, set both scheduledStart and scheduledEnd to exact ISO instants. Do not put that planned time only in dueDate.',
+            'For a multi-day plan, preserve one task per intended day. Never pack later-day tasks into the first day. Use the supplied course occurrences to choose that day\'s requested free period, and keep scheduledStart/scheduledEnd on that exact date.',
+            'folderName is optional. Use one shared, concise folderName only for a coherent long-term or multi-day objective such as a 30-day CET-6 listening plan. Leave it null for isolated errands, short unrelated tasks, or when grouping would add no value. Folder creation still requires confirmation with the task drafts.',
             'Course changes are allowed only as reviewable course_change drafts. They never mean the course has already changed.',
             'For course_change, copy every courseId/eventId exactly from currentCourses/currentCourseOccurrences. Never invent or infer database ids from names.',
             'Use course_change only for one-off occurrence changes: reschedule, cancel, swap, or extra.',
@@ -645,7 +691,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
             'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"milestoneTitle":"基础建立"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","milestoneTitle":"强化训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5,"startTime":"10:00","endTime":"11:40","room":"B202"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"基础建立","folderName":"六级听力训练"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"强化训练","folderName":"六级听力训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5,"startTime":"10:00","endTime":"11:40","room":"B202"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
             'Return actions as [] when no concrete task, learning-goal, one-off course, or recurring course-template draft is ready for confirmation.',
             'Return replanRequests as [] when no deterministic schedule movement preview is needed.',

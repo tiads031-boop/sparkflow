@@ -397,5 +397,7 @@ export function buildPlannerPreviewItems(preview: PlannerPreview | null | undefi
 
 export function itemsForLocalDay(items: PlanItem[], date: Date): PlanItem[] {
   const key = localDateKey(date);
-  return items.filter((item) => localDateKey(item.start) === key);
+  return items
+    .filter((item) => localDateKey(item.start) === key)
+    .toSorted((left, right) => new Date(left.start).getTime() - new Date(right.start).getTime());
 }
