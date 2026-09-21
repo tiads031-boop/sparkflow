@@ -1,138 +1,182 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-21 | **代码基线**：`master@9f6b1fe7`（生产运行版本 `9f72d16b`）
->
-> 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
+> **最后更新**：2026-09-22  
+> **GitHub 当前代码**：`master@56a555490a09a1290a1b09c2139dc796a09651fb`  
+> 近期执行顺序只在 [NEXT.md](NEXT.md) 维护。方案文档负责范围、约束和验收，不各自争夺优先级。
 
-## 当前主线
+---
 
-| 文件 | 范围 | 状态 | 当前动作 |
-|---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4–M8 与 Focus C1/C2 已进入主线，腾讯云 API/Web 已对齐 `master@9f72d16b`；生产 31 个 migrations 已直接核验；Web 真实账号核心闭环已通过；当前只保留剩余 PWA/Android 真机与教务/多模态路径验收 |
-| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
-| [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
+## 1. 当前主线
 
-## 下一产品批次
-
-| 文件 | Phase | 状态 | 启动条件 |
-|---|---|---|---|
-| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3、Focus C1/C2 已实现，生产收尾 | PR #38/#39/#40/#105/#106 已合并，API/Web 已发布最新 master；生产 31 个 migrations（含 C1）已直接核验；Web 已完成 Focus 文字多记录真实账号验收；当前需完成多模态、Android/PWA 回归 |
-
-## 候选方案（已完成设计、未排期实施）
-
-| 文件 | 范围 | 状态 | 说明 |
-|---|---|---|---|
-| [vnext-information-architecture-plan-workspace.md](vnext-information-architecture-plan-workspace.md) | VNext 信息架构、五工作空间、Plan 四视图、课程/任务/Planner 统一投影 | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合并；Web Production `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY，五项导航/M3 bundle 已静态核验；Android M3 Release `android-7145ba0ea3d2` 已生成 |
-| [vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md) | VNext M4–M8：AI 调度中枢、目标学习、课程变动、多模态记录、通知/设置/任务表单重整 | ✅ 代码/CI 完成，🚧 验收 | PR #80 完成显式音频转写/摘要；#81 完成显式图片/视频 AI 理解。生产同步与 Web 核心真实账号验收已完成；当前只剩 PWA/Android 真机和多模态余项 |
-| [../study-mode/README.md](../study-mode/README.md) | 旧 Study Mode 方案 | ⚠️ 历史参考 | M1 已实现，但“Study 关联 Course”的产品方向已被 VNext M6 替代；后续学习以独立 AI 目标规划为准 |
-| [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | 13 / Local Codex Bridge | ⬜ 方案完成，未实施 | Phase 12 / 14 / 15 的用户主链路稳定后再启动；不进入云端 API/数据库控制链 |
-
-## 仓库与近期里程碑
-
-| 项目 | 状态 | 结果 / 后续 |
+| 文件 | 范围 | 状态 |
 |---|---|---|
-| PR #23 Study Mode proposal | ✅ 已关闭 | 被已合并的 PR #25 与 `docs/study-mode/` 替代 |
-| PR #24 Course linked tasks | ✅ 已合并 | `fad1a619`；课程任务统一进入共享 Task Store |
-| PR #14 Timeline V2 | ✅ 旧 PR 已关闭 | 剩余 M3 要求迁移到 Issue #26，从最新 master 重做 |
-| PR #28 Phase 12 safety tests | ✅ 已合并 | `a1fe22c6`；补齐处理中、并发竞争、回滚、用户范围查询等安全证据 |
-| PR #29 PostgreSQL migration CI | ✅ 已合并 | `526b234e`；全新 PostgreSQL 16 可执行完整 migrations 且状态一致 |
-| PR #30 PostgreSQL import replay E2E | ✅ 已合并 | `2ffbf448`；真实 Prisma/PG 导入 + 同 requestId replay 最终仅一份 batch/course/event |
-| PR #32 API build SHA | ✅ 已合并 | `5158bad1`；health / Docker / 部署手册建立生产 commit 可追溯契约 |
-| PR #33 Capacitor CORS | ✅ 已合并 | `38f6cdbc`；显式允许 `https://localhost` / `capacitor://localhost`，修复 Android 登录代码侧高概率分叉 |
-| PR #34 Android release gate | ✅ 已合并 | `8e7e0700`；生产 API 双重校验、commit 命名、SHA-256、GitHub prerelease 自动发布 |
-| PR #35 Planning sync | ✅ 已合并 | `7afb7bb4`；NEXT / INDEX / BLUEPRINT 对齐生产验收主线 |
-| PR #36 Real PostgreSQL safety E2E | ✅ 已合并 | `4569a3a1`；真实 PG 并发同 request、事务 rollback、同 requestId 跨用户隔离全部通过 |
-| PR #38 Phase 15 M1 | ✅ 已合并 | Capture → Review → Task；生产 API/Web 核心链路已验收 |
-| PR #39 Phase 15 M2 | ✅ 已合并 | 可解释 Theme/Evolution/Action Insight；生产 API/DB 已部署，真实 Qwen Provider 已出现生产调用证据 |
-| PR #40 Phase 15 M3 | ✅ 已合并 | Insight → 用户确认 Task + 双向来源回链；CI/API/Android 已完成 |
-| PR #41 duplicate M3 | ✅ 已关闭 | 被 PR #40 完整实现替代，避免重复 migration/API 变体 |
-| PR #43 Qwen insight stability | ✅ 已合并 | `master@7405d3b7`；关闭 Qwen thinking、启用 JSON mode、Provider 重试/超时与 Web API 有界超时 |
-| PR #47 VNext IA proposal | ✅ 已合并 | 五工作空间与 Plan M1–M4 详细方案 |
-| PR #48 VNext Plan M1 | ✅ 已合并 | 固定五项主导航、PlanWorkspace、四视图壳层、旧入口兼容与视图记忆 |
-| PR #49 VNext Plan M2 | ✅ 已合并 | Task/Course/CalendarEvent/Study Task 统一投影，真实 Month/Week/Agenda/Timetable |
-| PR #50 VNext Plan M3 | ✅ 已合并 | Planner Preview 临时时间块、Apply 转真实排程、Undo 恢复；CI 全绿 |
-| VNext Web Production | ✅ 腾讯云自托管已发布 / 🚧 剩余路径验收 | 2026-09-21 公网 API health 返回 `9f72d16b`；Nginx 首页 HTTPS 200；Web 真实账号已通过登录/Session、AI Planner Preview→Apply→Undo、Focus 暂停/恢复/提前完成与连续两条记录；PWA/Android/多模态余项未完成 |
-| Android Focus C2 | ✅ APK 已生成 / 🚧 待真机 | Release `android-e5978ecbbc24`；asset `sparkflow-e5978ecbbc24-debug.apk`；对应功能提交 `e5978ecbbc24`；SHA-256 `6db099865fdb8ee3febc6febf65c1f9b8b7a65c3db3bc0d2532e4fa7efe67d70` |
-| PR #27 legacy Phase 12 tests | ✅ 已关闭 | 被 #28/#29/#30/#36 更完整的安全与真实 PostgreSQL 验证覆盖 |
-| PR #66/#68/#69 VNext M6 | ✅ 已合并 | Study 独立 AI 学习目标、阶段/里程碑共享 Task 投影、执行反馈与显式目标变化 |
-| PR #70–#73 VNext M7 | ✅ 已合并 | 单次课程 override、Undo、AI 自然语言变动、周期 Course 模板变更；均经 Preview/Apply/Undo |
-| PR #74 VNext M8.1 | ✅ 已合并 | Inspiration 私有图片/音频/视频附件与语音录制/媒体预览 |
-| PR #77 VNext M8.2 | ✅ 已合并 | 账户级任务/课程通知偏好、安静时段、时区与测试通知 |
-| PR #78 VNext M8.3 | ✅ 已合并 | Settings 视觉收尾与跟随系统/浅色/深色外观；`master@301955c7` |
-| PR #105 Focus C1 | ✅ 已合并 | 精确专注分段、可恢复计时、CAS 完成、Focus 日历投影与 Inspiration 会话回链 |
-| PR #106 Focus C2 | ✅ 已合并 | 完成后多模态专注记录、连续追加记录、5–180 分钟时长盘与精确输入；合并提交 `e5978ecb` |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 当前有效 |
+| [vnext-time-ledger-tagging-ui-system.md](vnext-time-ledger-tagging-ui-system.md) | 时间账本、智能分类、统一 UI、Timeline 2.0、分析、目标进度、Android Usage | ✅ 方案确认，待实施 |
+| [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、幂等、冲突、真实 Web / Android / HTTP 恢复 | 🚧 剩余生产验收 |
+| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | Capture → Review → Insight → Action + Focus 记录 | 🚧 主体已实现，剩余 PWA/Android/多模态验收 |
+| [vnext-ai-orchestration-study-course-capture.md](vnext-ai-orchestration-study-course-capture.md) | AI 调度、学习目标、课程变动、多模态记录、通知/设置 | ✅ 主体代码完成，🚧 真实设备收尾 |
 
+---
 
-## 活跃执行 Issue
+## 2. 次级 / 待后续评估
 
-| Issue | 范围 | 优先级/时机 |
-|---|---|---|
-| #31 Phase 12 production acceptance | 腾讯云 buildSha/31 migrations 已确认；继续真实 Web/Android 教务导入、Planner 与未知网络结果恢复 | **当前唯一 P0 主线** |
-| #26 Phase 14 M3 Timeline V2 reconciliation | 保留 Gantt 的前提下，从最新 master 重做 Month/Week/Day Timeline 与真实设备验收 | Issue #31 关闭/稳定后进入 Phase 14 收口 |
-
-## Phase 12 当前事实
-
-### 已由代码 / CI / 真实 PostgreSQL 证实
-
-- V2 `requestId` / payload hash。
-- stable course fingerprint、duplicate / conflict preview、skip / keep policy。
-- `Serializable` Prisma transaction 与 `CourseImportBatch` 结果查询 / replay。
-- fresh PostgreSQL 16 完整 migration chain 成功。
-- 真实 PG 顺序 replay 不重复写入。
-- 真实 PG 同 requestId 并发竞争最终只保留一次 commit，并返回一次 replay。
-- 真实 PG 事务中途失败完整 rollback，不残留 batch/course。
-- 真实 PG 中同 requestId 可被不同用户独立使用，结果与课程保持用户隔离。
-- API 自托管镜像支持 `BUILD_SHA`，health 可回显部署 commit。
-- Android Capacitor Origin 已加入 API CORS allowlist。
-- Android APK CI 会验证 production API，生成 commit-stamped APK，并发布 GitHub prerelease。
-
-### 仍未关闭
-
-- ~~腾讯云运行镜像 buildSha / production migration 状态~~：已确认 `master@7405d3b7`、19 migrations up to date。
-- Web 真实学校导入、重复提交与未知网络结果恢复。
-- Android 最新 Release 的真机登录、Session、SchoolImport/文件导入与窄屏交互。
-- ~~Planner 生产 Preview → Apply → Undo~~：2026-09-21 已用可删除 QA 任务完成真实账号验收并成功 Undo。
-- HTTP 层“客户端超时/断连但服务端已经提交”的端到端恢复验证。
-
-## 平台 / 发布状态
-
-- Vercel 连接当前只发现 `sparkflow031` 一个真实项目；旧 `sparkflow` / `sparkflow-psi1` 项目本体已不在项目列表。
-- Vercel Hobby 已实际触发 `api-deployments-free-per-day`（>100/day）；已关闭 Git 自动 deployments，后续 Web 采用 CI 后显式 Production 发布。
-- Android 最新自动 Release：`android-5835e3223748`，资产 `sparkflow-5835e3223748-debug.apk`；对应 `master@7405d3b7`。
-- `/health` 200 只说明进程存活；只有带明确 `buildSha` 且真实业务路径通过，才算生产证据。
-
-## 冻结 / 待重估
-
-| 文件 | 原范围 | 状态 | 处理方式 |
+| 文件 | 范围 | 状态 | 处理 |
 |---|---|---|---|
-| [phase09-course-module.md](phase09-course-module.md) | Course 深化、课程任务、课表与事件追踪 | ⚠️ 大量已覆盖 | 剩余项需真实需求后拆新方案 |
-| [phase10-pending-features.md](phase10-pending-features.md) | 历史待办收束 | ⚠️ 逐项重估 | md 协议已取消；认证已完成；“灵感转任务”由 Phase 15 接管，其余 P2 |
-| [p0-phase12-execution.md](p0-phase12-execution.md) | 旧 P0/Phase 12 执行清单 | ⚠️ 被替代 | 旧 Render/Supabase 基线仅作历史参考；执行以 NEXT + Phase 12 + Issue #31 为准 |
-| [course-schedule-enhancements.md](course-schedule-enhancements.md) | 课程表功能完善记录 | ⚠️ 实现记录 | 已实现能力的补充说明；未完成项并入 Phase 12/14，不单独推进 |
+| [phase13-local-codex-bridge.md](phase13-local-codex-bridge.md) | Local Codex Bridge | ⬜ 尚未实施 | 等用户主链路稳定后再启动 |
+| [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Rhythm / Daily Receipt / Timeline 历史方案 | ⚠️ 仅保留未被新 VNext 替代的剩余项 | Timeline / UI 部分以后以新 VNext 为准 |
 
-## 归档
+---
 
-| 文件 | Phase | 简述 |
+## 3. 最近已进入 master 的关键能力
+
+| PR / 提交 | 结果 |
+|---|---|
+| PR #114 / `7f8f9305` | AI 创建任务可保留真实日程时间；长期计划自动创建/复用 StudyFolder；未排期 Todo 与日历分离；周视图 00:00–24:00 |
+| PR #115 / `56a55549` | Focus 正计时/倒计时；课程永久删除；Planner 减少重复确认，只问一个最高影响问题；网络错误文案改进 |
+| PR #105 / #106 | Focus 精确分段、暂停/恢复、完成后多模态连续记录 |
+| PR #66/#68/#69 | 独立 AI 学习目标、阶段/里程碑、执行反馈 |
+| PR #70–#73 | 单次课程 override、周期课程模板变更、Preview/Apply/Undo |
+| PR #74/#80/#81 | 多模态记录与显式 AI 处理 |
+| PR #77/#78 | 通知偏好、时区、深浅色与 Settings 重整 |
+
+这些能力进入 master 后，后续方案不得再建立重复事实源或按旧方案重新实现。
+
+---
+
+## 4. 新 VNext 的核心语义
+
+### Folder / Project / Tag
+
+```text
+Folder
+= 长期、连续、有明确目标的容器
+
+Project
+= Folder 内阶段 / 里程碑
+
+Tag
+= 横向分类 / 搜索 / 时间统计
+```
+
+例如：
+
+```text
+Folder = 六级听力训练
+Project = 长对话强化
+Tags = #英语 #六级 #听力
+```
+
+### Planned / Actual
+
+```text
+Planned Time
+= Task scheduledStart/end + Course + CalendarEvent
+
+Actual Time
+= Focus Session + 手工补记 + 后续 AppUsageSession
+```
+
+Agenda 负责计划，Timeline 负责实际流水。
+
+---
+
+## 5. 新 VNext 实施批次
+
+| 批次 | 内容 | 优先级 |
 |---|---|---|
-| [../archive/phase11-auth-registration-onboarding.md](../archive/phase11-auth-registration-onboarding.md) | 11 | 早期账户/Onboarding 历史方案；生产认证后来被腾讯云自建认证替代 |
-| [../archive/phase08-capacitor-setup.md](../archive/phase08-capacitor-setup.md) | 08 | Capacitor Android APK 打包与联调 |
-| [../archive/phase08-google-calendar-sync.md](../archive/phase08-google-calendar-sync.md) | 08 | Google Calendar 双向同步架构（历史部署描述） |
-| [../archive/2026-05-29-improvement-plan.md](../archive/2026-05-29-improvement-plan.md) | — | 2026-05-29 改进与历史设计决策 |
-| [../archive/2026-05-29-p0-execution-plan.md](../archive/2026-05-29-p0-execution-plan.md) | — | 2026-05-29 P0 执行计划 |
-| [../archive/2026-05-29-post-md-transition-audit.md](../archive/2026-05-29-post-md-transition-audit.md) | — | 去 md 架构后的审计记录 |
+| A | UI Foundation + Task Edit Deck + 标签管理 | P1 第一批 |
+| B | Timeline 2.0：计划 / 实际分离 | P1 |
+| C | 热力图、分类时间、计划 vs 实际、目标投入 | P1 |
+| D | Goal Progress：Task / Numeric / Time | P1 |
+| E | AI Behavior Feedback | P1 |
+| F | Android Usage Access / AppUsageSession | P2 |
 
-## 状态口径
+完整定义见 [vnext-time-ledger-tagging-ui-system.md](vnext-time-ledger-tagging-ui-system.md)。
 
-- ✅ 代码/仓库状态已确认；涉及功能完成时仍需对应层级的验收证据。
-- 🚧 表示已有实现或正在推进，但仍有明确未关闭项。
-- ⬜ 表示方案存在、尚未实施；若仅 M0 文档/设计完成，会明确写出。
-- ⚠️ 表示文档保留，但不得直接按旧基线继续开发。
-- ❌ 表示已取消或已被新架构/新方案替代。
+---
 
-## 管理规则
+## 6. UI 方向
 
-1. 新的近期动作先进入 `NEXT.md`，再链接到对应 Phase / Issue。
-2. 架构迁移后，旧方案保留历史决策，但必须明确“已被替代”，不得继续写成生产现状。
-3. 开放 PR 若落后 master，必须先做能力对账；禁止仅因旧 PR 曾通过 CI 就直接合并。
-4. “代码存在”“CI 成功”“生产可用”必须使用不同状态口径。
-5. 每次合并、生产迁移或真实设备验收后同步更新 NEXT、相关 Phase、INDEX 和 BLUEPRINT。
+统一视觉语言：
+
+> **Graphite Aurora**
+
+原则：
+
+- 大方、克制、高可读；
+- 深色石墨层级 + 柔和浅绿 / 淡紫 / 柔黄；
+- 3D 只保留在有意义的卡片切换场景；
+- 设置、日历、统计等不滥用 3D；
+- 逐步统一 PageHeader / InfoRow / SegmentControl / TagChip / BottomActionBar / MetricCard 等共享组件。
+
+当前任务编辑页的 3D 卡片保留，但其余 UI 以新 Task Edit Deck 方案重做。
+
+---
+
+## 7. 仍需完成的真实验收
+
+### Phase 12 / Issue #31
+
+- Web 真实学校导入；
+- 重复 / 冲突预览；
+- requestId replay；
+- 超时 / 断连后的未知结果恢复；
+- Android 登录 / Session / SchoolImport / 文件导入；
+- 360px / safe-area / 软键盘 / 文件选择。
+
+### Phase 15 / VNext
+
+- PWA / Android 麦克风；
+- 私有附件播放；
+- 图片 / 音频 / 视频显式 AI；
+- Push / quiet hours；
+- 深浅色真机；
+- 网络失败恢复；
+- #114 / #115 部署后的真实账号回归。
+
+---
+
+## 8. 已归档方案
+
+以下文档已从 `docs/plans/` 迁入 `docs/archive/`，只保留历史背景，不再承担执行优先级：
+
+| 文件 | 原范围 | 归档原因 |
+|---|---|---|
+| [../archive/phase09-course-module.md](../archive/phase09-course-module.md) | Course 深化 | 大量能力已被后续 Course / VNext 覆盖 |
+| [../archive/phase10-pending-features.md](../archive/phase10-pending-features.md) | 历史待办 | 多项已完成、取消或由 Phase 15/VNext 接管 |
+| [../archive/p0-phase12-execution.md](../archive/p0-phase12-execution.md) | 旧 P0 / Phase 12 队列 | Render/Supabase 等旧生产前提已失效 |
+| [../archive/course-schedule-enhancements.md](../archive/course-schedule-enhancements.md) | 课程表完善记录 | 属于已实现/历史实现说明 |
+| [../archive/gantt-quadrant-view-design.md](../archive/gantt-quadrant-view-design.md) | 甘特 / 四象限设计 | 四象限已进入主线，时间视图以后按新 VNext 推进 |
+| [../archive/vnext-information-architecture-plan-workspace.md](../archive/vnext-information-architecture-plan-workspace.md) | 五工作区 / Plan M1–M3 设计 | 核心 IA 已实施，后续由新 VNext 继承 |
+
+已有旧归档继续保留：
+
+- [../archive/phase11-auth-registration-onboarding.md](../archive/phase11-auth-registration-onboarding.md)
+- [../archive/phase08-capacitor-setup.md](../archive/phase08-capacitor-setup.md)
+- [../archive/phase08-google-calendar-sync.md](../archive/phase08-google-calendar-sync.md)
+- [../archive/2026-05-29-improvement-plan.md](../archive/2026-05-29-improvement-plan.md)
+- [../archive/2026-05-29-p0-execution-plan.md](../archive/2026-05-29-p0-execution-plan.md)
+- [../archive/2026-05-29-post-md-transition-audit.md](../archive/2026-05-29-post-md-transition-audit.md)
+
+---
+
+## 9. 文档状态口径
+
+- ✅：方案或代码已确认；
+- 🚧：已有实现，但还有明确真实验收 / 收尾项；
+- ⬜：尚未实施；
+- ⚠️：只保留部分有效范围，不得按整份旧方案继续推进；
+- ❌：已取消 / 被新架构替代。
+
+“代码存在”“CI 通过”“已部署”“真实业务验收”继续分别记录，不互相替代。
+
+---
+
+## 10. 管理规则
+
+1. 近期动作只写入 `NEXT.md`；
+2. 旧方案被后续实现覆盖后，迁入 `docs/archive/` 或明确标记剩余范围；
+3. 不从归档方案恢复旧优先级；
+4. 不重复建设已有事实源；
+5. 需要数据库变更时先说明现有 Task / Course / Calendar / Focus / Inspiration / StudyFolder 为什么无法表达；
+6. 普通工程继续依赖 Git、版本、主键、事务、唯一约束、类型和测试；不额外引入无具体失败场景的冻结、hash、baseline 或 gate。
