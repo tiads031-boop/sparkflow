@@ -157,6 +157,9 @@ export type PlanningActionDraft =
       estimatedMinutes?: number | null;
       dueDate?: string | null;
       milestoneTitle?: string | null;
+      scheduledStart?: string | null;
+      scheduledEnd?: string | null;
+      folderName?: string | null;
     }
   | {
       type: 'update_task';
@@ -169,6 +172,9 @@ export type PlanningActionDraft =
         estimatedMinutes?: number | null;
         dueDate?: string | null;
         milestoneTitle?: string | null;
+        scheduledStart?: string | null;
+        scheduledEnd?: string | null;
+        folderName?: string | null;
       };
     }
   | {
