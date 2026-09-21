@@ -1,27 +1,27 @@
 # Phase 15 — Capture → Review → Insight → Action
 
-## 当前实施状态（2026-09-20）
+## 当前实施状态（2026-09-21）
 
 - **M1：✅ 已实现并完成生产核心链路** — PR #38，Capture → Review → Task。
 - **M2：🚧 代码/API/数据库已上线并进入真实 Provider 验收** — PR #39；生产环境已有 Qwen 调用证据，PR #43 进一步关闭默认 thinking、启用 JSON mode，并补齐 Provider 重试/超时与安全错误日志。
-- **M3：🚧 代码完成，Web/API/Android 待显式对齐最新 master** — PR #40 完成 Insight → Task；腾讯云已验证的生产 API 基线仍为旧版本；PR #43 后续稳定性修复及 C1 migration 尚需按发布流程显式部署并复验。
+- **M3：🚧 代码完成，API/Web 已对齐、真实业务与 Android 待验收** — PR #40 完成 Insight → Task；2026-09-21 腾讯云 API/Web 已确认对齐 `master@9f72d16b`。C1 migration 仍需通过服务器 `prisma migrate status` 留存直接证据。
 - Web 发布策略改为 **GitHub CI 后显式 Production**，不再为每个 Git commit 自动创建 Vercel deployment。
-- M4 不提前启动，先完成 `master@e5978ecb` 的 Web/API 发布、真实 Qwen 洞察质量/失败恢复，以及 Android 真机闭环。
+- M4 不提前启动；`master@9f72d16b` 的 Web/API 已发布，当前先完成真实 Qwen 洞察质量/失败恢复、生产 migration 直接核验与 Android 真机闭环。
 
 ### Focus C1/C2 扩展 — ✅ 代码/CI 完成，🚧 生产验收
 
 - **C1 / PR #105**：专注会话支持精确分段、暂停/恢复、CAS 完成与 Focus 日历投影；`Inspiration.focusSessionId` 已建立回链。
 - **C2 / PR #106**：专注完成页支持“记录一下 / 稍后 / 再记一条”；每条记录可包含文字、语音、图片、视频，并由后端校验会话属于当前用户且已 completed。
 - 时长选择支持 5–180 分钟；拖拽按 5 分钟吸附，另有精确分钟输入。
-- API/Web build/test、Prisma fresh migration 与课程导入幂等 CI 已通过；C1 migration 仍需在生产数据库执行后再发布服务器。
+- API/Web build/test、Prisma fresh migration 与课程导入幂等 CI 已通过；2026-09-21 本地复验 API 141/141、Web 71/71 与两端 build 通过，公网 API/Web 已上线最新 master。生产 migration 状态仍需直接核验。
 - 下一步：真实账号完成一次专注 → 多条记录 → 记录回顾，并在 PWA/Android 验证麦克风、附件播放、safe-area 与网络失败恢复。
 
 ---
 
-> **状态**：⬜ 方案已确认，未实施  
-> **最后更新**：2026-09-17  
-> **最初设计基线**：`master@27f64066`  
-> **当前实现基线**：`master@e5978ecb`
+> **状态**：🚧 M1–M3 与 Focus C1/C2 已实现，真实账号/真机验收中
+> **最后更新**：2026-09-21
+> **最初设计基线**：`master@27f64066`
+> **当前实现基线**：`master@9f72d16b`（运行时代码 `e5978ecb`）
 > **定位**：把 SparkFlow 现有的记录、Today、待办、Planner、Timeline、Focus 串成一个从想法到行动的闭环，而不是新增一套独立笔记 App。
 
 ---
@@ -870,7 +870,7 @@ M2 验收：AI 生成的每个洞察都能追溯到真实来源，错误来源 i
 - [x] Insight 显示已产生行动。
 - [ ] 创建后直接打开 Planner（Task 已进入共享 Store，可进入 Planner；直接跳转体验待补）。
 
-M3 验收：从多张记录形成 Insight，再由用户确认生成 Task，任务可进入 Planner / Timeline / Focus。当前实现代码已完成，生产收口以 `master@e5978ecb` Web/API 对齐、C1 migration 与新 Android 包真机链路为准。
+M3 验收：从多张记录形成 Insight，再由用户确认生成 Task，任务可进入 Planner / Timeline / Focus。当前实现代码与 `master@9f72d16b` Web/API 对齐已完成，生产收口以 C1 migration 直接证据与新 Android 包真机链路为准。
 
 ### PR #43 — Qwen / 请求稳定性补丁（✅ 已合并）
 
@@ -878,7 +878,7 @@ M3 验收：从多张记录形成 Insight，再由用户确认生成 Task，任�
 - Provider 请求上限 60s；429/500/502/503/504 首次失败允许一次短重试。
 - 普通 Web API 请求默认 15s 超时；Insight 生成单独使用 75s。
 - 408 在前端显示明确超时信息；Provider 失败只记录安全错误摘要，不输出密钥或用户正文。
-- Android 旧 Release 已生成；需基于 `master@e5978ecb` 生成新包，并与 Web/API Production 一起复验。
+- Android 旧 Release 已生成；需基于最新 Web 运行时代码生成新包，并与已更新的 Web/API Production 一起复验。
 
 ### M4 — 主动助手（P2）
 
