@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
@@ -22,13 +23,26 @@ import {
   type PlanningEvidenceItem,
   type PlanningFact,
   type PlanningFactStatus,
+  type PlanningHolidayDaySnapshot,
 } from '../ai/ai-provider';
 import { PrismaService } from '../prisma/prisma.service';
 import { WebResearchService } from '../research/web-research.service';
+import { CourseIntegrationsService } from '../course/course-integrations.service';
 
 const SCOPE_TYPES = new Set(['general', 'goal', 'day', 'task', 'course']);
 const FACT_STATUSES = new Set<PlanningFactStatus>(['confirmed', 'inferred', 'assumed']);
 const PLANNING_MODEL_SET = new Set<PlanningModel>(PLANNING_MODELS);
+
+function yearInTimeZone(date: Date, timeZone: string) {
+  try {
+    return Number(new Intl.DateTimeFormat('en', {
+      timeZone,
+      year: 'numeric',
+    }).format(date));
+  } catch {
+    return date.getUTCFullYear();
+  }
+}
 
 function normalizeFacts(value: unknown): PlanningFact[] {
   if (value === undefined) return [];
@@ -271,6 +285,7 @@ export class PlanningService {
     private readonly prisma: PrismaService,
     @Inject(AI_PROVIDER) private readonly ai: AIProvider,
     private readonly research: WebResearchService,
+    @Optional() private readonly holidayIntegrations?: CourseIntegrationsService,
   ) {}
 
   async createThread(
@@ -622,6 +637,22 @@ export class PlanningService {
       );
     }
 
+    let holidayCalendar: PlanningHolidayDaySnapshot[] = [];
+    if (thread.scopeType !== 'goal' && this.holidayIntegrations) {
+      const yearAtStart = yearInTimeZone(currentTime, timeZone);
+      const horizon = new Date(currentTime.getTime() + 90 * 24 * 60 * 60 * 1000);
+      const yearAtEnd = yearInTimeZone(horizon, timeZone);
+      const years = [...new Set([yearAtStart, yearAtEnd])].filter(Number.isInteger);
+      const calendars = await Promise.all(years.map(async (year) => {
+        try {
+          return (await this.holidayIntegrations!.holidays(year)).days;
+        } catch {
+          return [];
+        }
+      }));
+      holidayCalendar = calendars.flat();
+    }
+
     const previousEvidence = freshEvidence(readEvidence(thread.evidence));
     let evidenceUsed = previousEvidence;
     let researchAdded: PlanningEvidenceItem[] = [];
@@ -636,6 +667,7 @@ export class PlanningService {
       currentTasks,
       currentCourses,
       currentCourseOccurrences,
+      holidayCalendar,
       planningScope: {
         type: thread.scopeType,
         id: thread.scopeId,
@@ -886,7 +918,7 @@ export class PlanningService {
       Array.isArray(data.proposalIds)
         ? data.proposalIds.filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
         : [],
-    )].slice(0, 8);
+    )].slice(0, 60);
     if (!requestedIds.length) throw new BadRequestException('proposalIds are required');
 
     const conversation = await this.prisma.aIConversation.findFirst({

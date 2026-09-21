@@ -3,13 +3,31 @@ import { ConfigService } from '@nestjs/config';
 import { CourseService } from './course.service';
 import { parseCourseBackup } from './course-backup';
 
-export function parseHolidays(value: unknown, year: number): string[] {
-  const data = value as { year?: number; days?: { date?: unknown; isOffDay?: unknown }[] };
+export interface ChinaHolidayDay {
+  date: string;
+  name: string | null;
+  isOffDay: boolean;
+}
+
+export function parseHolidayCalendar(value: unknown, year: number): ChinaHolidayDay[] {
+  const data = value as { year?: number; days?: { date?: unknown; name?: unknown; isOffDay?: unknown }[] };
   if (!data || data.year !== year || !Array.isArray(data.days) || data.days.length > 366) throw new BadGatewayException('节假日数据格式无效');
   if (!data.days.every(d => d && typeof d.isOffDay === 'boolean')) throw new BadGatewayException('节假日标记无效');
-  const dates = data.days.filter(d => d.isOffDay === true).map(d => d.date);
+  const dates = data.days.map(d => d.date);
   if (!dates.every(d => typeof d === 'string' && d.startsWith(`${year}-`) && /^\d{4}-\d{2}-\d{2}$/.test(d) && Number.isFinite(Date.parse(d)) && new Date(d).toISOString().slice(0, 10) === d)) throw new BadGatewayException('节假日日期无效');
-  return [...new Set(dates as string[])].sort();
+  const unique = new Map<string, ChinaHolidayDay>();
+  for (const day of data.days) {
+    const date = day.date as string;
+    const name = typeof day.name === 'string' ? day.name.trim().slice(0, 80) || null : null;
+    unique.set(date, { date, name, isOffDay: day.isOffDay as boolean });
+  }
+  return [...unique.values()].sort((left, right) => left.date.localeCompare(right.date));
+}
+
+export function parseHolidays(value: unknown, year: number): string[] {
+  return parseHolidayCalendar(value, year)
+    .filter((day) => day.isOffDay)
+    .map((day) => day.date);
 }
 export function webdavTarget(base: unknown, allowed: string[], userId: string): URL {
   if (typeof base !== 'string' || !userId) throw new BadRequestException('请填写 WebDAV 目录和用户标识');
@@ -34,7 +52,7 @@ async function boundedText(response: Response) {
 export interface DavRequest { url?: string; username?: string; password?: string; etag?: string }
 @Injectable()
 export class CourseIntegrationsService {
-  private holidaysCache = new Map<number, { dates: string[]; fetchedAt: string }>();
+  private holidaysCache = new Map<number, { dates: string[]; workdays: string[]; days: ChinaHolidayDay[]; fetchedAt: string }>();
   constructor(private config: ConfigService, private courses: CourseService) {}
   async holidays(year: number) {
     if (!Number.isInteger(year) || year < 2007 || year > 2100) throw new BadRequestException('年份无效');
@@ -43,8 +61,10 @@ export class CourseIntegrationsService {
     try {
       const response = await fetch(`https://raw.githubusercontent.com/NateScarlet/holiday-cn/master/${year}.json`, { signal: AbortSignal.timeout(15000), redirect: 'error' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const dates = parseHolidays(JSON.parse(await boundedText(response)), year);
-      const result = { dates, fetchedAt: new Date().toISOString() }; this.holidaysCache.set(year, result);
+      const days = parseHolidayCalendar(JSON.parse(await boundedText(response)), year);
+      const dates = days.filter((day) => day.isOffDay).map((day) => day.date);
+      const workdays = days.filter((day) => !day.isOffDay).map((day) => day.date);
+      const result = { dates, workdays, days, fetchedAt: new Date().toISOString() }; this.holidaysCache.set(year, result);
       return { ...result, year, stale: false };
     } catch {
       if (cached) return { ...cached, year, stale: true };

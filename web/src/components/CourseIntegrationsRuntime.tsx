@@ -25,7 +25,7 @@ export function refreshAutomaticHolidays(force = false) {
       try {
         const result = await fetchHolidays(year);
         const prefs = useCoursePreferences.getState();
-        prefs.setPreferences({ holidayCache: { ...prefs.holidayCache, [year]: { dates: result.dates, fetchedAt: result.fetchedAt } } });
+        prefs.setPreferences({ holidayCache: { ...prefs.holidayCache, [year]: { dates: result.dates, workdays: result.workdays, fetchedAt: result.fetchedAt } } });
         if (result.stale) errors.push(`${year} 年正在使用上次缓存`);
       } catch (e) { errors.push(e instanceof Error ? e.message : `${year} 年数据更新失败`); }
     }

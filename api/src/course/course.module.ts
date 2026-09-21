@@ -7,6 +7,6 @@ import { CourseIntegrationsController } from './course-integrations.controller';
 @Module({
   controllers: [CourseController, CourseIntegrationsController],
   providers: [CourseService, CourseIntegrationsService],
-  exports: [CourseService],
+  exports: [CourseService, CourseIntegrationsService],
 })
 export class CourseModule {}

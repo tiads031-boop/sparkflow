@@ -7,7 +7,7 @@ type PreferenceValues = {
   leadMinutes: number;
   skippedDates: string[];
   autoHolidays: boolean;
-  holidayCache: Record<string, { dates: string[]; fetchedAt: string }>;
+  holidayCache: Record<string, { dates: string[]; workdays?: string[]; fetchedAt: string }>;
   autoMode: 'off' | 'dnd' | 'silent';
 };
 

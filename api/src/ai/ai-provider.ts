@@ -116,6 +116,12 @@ export interface PlanningCourseOccurrenceSnapshot {
   overrideOriginalStart: string | null;
 }
 
+export interface PlanningHolidayDaySnapshot {
+  date: string;
+  name: string | null;
+  isOffDay: boolean;
+}
+
 export type PlanningCourseChangeRequest =
   | {
       type: 'reschedule';
@@ -242,6 +248,7 @@ export interface PlanningTurnInput {
   currentTasks?: PlanningTaskSnapshot[];
   currentCourses?: PlanningCourseSnapshot[];
   currentCourseOccurrences?: PlanningCourseOccurrenceSnapshot[];
+  holidayCalendar?: PlanningHolidayDaySnapshot[];
   planningScope?: PlanningScopeSnapshot;
   goalExecution?: PlanningGoalExecutionSnapshot;
   currentTime?: string;
