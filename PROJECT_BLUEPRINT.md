@@ -2,8 +2,8 @@
 
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
-> **最后更新**：2026-09-20
-> **代码同步基线**：`master@301955c7`
+> **最后更新**：2026-09-21
+> **代码同步基线**：`master@9f72d16b`
 
 ---
 
@@ -39,7 +39,7 @@ Phase 15 继续补齐：
 |---|---|---|---|
 | 1 | 生产数据与认证 | 腾讯云独立 PostgreSQL + SparkFlow API 自建密码/Session 认证 | 与 DeepTutor 数据库隔离，服务端统一控制身份和数据归属 |
 | 2 | 业务链路 | Web/PWA/APK → NestJS REST → Prisma → PostgreSQL | 避免多事实源和客户端直接写数据库 |
-| 3 | Web 部署 | Vercel 主项目 `sparkflow031` / `fish-life.cc.cd`；Git 自动 deployments 关闭，CI 后显式发布 Production | 避免 Hobby 每日 deployment 配额被短分支小 commit 耗尽，同时保持静态前端与后端基础设施分离 |
+| 3 | Web 部署 | 腾讯云 Nginx 直接托管 `web/dist`，域名 `fish-life.cc.cd`；Vercel 已退出生产流量路径 | 与自托管 API 保持同一运维边界，避免 Vercel Hobby 部署配额影响发布 |
 | 4 | API 部署 | 腾讯云 Docker + Nginx / `api.fish-life.cc.cd` | API 与数据库自主可控 |
 | 5 | API 版本追溯 | Docker `BUILD_SHA` + `/api/health.buildSha` | 生产验收必须能确认实际运行 commit，不能只看 health 200 |
 | 6 | 客户端 | React + TypeScript + Vite；Capacitor 构建 Android | Web、PWA、Android 复用核心界面与逻辑 |
@@ -140,7 +140,7 @@ PR #48/#49/#50 已完成 M1–M3 代码与 CI：
 - task-backed CalendarEvent 与 Course fallback 在投影层去重，不新增数据库事实源。
 - 学期起止日期与 Course.weeks 用于周次/“非本周”判断；缺少可靠学期上下文时不强行隐藏课程。
 - Planner Preview 可作为虚线临时时间块显示在 Week / Agenda；Apply 后由真实 Task 排程替代，Undo 后恢复。
-- Web Production 已从 `master@e883b9a3` 源码显式发布到 READY 部署 `dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e`，`fish-life.cc.cd` HTTP 200；生产 bundle 已静态核到五项导航与 M3 Preview 文案。
+- 2026-09-21 腾讯云 Web 已对齐 `master@9f72d16b`：首页 HTTPS 200，生产主 bundle 与本地同 SHA 构建哈希一致，并静态核到 Focus C2 文案。
 - Android VNext M3 Release `android-7145ba0ea3d2` 已生成；Web 真账号/PWA 与 Android 真机交互仍未验收，完成前不进入 M4 拖拽/过滤增强。
 
 ### Planner / AI 规划与调整
@@ -153,9 +153,10 @@ PR #48/#49/#50 已完成 M1–M3 代码与 CI：
 
 ### Focus
 
-- 任务进入专注流程。
-- Pomodoro / Focus 记录持久化。
-- 连接安排与完成。
+- 任务可选关联专注；精确记录 active / paused 分段与有效时长。
+- 支持暂停、恢复、跨设备恢复、CAS 完成与内部日程投影。
+- 完成后可连续添加文字、语音、图片或视频记录，并通过 `Inspiration.focusSessionId` 回链本次专注。
+- 时长支持 5–180 分钟圆盘拖拽与精确输入。
 
 ### Course / Import
 
@@ -258,10 +259,10 @@ VNext M6 已进入主线：
 | Phase 12 | 🚧 当前 P0：真实链路验收 | 安全代码、migration CI、真实 PG 顺序/并发 replay、rollback、用户隔离、部署追溯、Android CORS/Release 门禁已具备；Issue #31 承接生产和真机证据 |
 | Phase 13 | ⬜ P2 | Local Codex Bridge，等待用户主链路稳定 |
 | Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
-| Phase 15 | 🚧 M1–M3 已实现，真实链路收尾 | M1–M3 Web/API 已对齐 `99ebb3c`；真实 Qwen 与 Android/Planner 链路仍需验收 |
+| Phase 15 | 🚧 M1–M3 + Focus C1/C2 已实现，真实链路收尾 | API/Web 已对齐 `9f72d16b`；生产 migration 直接证据、真实 Qwen、多模态 Focus 与 Android/Planner 链路仍需验收 |
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合入；Web Production 已发布并静态冒烟，Android M3 APK `android-7145ba0ea3d2` 已生成；真实账号与真机验收前 M4 暂不启动 |
-| VNext AI Orchestration | ✅ M4–M7；🚧 M8 最后收口 | PR #59–#63 完成 AI Planning；#66/#68/#69 完成学习目标；#70–#73 完成课程变动；#74/#77/#78 完成多模态 Capture、通知偏好和 Settings/外观。剩余显式附件 AI 转录/摘要与 PWA/Android 真机验收 |
+| VNext AI Orchestration | ✅ M4–M8 代码/CI；🚧 最终验收 | PR #59–#81 已完成 AI Planning、学习目标、课程变动、多模态 Capture、显式附件 AI、通知与外观；#105/#106 完成 Focus C1/C2。剩余生产直接证据与 PWA/Android 真机验收 |
 
 ---
 
@@ -324,7 +325,7 @@ VNext M6 已进入主线：
 
 | 优先级 | 风险 | 已有防线 | 关闭条件 |
 |---|---|---|---|
-| ✅ | 腾讯云运行版本 / migration | `BUILD_SHA` + health buildSha；fresh PG CI；生产 `99ebb3c` 已对账 | 20 migrations 已 up to date，转为常规发布核验 |
+| P1 | 腾讯云最新 migration 直接证据 | `BUILD_SHA` + health buildSha；fresh PG CI；公网 API 已对齐 `9f72d16b` | 服务器 `prisma migrate status` 确认 Focus C1 migration 已 applied |
 | P0 | Web 真实学校导入未闭环 | V2 preview/import/replay + real PG 顺序/并发 E2E | 真实学校获取→预览→导入→同 requestId replay 通过 |
 | P0 | Android 之前存在 Web 正常/App 登录失败 | Capacitor CORS 已修；API/Bundle 地址 CI gate；Release 可追溯 | 最新 Release 真机登录、Session 和导入通过 |
 | P0 | Planner 生产 schema/闭环未证实 | SchedulePlan migration 在 fresh PG CI 成功 | 真账号 Preview → Apply → Undo |
@@ -355,17 +356,17 @@ flowchart TD
     O --> J["Phase 13 Local Codex Bridge"]
 ```
 
-### 当前批次：Issue #31 真实验收 + VNext Plan M1–M3 生产/真机验收
+### 当前批次：最新主线真实账号 + PWA/Android 真机验收
 
-1. ✅ 腾讯云 API 已部署 `master@99ebb3c`；Git HEAD / image / public health buildSha 已对齐。
-2. ✅ 生产 PostgreSQL 20 migrations up to date，包含 M2/M3/StudyFolder。
-3. ✅ VNext Web Production 已显式发布：`dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` READY 并绑定 `fish-life.cc.cd`；本次源码来自 GitHub `master@e883b9a3`，公网首页 200，发布后一小时 Vercel 无 runtime error。
+1. ✅ 腾讯云 API 已部署 `master@9f72d16b`；公网 `/api/health.buildSha` 已对齐。
+2. ✅ 腾讯云 Web 主 bundle 与本地 `master@9f72d16b` 构建哈希一致，首页 HTTPS 200，并包含 Focus C2 文案。
+3. 🚧 在服务器执行 `prisma migrate status`，留存 Focus C1 migration 已应用的直接证据。
 4. 🚧 使用已接通的真实 Qwen Provider 执行多卡片 → Insight → 用户确认 Task 的成功率、延迟、来源真实性与失败恢复验收。
 5. Android 安装 VNext M3 `sparkflow-7145ba0ea3d2-debug.apk`，复测登录、Session、五项底栏、四时间视图、Insight/Action、SchoolImport 和窄屏交互。
 6. Web 真账号完成真实教务导入/replay，并完成 Planner Preview → Apply → Undo。
 7. 验证一次客户端未知/超时结果 → requestId 查询恢复路径。
-8. ✅ VNext Plan Web 已发布并完成公开静态冒烟；🚧 继续以真实账号验收五项主导航、四时间视图、课程周次、Planner Preview → Apply → Undo，并在 Android 真机复验。
-9. 上述真实链路通过后，再选择 VNext M4、Phase 15 M4、Study Mode 或 Phase 14 余项作为下一产品批次。
+8. 🚧 真实账号完成 Focus → 多条记录 → 回顾，并验证显式音频/图片/视频 AI、通知和深浅色。
+9. 上述真实链路通过后，进入 Issue #26 Timeline 收口；不重复实现已经进入主线的 VNext M4–M8 或 Focus C1/C2。
 
 ---
 

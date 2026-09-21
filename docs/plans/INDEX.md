@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-20 | **代码基线**：`master@e5978ecb`
+> **最后更新**：2026-09-21 | **代码基线**：`master@9f72d16b`
 >
 > 近期执行顺序只在 [NEXT.md](NEXT.md) 维护；Phase 文档负责范围、约束和验收，不各自争夺优先级。
 
@@ -8,7 +8,7 @@
 
 | 文件 | 范围 | 状态 | 当前动作 |
 |---|---|---|---|
-| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4–M8 与 Focus C1/C2 代码/CI 已进入 `master@e5978ecb`；当前只保留最新 master 的生产部署、PWA/Android 真机验收与真实账号闭环 |
+| [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 | VNext M4–M8 与 Focus C1/C2 已进入主线，腾讯云 API/Web 已对齐 `master@9f72d16b`；当前只保留生产 migration 直接证据、PWA/Android 真机验收与真实账号闭环 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、作息、幂等、冲突与真机验收 | 🚧 当前 P0：生产验收 | V2 安全实现、fresh PostgreSQL migrations、顺序/并发 replay、rollback、用户隔离真实 PG E2E 已完成；当前只把生产 migration、真实 Web/Android、Planner 真账号闭环作为 P0 |
 | [phase14-rhythm-experience.md](phase14-rhythm-experience.md) | Phase 14 | 🚧 部分完成 | M3 Timeline 余项由 Issue #26 承接；继续自然语言意图、顺延、Daily Receipt、深色、Settings 与 Widget |
 
@@ -16,7 +16,7 @@
 
 | 文件 | Phase | 状态 | 启动条件 |
 |---|---|---|---|
-| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3、Focus C1/C2 已实现，生产收尾 | PR #38/#39/#40/#105/#106 已合并；当前需完成 C1 migration 生产发布、Focus/多模态真实账号验收与 Android/PWA 回归 |
+| [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | 15 | 🚧 M1–M3、Focus C1/C2 已实现，生产收尾 | PR #38/#39/#40/#105/#106 已合并，API/Web 已发布最新 master；当前需留存 C1 migration 直接证据，并完成 Focus/多模态真实账号验收与 Android/PWA 回归 |
 
 ## 候选方案（已完成设计、未排期实施）
 
@@ -51,7 +51,7 @@
 | PR #48 VNext Plan M1 | ✅ 已合并 | 固定五项主导航、PlanWorkspace、四视图壳层、旧入口兼容与视图记忆 |
 | PR #49 VNext Plan M2 | ✅ 已合并 | Task/Course/CalendarEvent/Study Task 统一投影，真实 Month/Week/Agenda/Timetable |
 | PR #50 VNext Plan M3 | ✅ 已合并 | Planner Preview 临时时间块、Apply 转真实排程、Undo 恢复；CI 全绿 |
-| VNext Web Production | ✅ 腾讯云自托管已发布 / 🚧 待业务验收 | `fish-life.cc.cd` / `www.fish-life.cc.cd` 指向腾讯云 `170.106.191.176`；Nginx 直接托管 `master@56bdc80a` 静态产物，HTTPS、首页、SPA 深层路由、Service Worker 与 API 健康检查均通过公网验收 |
+| VNext Web Production | ✅ 腾讯云自托管已发布 / 🚧 待业务验收 | 2026-09-21 公网 API health 返回 `9f72d16b`；Nginx 首页 HTTPS 200，主 bundle 与本地同 SHA 构建哈希一致并包含 Focus C2 文案；真实账号/PWA/Android 验收未完成 |
 | Android VNext M3 | ✅ APK 已生成 / 🚧 待真机 | Release `android-7145ba0ea3d2`；asset `sparkflow-7145ba0ea3d2-debug.apk`；对应功能提交 `7145ba0ea3d2` |
 | PR #27 legacy Phase 12 tests | ✅ 已关闭 | 被 #28/#29/#30/#36 更完整的安全与真实 PostgreSQL 验证覆盖 |
 | PR #66/#68/#69 VNext M6 | ✅ 已合并 | Study 独立 AI 学习目标、阶段/里程碑共享 Task 投影、执行反馈与显式目标变化 |
