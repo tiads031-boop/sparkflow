@@ -68,7 +68,6 @@ export default function PlanWorkspace({
     return requested === 'quadrant' && !quadrantEnabled ? 'list' : requested;
   });
   const [view, setView] = useState<PlanView>(() => initialPlanView ?? readLastPlanView());
-  const [viewMenuOpen, setViewMenuOpen] = useState(false);
 
   const activeSemester = semesters.find((semester) => semester.id === activeSemesterId) ?? null;
   const planData = usePlanItems(selectedDate, view);
@@ -111,7 +110,6 @@ export default function PlanWorkspace({
   const selectView = (next: PlanView) => {
     setView(next);
     writeLastPlanView(next);
-    setViewMenuOpen(false);
     if (!sectionOnly) setSection('calendar');
   };
 
@@ -151,12 +149,11 @@ export default function PlanWorkspace({
         view={view}
         title={headerCopy.title}
         subtitle={headerCopy.subtitle}
-        viewMenuOpen={viewMenuOpen}
-        onToggleViewMenu={() => setViewMenuOpen((open) => !open)}
         onSelectView={selectView}
         onPrevious={() => shiftDate(-1)}
         onNext={() => shiftDate(1)}
         onToday={() => setSelectedDate(new Date())}
+        onPlanner={onPlanner}
       />}
 
       <div className="px-3">

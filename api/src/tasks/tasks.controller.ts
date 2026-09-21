@@ -37,6 +37,7 @@ export class TasksController {
     insightId?: string;
     scheduledStart?: string | null;
     scheduledEnd?: string | null;
+    completedAt?: string | null;
     scheduleLocked?: boolean;
     scheduleSource?: string;
     scheduleColor?: string | null;

@@ -3,7 +3,7 @@ import {
   CalendarRange, GraduationCap, Home, UserRound, Zap,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
-import type { PlannerPreview } from './types';
+import type { ActiveTab, PlannerPreview, Spark } from './types';
 import SparksView from './components/SparksView';
 import CourseView from './components/CourseView';
 import CourseTheme from './components/CourseTheme';
@@ -15,7 +15,7 @@ import { importIcs } from './api/courses';
 import { getNotificationPreferences } from './api/push';
 import { updateUserPreferences } from './utils/userPreferences';
 import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
-import TaskSheet from './components/TaskSheet';
+import TaskEditorSheet from './components/tasks/TaskEditorSheet';
 import { normalizeTaskSection } from './utils/taskSections';
 import { workspaceNavigationRegistry, workspaceTabForRoute } from './navigation';
 import AppShell from './components/shell/AppShell';
@@ -27,14 +27,19 @@ import InspirationCaptureSheet from './components/records/InspirationCaptureShee
 
 const StudyWorkspace = lazy(() => import('./components/study/StudyWorkspace'));
 const PlanWorkspace = lazy(() => import('./components/plan/PlanWorkspace'));
+const TodayWorkspace = lazy(() => import('./components/today/TodayWorkspace'));
 
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
   try {
-    return !!(window as any).Capacitor?.isNativePlatform?.();
+    return Boolean((window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.());
   } catch {
     return false;
   }
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
 
 const workspaceIconMap = {
@@ -94,8 +99,15 @@ export default function App() {
   const [plannerAutoVoice, setPlannerAutoVoice] = useState(false);
   const [plannerSeed, setPlannerSeed] = useState('');
   const [plannerPreview, setPlannerPreview] = useState<PlannerPreview | null>(null);
+  const [scheduleSurface, setScheduleSurface] = useState<'today' | 'plan' | 'actual'>(() => activeTab === 'timeline' ? 'actual' : 'today');
   const activeWorkspace = workspaceTabForRoute(activeTab) ?? 'today';
-  const isPlanRoute = activeTab === 'today' || activeTab === 'plan' || activeTab === 'tasks' || activeTab === 'board' || activeTab === 'timeline';
+  const isSchedulePlanRoute = activeWorkspace === 'today' && (activeTab === 'timeline' || scheduleSurface !== 'today');
+  const isTaskPlanRoute = activeTab === 'plan' || activeTab === 'tasks' || activeTab === 'board';
+
+  const handleWorkspaceChange = (tab: ActiveTab) => {
+    if (tab === 'today') setScheduleSurface('today');
+    setActiveTab(tab);
+  };
 
   useEffect(() => {
     loadTasks();
@@ -169,7 +181,7 @@ export default function App() {
     isOpen: boolean;
     mode: 'create' | 'edit';
     context: 'task' | 'spark';
-    data: any;
+    data: Task | Spark | null;
   }>({ isOpen: false, mode: 'create', context: 'task', data: null });
   const [appMessage, setAppMessage] = useState<string | null>(null);
 
@@ -219,8 +231,8 @@ export default function App() {
     });
   };
 
-  const handleOpenDetail = (item: any, context: string) =>
-    setModalConfig({ isOpen: true, mode: 'edit', context: context as 'task' | 'spark', data: item });
+  const handleOpenDetail = (item: Task | Spark, context: 'task' | 'spark') =>
+    setModalConfig({ isOpen: true, mode: 'edit', context, data: item });
 
   const handleCloseModal = () =>
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
@@ -286,6 +298,7 @@ export default function App() {
           repeatStartDate: normalizedRepeatStartDate,
           repeatEndDate: normalizedRepeatEndDate,
           duration: duration || undefined,
+          estimatedMinutes: duration || undefined,
           tags: tags || [],
           studyFolderId: studyFolderId || undefined,
         } as Task;
@@ -323,7 +336,7 @@ export default function App() {
   return (
     <AppShell
       activeTab={activeWorkspace}
-      setActiveTab={setActiveTab}
+      setActiveTab={handleWorkspaceChange}
       navItems={workspaceNavItems}
       edgeToEdge={activeWorkspace === 'today' || activeWorkspace === 'plan'}
       onQuickAdd={() => setQuickAddOpen((open) => !open)}
@@ -360,10 +373,27 @@ export default function App() {
           )}
           <CourseReminderRuntime />
           <CourseIntegrationsRuntime />
-          {isPlanRoute && (
+          {activeWorkspace === 'today' && !isSchedulePlanRoute && (
+            <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开今天…</div>}>
+              <TodayWorkspace
+                tasks={tasks}
+                plannerPreview={plannerPreview}
+                onTaskClick={(task) => handleOpenDetail(task, 'task')}
+                onCourseClick={(courseId) => {
+                  loadCourseDetail(courseId);
+                  setViewingCourseId(courseId);
+                  setActiveTab('courses');
+                }}
+                onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
+                onOpenPlan={() => setScheduleSurface('plan')}
+                onOpenActual={() => setScheduleSurface('actual')}
+              />
+            </Suspense>
+          )}
+          {(isSchedulePlanRoute || isTaskPlanRoute) && (
             <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开计划空间…</div>}>
               <PlanWorkspace
-                key={activeTab}
+                key={`${activeTab}:${scheduleSurface}`}
                 tasks={tasks}
                 onTaskClick={(task) => handleOpenDetail(task, 'task')}
                 onCourseClick={(courseId) => {
@@ -373,10 +403,10 @@ export default function App() {
                 }}
                 onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
                 plannerPreview={plannerPreview}
-                initialSection={activeTab === 'today' || activeTab === 'timeline' ? 'calendar' : 'tasks'}
-                sectionOnly={activeTab === 'today' || activeTab === 'timeline' ? 'calendar' : 'tasks'}
+                initialSection={isSchedulePlanRoute ? 'calendar' : 'tasks'}
+                sectionOnly={isSchedulePlanRoute ? 'calendar' : 'tasks'}
                 initialTaskView={activeTab === 'board' ? 'quadrant' : undefined}
-                initialPlanView={activeTab === 'today' ? 'agenda' : activeTab === 'timeline' ? 'timeline' : undefined}
+                initialPlanView={activeTab === 'timeline' || scheduleSurface === 'actual' ? 'timeline' : scheduleSurface === 'plan' ? 'week' : undefined}
               />
             </Suspense>
           )}
@@ -397,8 +427,8 @@ export default function App() {
                   const result = await importIcs(file, undefined, { semesterId: useAppStore.getState().activeSemesterId || undefined });
                   alert(`导入完成：新增 ${result.created.length} 门，更新 ${result.updated.length} 门，共 ${result.eventCount} 次课`);
                   loadCourses();
-                } catch (err: any) {
-                  alert(`导入失败：${err.message}`);
+                } catch (error: unknown) {
+                  alert(`导入失败：${errorMessage(error, '请稍后重试')}`);
                 }
               }}
             />
@@ -427,31 +457,36 @@ export default function App() {
           )}
           {(activeTab === 'settings' || activeTab === 'profile') && <SettingsView />}
         {/* Modals */}
-        <TaskSheet
-          open={modalConfig.isOpen && modalConfig.mode === 'create' && modalConfig.context === 'task'}
+        {modalConfig.isOpen && modalConfig.context === 'task' && <TaskEditorSheet
+          key={modalConfig.mode === 'edit' ? modalConfig.data?.id : 'create'}
+          open
+          task={modalConfig.mode === 'edit' ? (modalConfig.data as Task) : null}
           onClose={handleCloseModal}
           onSave={async (params) => {
             try {
               await handleSaveItem(params);
-            } catch (err: any) {
-              setAppMessage(err.message || '保存失败，请稍后重试');
-              throw err;
+            } catch (error: unknown) {
+              setAppMessage(errorMessage(error, '保存失败，请稍后重试'));
+              throw error;
             }
           }}
           onPlanWithAI={() => {
             setPlannerSeed('请帮我安排刚刚创建的任务，并先确认还有哪些重要约束需要了解。');
             setPlannerOpen(true);
           }}
-        />
+          onDelete={async (taskId) => {
+            await deleteTask(taskId);
+          }}
+        />}
         <DarkFrostedModal
           config={{
             ...modalConfig,
-            isOpen: modalConfig.isOpen && !(modalConfig.mode === 'create' && modalConfig.context === 'task'),
+            isOpen: modalConfig.isOpen && modalConfig.context !== 'task',
           }}
           onClose={handleCloseModal}
           onSave={(params) => {
-            handleSaveItem(params).catch((err: any) => {
-              setAppMessage(err.message || '保存失败，请稍后重试');
+            handleSaveItem(params).catch((error: unknown) => {
+              setAppMessage(errorMessage(error, '保存失败，请稍后重试'));
             });
           }}
           onDelete={handleDeleteItem}

@@ -24,6 +24,7 @@ interface ApiTask {
   project?: string | null;
   notes?: { text: string; completed: boolean }[] | null;
   dueDate?: string | null;
+  completedAt?: string | null;
   estimatedMinutes?: number | null;
   scheduledStart?: string | null;
   scheduledEnd?: string | null;
@@ -121,6 +122,7 @@ function fromApiTask(api: ApiTask): Task {
     comments: subtasks.length,
     subtasks,
     dueDate: api.dueDate || undefined,
+    completedAt: api.completedAt || undefined,
     estimatedMinutes: api.estimatedMinutes || undefined,
     scheduledStart: api.scheduledStart || undefined,
     scheduledEnd: api.scheduledEnd || undefined,

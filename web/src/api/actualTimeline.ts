@@ -12,6 +12,7 @@ export interface ActualTimelineEntry {
   status: 'completed' | 'interrupted';
   notes: string | null;
   tags: string[];
+  revision: number;
 }
 
 export interface ManualActualTimeInput {
@@ -24,6 +25,11 @@ export interface ManualActualTimeInput {
   clientRequestId: string;
 }
 
+export interface UpdateManualActualTimeInput extends Omit<ManualActualTimeInput, 'clientRequestId' | 'taskId'> {
+  expectedRevision: number;
+  taskId?: string | null;
+}
+
 export function getActualTimeline(start: string, end: string, signal?: AbortSignal) {
   const query = new URLSearchParams({ start, end });
   return api.get<ActualTimelineEntry[]>(`/pomodoro/timeline?${query.toString()}`, {
@@ -34,6 +40,10 @@ export function getActualTimeline(start: string, end: string, signal?: AbortSign
 
 export function createManualActualTime(input: ManualActualTimeInput) {
   return api.post<ActualTimelineEntry>('/pomodoro/manual', input, { throwOnError: true });
+}
+
+export function updateManualActualTime(id: string, input: UpdateManualActualTimeInput) {
+  return api.patch<ActualTimelineEntry>(`/pomodoro/${encodeURIComponent(id)}/manual`, input, { throwOnError: true });
 }
 
 export function deleteActualTime(id: string) {
