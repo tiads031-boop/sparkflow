@@ -141,7 +141,7 @@ PR #48/#49/#50 已完成 M1–M3 代码与 CI：
 - 学期起止日期与 Course.weeks 用于周次/“非本周”判断；缺少可靠学期上下文时不强行隐藏课程。
 - Planner Preview 可作为虚线临时时间块显示在 Week / Agenda；Apply 后由真实 Task 排程替代，Undo 后恢复。
 - 2026-09-21 腾讯云 Web 已对齐 `master@9f72d16b`：首页 HTTPS 200，生产主 bundle 与本地同 SHA 构建哈希一致，并静态核到 Focus C2 文案。
-- Android Focus C2 Release `android-e5978ecbbc24` 已生成；Web 真账号/PWA 与 Android 真机交互仍未验收。
+- Android Focus C2 Release `android-e5978ecbbc24` 已生成；Web 真实账号已通过登录/Session、AI Planner Preview→Apply→Undo 与 Focus 文字多记录，PWA/Android 真机仍未验收。
 
 ### Planner / AI 规划与调整
 
@@ -191,7 +191,7 @@ CourseImportBatch + Course + CalendarEvent
 - **Android 登录代码侧**：PR #33 增加 `https://localhost` / `capacitor://localhost` CORS 支持。
 - **Android 发布层**：PR #34 校验 production API，并发布 commit-stamped APK 到 GitHub Releases。
 
-**当前缺口已经严格收缩为生产/HTTP 证据**：腾讯云 migration / buildSha、真实 Web 学校导入、Android 真机登录/导入、Planner 真账号闭环，以及客户端未知网络结果的端到端恢复。统一由 Issue #31 承接。
+**当前缺口已经严格收缩为生产/HTTP 余项**：腾讯云 migration/buildSha 与 Planner 真账号闭环已确认；Issue #31 继续承接真实 Web 学校导入、Android 真机登录/导入、PWA/多模态路径和客户端未知网络结果恢复。
 
 ### Android / Release
 
@@ -259,10 +259,10 @@ VNext M6 已进入主线：
 | Phase 12 | 🚧 当前 P0：真实链路验收 | 安全代码、migration CI、真实 PG 顺序/并发 replay、rollback、用户隔离、部署追溯、Android CORS/Release 门禁已具备；Issue #31 承接生产和真机证据 |
 | Phase 13 | ⬜ P2 | Local Codex Bridge，等待用户主链路稳定 |
 | Phase 14 | 🚧 收口中 | Today/Planner/Focus/四象限/甘特已有实现；Issue #26 承接 M3 Timeline 余项，另有自然语言排程、顺延、Receipt、深色、Settings、Widget |
-| Phase 15 | 🚧 M1–M3 + Focus C1/C2 已实现，真实链路收尾 | API/Web 已对齐 `9f72d16b`；生产 31 个 migrations 已直接核验；真实 Qwen、多模态 Focus 与 Android/Planner 链路仍需验收 |
+| Phase 15 | 🚧 M1–M3 + Focus C1/C2 已实现，真实链路收尾 | API/Web 已对齐 `9f72d16b`；31 migrations、Web AI Planner 与 Focus 文字多记录已真实核验；真实 Qwen Insight、多模态与 Android 链路仍需验收 |
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
-| VNext Plan | 🚧 M1–M3 已发布，待真账号/真机 | PR #48/#49/#50 已合入；Web Production 已发布并静态冒烟，最新 Focus C2 APK `android-e5978ecbbc24` 已生成；真实账号与真机验收前 M4 暂不启动 |
-| VNext AI Orchestration | ✅ M4–M8 代码/CI；🚧 最终验收 | PR #59–#81 已完成 AI Planning、学习目标、课程变动、多模态 Capture、显式附件 AI、通知与外观；#105/#106 完成 Focus C1/C2。生产 31 个 migrations 已直接核验；剩余 PWA/Android 真机与真实账号验收 |
+| VNext Plan | 🚧 M1–M3 已发布，待剩余 PWA/真机 | PR #48/#49/#50 已合入；Web 真实账号 Planner Preview→Apply→Undo 已通过，最新 Focus C2 APK `android-e5978ecbbc24` 已生成；四视图/PWA/Android 真机仍需验收 |
+| VNext AI Orchestration | ✅ M4–M8 代码/CI；🚧 最终验收 | PR #59–#81 与 #105/#106 已完成主体能力；31 migrations、Web AI 对话/草案/Planner Undo 与 Focus 多记录已真实核验；剩余 PWA/Android 真机、多模态/通知/外观验收 |
 
 ---
 
@@ -328,7 +328,7 @@ VNext M6 已进入主线：
 | ✅ | 腾讯云最新 migration 直接证据 | `BUILD_SHA` + health buildSha；公网 API 已对齐 `9f72d16b` | 服务器直接确认 31 migrations、schema up to date（含 Focus C1） |
 | P0 | Web 真实学校导入未闭环 | V2 preview/import/replay + real PG 顺序/并发 E2E | 真实学校获取→预览→导入→同 requestId replay 通过 |
 | P0 | Android 之前存在 Web 正常/App 登录失败 | Capacitor CORS 已修；API/Bundle 地址 CI gate；Release 可追溯 | 最新 Release 真机登录、Session 和导入通过 |
-| P0 | Planner 生产 schema/闭环未证实 | SchedulePlan migration 在 fresh PG CI 成功 | 真账号 Preview → Apply → Undo |
+| ✅ | Planner 生产 schema/闭环 | SchedulePlan migration + 31 个生产 migrations | 真实账号 Preview → Apply → Undo 已通过，撤销恢复 1 项任务 |
 | P1 | HTTP 未知结果恢复仍缺端到端证据 | 前端按 requestId 查询 + 服务端 replay；真实 PG 已验证最终状态 | 模拟客户端超时/断连后查询并恢复已提交结果 |
 | P1 | Vercel Hobby deployment 日配额 / 本次 Git metadata 缺失 | GitHub CI 独立；Git 自动 deployments 已关闭；VNext Production 首次手工发布已成功，仓库记录 SHA→deployment 映射 | 等额度恢复后的下一次正常 Git 可追溯发布自然覆盖；不为补 metadata 重复消耗当日 deployment |
 | ✅ | Push 到期提醒跨用户风险 | PR #55 已增加 user 分组、同 user subscriptions、server-only notification_deliveries 唯一 delivery key | 代码/migration/CI 已收口；生产 API 下一次部署应用 migration |
@@ -363,9 +363,9 @@ flowchart TD
 3. ✅ 服务器已执行 `prisma migrate status`：31 migrations，schema up to date（含 Focus C1）。
 4. 🚧 使用已接通的真实 Qwen Provider 执行多卡片 → Insight → 用户确认 Task 的成功率、延迟、来源真实性与失败恢复验收。
 5. Android 安装 Focus C2 `sparkflow-e5978ecbbc24-debug.apk`，复测登录、Session、五项底栏、四时间视图、Insight/Action、SchoolImport 和窄屏交互。
-6. Web 真账号完成真实教务导入/replay，并完成 Planner Preview → Apply → Undo。
+6. ✅ Web 真账号已完成 Planner Preview → Apply → Undo；继续真实教务导入/replay。
 7. 验证一次客户端未知/超时结果 → requestId 查询恢复路径。
-8. 🚧 真实账号完成 Focus → 多条记录 → 回顾，并验证显式音频/图片/视频 AI、通知和深浅色。
+8. 🚧 Web 真实账号已完成 Focus 暂停/恢复/提前完成 → 连续两条文字记录；继续回顾、显式音频/图片/视频 AI、通知、深浅色与 PWA/Android 验收。
 9. 上述真实链路通过后，进入 Issue #26 Timeline 收口；不重复实现已经进入主线的 VNext M4–M8 或 Focus C1/C2。
 
 ---
