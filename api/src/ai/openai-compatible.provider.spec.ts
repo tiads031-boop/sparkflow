@@ -1,5 +1,9 @@
 import { Logger } from '@nestjs/common';
-import { OpenAICompatibleProvider, toPlanningTurn } from './openai-compatible.provider';
+import {
+  OpenAICompatibleProvider,
+  requestedCreateTaskCount,
+  toPlanningTurn,
+} from './openai-compatible.provider';
 import type { PlanningTurnInput } from './ai-provider';
 
 describe('planning response recovery', () => {
@@ -38,11 +42,11 @@ describe('planning response recovery', () => {
     const first = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
     const repair = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
     expect(first.model).toBe('deepseek-v4-flash');
-    expect(first.max_tokens).toBe(6000);
+    expect(first.max_tokens).toBe(12000);
     expect(repair.model).toBe(first.model);
     expect(repair.temperature).toBe(0);
     expect(repair.messages.slice(0, first.messages.length)).toEqual(first.messages);
-    expect(repair.messages.at(-1).content).toContain('failed schema validation');
+    expect(repair.messages.at(-1).content).toContain('failed validation');
     expect(JSON.stringify(warn.mock.calls)).toContain('deepseek-v4-flash');
     expect(JSON.stringify(warn.mock.calls)).not.toContain('private-planning-content');
   });
@@ -79,9 +83,69 @@ describe('planning response recovery', () => {
     await expect(provider().generatePlanningTurn(input)).resolves.toMatchObject(complete);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('repairs a daily plan whose declared duration has too few task actions', async () => {
+    const dailyInput = {
+      ...input,
+      message: '30天六级听力训练，每天一个具体练习',
+    };
+    const short = {
+      ...complete,
+      reply: '已生成 30 个任务。',
+      actions: Array.from({ length: 8 }, (_, index) => ({
+        type: 'create_task', title: `练习 ${index + 1}`,
+      })),
+    };
+    const full = {
+      ...complete,
+      reply: '已生成 30 个任务草案。',
+      actions: Array.from({ length: 30 }, (_, index) => ({
+        type: 'create_task', title: `练习 ${index + 1}`,
+      })),
+    };
+    const fetchMock = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response(short))
+      .mockResolvedValueOnce(response(full));
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    await expect(provider().generatePlanningTurn(dailyInput)).resolves.toMatchObject({
+      actions: expect.arrayContaining([expect.objectContaining({ title: '练习 30' })]),
+    });
+    const repair = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(repair.messages.at(-1).content).toContain('exactly 30 separate create_task actions');
+  });
 });
 
 describe('planning response parser', () => {
+  it('preserves a 30-day daily task plan instead of truncating it to 8 actions', () => {
+    const actions = Array.from({ length: 30 }, (_, index) => ({
+      type: 'create_task',
+      title: `听力训练第 ${index + 1} 天`,
+      dueDate: new Date(Date.UTC(2026, 8, 22 + index)).toISOString(),
+    }));
+    const result = toPlanningTurn({
+      reply: '已生成 30 项任务草案。',
+      readiness: 'ready',
+      summary: '30 天听力训练。',
+      openQuestions: [],
+      researchQueries: [],
+      actions,
+      replanRequests: [],
+      context: {
+        brief: [], constraints: [], preferences: [], strategy: [], assumptions: [],
+      },
+    });
+
+    expect(result.actions).toHaveLength(30);
+    expect(result.actions[29]).toEqual(expect.objectContaining({ title: '听力训练第 30 天' }));
+  });
+
+  it('recognizes explicit daily and numbered task counts', () => {
+    expect(requestedCreateTaskCount('30天六级听力训练，每天一个具体练习')).toBe(30);
+    expect(requestedCreateTaskCount('请创建 12 个任务')).toBe(12);
+    expect(requestedCreateTaskCount('帮我规划六级听力')).toBeNull();
+  });
+
   it('accepts complete structured planning context and trims unsafe excess', () => {
     const result = toPlanningTurn({
       reply: '我还需要确认你的截止时间。',
