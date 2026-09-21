@@ -514,6 +514,7 @@ export class PlanningService {
         scheduledEnd: true,
         scheduleLocked: true,
         project: true,
+        tags: true,
       },
     });
     const currentTasks = currentTaskRows.map((task) => ({
@@ -522,6 +523,21 @@ export class PlanningService {
       scheduledStart: task.scheduledStart?.toISOString() || null,
       scheduledEnd: task.scheduledEnd?.toISOString() || null,
     }));
+    const tagDelegate = (this.prisma as PrismaService & {
+      tag?: { findMany: (args: unknown) => Promise<Array<{ name: string }>> };
+    }).tag;
+    const tagRows = tagDelegate
+      ? await tagDelegate.findMany({
+          where: { userId, archived: false },
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          select: { name: true },
+          take: 120,
+        })
+      : [];
+    const currentTags = [...new Set([
+      ...tagRows.map((tag) => tag.name),
+      ...currentTasks.flatMap((task) => task.tags),
+    ])].slice(0, 120);
 
     let currentCourses: PlanningCourseSnapshot[] = [];
     let currentCourseOccurrences: PlanningCourseOccurrenceSnapshot[] = [];
@@ -673,6 +689,7 @@ export class PlanningService {
       context: contextFromThread(thread),
       recentMessages,
       currentTasks,
+      currentTags,
       currentCourses,
       currentCourseOccurrences,
       holidayCalendar,
@@ -988,6 +1005,19 @@ export class PlanningService {
       const createdFolderIds: string[] = [];
       const folderByName = new Map<string, string>();
 
+      const ensureTagMetadata = async (names: string[] = []) => {
+        const normalized = [...new Set(names.map((name) => name.replace(/^#+/, '').trim()).filter(Boolean))].slice(0, 12);
+        if (!normalized.length) return normalized;
+        for (const [index, name] of normalized.entries()) {
+          await tx.tag.upsert({
+            where: { userId_name: { userId, name } },
+            create: { userId, name, sortOrder: index },
+            update: { archived: false },
+          });
+        }
+        return normalized;
+      };
+
       const resolveTaskFolder = async (folderName?: string | null) => {
         if (goalScopeId) return goalScopeId;
         const name = folderName?.trim();
@@ -1080,6 +1110,7 @@ export class PlanningService {
 
         if (action.type === 'create_task') {
           const taskFolderId = await resolveTaskFolder(action.folderName);
+          const taskTags = await ensureTagMetadata(action.tags);
 
           await tx.task.createMany({
             data: [{
@@ -1096,7 +1127,7 @@ export class PlanningService {
               scheduledStart: action.scheduledStart ? new Date(action.scheduledStart) : null,
               scheduledEnd: action.scheduledEnd ? new Date(action.scheduledEnd) : null,
               scheduleSource: 'ai',
-              tags: [],
+              tags: taskTags,
             }],
             skipDuplicates: true,
           });
@@ -1135,6 +1166,7 @@ export class PlanningService {
             ? new Date(action.changes.scheduledEnd)
             : null;
         }
+        if (action.changes.tags !== undefined) changes.tags = await ensureTagMetadata(action.changes.tags);
         if ((goalScopeId || action.changes.folderName) && action.changes.milestoneTitle !== undefined) {
           changes.project = action.changes.milestoneTitle || null;
         }

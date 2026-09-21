@@ -80,6 +80,7 @@ Phase 15 已补齐：
 | 29 | Timeline 2.0 | Agenda 保持“已排入日程”；Timeline 转向实际时间流水，并可与计划对照 | 同时回答“准备做什么”和“实际做了什么” |
 | 30 | UI System | 新一轮采用 Graphite Aurora；3D 仅用于有卡片层级意义的任务/目标/回顾/方案预览 | 保留产品记忆点，同时避免不同页面各自形成视觉体系 |
 | 31 | Android Usage | 后续使用 UsageStatsManager / UsageEvents 生成独立 AppUsageSession，默认关闭且不读取页面内容 | 系统观察到的 App 使用不是 CalendarEvent、Focus 或 Inspiration，必须保持语义独立 |
+| 32 | Tag 元数据 | 新增最小 `Tag` 元数据表管理层级、颜色、排序与归档；Task/Inspiration `tags` 数组继续保存实体快照 | 支持稳定标签管理与重命名传播，同时不复制任务/记录正文或引入第二套分类事实源 |
 
 ---
 
@@ -282,12 +283,13 @@ VNext M6 已进入主线：
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待剩余 PWA/真机 | PR #48/#49/#50 已合入；Web 真实账号 Planner Preview→Apply→Undo 已通过，最新 Focus C2 APK `android-e5978ecbbc24` 已生成；四视图/PWA/Android 真机仍需验收 |
 | VNext AI Orchestration | ✅ M4–M8 代码/CI；🚧 最终验收 | PR #59–#81 与 #105/#106 已完成主体能力；剩余 PWA/Android 真机、多模态/通知/外观验收 |
-| Execution Intelligence & UI | 🚧 新主线 | M1 Tags + Task Edit Deck → M2 Actual Timeline → M3 Analytics → M4 Goal Progress → M5 AI Behavior Feedback → M6 Android Usage |
+| Execution Intelligence & UI | 🚧 M1 代码完成，待验收 | M1 Tags + Task Edit Deck 已在 `codex/m1-ui-tags` 实现；360px/PWA/Android 验收后进入 M2 Actual Timeline |
 
 ---
 
 ## 七、仓库与近期里程碑
 
+- ✅ Execution Intelligence M1 实现分支 `codex/m1-ui-tags`：Tag metadata/API/管理页、Task/Inspiration 标签选择、Folder/Project/Tag 分离、Planner 分类可见与 Task Edit Deck 视觉收敛；API/Web build 与自动测试通过，真实移动视觉待验收。
 - ✅ PR #23 已关闭，由 #25 / Study Mode 正式方案替代。
 - ✅ PR #24 `fad1a619`：Course linked tasks。
 - ✅ PR #14 已关闭，Issue #26 承接 Timeline M3 余项。

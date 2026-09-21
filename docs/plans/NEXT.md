@@ -89,16 +89,18 @@ Actual Timeline
 AI 增量调整
 ```
 
-### M1 — UI Foundation + Tags（下一开发批次）
+### M1 — UI Foundation + Tags（代码完成，待 PR / 真实设备验收）
 
-- [ ] Task Edit Deck：保留 3D 卡片，重做其余 UI；
-- [ ] 共享 `PageHeader / SectionCard / SegmentControl / InfoRow / TagChip / BottomActionBar` 等组件；
-- [ ] 标签管理页；
-- [ ] Task 创建 / 编辑支持标签；
-- [ ] Inspiration Capture / Detail 支持标签；
-- [ ] Folder / Project / Tag 视觉和语义分离；
-- [ ] AI 分类优先复用已有标签，孤立任务不滥建 Folder；
+- [x] Task Edit Deck：保留并弱化 3D 卡片，重做层级、圆角与说明；
+- [x] 共享 `PageHeader / SectionCard / SegmentControl / InfoRow / TagChip / BottomActionBar` 等组件；
+- [x] 标签管理页；
+- [x] Task 创建 / 编辑支持标签；
+- [x] Inspiration Capture / Detail 支持标签；
+- [x] Folder / Project / Tag 视觉和语义分离；
+- [x] AI 分类优先复用已有标签，孤立任务不滥建 Folder；
 - [ ] 360px / PWA / Android 基础视觉回归。
+
+实现分支：`codex/m1-ui-tags`。API/Web build、Prisma validate、API 156 tests、Web 73 tests 已通过；本地浏览器自动化守护进程无法启动，因此不能把 360px 视觉验收标记为完成。
 
 ### M2 — Timeline 2.0
 

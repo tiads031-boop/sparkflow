@@ -32,6 +32,7 @@ interface ApiTask {
   repeatStartDate?: string | null;
   repeatEndDate?: string | null;
   tags?: string[];
+  studyFolders?: Array<{ folder: { id: string; name: string; color: string } }>;
   courseId?: string | null;
   inspirationId?: string | null;
   insightId?: string | null;
@@ -114,6 +115,9 @@ function fromApiTask(api: ApiTask): Task {
     insightType: api.insight?.type as Task['insightType'] || undefined,
     insightSourceCount: api.insight?._count?.sources,
     tags: api.tags || [],
+    studyFolderId: api.studyFolders?.[0]?.folder.id,
+    studyFolderName: api.studyFolders?.[0]?.folder.name,
+    studyFolderColor: api.studyFolders?.[0]?.folder.color,
     comments: subtasks.length,
     subtasks,
     dueDate: api.dueDate || undefined,
@@ -151,6 +155,7 @@ function toApiPayload(task: Partial<Task> & { title?: string }): Record<string, 
   // Source backlinks are intentionally read-only in the generic task editor.
   // Phase 15 links records/insights only through explicit user-confirmed conversion flows.
   if (task.tags !== undefined) payload.tags = task.tags;
+  if (task.studyFolderId !== undefined) payload.studyFolderId = task.studyFolderId || null;
   if (task.dueDate !== undefined) payload.dueDate = task.dueDate;
   if (task.estimatedMinutes !== undefined) payload.estimatedMinutes = task.estimatedMinutes;
   else if ((task as any).duration !== undefined) payload.estimatedMinutes = (task as any).duration;

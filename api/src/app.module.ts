@@ -21,6 +21,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { StudyModule } from './study/study.module';
 import { PlanningModule } from './planning/planning.module';
+import { TagsModule } from './tags/tags.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PlanningModule } from './planning/planning.module';
     GoogleCalendarModule,
     StudyModule,
     PlanningModule,
+    TagsModule,
   ],
   controllers: [AppController],
   providers: [

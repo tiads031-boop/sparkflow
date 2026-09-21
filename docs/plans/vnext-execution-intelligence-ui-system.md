@@ -1,6 +1,6 @@
 # SparkFlow VNext — Execution Intelligence & UI System
 
-> **状态**：🚧 新一轮主方案，2026-09-22 起进入实施队列  
+> **状态**：🚧 M1 代码已实现，待 PR 与 360px/PWA/Android 验收
 > **仓库基线**：`master@56a555490a09a1290a1b09c2139dc796a09651fb`  
 > **最后核对**：2026-09-22  
 > **定位**：在现有“今天 / 计划 / 记录 / 学习 / 我的”五工作空间和 AI Planner、Focus、Course、Inspiration 能力之上，把 SparkFlow 从“能规划”升级为“能理解计划、执行、时间去向与目标进度，并据此持续调整”的个人执行系统。
@@ -920,3 +920,12 @@ Today 不承担完整统计和历史分析。
 7. 补 Web build/test 与真实移动宽度回归。
 
 M1 稳定后再进入 Timeline 2.0，不把 Android Usage Tracking 提前塞进第一批。
+
+### 19.1 M1 实施记录（2026-09-22）
+
+- 新增用户级 Tag 元数据与 migration，支持一级/二级、颜色、排序、归档；Task/Inspiration 的 `tags` 数组继续作为实体快照；
+- 新增“我的 → 标签管理”，任务创建/编辑、记录 Capture/Detail 统一使用 TagSelector；
+- Task 编辑明确区分 StudyFolder（长期目标）、Task.project（阶段）和 Tag（横向分类）；
+- Planner 上下文读取现有标签，草案展示标签，并在确认应用时复用/补齐 Tag 元数据；孤立事项仍默认不创建 Folder；
+- Task Edit Deck 保留卡片切换，但降低旋转、缩放、阴影和后卡不透明度；
+- API/Web build、Prisma validate、API 156 tests、Web 73 tests 通过；真实 360px/PWA/Android 视觉验收仍待完成。

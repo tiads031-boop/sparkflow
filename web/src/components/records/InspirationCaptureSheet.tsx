@@ -18,6 +18,7 @@ import {
 import { useModalLifecycle } from '../ui/useModalLifecycle';
 import { useAppStore } from '../../store/appStore';
 import { deleteCaptureDraft, readCaptureDraft, writeCaptureDraft } from '../../utils/captureDraft';
+import TagSelector from '../tags/TagSelector';
 
 const MAX_FILES = 6;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -67,6 +68,7 @@ export default function InspirationCaptureSheet({
 }) {
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
@@ -143,6 +145,7 @@ export default function InspirationCaptureSheet({
 
     let cancelled = false;
     setDraftReady(false);
+    setTags([]);
     void (async () => {
       if (currentUserId && !focusSessionId) {
         const draft = await readCaptureDraft(currentUserId);
@@ -154,11 +157,13 @@ export default function InspirationCaptureSheet({
         } else {
           setText('');
           setFiles([]);
+          setTags([]);
           captureRequestIdRef.current = crypto.randomUUID();
         }
       } else {
         setText('');
         setFiles([]);
+        setTags([]);
         captureRequestIdRef.current = crypto.randomUUID();
       }
       setDraftReady(true);
@@ -285,7 +290,7 @@ export default function InspirationCaptureSheet({
     setSaving(true);
     setError(null);
     try {
-      const record = await createMultimodalInspiration(text, files, [], {
+      const record = await createMultimodalInspiration(text, files, tags, {
         requestId: captureRequestIdRef.current,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         focusSessionId,
@@ -295,6 +300,7 @@ export default function InspirationCaptureSheet({
       if (currentUserId && !focusSessionId) await deleteCaptureDraft(currentUserId);
       setText('');
       setFiles([]);
+      setTags([]);
       captureRequestIdRef.current = crypto.randomUUID();
       onClose();
     } catch (err) {
@@ -348,6 +354,10 @@ export default function InspirationCaptureSheet({
           placeholder={focusSessionId ? '这次专注里，有什么值得留下？' : '现在想到什么，就先留下来……'}
           className="min-h-32 w-full resize-none rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm leading-6 outline-none focus:border-[var(--sf-text-primary)]"
         />
+
+        <div className="mt-3 rounded-2xl border border-[var(--sf-border)] p-3">
+          <TagSelector value={tags} onChange={setTags} compact />
+        </div>
 
         <input
           ref={fileInputRef}

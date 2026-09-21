@@ -91,6 +91,11 @@ function normalizedMinutes(value: unknown): number | null | undefined {
   return Math.max(5, Math.min(720, Math.round(value)));
 }
 
+function normalizedTags(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return [...new Set(value.flatMap((item) => typeof item === 'string' ? [item.replace(/^#+/, '').trim().slice(0, 40)] : []).filter(Boolean))].slice(0, 12);
+}
+
 const MAX_PLANNING_ACTIONS = 60;
 
 export function requestedCreateTaskCount(message: string): number | null {
@@ -156,6 +161,8 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       } else if (candidate.folderName === null) {
         action.folderName = null;
       }
+      const tags = normalizedTags(candidate.tags);
+      if (tags) action.tags = tags;
       actions.push(action);
       continue;
     }
@@ -383,6 +390,8 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
         const folderName = rawChanges.folderName.trim().slice(0, 60);
         if (folderName) changes.folderName = folderName;
       }
+      const tags = normalizedTags(rawChanges.tags);
+      if (tags) changes.tags = tags;
       if (!Object.keys(changes).length) continue;
 
       const action: Extract<PlanningActionDraft, { type: 'update_task' }> = {
@@ -676,6 +685,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             'dueDate is a deadline, not a calendar placement. When the user specifies or you derive an actual day and time for doing a task, set both scheduledStart and scheduledEnd to exact ISO instants. Do not put that planned time only in dueDate.',
             'For a multi-day plan, preserve one task per intended day. Never pack later-day tasks into the first day. Use the supplied course occurrences to choose that day\'s requested free period, and keep scheduledStart/scheduledEnd on that exact date.',
             'folderName is optional. Use one shared, concise folderName only for a coherent long-term or multi-day objective such as a 30-day CET-6 listening plan. Leave it null for isolated errands, short unrelated tasks, or when grouping would add no value. Folder creation still requires confirmation with the task drafts.',
+            'Use tags for horizontal classification. Prefer exact names from currentTags; do not create near-duplicate synonyms. Isolated tasks should normally use tags without folderName. Return tag names without #.',
             'Course changes are allowed only as reviewable course_change drafts. They never mean the course has already changed.',
             'For course_change, copy every courseId/eventId exactly from currentCourses/currentCourseOccurrences. Never invent or infer database ids from names.',
             'Use course_change only for one-off occurrence changes: reschedule, cancel, swap, or extra.',
@@ -715,7 +725,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
             'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"基础建立","folderName":"六级听力训练"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"强化训练","folderName":"六级听力训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5,"startTime":"10:00","endTime":"11:40","room":"B202"}},{"type":"delete_course","courseId":"exact-course-id","courseName":"法律职业伦理"}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"基础建立","folderName":"六级听力训练","tags":["学习","英语"]},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"强化训练","folderName":"六级听力训练","tags":["学习","英语"]}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5,"startTime":"10:00","endTime":"11:40","room":"B202"}},{"type":"delete_course","courseId":"exact-course-id","courseName":"法律职业伦理"}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
             'Return actions as [] when no concrete task, learning-goal, one-off course, recurring course-template, or permanent course-deletion draft is ready for confirmation.',
             'Return replanRequests as [] when no deterministic schedule movement preview is needed.',
@@ -733,6 +743,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             message: input.message,
             currentPlanningContext: input.context,
             currentTasks: input.currentTasks || [],
+            currentTags: input.currentTags || [],
             currentCourses: input.currentCourses || [],
             currentCourseOccurrences: input.currentCourseOccurrences || [],
             holidayCalendar: input.holidayCalendar || [],
