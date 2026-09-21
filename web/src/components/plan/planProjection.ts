@@ -14,6 +14,7 @@ export interface PlanItem {
   completed: boolean;
   location?: string;
   taskId?: string;
+  focusSessionId?: string;
   courseId?: string;
   scheduleSource?: string;
   preview?: boolean;
@@ -296,6 +297,7 @@ function buildCalendarItems(events: CalendarEvent[], range: DateRange): PlanItem
       location: event.location || undefined,
       courseId: event.courseId,
       taskId: event.focusSession?.taskId || undefined,
+      focusSessionId: event.focusSessionId || undefined,
       effectiveDurationSeconds: event.focusSession?.effectiveDurationSeconds,
     } satisfies PlanItem];
   });
