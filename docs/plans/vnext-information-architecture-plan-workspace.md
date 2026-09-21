@@ -1,8 +1,8 @@
 # SparkFlow VNext 信息架构与「计划」工作区重构方案
 
-> 状态：方案完成，待排期实施  
-> 基线：以当前 `master` 为准（Phase 15 M1–M3、Study Mode M1、Planner Preview/Apply/Undo 已存在）  
-> 目标：在不重复建设 Task / Course / Calendar / Planner / Focus 数据源的前提下，重构移动端主导航与时间规划体验，使 SparkFlow 从“功能入口集合”收口为“今天—计划—记录—学习—我的”五个稳定工作空间。
+> 状态：✅ M1–M3 已实现；⚠️ 作为当前信息架构参考保留，不再作为待实施方案  
+> 最后核对：2026-09-22  
+> 目标：记录“今天—计划—记录—学习—我的”五工作空间与 Plan 统一投影的架构来源；下一轮实施见 [Execution Intelligence & UI System](vnext-execution-intelligence-ui-system.md)。
 
 ---
 
