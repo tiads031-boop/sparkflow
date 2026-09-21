@@ -106,7 +106,7 @@ test('Plan projection deduplicates task-backed and course-backed calendar events
   assert.equal(items.filter((item) => item.kind === 'calendar').length, 1);
 });
 
-test('focus projection remains visible beside its planned task and exposes effective time', () => {
+test('planned projection excludes focus compatibility events to avoid actual-time double counting', () => {
   const range = getPlanRange(new Date(2026, 8, 21, 12, 0), 'week');
   const items = buildPlanItems({
     tasks: [task()],
@@ -129,11 +129,8 @@ test('focus projection remains visible beside its planned task and exposes effec
     range,
   });
 
-  const focus = items.find((item) => item.kind === 'focus');
-  assert.ok(focus);
-  assert.equal(focus.taskId, 'task-1');
-  assert.equal(focus.effectiveDurationSeconds, 18 * 60);
-  assert.equal(items.filter((item) => item.taskId === 'task-1').length, 2);
+  assert.equal(items.some((item) => item.kind === 'focus'), false);
+  assert.equal(items.filter((item) => item.taskId === 'task-1').length, 1);
 });
 
 test('Plan projection creates course fallback occurrences only for active course weeks', () => {

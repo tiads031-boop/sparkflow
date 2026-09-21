@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -9,7 +10,7 @@ import { calculateFocusTiming, focusCompletionTime } from './focus-timing';
 
 const openStatuses = ['active', 'paused'];
 const sessionInclude = {
-  task: { select: { id: true, title: true } },
+  task: { select: { id: true, title: true, tags: true } },
   segments: { orderBy: { startedAt: 'asc' as const } },
   calendarEvent: { select: { id: true } },
 };
@@ -47,6 +48,38 @@ export class PomodoroService {
     });
   }
 
+  async findTimeline(userId: string, startValue: string, endValue: string) {
+    const { start, end } = this.parseRange(startValue, endValue);
+    const sessions = await this.prisma.pomodoroSession.findMany({
+      where: {
+        userId,
+        status: { in: ['completed', 'interrupted'] },
+        effectiveDurationSeconds: { gt: 0 },
+        startedAt: { lt: end },
+        endedAt: { gt: start },
+      },
+      orderBy: { startedAt: 'asc' },
+      include: sessionInclude,
+    });
+
+    return sessions.map((session) => ({
+      id: session.id,
+      taskId: session.taskId,
+      title:
+        session.title?.trim() ||
+        session.task?.title ||
+        (session.entrySource === 'manual' ? '手工时间记录' : '自由专注'),
+      start: session.startedAt.toISOString(),
+      end: session.endedAt?.toISOString() ?? session.startedAt.toISOString(),
+      effectiveDurationSeconds: session.effectiveDurationSeconds,
+      pausedDurationSeconds: session.pausedDurationSeconds,
+      source: session.entrySource === 'manual' ? 'manual' : 'focus',
+      status: session.status,
+      notes: session.notes,
+      tags: session.tags.length ? session.tags : (session.task?.tags ?? []),
+    }));
+  }
+
   async findActive(userId: string) {
     const session = await this.findOpen(userId);
     if (!session) return null;
@@ -67,14 +100,28 @@ export class PomodoroService {
     const weekStart = new Date(today.getTime() - 7 * 86_400_000);
     const [todaySessions, weekCount, total] = await Promise.all([
       this.prisma.pomodoroSession.findMany({
-        where: { userId, status: 'completed', startedAt: { gte: today } },
+        where: {
+          userId,
+          status: { in: ['completed', 'interrupted'] },
+          effectiveDurationSeconds: { gt: 0 },
+          startedAt: { gte: today },
+        },
         select: { effectiveDurationSeconds: true },
       }),
       this.prisma.pomodoroSession.count({
-        where: { userId, status: 'completed', startedAt: { gte: weekStart } },
+        where: {
+          userId,
+          status: { in: ['completed', 'interrupted'] },
+          effectiveDurationSeconds: { gt: 0 },
+          startedAt: { gte: weekStart },
+        },
       }),
       this.prisma.pomodoroSession.aggregate({
-        where: { userId, status: 'completed' },
+        where: {
+          userId,
+          status: { in: ['completed', 'interrupted'] },
+          effectiveDurationSeconds: { gt: 0 },
+        },
         _sum: { effectiveDurationSeconds: true },
       }),
     ]);
@@ -159,6 +206,97 @@ export class PomodoroService {
       ) {
         const recovered = await this.findActive(data.userId);
         if (recovered) return recovered;
+      }
+      throw error;
+    }
+  }
+
+  async createManual(data: {
+    userId: string;
+    title?: string;
+    taskId?: string;
+    startedAt: string;
+    endedAt: string;
+    notes?: string;
+    tags?: string[];
+    clientRequestId?: string;
+  }) {
+    const startedAt = new Date(data.startedAt);
+    const endedAt = new Date(data.endedAt);
+    const elapsedSeconds = Math.round(
+      (endedAt.getTime() - startedAt.getTime()) / 1000,
+    );
+    if (
+      Number.isNaN(startedAt.getTime()) ||
+      Number.isNaN(endedAt.getTime()) ||
+      elapsedSeconds <= 0
+    ) {
+      throw new BadRequestException('Actual time range is invalid');
+    }
+    if (elapsedSeconds > 24 * 60 * 60) {
+      throw new BadRequestException('Actual time cannot exceed 24 hours');
+    }
+    if (endedAt.getTime() > Date.now() + 5 * 60_000) {
+      throw new BadRequestException('Actual time cannot end in the future');
+    }
+
+    const tags = this.normalizeTags(data.tags);
+    const title = data.title?.trim().slice(0, 120) || null;
+    const notes = data.notes?.trim().slice(0, 2000) || null;
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        let task: { id: string; title: string; tags: string[] } | null = null;
+        if (data.taskId) {
+          task = await tx.task.findFirst({
+            where: { id: data.taskId, userId: data.userId },
+            select: { id: true, title: true, tags: true },
+          });
+          if (!task) throw new NotFoundException('Task not found');
+        }
+        for (const [sortOrder, name] of tags.entries()) {
+          await tx.tag.upsert({
+            where: { userId_name: { userId: data.userId, name } },
+            create: { userId: data.userId, name, sortOrder },
+            update: { archived: false },
+          });
+        }
+        const session = await tx.pomodoroSession.create({
+          data: {
+            userId: data.userId,
+            taskId: task?.id ?? null,
+            title,
+            entrySource: 'manual',
+            tags,
+            duration: Math.max(1, Math.ceil(elapsedSeconds / 60)),
+            focusMode: 'countup',
+            plannedDurationSeconds: 0,
+            effectiveDurationSeconds: elapsedSeconds,
+            pausedDurationSeconds: 0,
+            startedAt,
+            endedAt,
+            lastResumedAt: null,
+            pausedAt: null,
+            status: 'completed',
+            notes,
+            clientRequestId: data.clientRequestId,
+            segments: { create: { startedAt, endedAt } },
+          },
+          include: sessionInclude,
+        });
+        return this.present(session);
+      });
+    } catch (error) {
+      if (
+        data.clientRequestId &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const recovered = await this.prisma.pomodoroSession.findFirst({
+          where: { userId: data.userId, clientRequestId: data.clientRequestId },
+          include: sessionInclude,
+        });
+        if (recovered) return this.present(recovered);
       }
       throw error;
     }
@@ -364,6 +502,14 @@ export class PomodoroService {
         where: { sessionId: id, endedAt: null },
         data: { endedAt },
       });
+      const closedSegments = session.segments.map((segment) =>
+        segment.endedAt ? segment : { ...segment, endedAt },
+      );
+      const timing = calculateFocusTiming({
+        ...session,
+        segments: closedSegments,
+        endedAt,
+      });
       const changed = await tx.pomodoroSession.updateMany({
         where: {
           id,
@@ -376,6 +522,12 @@ export class PomodoroService {
           endedAt,
           pausedAt: null,
           lastResumedAt: null,
+          duration: Math.max(
+            1,
+            Math.ceil(timing.effectiveDurationSeconds / 60),
+          ),
+          effectiveDurationSeconds: timing.effectiveDurationSeconds,
+          pausedDurationSeconds: timing.pausedDurationSeconds,
           revision: { increment: 1 },
         },
       });
@@ -389,6 +541,33 @@ export class PomodoroService {
       });
       return this.present(updated);
     });
+  }
+
+  private normalizeTags(values?: string[]) {
+    if (!Array.isArray(values)) return [];
+    return [
+      ...new Set(
+        values
+          .map((value) => value.replace(/^#+/, '').trim().slice(0, 40))
+          .filter(Boolean),
+      ),
+    ].slice(0, 12);
+  }
+
+  private parseRange(startValue: string, endValue: string) {
+    const start = new Date(startValue);
+    const end = new Date(endValue);
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      start >= end
+    ) {
+      throw new BadRequestException('Timeline range is invalid');
+    }
+    if (end.getTime() - start.getTime() > 366 * 86_400_000) {
+      throw new BadRequestException('Timeline range is too large');
+    }
+    return { start, end };
   }
 
   private assertOpenRevision(

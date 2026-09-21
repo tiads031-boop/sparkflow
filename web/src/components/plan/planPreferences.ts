@@ -2,7 +2,7 @@ import type { PlanView } from '../../types';
 
 export const PLAN_VIEW_STORAGE_KEY = 'sparkflow.lastPlanView';
 
-const planViews: readonly PlanView[] = ['month', 'week', 'agenda'];
+const planViews: readonly PlanView[] = ['month', 'week', 'agenda', 'timeline'];
 
 export function isPlanView(value: unknown): value is PlanView {
   return typeof value === 'string' && planViews.includes(value as PlanView);

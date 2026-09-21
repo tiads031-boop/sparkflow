@@ -107,16 +107,21 @@ M1 当前收口顺序：
 
 1. 部署时应用并核对 Tag migration；
 2. 完成 360px/PWA/Android 与标签真实链路验收；
-3. 再进入 M2 Timeline 2.0。
+3. M2 代码可并行推进，但正式发布仍需同时核对 M1/M2 migration 与移动端链路。
 
-### M2 — Timeline 2.0
+### M2 — Timeline 2.0（代码完成，待 PR / 数据库 / 移动验收）
 
-- [ ] 明确 Planned Time 与 Actual Time；
-- [ ] Focus Session 作为第一批 Actual Timeline 真实数据；
-- [ ] 手工补记实际时间；
-- [ ] Timeline 按真实发生时间展示；
-- [ ] Agenda 继续只展示真正排入日程的事项；
-- [ ] 计划 / 实际切换或对照。
+- [x] 明确 Planned Time 与 Actual Time；
+- [x] Focus Session 作为第一批 Actual Timeline 真实数据；
+- [x] 手工补记实际时间；
+- [x] Timeline 按真实发生时间展示；
+- [x] Agenda 继续只展示真正排入日程的事项；
+- [x] 计划 / 实际切换或对照；
+- [x] Focus 直接读取 PomodoroSession，有效时长排除暂停且不与 CalendarEvent 投影重复统计；
+- [ ] fresh PostgreSQL migration CI 与真实 API 链路；
+- [ ] 360px / PWA / Android Timeline 视觉与交互验收。
+
+实现分支：`codex/m2-timeline-actual`。本地 Prisma validate、API/Web build、API 159 tests、Web 73 tests 与新增前端专项 ESLint 已通过；浏览器自动化守护进程仍无法在当前环境启动，因此移动视觉验收不标记为完成。
 
 ### M3 — Time Analytics
 

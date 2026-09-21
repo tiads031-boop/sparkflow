@@ -5,6 +5,7 @@ import type { PlannerPreview, PlanView, Task } from '../../types';
 import TasksView from '../TasksView';
 import QuadrantView from '../QuadrantView';
 import AgendaPlanView from './AgendaPlanView';
+import ActualTimelineView from './ActualTimelineView';
 import MonthPlanView from './MonthPlanView';
 import PlanHeader from './PlanHeader';
 import WeekPlanView from './WeekPlanView';
@@ -75,7 +76,7 @@ export default function PlanWorkspace({
     () => buildPlannerPreviewItems(plannerPreview, tasks),
     [plannerPreview, tasks],
   );
-  const visibleItems = view === 'week' || view === 'agenda'
+  const visibleItems = view === 'week' || view === 'agenda' || view === 'timeline'
     ? [...planData.items, ...previewItems]
     : planData.items;
   const semesterWeek = getSemesterWeekNumber(selectedDate, activeSemester);
@@ -89,7 +90,7 @@ export default function PlanWorkspace({
       };
     }
 
-    if (view === 'agenda') {
+    if (view === 'agenda' || view === 'timeline') {
       return {
         title: selectedDate.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }),
         subtitle: `${selectedDate.toLocaleDateString('zh-CN', { weekday: 'long' })}${semesterWeek ? ` · 第 ${semesterWeek} 周` : ''}`,
@@ -123,7 +124,7 @@ export default function PlanWorkspace({
       const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
       next.setDate(Math.min(day, lastDay));
     } else {
-      next.setDate(next.getDate() + direction * (view === 'agenda' ? 1 : 7));
+      next.setDate(next.getDate() + direction * (view === 'agenda' || view === 'timeline' ? 1 : 7));
     }
     setSelectedDate(next);
   };
@@ -225,6 +226,17 @@ export default function PlanWorkspace({
                 items={visibleItems}
                 onItemClick={handlePlanItemClick}
                 onFocusDelete={handleFocusDelete}
+              />
+            )}
+            {view === 'timeline' && (
+              <ActualTimelineView
+                selectedDate={selectedDate}
+                plannedItems={visibleItems}
+                tasks={tasks}
+                onTaskClick={(taskId) => {
+                  const task = tasks.find((candidate) => candidate.id === taskId);
+                  if (task) onTaskClick(task);
+                }}
               />
             )}
           </>

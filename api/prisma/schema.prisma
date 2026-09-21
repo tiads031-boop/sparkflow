@@ -365,6 +365,9 @@ model PomodoroSession {
   id                String    @id @default(uuid())
   userId            String
   taskId            String?
+  title             String?
+  entrySource       String    @default("focus") // focus/manual
+  tags              String[]  @default([])
   duration          Int       @default(25)
   focusMode         String    @default("countdown") // countdown/countup
   plannedDurationSeconds Int   @default(1500)
@@ -388,6 +391,7 @@ model PomodoroSession {
 
   @@index([userId])
   @@index([taskId])
+  @@index([userId, status, startedAt])
   @@unique([userId, clientRequestId])
   @@map("pomodoro_sessions")
 }
