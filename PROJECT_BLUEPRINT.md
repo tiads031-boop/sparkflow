@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-22
-> **代码同步基线**：`master@a815ecb09bb74ba6bf63095a4eff480afcdbd066`；Execution Intelligence M1 位于 PR #118 / `codex/m1-ui-tags@30b0c8e`（最近确认生产版本 `9f72d16b`）
+> **代码同步基线**：`master@a815ecb09bb74ba6bf63095a4eff480afcdbd066`；Execution Intelligence M1 位于 PR #118 / `codex/m1-ui-tags@c4f0350`，CI 全绿（最近确认生产版本 `9f72d16b`）
 
 ---
 
@@ -283,13 +283,13 @@ VNext M6 已进入主线：
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待剩余 PWA/真机 | PR #48/#49/#50 已合入；Web 真实账号 Planner Preview→Apply→Undo 已通过，最新 Focus C2 APK `android-e5978ecbbc24` 已生成；四视图/PWA/Android 真机仍需验收 |
 | VNext AI Orchestration | ✅ M4–M8 代码/CI；🚧 最终验收 | PR #59–#81 与 #105/#106 已完成主体能力；剩余 PWA/Android 真机、多模态/通知/外观验收 |
-| Execution Intelligence & UI | 🚧 M1 PR #118 CI 修复中 | M1 Tags + Task Edit Deck 已实现；API CI 通过，Web CI 因远端 `PlannerSheet.tsx` 内容异常失败；修复、合并、部署及 360px/PWA/Android 验收后进入 M2 Actual Timeline |
+| Execution Intelligence & UI | 🚧 M1 PR #118 CI 全绿 | M1 Tags + Task Edit Deck 已实现；待合并、部署及 360px/PWA/Android 验收后进入 M2 Actual Timeline |
 
 ---
 
 ## 七、仓库与近期里程碑
 
-- 🚧 PR #118 / `codex/m1-ui-tags@30b0c8e`：Execution Intelligence M1 的 Tag metadata/API/管理页、Task/Inspiration 标签选择、Folder/Project/Tag 分离、Planner 分类可见与 Task Edit Deck 视觉收敛已实现。本地 Prisma validate、API/Web build、API 157 tests、Web 73 tests 通过；远端 API CI 通过，Web CI 因 `PlannerSheet.tsx` 内容异常失败，修复前不合并。
+- 🚧 PR #118 / `codex/m1-ui-tags@c4f0350`：Execution Intelligence M1 的 Tag metadata/API/管理页、Task/Inspiration 标签选择、Folder/Project/Tag 分离、Planner 分类可见与 Task Edit Deck 视觉收敛已实现。本地验证通过；远端 CI run #309 的 Web 与 API jobs 全绿，待合并、部署和移动端验收。
 - ✅ PR #23 已关闭，由 #25 / Study Mode 正式方案替代。
 - ✅ PR #24 `fad1a619`：Course linked tasks。
 - ✅ PR #14 已关闭，Issue #26 承接 Timeline M3 余项。
@@ -347,7 +347,7 @@ VNext M6 已进入主线：
 
 | 优先级 | 风险 | 已有防线 | 关闭条件 |
 |---|---|---|---|
-| P0 | PR #118 远端 Web build 失败 | 本地 Web build/tests 已通过；CI 已精确定位为 `PlannerSheet.tsx` 被判为 binary | 恢复 PR 分支文件内容，远端 Web build/tests 全绿后再合并 |
+| ✅ | PR #118 远端 Web build 文件异常 | 本地 Web build/tests 已通过；CI 精确定位为 `PlannerSheet.tsx` 被判为 binary | `c4f0350` 已恢复源码，CI run #309 的 Web build/tests 全绿 |
 | ✅ | 腾讯云最新 migration 直接证据 | `BUILD_SHA` + health buildSha；公网 API 已对齐 `9f72d16b` | 服务器直接确认 31 migrations、schema up to date（含 Focus C1） |
 | P0 | Web 真实学校导入未闭环 | V2 preview/import/replay + real PG 顺序/并发 E2E | 真实学校获取→预览→导入→同 requestId replay 通过 |
 | P0 | Android 之前存在 Web 正常/App 登录失败 | Capacitor CORS 已修；API/Bundle 地址 CI gate；Release 可追溯 | 最新 Release 真机登录、Session 和导入通过 |

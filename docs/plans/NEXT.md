@@ -2,7 +2,7 @@
 
 > **最后更新**：2026-09-22  
 > **仓库代码基线**：`master@a815ecb09bb74ba6bf63095a4eff480afcdbd066`
-> **当前实现 PR**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)，`codex/m1-ui-tags@30b0c8e`，开放且可合并；CI 待修复
+> **当前实现 PR**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)，`codex/m1-ui-tags@c4f0350`，开放且可合并；CI 全绿
 > **最近已确认生产版本**：`9f72d16b`（生产仍落后于当前 master；后续部署必须重新核对 buildSha）  
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
@@ -90,7 +90,7 @@ Actual Timeline
 AI 增量调整
 ```
 
-### M1 — UI Foundation + Tags（代码完成，PR #118 CI 修复中）
+### M1 — UI Foundation + Tags（代码与 CI 完成，待合并 / 部署 / 真实设备验收）
 
 - [x] Task Edit Deck：保留并弱化 3D 卡片，重做层级、圆角与说明；
 - [x] 共享 `PageHeader / SectionCard / SegmentControl / InfoRow / TagChip / BottomActionBar` 等组件；
@@ -101,15 +101,14 @@ AI 增量调整
 - [x] AI 分类优先复用已有标签，孤立任务不滥建 Folder；
 - [ ] 360px / PWA / Android 基础视觉回归。
 
-实现分支：`codex/m1-ui-tags`，PR [#118](https://github.com/tiads031-boop/sparkflow/pull/118)。本地 Prisma validate、API/Web build、API 157 tests、Web 73 tests 已通过；远端 CI 的 API job（含 fresh PostgreSQL migration）通过，但 Web job 因远端 `PlannerSheet.tsx` 内容异常被 TypeScript 判为 binary 而失败。合并前必须恢复该文件并让 CI 全绿。本地浏览器自动化守护进程无法启动，因此 360px/PWA/Android 视觉验收仍未完成。
+实现分支：`codex/m1-ui-tags`，PR [#118](https://github.com/tiads031-boop/sparkflow/pull/118)。本地 Prisma validate、API/Web build、API 157 tests、Web 73 tests 已通过；远端 CI run #309 的 Web build/tests 与 API fresh PostgreSQL migration/build/tests/真实数据库导入验证均通过。此前 `PlannerSheet.tsx` 的远端内容异常已由 `c4f0350` 恢复。本地浏览器自动化守护进程无法启动，因此 360px/PWA/Android 视觉验收仍未完成。
 
 M1 当前收口顺序：
 
-1. 修复 PR #118 远端 `PlannerSheet.tsx` 内容异常；
-2. 重新运行并通过 Web build/tests；
-3. 合并 PR 并在部署时应用 Tag migration；
-4. 完成 360px/PWA/Android 与标签真实链路验收；
-5. 再进入 M2 Timeline 2.0。
+1. 合并 PR #118；
+2. 部署时应用并核对 Tag migration；
+3. 完成 360px/PWA/Android 与标签真实链路验收；
+4. 再进入 M2 Timeline 2.0。
 
 ### M2 — Timeline 2.0
 
@@ -191,7 +190,7 @@ M1 当前收口顺序：
 ```text
 A. 生产/真机关键路径收口
         ↓
-B. M1 PR #118 CI 修复、合并与移动验收
+B. M1 PR #118 合并、部署与移动验收
         ↓
 C. M2 Timeline 2.0
         ↓
