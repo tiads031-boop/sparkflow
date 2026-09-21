@@ -63,4 +63,26 @@ describe('reliable focus timing', () => {
     expect(timing.effectiveDurationSeconds).toBe(10 * 60);
     expect(timing.remainingSeconds).toBe(15 * 60);
   });
+
+  it('lets a count-up session continue until the user completes it', () => {
+    const session = {
+      startedAt: new Date('2026-09-20T10:00:00Z'),
+      endedAt: null,
+      status: 'active',
+      focusMode: 'countup',
+      plannedDurationSeconds: 0,
+      segments: [
+        { startedAt: new Date('2026-09-20T10:00:00Z'), endedAt: null },
+      ],
+    };
+    const now = new Date('2026-09-20T10:42:00Z');
+
+    expect(focusCompletionTime(session, now)).toEqual(now);
+    expect(calculateFocusTiming(session, now)).toEqual({
+      effectiveDurationSeconds: 42 * 60,
+      elapsedDurationSeconds: 42 * 60,
+      pausedDurationSeconds: 0,
+      remainingSeconds: 0,
+    });
+  });
 });

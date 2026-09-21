@@ -38,6 +38,7 @@ import type { PlannerPreview, PlannerReplanPreview } from '../../types';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
 import { usePlanningVoiceInput } from '../../hooks/usePlanningVoiceInput';
 import PlanningContextEditor from './PlanningContextEditor';
+import { isExplicitApplyAllMessage } from './planningConfirmation';
 import {
   applyCourseChange,
   applyCourseTemplateChange,
@@ -86,12 +87,6 @@ function statusLabel(status: 'confirmed' | 'inferred' | 'assumed') {
   if (status === 'confirmed') return '已确认';
   if (status === 'inferred') return 'AI 推断';
   return '暂时假设';
-}
-
-function isExplicitApplyAllMessage(message: string) {
-  const compact = message.replace(/[\s，,。.!！?？]/g, '');
-  return /^(确认|确定|同意)(全部|都)?(执行|应用|取消)$/.test(compact)
-    || /^(确认|确定|同意)(全部|都)取消$/.test(compact);
 }
 
 type CourseChangeAction = Extract<PlanningActionProposal, { type: 'course_change' }>;
@@ -496,6 +491,16 @@ export default function PlannerSheet({
 
     if (
       isExplicitApplyAllMessage(message) &&
+      directActionProposals.length > 0 &&
+      selectedActionIds.length > 0
+    ) {
+      setMessageInput('');
+      await applyActions();
+      return;
+    }
+
+    if (
+      isExplicitApplyAllMessage(message) &&
       courseChangeProposals.length > 0 &&
       courseChangeProposals.every((action) => action.change.type === 'cancel')
     ) {
@@ -645,7 +650,7 @@ export default function PlannerSheet({
     ));
   };
 
-  const applyActions = async () => {
+  async function applyActions() {
     if (!thread || !actionConversationId || !selectedActionIds.length || actionBusy) return;
     setActionBusy(true);
     setActionMessage('');
@@ -660,7 +665,7 @@ export default function PlannerSheet({
       ));
       setSelectedActionIds([]);
       setActionMessage(
-        `已应用 ${result.appliedActionIds.length} 项操作：新增 ${result.createdTaskIds.length} 个任务${result.createdFolderIds.length ? `，创建 ${result.createdFolderIds.length} 个学习文件夹` : ''}，更新 ${result.updatedTaskIds.length} 个任务，修改 ${result.updatedGoalIds.length} 个学习目标。`,
+        `已应用 ${result.appliedActionIds.length} 项操作：新增 ${result.createdTaskIds.length} 个任务${result.createdFolderIds.length ? `，创建 ${result.createdFolderIds.length} 个学习文件夹` : ''}，更新 ${result.updatedTaskIds.length} 个任务，修改 ${result.updatedGoalIds.length} 个学习目标${result.deletedCourseIds?.length ? `，永久删除 ${result.deletedCourseIds.length} 门课程` : ''}。`,
       );
       await onApplied();
       const refreshed = await getPlanningThread(thread.id);
@@ -674,7 +679,7 @@ export default function PlannerSheet({
     } finally {
       setActionBusy(false);
     }
-  };
+  }
 
   const generateCourseChangePreview = async (action: CourseChangeAction) => {
     if (courseChangeBusy || courseChangePlanId || templateChangePlanId) return;
@@ -1811,9 +1816,9 @@ export default function PlannerSheet({
           {directActionProposals.length > 0 && (
             <div className="mt-5 rounded-[1.7rem] border border-[#cae393]/60 bg-[#f7faef] p-4">
               <div className="mb-3">
-                <h3 className="text-sm font-black text-[#242424]">待确认的任务 / 目标操作</h3>
+                <h3 className="text-sm font-black text-[#242424]">待确认的操作</h3>
                 <p className="mt-1 text-[10px] leading-4 text-[#667252]">
-                  AI 只是提出草案。你可以取消任意一项，确认后才会写入 Task 或学习目标。
+                  AI 只是提出草案。你可以取消任意一项；确认后才会执行，永久删除课程不可撤销。
                 </p>
               </div>
               <div className="space-y-2">
@@ -1849,6 +1854,8 @@ export default function PlannerSheet({
                             ? `文件夹 → ${action.changes.folderName || '保持现状'}`
                             : null,
                         ].filter(Boolean)
+                      : action.type === 'delete_course'
+                        ? ['永久删除课程模板及其全部日程课次']
                       : [
                           action.changes.name ? `目标 → ${action.changes.name}` : null,
                           action.changes.description !== undefined
@@ -1859,12 +1866,16 @@ export default function PlannerSheet({
                     ? '新增任务'
                     : action.type === 'update_task'
                       ? '修改任务'
-                      : '修改学习目标';
+                      : action.type === 'delete_course'
+                        ? '永久删除课程'
+                        : '修改学习目标';
                   const actionTitle = action.type === 'create_task'
                     ? action.title
                     : action.type === 'update_task'
                       ? action.taskTitle
-                      : action.goalTitle;
+                      : action.type === 'delete_course'
+                        ? action.courseName
+                        : action.goalTitle;
                   return (
                     <button
                       type="button"

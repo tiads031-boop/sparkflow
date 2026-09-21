@@ -108,7 +108,11 @@ export async function apiRequest(path: string, options?: RequestOptions): Promis
     res = await fetch(url, { ...fetchOptions, headers, signal: controller.signal });
   } catch (err) {
     if (timedOut) throw new ApiError(408, '请求超时，请检查网络后重试');
-    throw err;
+    if (externalSignal?.aborted) throw err;
+    // Browsers expose DNS, TLS, CORS, connection-reset, and offline failures as
+    // an implementation-level TypeError (often just "Failed to fetch"). Keep
+    // that English detail out of the product UI and show an actionable message.
+    throw new ApiError(0);
   } finally {
     window.clearTimeout(timeoutId);
     externalSignal?.removeEventListener('abort', abortFromExternal);

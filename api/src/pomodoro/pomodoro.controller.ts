@@ -29,6 +29,7 @@ export class PomodoroController {
       userId?: string;
       taskId?: string;
       duration?: number;
+      focusMode?: 'countdown' | 'countup';
       notes?: string;
       clientRequestId?: string;
     },

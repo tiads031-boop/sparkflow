@@ -82,6 +82,11 @@ describe('planning response recovery', () => {
     const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(response(complete));
     await expect(provider().generatePlanningTurn(input)).resolves.toMatchObject(complete);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const systemPrompt = request.messages[0].content as string;
+    expect(systemPrompt).toContain('Do not ask for them again');
+    expect(systemPrompt).toContain('ask exactly one question');
+    expect(systemPrompt).toContain('do not generate a second paraphrased proposal');
   });
 
   it('repairs a daily plan whose declared duration has too few task actions', async () => {
@@ -169,6 +174,23 @@ describe('planning response parser', () => {
       status: 'confirmed',
     });
     expect(result.openQuestions).toEqual(['考试目标是哪一次？']);
+  });
+
+  it('keeps only the highest-impact clarification question', () => {
+    const result = toPlanningTurn({
+      reply: '我先确认最关键的信息。',
+      readiness: 'clarify',
+      summary: '',
+      openQuestions: ['你的考试日期是哪天？', '你更喜欢早上还是晚上？'],
+      researchQueries: [],
+      actions: [],
+      replanRequests: [],
+      context: {
+        brief: [], constraints: [], preferences: [], strategy: [], assumptions: [],
+      },
+    });
+
+    expect(result.openQuestions).toEqual(['你的考试日期是哪天？']);
   });
 
   it('parses bounded research requests for external facts', () => {
@@ -380,6 +402,31 @@ describe('planning response parser', () => {
         },
       },
     ]);
+  });
+
+  it('parses an exact permanent course deletion draft', () => {
+    const result = toPlanningTurn({
+      reply: '已生成永久删除课程草案。',
+      readiness: 'ready',
+      summary: '',
+      openQuestions: [],
+      researchQueries: [],
+      actions: [{
+        type: 'delete_course',
+        courseId: 'course-short',
+        courseName: '法律职业伦理（08:00–08:45）',
+      }],
+      replanRequests: [],
+      context: {
+        brief: [], constraints: [], preferences: [], strategy: [], assumptions: [],
+      },
+    });
+
+    expect(result.actions).toEqual([{
+      type: 'delete_course',
+      courseId: 'course-short',
+      courseName: '法律职业伦理（08:00–08:45）',
+    }]);
   });
 
   it('parses bounded temporary-conflict replan requests', () => {

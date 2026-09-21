@@ -11,6 +11,7 @@ interface FocusSessionResponse {
   revision: number;
   startedAt: string;
   endedAt: string | null;
+  focusMode: "countdown" | "countup";
   plannedDurationSeconds: number;
   effectiveDurationSeconds: number;
   pausedDurationSeconds: number;
@@ -19,7 +20,11 @@ interface FocusSessionResponse {
 
 export interface PomodoroSlice {
   pomodoro: PomodoroState;
-  startPomodoro: (taskId?: string, durationMinutes?: number) => Promise<void>;
+  startPomodoro: (
+    taskId?: string,
+    durationMinutes?: number,
+    focusMode?: "countdown" | "countup",
+  ) => Promise<void>;
   loadActivePomodoro: () => Promise<void>;
   pausePomodoro: () => Promise<void>;
   resumePomodoro: () => Promise<void>;
@@ -30,6 +35,7 @@ export interface PomodoroSlice {
 }
 
 const INITIAL_POMODORO: PomodoroState = {
+  focusMode: "countdown",
   isRunning: false,
   isPaused: false,
   timeLeft: DEFAULT_DURATION,
@@ -58,8 +64,12 @@ function stateFromSession(
     ...current,
     isRunning: open,
     isPaused: session.status === "paused",
+    focusMode: session.focusMode === "countup" ? "countup" : "countdown",
     duration: session.plannedDurationSeconds,
-    timeLeft: session.remainingSeconds,
+    timeLeft:
+      session.focusMode === "countup"
+        ? session.effectiveDurationSeconds
+        : session.remainingSeconds,
     activeTaskId: session.taskId,
     activeSessionId: open ? session.id : null,
     revision: open ? session.revision : null,
@@ -92,12 +102,13 @@ export const createPomodoroSlice: StateCreator<
 > = (set, get) => ({
   pomodoro: { ...INITIAL_POMODORO },
 
-  startPomodoro: async (taskId, durationMinutes = 25) => {
+  startPomodoro: async (taskId, durationMinutes = 25, focusMode = "countdown") => {
     const res = await apiRequest("/pomodoro", {
       method: "POST",
       body: JSON.stringify({
         taskId,
         duration: durationMinutes,
+        focusMode,
         clientRequestId: crypto.randomUUID(),
       }),
     });
@@ -186,6 +197,15 @@ export const createPomodoroSlice: StateCreator<
   tick: () =>
     set((state) => {
       if (!state.pomodoro.isRunning || state.pomodoro.isPaused) return state;
+      if (state.pomodoro.focusMode === "countup") {
+        return {
+          pomodoro: {
+            ...state.pomodoro,
+            timeLeft: state.pomodoro.timeLeft + 1,
+            effectiveDurationSeconds: state.pomodoro.effectiveDurationSeconds + 1,
+          },
+        };
+      }
       const newTime = Math.max(0, state.pomodoro.timeLeft - 1);
       if (newTime === 0 && state.pomodoro.timeLeft > 0) {
         void get()

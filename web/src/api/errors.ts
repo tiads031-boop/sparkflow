@@ -11,6 +11,7 @@ export class ApiError extends Error {
 }
 
 function defaultApiErrorMessage(status: number): string {
+  if (status === 0) return '无法连接服务器，请检查网络或稍后重试';
   if (status === 400) return '提交内容无效，请检查后重试';
   if (status === 401) return '登录状态已失效，请重新登录';
   if (status === 403) return '当前账号无权执行此操作';

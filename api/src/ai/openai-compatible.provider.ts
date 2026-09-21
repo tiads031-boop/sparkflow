@@ -213,6 +213,21 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
       continue;
     }
 
+    if (candidate.type === 'delete_course') {
+      if (
+        typeof candidate.courseId !== 'string' ||
+        !candidate.courseId.trim() ||
+        typeof candidate.courseName !== 'string' ||
+        !candidate.courseName.trim()
+      ) continue;
+      actions.push({
+        type: 'delete_course',
+        courseId: candidate.courseId.trim().slice(0, 100),
+        courseName: candidate.courseName.trim().slice(0, 120),
+      });
+      continue;
+    }
+
     if (candidate.type === 'course_change') {
       if (
         typeof candidate.courseName !== 'string' ||
@@ -465,7 +480,7 @@ export function toPlanningTurn(value: unknown): PlanningTurnResult {
         .filter((item): item is string => typeof item === 'string')
         .map((item) => item.trim())
         .filter(Boolean)
-        .slice(0, 8)
+        .slice(0, 1)
     : [];
 
   return {
@@ -635,6 +650,11 @@ export class OpenAICompatibleProvider implements AIProvider {
             'You are the planning interviewer inside SparkFlow.',
             'Your job is to understand the user deeply enough to make a reliable plan, not to rush into scheduling.',
             'Ask the highest-impact missing questions first. There is no fixed number of questions.',
+            'Treat facts marked confirmed in currentPlanningContext, and direct answers already given in recentMessages, as settled. Do not ask for them again.',
+            'Do not repeat, recap, enumerate, or re-confirm settled facts in reply unless the user changed them or a direct conflict must be resolved.',
+            'On each clarify turn, ask exactly one question: the single unresolved answer with the greatest effect on the plan. Put only that question in openQuestions and keep reply to the minimum context needed to ask it.',
+            'Do not ask optional preference questions when a safe default or explicit assumption would not materially change the plan. If no essential high-impact question remains, set readiness to ready and produce the relevant draft.',
+            'When the user confirms a pending proposal, do not generate a second paraphrased proposal or ask for confirmation again. Produce the executable draft actions immediately, or briefly state that no further draft is needed.',
             'When enough high-impact information is known, set readiness to ready.',
             'The user may ask to plan now with incomplete information. Then mark uncertain items as assumed, never confirmed.',
             'Preserve previously confirmed facts unless the user explicitly changes them.',
@@ -674,6 +694,10 @@ export class OpenAICompatibleProvider implements AIProvider {
             'course_template_change.effectiveFrom is the first instant from which future ordinary recurring occurrences may be regenerated. Resolve it from explicit wording; for 从现在/以后开始 use currentTime. If the start point is ambiguous and could change whether the current week is affected, ask first.',
             'course_template_change may change only dayOfWeek, startTime, endTime, room, or location. Do not silently rewrite weeks, teacher, semester, or unrelated Course fields.',
             'A recurring template change must still go through Template Preview → Apply → Undo. Existing one-off overrides are preserved.',
+            'If the user explicitly asks to permanently delete an entire recurring course/template, use delete_course. This is different from cancelling one occurrence.',
+            'delete_course.courseId must be copied exactly from currentCourses. When same-name courses have different times or ids, select only the exact requested template and leave the others unchanged.',
+            'Never describe a permanent course deletion only in prose. Emit a delete_course action so SparkFlow can show a destructive confirmation and execute it once.',
+            'delete_course is irreversible after confirmation and removes that course template plus its generated calendar occurrences. Never claim it is deleted before confirmation.',
             'Course actions are drafts for Course Preview → Apply → Undo. Never claim a course change has already been applied.',
             'When planningScope.type is goal, treat it as a persistent long-term learning goal, not as a Course.',
             'For goal scope, goalExecution is a derived execution snapshot from the user\'s real Tasks and completed focus sessions. Use it to understand pace and friction, but never equate task completion with actual mastery.',
@@ -691,9 +715,9 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
             'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"基础建立","folderName":"六级听力训练"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"强化训练","folderName":"六级听力训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5,"startTime":"10:00","endTime":"11:40","room":"B202"}}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"基础建立","folderName":"六级听力训练"},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"强化训练","folderName":"六级听力训练"}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5,"startTime":"10:00","endTime":"11:40","room":"B202"}},{"type":"delete_course","courseId":"exact-course-id","courseName":"法律职业伦理"}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
-            'Return actions as [] when no concrete task, learning-goal, one-off course, or recurring course-template draft is ready for confirmation.',
+            'Return actions as [] when no concrete task, learning-goal, one-off course, recurring course-template, or permanent course-deletion draft is ready for confirmation.',
             'Return replanRequests as [] when no deterministic schedule movement preview is needed.',
             'Return the complete updated context, not only a patch.',
             'Reply in the language used by the user.',

@@ -6,6 +6,7 @@ function session(overrides: Record<string, unknown> = {}) {
     userId: 'user-1',
     taskId: 'task-1',
     duration: 25,
+    focusMode: 'countdown',
     plannedDurationSeconds: 1500,
     effectiveDurationSeconds: 0,
     pausedDurationSeconds: 0,
@@ -34,6 +35,36 @@ function session(overrides: Record<string, unknown> = {}) {
 }
 
 describe('PomodoroService reliable completion', () => {
+  it('creates a count-up session without an automatic cutoff', async () => {
+    const created = session({
+      taskId: null,
+      task: null,
+      focusMode: 'countup',
+      plannedDurationSeconds: 0,
+    });
+    const prisma = {
+      pomodoroSession: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(created),
+      },
+    };
+
+    await new PomodoroService(prisma as never).create({
+      userId: 'user-1',
+      focusMode: 'countup',
+      clientRequestId: 'countup-request',
+    });
+
+    expect(prisma.pomodoroSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          focusMode: 'countup',
+          plannedDurationSeconds: 0,
+        }),
+      }),
+    );
+  });
+
   it('closes with CAS and writes one internal focus projection', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-09-20T10:18:00.000Z'));
     const current = session();

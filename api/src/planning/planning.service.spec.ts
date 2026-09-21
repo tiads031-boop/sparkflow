@@ -52,6 +52,48 @@ describe('goal execution snapshot', () => {
 });
 
 describe('PlanningService goal scope', () => {
+  it('permanently deletes only the exact confirmed course and its occurrences', async () => {
+    const eventDeleteMany = jest.fn().mockResolvedValue({ count: 3 });
+    const courseDeleteMany = jest.fn().mockResolvedValue({ count: 1 });
+    const tx = {
+      calendarEvent: { deleteMany: eventDeleteMany },
+      course: { deleteMany: courseDeleteMany },
+      aIConversation: { update: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      aIConversation: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'conversation-delete-course',
+          context: {
+            actions: [{
+              proposalId: 'proposal-delete-short',
+              type: 'delete_course',
+              courseId: 'course-short',
+              courseName: '法律职业伦理',
+            }],
+            appliedActionIds: [],
+          },
+          planningThread: { scopeType: 'general', scopeId: null },
+        }),
+      },
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+    const service = new PlanningService(prisma as never, {} as never, {} as never);
+
+    const result = await service.applyActions('user-1', 'thread-1', {
+      conversationId: 'conversation-delete-course',
+      proposalIds: ['proposal-delete-short'],
+    });
+
+    expect(eventDeleteMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', courseId: 'course-short' },
+    });
+    expect(courseDeleteMany).toHaveBeenCalledWith({
+      where: { id: 'course-short', userId: 'user-1' },
+    });
+    expect(result.deletedCourseIds).toEqual(['course-short']);
+  });
+
   it('creates or reuses one AI folder and preserves exact scheduled task times', async () => {
     const taskCreateMany = jest.fn().mockResolvedValue({ count: 1 });
     const folderCreate = jest.fn().mockResolvedValue({ id: 'folder-listening' });

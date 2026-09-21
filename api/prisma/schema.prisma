@@ -344,6 +344,7 @@ model PomodoroSession {
   userId            String
   taskId            String?
   duration          Int       @default(25)
+  focusMode         String    @default("countdown") // countdown/countup
   plannedDurationSeconds Int   @default(1500)
   effectiveDurationSeconds Int @default(0)
   pausedDurationSeconds Int    @default(0)

@@ -603,8 +603,11 @@ export class CourseService {
   }
 
   async remove(id: string, userId: string) {
-    await this.prisma.course.findFirstOrThrow({ where: { id, userId } });
-    return this.prisma.course.delete({ where: { id, userId } });
+    return this.prisma.$transaction(async (tx) => {
+      await tx.course.findFirstOrThrow({ where: { id, userId } });
+      await tx.calendarEvent.deleteMany({ where: { courseId: id, userId } });
+      return tx.course.delete({ where: { id, userId } });
+    });
   }
 
   // ==================== 课程实例 (CalendarEvent) ====================
