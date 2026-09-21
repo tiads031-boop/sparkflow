@@ -784,6 +784,19 @@ export class PlanningService {
       requestId: randomUUID(),
     }));
 
+    const requestedCourseActions = result.actions.filter(
+      (action) => action.type === 'course_change' || action.type === 'course_template_change',
+    ).length;
+    const executableCourseActions = actionProposals.filter(
+      (action) => action.type === 'course_change' || action.type === 'course_template_change',
+    ).length;
+    let assistantReply = result.reply;
+    if (executableCourseActions > 0) {
+      assistantReply = `已生成 ${executableCourseActions} 项可执行的课程变动草案，当前日程尚未修改。请在下方检查预览并确认应用；明确回复“确认，全部执行”也可以直接执行。`;
+    } else if (requestedCourseActions > 0) {
+      assistantReply = '没有生成可安全执行的课程变动草案，当前日程未修改。请重新指定课程和日期，或检查目标课次是否仍然存在。';
+    }
+
     const nextContext = {
       brief: normalizeFacts(result.context.brief),
       constraints: normalizeFacts(result.context.constraints),
@@ -821,7 +834,7 @@ export class PlanningService {
           planningThreadId: id,
           conversationType: 'planning',
           userMessage: message,
-          aiResponse: result.reply,
+          aiResponse: assistantReply,
           context: {
             readiness: result.readiness,
             openQuestions: result.openQuestions,
@@ -846,7 +859,7 @@ export class PlanningService {
       threadId: id,
       conversationId: transactionResult.conversation.id,
       revision: transactionResult.updatedThread.revision,
-      assistantMessage: result.reply,
+      assistantMessage: assistantReply,
       readiness: result.readiness,
       openQuestions: result.openQuestions,
       summary: result.summary,
