@@ -2,7 +2,7 @@
 
 > **最后更新**：2026-09-22  
 > **仓库代码基线**：`master@7bb2b375fa886b094855a084f2bb8590572640a4`（PR #132 已合并）
-> **开发状态**：R1–R8 已合并；R9 Android Usage 代码实施中，终端/生产验收待集中进行。
+> **开发状态**：R1–R9 代码已合并（R9 PR #136，API/Web/Android PR CI 通过）；终端/生产验收待集中进行。
 > **最近有直接回显的生产版本**：`990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21 `/api/health.buildSha`；当前运行版本须在发布时重新核对）。
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
@@ -96,7 +96,7 @@
 - [x] R7-B Goal Progress 界面（PR #133 已合并，CI #352 通过）；
 - [ ] R7-C 空态/错误态和发布验收（终端/生产部分放到最终集中验收）；
 - [x] R8 AI Execution Feedback：PR #135 已合并，Planner 使用带来源标记的真实执行摘要；
-- [ ] R9 Android Usage：独立事实源、系统授权、标签映射、前台同步和独立统计实施中；待代码 CI 和最终集中验收。
+- [x] R9 Android Usage 代码：PR #136 已合并，独立事实源、系统授权、标签映射、前台同步和独立统计；生产 migration 与真机验收未完成。
 
 代码存在、合并、部署和真机验收分别记录，不以 CI 通过代替发布验收。
 
@@ -227,7 +227,7 @@ M1 当前收口顺序：
 
 1. 收口 R7-C 的非终端代码部分；终端/生产验收留到最后。
 2. 实施 R8 / M5 AI Execution Feedback：真实执行摘要进入 Planner Context，解释来源，建议继续走 Preview → Apply → Undo。
-3. 完成 R9 / M6 Android Usage（明确授权、默认关闭、独立事实表），随后处理仍适用的 Issue #26 Timeline 余项。
+3. 基于最新 master 处理仍适用的 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项，保留现有 Gantt、课程和移动端流程。
 4. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
 5. 最后核对生产 buildSha、migrations、真实账号链路与 Issue #31 导入幂等，记录发布结果。
 
