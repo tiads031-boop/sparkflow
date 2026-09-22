@@ -1955,7 +1955,7 @@ measured 是系统测得事实；Planner 可以引用，但不能自动改写成
 - [x] R3-B2 Course Detail / Import：统一 Graphite Aurora token、课程详情表面与焦点态、导入步骤/卡片/底部操作区，不修改真实导入流程；
 - [x] R3-B2 Tag Management：完成真实一级/二级层级、颜色、编辑与归档视觉，并只展示可由 Tag 数据计算的概览；
 - [x] R3-B2 本地验证：Web 85 tests、API 163 tests、Web/API production build、改动文件定向 ESLint、git diff --check；
-- [ ] R3-B2 GitHub Actions CI；
+- [x] R3-B2 GitHub Actions CI #327；
 - [ ] R3-B 360px / PWA / Android WebView 视觉与交互验收。
 
 ### R4 — Time Analytics
