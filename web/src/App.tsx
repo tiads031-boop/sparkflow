@@ -505,15 +505,18 @@ export default function App() {
           />
         )}
         <FocusSession open={focusOpen} onClose={() => setFocusOpen(false)} />
-        <PlannerSheet
-          open={plannerOpen}
-          selectedDate={selectedDate}
-          onClose={() => { setPlannerOpen(false); setPlannerAutoVoice(false); }}
-          onApplied={loadTasks}
-          onPreviewChange={setPlannerPreview}
-          initialPrompt={plannerSeed}
-          autoStartVoice={plannerAutoVoice}
-        />
+        {plannerOpen && (
+          <PlannerSheet
+            key={`${selectedDate.toISOString()}:${plannerSeed}`}
+            open
+            selectedDate={selectedDate}
+            onClose={() => { setPlannerOpen(false); setPlannerAutoVoice(false); }}
+            onApplied={loadTasks}
+            onPreviewChange={setPlannerPreview}
+            initialPrompt={plannerSeed}
+            autoStartVoice={plannerAutoVoice}
+          />
+        )}
     </AppShell>
   );
 }
