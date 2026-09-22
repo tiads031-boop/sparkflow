@@ -20,6 +20,7 @@ import {
   type PlanningGoalExecutionSnapshot,
   type PlanningModel,
   type PlanningReplanRequest,
+  type PlanningSceneSnapshot,
   type PlanningEvidenceItem,
   type PlanningFact,
   type PlanningFactStatus,
@@ -28,6 +29,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { WebResearchService } from '../research/web-research.service';
 import { CourseIntegrationsService } from '../course/course-integrations.service';
+import { templateData } from '../scenes/scene-schema';
+import { parseTimeTrackingPreferences } from '../users/time-tracking-preferences';
 
 const SCOPE_TYPES = new Set(['general', 'goal', 'day', 'task', 'course']);
 const FACT_STATUSES = new Set<PlanningFactStatus>(['confirmed', 'inferred', 'assumed']);
@@ -216,6 +219,17 @@ function readActionProposals(value: unknown): PlanningActionProposal[] {
       candidate.type === 'delete_course' &&
       typeof candidate.courseId === 'string' &&
       typeof candidate.courseName === 'string'
+    ) {
+      return [candidate as unknown as PlanningActionProposal];
+    }
+    if (candidate.type === 'create_scene' && typeof candidate.name === 'string') {
+      return [candidate as unknown as PlanningActionProposal];
+    }
+    if (
+      candidate.type === 'update_scene' &&
+      typeof candidate.sceneId === 'string' &&
+      candidate.changes &&
+      typeof candidate.changes === 'object'
     ) {
       return [candidate as unknown as PlanningActionProposal];
     }
@@ -621,6 +635,32 @@ export class PlanningService {
       ));
     }
 
+    const sceneDelegate = (this.prisma as PrismaService & {
+      sceneTemplate?: { findMany: (args: unknown) => Promise<PlanningSceneSnapshot[]> };
+    }).sceneTemplate;
+    const currentSceneRows = sceneDelegate
+      ? await sceneDelegate.findMany({
+          where: { userId, status: 'active' },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+          take: 100,
+          select: {
+            id: true,
+            name: true,
+            emoji: true,
+            color: true,
+            description: true,
+            category: true,
+            fieldSchema: true,
+            triggers: true,
+            allowedViews: true,
+          },
+        })
+      : [];
+    const currentScenes: PlanningSceneSnapshot[] = currentSceneRows.map((scene) => ({
+      ...scene,
+      fieldSchema: Array.isArray(scene.fieldSchema) ? scene.fieldSchema : [],
+    }));
+
     let goalExecution: PlanningGoalExecutionSnapshot | undefined;
     if (thread.scopeType === 'goal' && thread.scopeId) {
       const goalTasks = await this.prisma.task.findMany({
@@ -692,6 +732,7 @@ export class PlanningService {
       currentTags,
       currentCourses,
       currentCourseOccurrences,
+      currentScenes,
       holidayCalendar,
       planningScope: {
         type: thread.scopeType,
@@ -751,6 +792,7 @@ export class PlanningService {
 
     const validTaskIds = new Set(currentTasks.map((task) => task.id));
     const currentCourseById = new Map(currentCourses.map((course) => [course.id, course]));
+    const currentSceneById = new Map(currentScenes.map((scene) => [scene.id, scene]));
     const activeOccurrenceById = new Map(
       currentCourseOccurrences
         .filter((occurrence) => occurrence.overrideType !== 'cancel')
@@ -758,6 +800,16 @@ export class PlanningService {
     );
     const actionProposals: PlanningActionProposal[] = [];
     for (const action of result.actions) {
+      if (action.type === 'update_scene') {
+        const scene = currentSceneById.get(action.sceneId);
+        if (!scene) continue;
+        actionProposals.push({
+          ...action,
+          sceneName: scene.name,
+          proposalId: randomUUID(),
+        });
+        continue;
+      }
       if (action.type === 'update_task') {
         if (!validTaskIds.has(action.taskId)) continue;
         const currentTask = currentTasks.find((task) => task.id === action.taskId);
@@ -988,8 +1040,10 @@ export class PlanningService {
         ? context.appliedActionIds.filter((value): value is string => typeof value === 'string')
         : [],
     );
-    const selected = actions.filter((action) => requestedIds.includes(action.proposalId));
-    if (!selected.length) throw new BadRequestException('No matching action proposals');
+    const selected = actions.filter(
+      (action) => requestedIds.includes(action.proposalId) && !appliedBefore.has(action.proposalId),
+    );
+    if (!selected.length) throw new BadRequestException('No unapplied matching action proposals');
 
     const goalScopeId =
       conversation.planningThread?.scopeType === 'goal'
@@ -1003,6 +1057,9 @@ export class PlanningService {
       const deletedCourseIds: string[] = [];
       const externalActionIds: string[] = [];
       const createdFolderIds: string[] = [];
+      const createdSceneIds: string[] = [];
+      const updatedSceneIds: string[] = [];
+      const scenePlanIds: string[] = [];
       const folderByName = new Map<string, string>();
 
       const ensureTagMetadata = async (names: string[] = []) => {
@@ -1058,6 +1115,58 @@ export class PlanningService {
       }
 
       for (const action of selected) {
+        if (action.type === 'create_scene' || action.type === 'update_scene') {
+          const sceneInput = action.type === 'create_scene'
+            ? {
+                name: action.name,
+                emoji: action.emoji,
+                color: action.color,
+                description: action.description,
+                category: action.category,
+                fieldSchema: action.fieldSchema,
+                triggers: action.triggers,
+                allowedViews: action.allowedViews,
+              }
+            : action.changes;
+          const before = action.type === 'update_scene'
+            ? await tx.sceneTemplate.findFirst({ where: { id: action.sceneId, userId, status: 'active' } })
+            : null;
+          if (action.type === 'update_scene' && !before) {
+            throw new NotFoundException('Scene to update was not found');
+          }
+          const scene = action.type === 'create_scene'
+            ? await tx.sceneTemplate.create({
+                data: {
+                  ...templateData(sceneInput),
+                  id: action.proposalId,
+                  name: action.name,
+                  userId,
+                },
+              })
+            : await tx.sceneTemplate.update({
+                where: { id: action.sceneId, userId },
+                data: templateData(sceneInput, true),
+              });
+          const plan = await tx.schedulePlan.create({
+            data: {
+              userId,
+              planningThreadId: threadId,
+              planType: 'scene',
+              beforeState: {
+                operation: action.type === 'create_scene' ? 'create' : 'update',
+                scene: before,
+              } as unknown as Prisma.InputJsonValue,
+              afterState: {
+                operation: action.type === 'create_scene' ? 'create' : 'update',
+                scene,
+              } as unknown as Prisma.InputJsonValue,
+            },
+          });
+          scenePlanIds.push(plan.id);
+          if (action.type === 'create_scene') createdSceneIds.push(scene.id);
+          else updatedSceneIds.push(scene.id);
+          continue;
+        }
         if (action.type === 'delete_course') {
           await tx.calendarEvent.deleteMany({
             where: { userId, courseId: action.courseId },
@@ -1216,10 +1325,62 @@ export class PlanningService {
         deletedCourseIds,
         createdFolderIds,
         externalActionIds,
+        createdSceneIds,
+        updatedSceneIds,
+        scenePlanIds,
       };
     });
 
     return result;
+  }
+
+  async undoSceneAction(userId: string, threadId: string, planId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const plan = await tx.schedulePlan.findFirst({
+        where: { id: planId, userId, planningThreadId: threadId, planType: 'scene' },
+      });
+      if (!plan) throw new NotFoundException('Scene change plan not found');
+      if (plan.status === 'undone') throw new ConflictException('Scene change has already been undone');
+      const before = plan.beforeState as { operation?: string; scene?: Record<string, unknown> | null };
+      const after = plan.afterState as { operation?: string; scene?: Record<string, unknown> | null };
+      const afterScene = after.scene;
+      if (!afterScene || typeof afterScene.id !== 'string' || typeof afterScene.updatedAt !== 'string') {
+        throw new ConflictException('Scene change snapshot is invalid');
+      }
+      const current = await tx.sceneTemplate.findFirst({ where: { id: afterScene.id, userId } });
+      if (!current || current.updatedAt.toISOString() !== afterScene.updatedAt) {
+        throw new ConflictException('Scene changed after apply; undo was cancelled');
+      }
+      if (after.operation === 'create') {
+        const entries = await tx.sceneEntry.count({ where: { sceneId: current.id, userId } });
+        if (entries > 0) throw new ConflictException('Scene already contains records; undo was cancelled');
+        const user = await tx.user.findUnique({ where: { id: userId }, select: { settings: true } });
+        if (parseTimeTrackingPreferences(user?.settings).defaultSceneId === current.id) {
+          throw new ConflictException('Scene is the current default; choose another default before undo');
+        }
+        await tx.sceneTemplate.delete({ where: { id: current.id, userId } });
+      } else {
+        const scene = before.scene;
+        if (!scene) throw new ConflictException('Scene change snapshot is invalid');
+        await tx.sceneTemplate.update({
+          where: { id: current.id, userId },
+          data: {
+            name: scene.name as string,
+            emoji: scene.emoji as string,
+            color: scene.color as string,
+            description: scene.description as string | null,
+            category: scene.category as string | null,
+            status: scene.status as string,
+            sortOrder: scene.sortOrder as number,
+            fieldSchema: scene.fieldSchema as Prisma.InputJsonValue,
+            triggers: scene.triggers as string[],
+            allowedViews: scene.allowedViews as string[],
+          },
+        });
+      }
+      await tx.schedulePlan.update({ where: { id: plan.id }, data: { status: 'undone' } });
+      return { planId: plan.id, sceneId: current.id, operation: after.operation };
+    });
   }
 
   async closeThread(userId: string, id: string) {

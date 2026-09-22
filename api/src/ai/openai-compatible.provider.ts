@@ -10,6 +10,7 @@ import type {
   PlanningFactStatus,
   PlanningReplanDraft,
   PlanningResearchRequest,
+  PlanningSceneDraft,
   PlanningTurnInput,
   PlanningTurnResult,
 } from './ai-provider';
@@ -96,6 +97,40 @@ function normalizedTags(value: unknown): string[] | undefined {
   return [...new Set(value.flatMap((item) => typeof item === 'string' ? [item.replace(/^#+/, '').trim().slice(0, 40)] : []).filter(Boolean))].slice(0, 12);
 }
 
+function normalizedSceneDraft(value: unknown, requireName: boolean): PlanningSceneDraft | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  const draft: PlanningSceneDraft = {};
+  if (typeof candidate.name === 'string' && candidate.name.trim()) {
+    draft.name = candidate.name.trim().slice(0, 60);
+  } else if (requireName) return null;
+  if (typeof candidate.emoji === 'string' && candidate.emoji.trim()) {
+    draft.emoji = candidate.emoji.trim().slice(0, 12);
+  }
+  if (typeof candidate.color === 'string' && /^#[0-9a-f]{6}$/i.test(candidate.color)) {
+    draft.color = candidate.color.toLowerCase();
+  }
+  for (const key of ['description', 'category'] as const) {
+    const limit = key === 'description' ? 500 : 60;
+    if (candidate[key] === null) draft[key] = null;
+    else if (typeof candidate[key] === 'string') draft[key] = candidate[key].trim().slice(0, limit) || null;
+  }
+  if (Array.isArray(candidate.fieldSchema) && candidate.fieldSchema.length <= 20) {
+    draft.fieldSchema = candidate.fieldSchema;
+  }
+  const lists = [
+    ['triggers', new Set(['manual', 'focus', 'task_completed'])],
+    ['allowedViews', new Set(['heatmap', 'trend', 'list', 'photo'])],
+  ] as const;
+  for (const [key, allowed] of lists) {
+    const raw = candidate[key];
+    if (Array.isArray(raw) && raw.length > 0 && raw.every((item) => typeof item === 'string' && allowed.has(item))) {
+      draft[key] = [...new Set(raw)] as string[];
+    }
+  }
+  return Object.keys(draft).length ? draft : null;
+}
+
 const MAX_PLANNING_ACTIONS = 60;
 
 export function requestedCreateTaskCount(message: string): number | null {
@@ -118,6 +153,25 @@ function toPlanningActions(value: unknown): PlanningActionDraft[] {
   for (const item of value.slice(0, MAX_PLANNING_ACTIONS)) {
     if (!item || typeof item !== 'object') continue;
     const candidate = item as Record<string, unknown>;
+
+    if (candidate.type === 'create_scene') {
+      const scene = normalizedSceneDraft(candidate, true);
+      if (scene?.name) actions.push({ type: 'create_scene', ...scene, name: scene.name });
+      continue;
+    }
+
+    if (candidate.type === 'update_scene') {
+      if (typeof candidate.sceneId !== 'string' || !candidate.sceneId.trim()) continue;
+      const changes = normalizedSceneDraft(candidate.changes, false);
+      if (!changes) continue;
+      actions.push({
+        type: 'update_scene',
+        sceneId: candidate.sceneId.trim().slice(0, 100),
+        sceneName: typeof candidate.sceneName === 'string' ? candidate.sceneName.trim().slice(0, 60) : '',
+        changes,
+      });
+      continue;
+    }
 
     if (candidate.type === 'create_task') {
       if (typeof candidate.title !== 'string' || !candidate.title.trim()) continue;
@@ -681,6 +735,9 @@ export class OpenAICompatibleProvider implements AIProvider {
             'When an existing multi-day plan has incorrect calendar placement or missing grouping, use update_task with exact scheduledStart/scheduledEnd and folderName. Do not create duplicate replacement tasks.',
             'Do not create task actions from vague goals, brainstorms, or unresolved questions. Ask first when important task details are unclear.',
             'Task actions are only drafts for user confirmation. Never claim they are already applied.',
+            'When the user asks to create a reusable tracking scene, emit create_scene. When changing an existing scene, emit update_scene and copy sceneId exactly from currentScenes.',
+            'Scene actions are drafts for Scene Preview → Apply → Undo. Never claim a Scene was created or changed before confirmation.',
+            'A Scene may use triggers manual, focus, or task_completed and views heatmap, trend, list, or photo. Prefer manual plus only the explicitly requested automatic triggers.',
             `A response may contain at most ${MAX_PLANNING_ACTIONS} actions. When the user explicitly requests N separate tasks within that limit, especially "N days, one task per day", emit exactly N create_task actions with distinct dates/titles; never summarize them into fewer actions while claiming N were created.`,
             'dueDate is a deadline, not a calendar placement. When the user specifies or you derive an actual day and time for doing a task, set both scheduledStart and scheduledEnd to exact ISO instants. Do not put that planned time only in dueDate.',
             'For a multi-day plan, preserve one task per intended day. Never pack later-day tasks into the first day. Use the supplied course occurrences to choose that day\'s requested free period, and keep scheduledStart/scheduledEnd on that exact date.',
@@ -725,9 +782,9 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
             'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[{"query":"...","reason":"...","highImpact":true,"preferOfficial":true}],"actions":[{"type":"create_task","title":"...","description":null,"priority":"medium","estimatedMinutes":30,"dueDate":null,"scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"基础建立","folderName":"六级听力训练","tags":["学习","英语"]},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high","dueDate":"ISO-or-null","scheduledStart":"ISO-or-null","scheduledEnd":"ISO-or-null","milestoneTitle":"强化训练","folderName":"六级听力训练","tags":["学习","英语"]}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称","description":"新的目标说明"}},{"type":"course_change","courseName":"民法","otherCourseName":"刑法","change":{"type":"swap","eventId":"exact-occurrence-id","otherEventId":"exact-other-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5,"startTime":"10:00","endTime":"11:40","room":"B202"}},{"type":"delete_course","courseId":"exact-course-id","courseName":"法律职业伦理"}],"replanRequests":[{"title":"临时冲突重排","blockedStart":"ISO","blockedEnd":"ISO","planningStart":"ISO","planningEnd":"ISO","reason":"..."}],"context":{"brief":[{"key":"...","value":"...","status":"confirmed|inferred|assumed"}],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[],"actions":[{"type":"create_task","title":"..."},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high"}},{"type":"create_scene","name":"晨间阅读","emoji":"📚","color":"#cae393","description":"...","category":"学习","fieldSchema":[],"triggers":["manual","focus"],"allowedViews":["heatmap","list"]},{"type":"update_scene","sceneId":"exact-current-scene-id","sceneName":"晨间阅读","changes":{"description":"...","allowedViews":["heatmap","trend","list"]}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称"}},{"type":"course_change","courseName":"民法","change":{"type":"cancel","eventId":"exact-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5}},{"type":"delete_course","courseId":"exact-course-id","courseName":"法律职业伦理"}],"replanRequests":[],"context":{"brief":[],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
-            'Return actions as [] when no concrete task, learning-goal, one-off course, recurring course-template, or permanent course-deletion draft is ready for confirmation.',
+            'Return actions as [] when no concrete task, Scene, learning-goal, or course draft is ready for confirmation.',
             'Return replanRequests as [] when no deterministic schedule movement preview is needed.',
             'Return the complete updated context, not only a patch.',
             'Reply in the language used by the user.',
@@ -746,6 +803,7 @@ export class OpenAICompatibleProvider implements AIProvider {
             currentTags: input.currentTags || [],
             currentCourses: input.currentCourses || [],
             currentCourseOccurrences: input.currentCourseOccurrences || [],
+            currentScenes: input.currentScenes || [],
             holidayCalendar: input.holidayCalendar || [],
             planningScope: input.planningScope || null,
             goalExecution: input.goalExecution || null,

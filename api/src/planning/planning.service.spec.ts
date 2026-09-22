@@ -753,3 +753,49 @@ describe('PlanningService goal scope', () => {
   });
 
 });
+
+describe('PlanningService Scene actions', () => {
+  it('applies a confirmed Scene draft and records an undo snapshot', async () => {
+    const createdAt = new Date('2026-09-22T10:00:00.000Z');
+    const scene = { id: 'proposal-scene', userId: 'user-1', name: '晨间阅读', emoji: '📚', color: '#cae393', description: null, category: '学习', status: 'active', sortOrder: 0, fieldSchema: [], triggers: ['manual', 'focus'], allowedViews: ['heatmap', 'list'], createdAt, updatedAt: createdAt };
+    const tx = {
+      sceneTemplate: { create: jest.fn().mockResolvedValue(scene) },
+      schedulePlan: { create: jest.fn().mockResolvedValue({ id: 'scene-plan-1' }) },
+      aIConversation: { update: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      aIConversation: { findFirst: jest.fn().mockResolvedValue({
+        id: 'conversation-scene',
+        context: { actions: [{ proposalId: 'proposal-scene', type: 'create_scene', name: '晨间阅读', emoji: '📚', color: '#cae393', category: '学习', triggers: ['manual', 'focus'], allowedViews: ['heatmap', 'list'] }], appliedActionIds: [] },
+        planningThread: { scopeType: 'general', scopeId: null },
+      }) },
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+    const service = new PlanningService(prisma as never, {} as never, {} as never);
+
+    const result = await service.applyActions('user-1', 'thread-1', { conversationId: 'conversation-scene', proposalIds: ['proposal-scene'] });
+
+    expect(tx.sceneTemplate.create).toHaveBeenCalledWith({ data: expect.objectContaining({ id: 'proposal-scene', userId: 'user-1', name: '晨间阅读' }) });
+    expect(tx.schedulePlan.create).toHaveBeenCalledWith({ data: expect.objectContaining({ planType: 'scene', planningThreadId: 'thread-1' }) });
+    expect(result).toEqual(expect.objectContaining({ createdSceneIds: ['proposal-scene'], scenePlanIds: ['scene-plan-1'] }));
+  });
+
+  it('undoes a newly created Scene only when it is unchanged and empty', async () => {
+    const updatedAt = new Date('2026-09-22T10:00:00.000Z');
+    const tx = {
+      schedulePlan: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'scene-plan-1', status: 'applied', beforeState: { operation: 'create', scene: null }, afterState: { operation: 'create', scene: { id: 'scene-1', updatedAt: updatedAt.toISOString() } } }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      sceneTemplate: { findFirst: jest.fn().mockResolvedValue({ id: 'scene-1', updatedAt }), delete: jest.fn().mockResolvedValue({}) },
+      sceneEntry: { count: jest.fn().mockResolvedValue(0) },
+      user: { findUnique: jest.fn().mockResolvedValue({ settings: {} }) },
+    };
+    const prisma = { $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) };
+    const service = new PlanningService(prisma as never, {} as never, {} as never);
+
+    await expect(service.undoSceneAction('user-1', 'thread-1', 'scene-plan-1')).resolves.toEqual({ planId: 'scene-plan-1', sceneId: 'scene-1', operation: 'create' });
+    expect(tx.sceneTemplate.delete).toHaveBeenCalledWith({ where: { id: 'scene-1', userId: 'user-1' } });
+    expect(tx.schedulePlan.update).toHaveBeenCalledWith({ where: { id: 'scene-plan-1' }, data: { status: 'undone' } });
+  });
+});

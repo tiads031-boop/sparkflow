@@ -123,6 +123,29 @@ export interface PlanningHolidayDaySnapshot {
   isOffDay: boolean;
 }
 
+export interface PlanningSceneSnapshot {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  description: string | null;
+  category: string | null;
+  fieldSchema: unknown[];
+  triggers: string[];
+  allowedViews: string[];
+}
+
+export interface PlanningSceneDraft {
+  name?: string;
+  emoji?: string;
+  color?: string;
+  description?: string | null;
+  category?: string | null;
+  fieldSchema?: unknown[];
+  triggers?: string[];
+  allowedViews?: string[];
+}
+
 export type PlanningCourseChangeRequest =
   | {
       type: 'reschedule';
@@ -211,6 +234,16 @@ export type PlanningActionDraft =
       type: 'delete_course';
       courseId: string;
       courseName: string;
+    }
+  | ({
+      type: 'create_scene';
+      name: string;
+    } & Omit<PlanningSceneDraft, 'name'>)
+  | {
+      type: 'update_scene';
+      sceneId: string;
+      sceneName: string;
+      changes: PlanningSceneDraft;
     };
 
 export type PlanningActionProposal = PlanningActionDraft & {
@@ -263,6 +296,7 @@ export interface PlanningTurnInput {
   currentTags?: string[];
   currentCourses?: PlanningCourseSnapshot[];
   currentCourseOccurrences?: PlanningCourseOccurrenceSnapshot[];
+  currentScenes?: PlanningSceneSnapshot[];
   holidayCalendar?: PlanningHolidayDaySnapshot[];
   planningScope?: PlanningScopeSnapshot;
   goalExecution?: PlanningGoalExecutionSnapshot;

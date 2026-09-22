@@ -96,6 +96,15 @@ export class PlanningController {
     return this.planningService.applyActions(userId, id, data);
   }
 
+  @Post('threads/:id/actions/:planId/undo-scene')
+  undoSceneAction(
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Param('planId') planId: string,
+  ) {
+    return this.planningService.undoSceneAction(userId, id, planId);
+  }
+
   @Post('threads/:id/close')
   close(@CurrentUserId() userId: string, @Param('id') id: string) {
     return this.planningService.closeThread(userId, id);

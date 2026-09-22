@@ -91,7 +91,7 @@
 - [ ] R3-B2 Capture / Record Detail、Course Detail / Import、Tag Management 二级页视觉与移动端细节；
 - [ ] R4 Time Analytics；
 - [x] R5 Scene Core 代码（PR #126/#127/#128 已合并；自动触发依赖 R6 默认场景；细节与真机验收另行收口）；
-- [ ] R6 Scene AI + Time Record Settings（R6-A PR #129 已合并；R6-B 时间记录设置 UI、快捷 Focus、附件/补记开关及默认 Scene 自动关联已实现并待 CI；R6-C Planning Scene Preview → Apply → Undo 待接）；
+- [x] R6 Scene AI + Time Record Settings（R6-A PR #129、R6-B PR #130 已合并；R6-C Planning Scene create/update Preview → Apply → Undo 已实现并待独立 CI）；
 - [ ] R7 Goal Progress；
 - [ ] R8 AI Execution Feedback；
 - [ ] R9 Android Usage。

@@ -134,6 +134,34 @@ export type PlanningActionProposal =
       type: 'delete_course';
       courseId: string;
       courseName: string;
+    }
+  | {
+      proposalId: string;
+      type: 'create_scene';
+      name: string;
+      emoji?: string;
+      color?: string;
+      description?: string | null;
+      category?: string | null;
+      fieldSchema?: unknown[];
+      triggers?: string[];
+      allowedViews?: string[];
+    }
+  | {
+      proposalId: string;
+      type: 'update_scene';
+      sceneId: string;
+      sceneName: string;
+      changes: {
+        name?: string;
+        emoji?: string;
+        color?: string;
+        description?: string | null;
+        category?: string | null;
+        fieldSchema?: unknown[];
+        triggers?: string[];
+        allowedViews?: string[];
+      };
     };
 
 export interface PlanningConversationRow {
@@ -293,9 +321,20 @@ export function applyPlanningActions(
     deletedCourseIds: string[];
     createdFolderIds: string[];
     externalActionIds: string[];
+    createdSceneIds: string[];
+    updatedSceneIds: string[];
+    scenePlanIds: string[];
   }>(
     `/planning/threads/${threadId}/actions/apply`,
     { conversationId, proposalIds },
+    { throwOnError: true },
+  );
+}
+
+export function undoPlanningSceneAction(threadId: string, planId: string) {
+  return api.post<{ planId: string; sceneId: string; operation: 'create' | 'update' }>(
+    `/planning/threads/${threadId}/actions/${planId}/undo-scene`,
+    {},
     { throwOnError: true },
   );
 }

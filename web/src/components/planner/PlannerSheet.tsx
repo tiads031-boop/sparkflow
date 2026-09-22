@@ -25,6 +25,7 @@ import {
   getPlanningThread,
   listPlanningThreads,
   sendPlanningTurn,
+  undoPlanningSceneAction,
   updatePlanningContext,
   type PlanningActionProposal,
   type PlanningContextSnapshot,
@@ -214,6 +215,7 @@ export default function PlannerSheet({
   const [selectedActionIds, setSelectedActionIds] = useState<string[]>([]);
   const [actionBusy, setActionBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
+  const [scenePlanIds, setScenePlanIds] = useState<string[]>([]);
 
   const [activeCourseProposalId, setActiveCourseProposalId] = useState<string | null>(null);
   const [courseChangePreview, setCourseChangePreview] = useState<CourseChangePreview | null>(null);
@@ -287,6 +289,7 @@ export default function PlannerSheet({
         setActionConversationId(null);
         setActionProposals([]);
         setSelectedActionIds([]);
+        setScenePlanIds([]);
         setActiveCourseProposalId(null);
         setCourseChangePreview(null);
         setCourseChangePlanId(null);
@@ -511,6 +514,7 @@ export default function PlannerSheet({
           .map((action) => action.proposalId),
       );
       setActionMessage('');
+      setScenePlanIds([]);
       setActiveCourseProposalId(null);
       setCourseChangePreview(null);
       setCourseChangePlanId(null);
@@ -558,6 +562,7 @@ export default function PlannerSheet({
       setActionProposals([]);
       setSelectedActionIds([]);
       setActionMessage('');
+      setScenePlanIds([]);
       setActiveCourseProposalId(null);
       setCourseChangePreview(null);
       setCourseChangePlanId(null);
@@ -635,8 +640,10 @@ export default function PlannerSheet({
       ));
       setSelectedActionIds([]);
       setActionMessage(
-        `已应用 ${result.appliedActionIds.length} 项操作：新增 ${result.createdTaskIds.length} 个任务${result.createdFolderIds.length ? `，创建 ${result.createdFolderIds.length} 个学习文件夹` : ''}，更新 ${result.updatedTaskIds.length} 个任务，修改 ${result.updatedGoalIds.length} 个学习目标${result.deletedCourseIds?.length ? `，永久删除 ${result.deletedCourseIds.length} 门课程` : ''}。`,
+        `已应用 ${result.appliedActionIds.length} 项操作：新增 ${result.createdTaskIds.length} 个任务${result.createdFolderIds.length ? `，创建 ${result.createdFolderIds.length} 个学习文件夹` : ''}，更新 ${result.updatedTaskIds.length} 个任务，修改 ${result.updatedGoalIds.length} 个学习目标${result.createdSceneIds.length ? `，创建 ${result.createdSceneIds.length} 个场景` : ''}${result.updatedSceneIds.length ? `，更新 ${result.updatedSceneIds.length} 个场景` : ''}${result.deletedCourseIds?.length ? `，永久删除 ${result.deletedCourseIds.length} 门课程` : ''}。`,
       );
+      setScenePlanIds(result.scenePlanIds);
+      if (result.scenePlanIds.length) window.dispatchEvent(new Event('sparkflow:scenes-changed'));
       await onApplied();
       const refreshed = await getPlanningThread(thread.id);
       setThread(refreshed);
@@ -646,6 +653,23 @@ export default function PlannerSheet({
       }
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : '应用任务操作失败');
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function undoLatestSceneAction() {
+    const planId = scenePlanIds.at(-1);
+    if (!thread || !planId || actionBusy) return;
+    setActionBusy(true);
+    try {
+      await undoPlanningSceneAction(thread.id, planId);
+      setScenePlanIds((current) => current.slice(0, -1));
+      setActionMessage('最近一次 Scene 变更已撤销。');
+      window.dispatchEvent(new Event('sparkflow:scenes-changed'));
+      await onApplied();
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : '撤销 Scene 变更失败');
     } finally {
       setActionBusy(false);
     }
@@ -1799,6 +1823,21 @@ export default function PlannerSheet({
                             ? `标签 → ${action.changes.tags.map((tag) => `#${tag}`).join(' ') || '清空'}`
                             : null,
                         ].filter(Boolean)
+                      : action.type === 'create_scene'
+                        ? [
+                            action.category ? `分类：${action.category}` : null,
+                            action.triggers?.length ? `触发：${action.triggers.join(' / ')}` : null,
+                            action.allowedViews?.length ? `视图：${action.allowedViews.join(' / ')}` : null,
+                            action.fieldSchema?.length ? `${action.fieldSchema.length} 个记录字段` : null,
+                          ].filter(Boolean)
+                        : action.type === 'update_scene'
+                          ? [
+                              action.changes.name ? `名称 → ${action.changes.name}` : null,
+                              action.changes.category !== undefined ? `分类 → ${action.changes.category || '清空'}` : null,
+                              action.changes.triggers?.length ? `触发 → ${action.changes.triggers.join(' / ')}` : null,
+                              action.changes.allowedViews?.length ? `视图 → ${action.changes.allowedViews.join(' / ')}` : null,
+                              action.changes.fieldSchema ? `记录字段 → ${action.changes.fieldSchema.length} 个` : null,
+                            ].filter(Boolean)
                       : action.type === 'delete_course'
                         ? ['永久删除课程模板及其全部日程课次']
                       : [
@@ -1811,6 +1850,10 @@ export default function PlannerSheet({
                     ? '新增任务'
                     : action.type === 'update_task'
                       ? '修改任务'
+                      : action.type === 'create_scene'
+                        ? '创建 Scene'
+                        : action.type === 'update_scene'
+                          ? '更新 Scene'
                       : action.type === 'delete_course'
                         ? '永久删除课程'
                         : '修改学习目标';
@@ -1818,6 +1861,10 @@ export default function PlannerSheet({
                     ? action.title
                     : action.type === 'update_task'
                       ? action.taskTitle
+                      : action.type === 'create_scene'
+                        ? `${action.emoji || '✨'} ${action.name}`
+                        : action.type === 'update_scene'
+                          ? action.sceneName
                       : action.type === 'delete_course'
                         ? action.courseName
                         : action.goalTitle;
@@ -1870,6 +1917,16 @@ export default function PlannerSheet({
               {actionMessage && (
                 <p className="mt-3 rounded-xl bg-white px-3 py-2 text-xs text-[#56613f]">{actionMessage}</p>
               )}
+            </div>
+          )}
+
+          {scenePlanIds.length > 0 && (
+            <div className="mt-3 rounded-[1.4rem] border border-[#b0a8db]/35 bg-[#f7f5fc] p-4">
+              <p className="text-xs font-bold text-[#4f4675]">Scene 已应用 · 还可撤销 {scenePlanIds.length} 项</p>
+              <button type="button" disabled={actionBusy} onClick={() => void undoLatestSceneAction()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-white py-2.5 text-xs font-black text-[#62578f] disabled:opacity-40">
+                <RotateCcw size={13} /> 撤销最近一次 Scene 变更
+              </button>
+              {actionMessage ? <p className="mt-2 text-[10px] text-[#6d6682]">{actionMessage}</p> : null}
             </div>
           )}
 
