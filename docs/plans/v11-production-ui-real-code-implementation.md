@@ -1,7 +1,7 @@
 # SparkFlow V11 — 真实业务代码落地实施方案
 
-> **状态**：实施中；R1/R2/R3-A/R3-B1 已合并，R3-B2 二级页视觉已完成本地验证
-> **方案基线**：master@6d2e045c1d4e3817a4aa6e497254aa3b5ec53298
+> **状态**：实施中；R1/R2/R3 已合并，R4 Time Analytics 已完成本地实现
+> **方案基线**：master@90204270e84e47d92b0f4eec59a3ccd4aa92ac5d
 > **最后核对**：2026-09-22  
 > **视觉来源**：用户确认的 sparkflow_ui_integrated_v11(1).html  
 > **光学玻璃参考**：VII-Cae/hyalite--liquid-glass，v0.5.0，MIT  
@@ -1956,11 +1956,20 @@ measured 是系统测得事实；Planner 可以引用，但不能自动改写成
 - [x] R3-B2 Tag Management：完成真实一级/二级层级、颜色、编辑与归档视觉，并只展示可由 Tag 数据计算的概览；
 - [x] R3-B2 本地验证：Web 85 tests、API 163 tests、Web/API production build、改动文件定向 ESLint、git diff --check；
 - [x] R3-B2 GitHub Actions CI #327；
+- [x] R3-B2 squash 合并（PR #124）；
 - [ ] R3-B 360px / PWA / Android WebView 视觉与交互验收。
 
 ### R4 — Time Analytics
 
-实现 AnalyticsModule、heatmap、distribution、plan vs actual。
+实施拆分：
+
+- [x] AnalyticsModule：新增 `/analytics/time`、`/analytics/plan-actual`、`/analytics/heatmap` 三个只读接口，并限制时区、枚举与最长 370 天范围；
+- [x] 真实投入聚合：只读取已完成/中断且有效时长大于 0 的 Focus 与手工记录；跨范围记录按有效 segment 裁切；
+- [x] Planned ↔ Actual：支持 exact task、标题与重叠 strong、邻近 inferred、unplanned，并排除 Focus 兼容日历事件与重复课程事件；
+- [x] TimeAnalyticsView：完成 7 天/30 天/12 周范围、graphite 总投入、标签分布、计划与实际、12 周 heatmap、加载/空数据/错误状态；
+- [x] 日程入口：从 Today 紧凑工具区进入时间分析，并可返回 Today 或跳转 Actual Timeline；
+- [x] R4 本地验证：Web 88 tests、API 175 tests、Web/API production build、改动文件定向 ESLint、git diff --check；
+- [x] R4 GitHub Actions CI #330；
 
 这对应现有 vNext M3。
 

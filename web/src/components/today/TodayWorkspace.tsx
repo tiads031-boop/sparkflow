@@ -1,4 +1,4 @@
-import { BrainCircuit, CalendarDays, Clock3, Loader2 } from 'lucide-react';
+import { BarChart3, BrainCircuit, CalendarDays, Clock3, Loader2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAppStore } from '../../store/appStore';
 import type { PlannerPreview, Task } from '../../types';
@@ -16,6 +16,7 @@ interface TodayWorkspaceProps {
   onPlanner: () => void;
   onOpenPlan: () => void;
   onOpenActual: () => void;
+  onOpenAnalytics: () => void;
 }
 
 export default function TodayWorkspace({
@@ -26,6 +27,7 @@ export default function TodayWorkspace({
   onPlanner,
   onOpenPlan,
   onOpenActual,
+  onOpenAnalytics,
 }: TodayWorkspaceProps) {
   const [date] = useState(() => new Date());
   const activeSessionId = useAppStore((state) => state.pomodoro.activeSessionId);
@@ -63,6 +65,7 @@ export default function TodayWorkspace({
           <button type="button" aria-pressed="true" className="rounded-full bg-[var(--sf-graphite)] px-3 py-2 text-[10px] font-black text-[var(--sf-bg)]">今天</button>
           <button type="button" onClick={onOpenPlan} className="grid h-8 w-8 place-items-center rounded-full text-[var(--sf-text-secondary)]" aria-label="打开计划"><CalendarDays size={15} /></button>
           <button type="button" onClick={onOpenActual} className="grid h-8 w-8 place-items-center rounded-full text-[var(--sf-text-secondary)]" aria-label="打开实际时间线"><Clock3 size={15} /></button>
+          <button type="button" onClick={onOpenAnalytics} className="grid h-8 w-8 place-items-center rounded-full text-[var(--sf-text-secondary)]" aria-label="打开时间分析"><BarChart3 size={15} /></button>
         </div>
       </header>
 
