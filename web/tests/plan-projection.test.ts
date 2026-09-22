@@ -8,6 +8,8 @@ import {
   dedupeCoursesByOccurrence,
   getPlanRange,
   getSemesterWeekNumber,
+  itemsForLocalDay,
+  clipPlanItemToLocalDay,
   localDateKey,
   mergePlanCourseItems,
 } from '../src/components/plan/planProjection.ts';
@@ -104,6 +106,32 @@ test('Plan projection deduplicates task-backed and course-backed calendar events
   assert.equal(items.filter((item) => item.taskId === 'task-1').length, 1);
   assert.equal(items.filter((item) => item.courseId === 'course-1' && item.kind === 'course').length, 1);
   assert.equal(items.filter((item) => item.kind === 'calendar').length, 1);
+});
+
+test('one overnight task and external event appear on both dates across month and week ranges', () => {
+  const first = new Date(2026, 8, 30, 23, 30);
+  const last = new Date(2026, 9, 1, 0, 30);
+  const external: CalendarEvent = {
+    id: 'google-overnight', title: '夜间会议', startTime: first.toISOString(),
+    endTime: last.toISOString(), eventType: 'google', externalSource: 'google',
+    sourceCalendarTitle: 'Work', scheduleLocked: false,
+  };
+  const source = { tasks: [task({ id: 'overnight', scheduledStart: first.toISOString(), scheduledEnd: last.toISOString() })], courses: [], calendarEvents: [external] };
+  const september = buildPlanItems({ ...source, range: getPlanRange(first, 'month') });
+  const october = buildPlanItems({ ...source, range: getPlanRange(last, 'month') });
+  const week = buildPlanItems({ ...source, range: getPlanRange(first, 'week') });
+  for (const items of [september, october, week]) {
+    assert.equal(itemsForLocalDay(items, first).length, 2);
+    assert.equal(itemsForLocalDay(items, last).length, 2);
+    const continuation = itemsForLocalDay(items, last).map((item) => clipPlanItemToLocalDay(item, last));
+    assert.ok(continuation.every((item) => new Date(item.start).getTime() === new Date(2026, 9, 1).getTime()));
+  }
+  const google = september.find((item) => item.sourceId === external.id)!;
+  assert.equal(google.sourceLabel, 'Google 日历 · Work');
+  assert.equal(google.locked, true);
+  assert.equal(itemsForLocalDay(september, new Date(2026, 9, 1, 0, 30)).length, 2);
+  const endsAtMidnight = [{ ...google, end: new Date(2026, 9, 1).toISOString() }];
+  assert.equal(itemsForLocalDay(endsAtMidnight, last).length, 0);
 });
 
 test('planned projection excludes focus compatibility events to avoid actual-time double counting', () => {

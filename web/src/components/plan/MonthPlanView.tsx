@@ -1,6 +1,6 @@
 import { CalendarClock } from 'lucide-react';
 import type { PlanItem } from './planProjection';
-import { itemsForLocalDay, localDateKey } from './planProjection';
+import { clipPlanItemToLocalDay, itemsForLocalDay, localDateKey } from './planProjection';
 
 interface MonthPlanViewProps {
   selectedDate: Date;
@@ -14,7 +14,7 @@ function itemLabel(item: PlanItem) {
   if (item.kind === 'course') return '课程';
   if (item.kind === 'study-task') return '学习';
   if (item.kind === 'task') return '任务';
-  return '日程';
+  return item.sourceLabel || '日程';
 }
 
 export default function MonthPlanView({ selectedDate, items, onSelectDate, onItemClick }: MonthPlanViewProps) {
@@ -83,7 +83,8 @@ export default function MonthPlanView({ selectedDate, items, onSelectDate, onIte
 
         <div className="space-y-2">
           {selectedItems.length ? selectedItems.slice(0, 6).map((item) => {
-            const start = new Date(item.start);
+            const segment = clipPlanItemToLocalDay(item, selectedDate);
+            const start = new Date(segment.start);
             return (
               <button
                 key={item.id}
@@ -95,7 +96,7 @@ export default function MonthPlanView({ selectedDate, items, onSelectDate, onIte
                 <span className="w-10 shrink-0 text-[10px] font-black text-[var(--sf-text-primary)]">{start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-xs font-bold text-[var(--sf-text-primary)]">{item.title}</span>
-                  <span className="block truncate text-[9px] text-[var(--sf-text-tertiary)]">{itemLabel(item)}{item.location ? ` · ${item.location}` : ''}</span>
+                  <span className="block truncate text-[9px] text-[var(--sf-text-tertiary)]">{itemLabel(item)}{new Date(item.start) < start ? ' · 延续' : ''}{item.location ? ` · ${item.location}` : ''}</span>
                 </span>
               </button>
             );

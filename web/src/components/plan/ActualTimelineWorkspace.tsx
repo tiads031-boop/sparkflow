@@ -10,7 +10,7 @@ import ActualTimelineHeader, { type ActualTimelineMode } from './ActualTimelineH
 import ActualTimelineRow from './ActualTimelineRow';
 import { useTimeTrackingPreferences } from '../profile/useTimeTrackingPreferences';
 import { findActualTimelineGaps, matchActualToPlan, type ActualTimelineGapValue } from './executionMatching';
-import { addLocalDays, itemsForLocalDay, localDateKey, startOfLocalDay, type PlanItem } from './planProjection';
+import { addLocalDays, clipPlanItemToLocalDay, itemsForLocalDay, localDateKey, startOfLocalDay, type PlanItem } from './planProjection';
 
 interface ActualTimelineWorkspaceProps {
   selectedDate: Date;
@@ -67,7 +67,9 @@ export default function ActualTimelineWorkspace({ selectedDate, plannedItems, ta
     return () => { active = false; };
   }, [requestKey, selectedDate]);
 
-  const planned = useMemo(() => itemsForLocalDay(plannedItems, selectedDate).filter((item) => !item.preview), [plannedItems, selectedDate]);
+  const planned = useMemo(() => itemsForLocalDay(plannedItems, selectedDate)
+    .filter((item) => !item.preview)
+    .map((item) => clipPlanItemToLocalDay(item, selectedDate)), [plannedItems, selectedDate]);
   const matches = useMemo(() => new Map(entries.map((entry) => [entry.id, matchActualToPlan(entry, planned)])), [entries, planned]);
   const gaps = useMemo(() => new Map(findActualTimelineGaps(entries).map((gap) => [gap.id.split(':')[1], gap])), [entries]);
   const totalSeconds = entries.reduce((sum, entry) => sum + entry.effectiveDurationSeconds, 0);

@@ -143,6 +143,7 @@ export interface CalendarEvent {
     pausedDurationSeconds: number;
   } | null;
   externalSource?: string | null;
+  sourceCalendarTitle?: string | null;
   location?: string | null;
   scheduleLocked?: boolean;
 }
