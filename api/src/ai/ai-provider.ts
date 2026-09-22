@@ -287,6 +287,21 @@ export interface PlanningGoalExecutionSnapshot {
   milestones: PlanningGoalMilestoneExecution[];
 }
 
+export interface PlanningExecutionFeedbackSnapshot {
+  provenance: 'measured';
+  observedAt: string;
+  actualMinutesLast7Days: number;
+  actualMinutesLast28Days: number;
+  plannedMinutesLast28Days: number;
+  unplannedMinutesLast28Days: number;
+  reliableLateStartsLast28Days: number;
+  comparableSessionsLast28Days: number;
+  inferredMatchesLast28Days: number;
+  topTagsLast28Days: Array<{ name: string; minutes: number }>;
+  recurrentLateStartHour?: { localHour: number; count: number };
+  goalActualMinutesLast7Days?: number;
+}
+
 export interface PlanningTurnInput {
   model: PlanningModel;
   message: string;
@@ -300,6 +315,7 @@ export interface PlanningTurnInput {
   holidayCalendar?: PlanningHolidayDaySnapshot[];
   planningScope?: PlanningScopeSnapshot;
   goalExecution?: PlanningGoalExecutionSnapshot;
+  executionFeedback?: PlanningExecutionFeedbackSnapshot;
   currentTime?: string;
   timeZone?: string;
   evidence?: PlanningEvidenceItem[];
