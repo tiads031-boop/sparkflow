@@ -40,6 +40,8 @@ model User {
   courseImportBatches    CourseImportBatch[]
   studyFolders           StudyFolder[]
   tags                   Tag[]
+  sceneTemplates         SceneTemplate[]
+  sceneEntries           SceneEntry[]
 
   @@map("users")
 }
@@ -63,6 +65,56 @@ model Tag {
   @@index([userId, archived, sortOrder])
   @@index([parentId])
   @@map("tags")
+}
+
+model SceneTemplate {
+  id           String   @id @default(uuid())
+  userId       String
+  name         String
+  emoji        String   @default("✨")
+  color        String   @default("#e8b8cb")
+  description  String?
+  category     String?
+  status       String   @default("active")
+  sortOrder    Int      @default(0)
+  fieldSchema  Json     @default("[]")
+  triggers     String[] @default(["manual"])
+  allowedViews String[] @default(["heatmap", "list"])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries SceneEntry[]
+
+  @@index([userId, status, sortOrder])
+  @@map("scene_templates")
+}
+
+model SceneEntry {
+  id                 String   @id @default(uuid())
+  userId             String
+  sceneId            String
+  sourceType         String
+  occurredAt         DateTime @db.Timestamptz(6)
+  pomodoroSessionId  String?  @unique
+  taskId             String?
+  inspirationId      String?  @unique
+  metadata           Json     @default("{}")
+  tags               String[] @default([])
+  clientRequestId    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scene            SceneTemplate     @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  pomodoroSession PomodoroSession? @relation(fields: [pomodoroSessionId], references: [id], onDelete: Cascade)
+  task             Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  inspiration      Inspiration?      @relation(fields: [inspirationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientRequestId])
+  @@index([sceneId, occurredAt, id])
+  @@index([userId, occurredAt])
+  @@map("scene_entries")
 }
 
 model AuthSession {
@@ -142,6 +194,7 @@ model Inspiration {
   reviewBatchItems InspirationReviewBatchItem[]
   wallLayouts InspirationWallLayout[]
   focusSession PomodoroSession? @relation(fields: [focusSessionId], references: [id], onDelete: SetNull)
+  sceneEntry SceneEntry?
 
   @@unique([userId, captureRequestId])
   @@index([userId])
@@ -352,6 +405,7 @@ model Task {
   insight          Insight?          @relation(fields: [insightId], references: [id], onDelete: SetNull)
   course           Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
   studyFolders     StudyFolderTask[]
+  sceneEntries     SceneEntry[]
 
   @@index([userId])
   @@index([status])
@@ -388,6 +442,7 @@ model PomodoroSession {
   segments      PomodoroSegment[]
   calendarEvent CalendarEvent?
   inspirations  Inspiration[]
+  sceneEntry    SceneEntry?
 
   @@index([userId])
   @@index([taskId])
