@@ -1,7 +1,7 @@
 # SparkFlow V11 — 真实业务代码落地实施方案
 
 > **状态**：实施中；R1–R9 代码已合并；终端与生产验收最后集中进行
-> **方案基线**：master@7bb2b375fa886b094855a084f2bb8590572640a4
+> **进度核对基线**：master@6140a6e9dbec574d62029d9e73c5b0a8cf7da990（PR #141；实现方案中的早期基线仅作历史参考）
 > **最后核对**：2026-09-22  
 > **视觉来源**：用户确认的 sparkflow_ui_integrated_v11(1).html  
 > **光学玻璃参考**：VII-Cae/hyalite--liquid-glass，v0.5.0，MIT  
@@ -2012,9 +2012,13 @@ PR #135 已合并：Planner 读取近 7/28 天有效 Actual、计划对照、可
 
 ### R9 — Android Usage
 
-对应 M6，仍然最后做。
+对应 M6。
 
-PR #136 已合并：默认关闭、Android Usage Access 显式授权，只读取用户选定应用的前台使用区间；独立 AppUsageSession 与标签映射；与 Focus/手工补记分开呈现和统计，防止重叠时长被加两次。API/Web/Android PR CI 通过；生产迁移和真机验收最后集中进行。
+PR #136 已合并：默认关闭、Android Usage Access 显式授权，只读取用户选定应用的前台使用区间；独立 AppUsageSession 与标签映射；与 Focus/手工补记分开呈现和统计，防止重叠时长被加两次。PR #138 已补非法区间校验。API/Web/Android PR CI 通过；生产迁移和真机验收最后集中进行。
+
+### Issue #26 — Timeline V2 余项
+
+Issue #26 的 Timeline 衔接已分步推进：PR #139 修复跨 DST 学期周数与窄屏周网格横向滚动，PR #140 实现周网格长按空白时段、按 15 分钟刻度预填当前 ScheduleEditor。拖拽/缩放、锁定项确认和多来源只读一致性仍待实现；360px/PWA/Android 与生产验收继续集中安排。
 
 ---
 
