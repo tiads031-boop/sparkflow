@@ -22,6 +22,7 @@ interface ScheduleEditorProps {
   open: boolean;
   initialDate: Date;
   initialTime?: Date;
+  initialEnd?: Date;
   initialTask?: Task | null;
   onClose: () => void;
   onSave: (draft: ScheduleDraft) => Promise<void>;
@@ -30,29 +31,33 @@ interface ScheduleEditorProps {
 const colors = ['#b0a8db', '#eeb6c8', '#ead887', '#cae393', '#a9c9ec', '#a9dedc'];
 const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-export default function ScheduleEditor({ open, initialDate, initialTime, initialTask, onClose, onSave }: ScheduleEditorProps) {
-  const initialStart = initialTask?.scheduledStart ? new Date(initialTask.scheduledStart) : initialTime ?? initialDate;
+export default function ScheduleEditor({ open, initialDate, initialTime, initialEnd, initialTask, onClose, onSave }: ScheduleEditorProps) {
+  const initialStart = initialTime ?? (initialTask?.scheduledStart ? new Date(initialTask.scheduledStart) : initialDate);
   const [title, setTitle] = useState(initialTask?.title ?? '');
   const [date, setDate] = useState(() => localDate(initialStart));
   const [time, setTime] = useState(() => initialTask?.scheduledStart || initialTime
     ? `${String(initialStart.getHours()).padStart(2, '0')}:${String(initialStart.getMinutes()).padStart(2, '0')}`
     : '09:00');
-  const [duration, setDuration] = useState(initialTask?.estimatedMinutes ?? initialTask?.duration ?? 60);
+  const [duration, setDuration] = useState(initialEnd && initialTime
+    ? Math.max(1, Math.round((initialEnd.getTime() - initialTime.getTime()) / 60_000))
+    : initialTask?.estimatedMinutes ?? initialTask?.duration ?? 60);
   const [locked, setLocked] = useState(initialTask?.scheduleLocked ?? false);
   const [reminder, setReminder] = useState(Boolean(initialTask?.reminderAt));
   const [color, setColor] = useState(initialTask?.scheduleColor ?? colors[0]);
   const [description, setDescription] = useState(initialTask?.description ?? '');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const close = useCallback(() => onClose(), [onClose]);
   useModalLifecycle(open, close);
   if (!open) return null;
 
   const submit = async () => {
-    if (!title.trim() || duration < 1) return;
+    if (!title.trim() || duration < 1 || saving) return;
     const start = new Date(`${date}T${time}:00`);
     if (Number.isNaN(start.getTime())) return;
     const end = new Date(start.getTime() + duration * 60_000);
     setSaving(true);
+    setError(null);
     try {
       await onSave({
         taskId: initialTask?.id,
@@ -63,6 +68,8 @@ export default function ScheduleEditor({ open, initialDate, initialTime, initial
       });
       setTitle('');
       onClose();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '保存安排失败，请重试');
     } finally {
       setSaving(false);
     }
@@ -82,6 +89,7 @@ export default function ScheduleEditor({ open, initialDate, initialTime, initial
           <div className="flex gap-2"><button type="button" onClick={() => setLocked((value) => !value)} className={`flex flex-1 items-center justify-center gap-2 rounded-xl p-3 text-xs ${locked ? 'bg-[var(--sf-marker-purple)]' : 'bg-[var(--sf-bg)]'}`}><Lock size={14} />固定时间</button><button type="button" onClick={() => setReminder((value) => !value)} className={`flex flex-1 items-center justify-center gap-2 rounded-xl p-3 text-xs ${reminder ? 'bg-[var(--sf-marker-green)]' : 'bg-[var(--sf-bg)]'}`}><Bell size={14} />到时提醒</button></div>
           <div className="flex gap-2" aria-label="选择颜色">{colors.map((item) => <button type="button" key={item} onClick={() => setColor(item)} className={`h-8 flex-1 rounded-full ${color === item ? 'ring-2 ring-[var(--sf-text-primary)] ring-offset-2' : ''}`} style={{ backgroundColor: item }} />)}</div>
           <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="备注（可选）" rows={2} className="w-full resize-none rounded-[var(--sf-radius-sm)] bg-[var(--sf-bg)] px-4 py-3 text-sm outline-none" />
+          {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>}
           <button type="button" disabled={saving || !title.trim()} onClick={() => void submit()} className="w-full rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-bold text-[var(--sf-surface)] disabled:opacity-40">{saving ? '保存中…' : initialTask ? '更新安排' : '保存安排'}</button>
         </div>
       </section>

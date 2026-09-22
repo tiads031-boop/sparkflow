@@ -23,6 +23,7 @@ interface PlanWorkspaceProps {
   onTaskClick: (task: Task) => void;
   onCourseClick?: (courseId: string) => void;
   onCreateAt?: (date: Date) => void;
+  onAdjustTask?: (task: Task, start: Date, end: Date) => void;
   onPlanner: () => void;
   plannerPreview?: PlannerPreview | null;
   initialSection?: PlanSection;
@@ -52,6 +53,7 @@ export default function PlanWorkspace({
   onTaskClick,
   onCourseClick,
   onCreateAt,
+  onAdjustTask,
   onPlanner,
   plannerPreview,
   initialSection = 'calendar',
@@ -138,6 +140,14 @@ export default function PlanWorkspace({
     if (item.courseId) onCourseClick?.(item.courseId);
   };
 
+  const handleAdjustTask = (item: PlanItem, start: Date, end: Date) => {
+    if (!item.taskId || !['task', 'study-task'].includes(item.kind) || item.preview || !onAdjustTask) return;
+    const task = tasks.find((candidate) => candidate.id === item.taskId);
+    if (!task) return;
+    if (task.scheduleLocked && !window.confirm(`“${task.title}”已设为固定时间，仍要调整吗？`)) return;
+    onAdjustTask(task, start, end);
+  };
+
   const handleFocusDelete = async (item: PlanItem) => {
     if (!item.focusSessionId) return;
     if (!window.confirm('删除这条专注记录？删除后将从日程和专注统计中移除。')) return;
@@ -218,6 +228,7 @@ export default function PlanWorkspace({
                 onSelectDate={setSelectedDate}
                 onItemClick={handlePlanItemClick}
                 onCreateAt={onCreateAt}
+                onAdjustTask={handleAdjustTask}
               />
             )}
             {view === 'agenda' && (
