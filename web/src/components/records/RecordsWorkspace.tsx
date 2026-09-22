@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import type { Spark } from '../../store/appStore';
 import { useAppStore } from '../../store/appStore';
@@ -17,6 +17,7 @@ import InsightsWorkspace from './InsightsWorkspace';
 import RecordCardsView from './RecordCardsView';
 import RecordToolbar, { type RecordPanel, type RecordViewMode } from './RecordToolbar';
 import ReviewWorkspace from './ReviewWorkspace';
+const SceneCenter = lazy(() => import('./scenes/SceneCenter'));
 
 export interface RecordsWorkspaceProps {
   sparks: Spark[];
@@ -177,6 +178,7 @@ export default function RecordsWorkspace({ onAddClick }: RecordsWorkspaceProps) 
       {!panel && mode === 'cards' ? <RecordCardsView records={records} loading={loading} onOpen={setSelectedRecord} onRefresh={() => void refreshAll()} /> : null}
 
       {panel === 'insights' ? <InsightsWorkspace recordCount={records.length} /> : null}
+      {panel === 'scenes' ? <Suspense fallback={<p className="rounded-2xl bg-white p-4 text-sm">加载场景…</p>}><SceneCenter /></Suspense> : null}
 
       {!panel && mode === 'wall' && (
         records.length === 0 ? (

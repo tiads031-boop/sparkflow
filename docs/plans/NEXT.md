@@ -90,7 +90,7 @@
 - [x] R3-B1 GitHub Actions CI #324；
 - [ ] R3-B2 Capture / Record Detail、Course Detail / Import、Tag Management 二级页视觉与移动端细节；
 - [ ] R4 Time Analytics；
-- [ ] R5 Scene Core（R5-A 模型、迁移与 API 已本地完成；R5-B 页面待实现）；
+- [ ] R5 Scene Core（R5-A PR #126 已合并；R5-B 场景页面初版已实现，待自动触发、字段编辑和真机视觉验收）；
 - [ ] R6 Scene AI + Time Record Settings；
 - [ ] R7 Goal Progress；
 - [ ] R8 AI Execution Feedback；

@@ -1980,7 +1980,7 @@ measured 是系统测得事实；Planner 可以引用，但不能自动改写成
 - R5-A：SceneTemplate / SceneEntry 数据模型、迁移、模板和记录 API、基础聚合；记录只关联已有 Focus、手工补记、Inspiration 或 Task，不复制事实。
 - R5-B：Builder、Center、Detail、Heatmap/List/Photo，接入 R5-A 接口并完成 360px 移动端检查。
 
-R5-A 已完成本地实现与 API 验证；R5-B 尚未开始。生产迁移及真机验收仍需单独核对。
+R5-A 已由 PR #126 合并。R5-B 已接入记录工作区：Scene Center、模板 Builder、已有记录关联、详情的热力图/趋势/列表/照片与归档排序。自动触发、记录字段编辑、细化年度/照片交互和 360px/PWA/Android 真机视觉验收仍待收口；生产迁移单独核对。
 
 ### R6 — Scene AI + Time Record Settings
 
