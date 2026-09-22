@@ -1,6 +1,6 @@
 import { CalendarClock, LockKeyhole, Sparkles, Trash2 } from 'lucide-react';
 import type { PlanItem } from './planProjection';
-import { itemsForLocalDay } from './planProjection';
+import { clipPlanItemToLocalDay, itemsForLocalDay } from './planProjection';
 
 interface AgendaPlanViewProps {
   selectedDate: Date;
@@ -14,7 +14,7 @@ function typeLabel(item: PlanItem) {
   if (item.kind === 'course') return '课程';
   if (item.kind === 'study-task') return '学习任务';
   if (item.kind === 'task') return '任务';
-  return '日程';
+  return item.sourceLabel || '日程';
 }
 
 export default function AgendaPlanView({ selectedDate, items, onItemClick, onFocusDelete }: AgendaPlanViewProps) {
@@ -35,8 +35,9 @@ export default function AgendaPlanView({ selectedDate, items, onItemClick, onFoc
       {dayItems.length ? (
         <div className="relative space-y-2 before:absolute before:bottom-2 before:left-[42px] before:top-2 before:w-px before:bg-black/[0.07]">
           {dayItems.map((item) => {
-            const start = new Date(item.start);
-            const end = new Date(item.end);
+            const segment = clipPlanItemToLocalDay(item, selectedDate);
+            const start = new Date(segment.start);
+            const end = new Date(segment.end);
             const active = start <= now && end > now;
             return (
               <button
@@ -56,7 +57,7 @@ export default function AgendaPlanView({ selectedDate, items, onItemClick, onFoc
                     {item.locked && <LockKeyhole size={10} className="shrink-0 text-[var(--sf-text-tertiary)]" />}
                   </span>
                   <span className="mt-0.5 block text-[9px] text-[var(--sf-text-tertiary)]">
-                    {item.preview ? 'AI 预览' : typeLabel(item)} · {start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}–{end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    {item.preview ? 'AI 预览' : typeLabel(item)} · {new Date(item.start) < start ? '延续 · ' : ''}{start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}–{end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
                     {item.location ? ` · ${item.location}` : ''}
                   </span>
                   {item.preview && item.reason && <span className="mt-1 block line-clamp-2 text-[9px] text-[#6d638e]">{item.reason}</span>}

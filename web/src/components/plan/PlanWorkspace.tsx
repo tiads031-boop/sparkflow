@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { CalendarDays, Grid2X2, ListTodo, Loader2 } from 'lucide-react';
+import { CalendarDays, Grid2X2, ListTodo, Loader2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { apiRequest } from '../../api/client';
 import type { PlannerPreview, PlanView, Task } from '../../types';
 import TasksView from '../TasksView';
@@ -14,6 +15,7 @@ import { buildPlannerPreviewItems, getMonday, getSemesterWeekNumber, localDateKe
 import { usePlanItems } from './usePlanItems';
 import { useAppStore } from '../../store/appStore';
 import { readUserPreferences } from '../../utils/userPreferences';
+import { useModalLifecycle } from '../ui/useModalLifecycle';
 
 type PlanSection = 'calendar' | 'tasks';
 type TaskView = 'list' | 'quadrant';
@@ -72,6 +74,8 @@ export default function PlanWorkspace({
     return requested === 'quadrant' && !quadrantEnabled ? 'list' : requested;
   });
   const [view, setView] = useState<PlanView>(() => initialPlanView ?? readLastPlanView());
+  const [inspectedItem, setInspectedItem] = useState<PlanItem | null>(null);
+  useModalLifecycle(Boolean(inspectedItem), () => setInspectedItem(null), { isolateAppMain: true });
 
   const activeSemester = semesters.find((semester) => semester.id === activeSemesterId) ?? null;
   const planData = usePlanItems(selectedDate, view);
@@ -132,12 +136,14 @@ export default function PlanWorkspace({
   };
 
   const handlePlanItemClick = (item: PlanItem) => {
+    if (item.preview) { onPlanner(); return; }
     if (item.taskId) {
       const task = tasks.find((candidate) => candidate.id === item.taskId);
       if (task) onTaskClick(task);
       return;
     }
-    if (item.courseId) onCourseClick?.(item.courseId);
+    if (item.courseId && onCourseClick) { onCourseClick(item.courseId); return; }
+    if (item.kind === 'calendar' || item.kind === 'course') setInspectedItem(item);
   };
 
   const handleAdjustTask = (item: PlanItem, start: Date, end: Date) => {
@@ -157,6 +163,27 @@ export default function PlanWorkspace({
 
   return (
     <div className="min-h-full animate-page-enter pb-24">
+      {inspectedItem && createPortal(
+        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/30 px-3 sm:items-center"
+          role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setInspectedItem(null); }}>
+          <section role="dialog" aria-modal="true" aria-label="查看只读日程"
+            className="mb-[env(safe-area-inset-bottom,0px)] w-full max-w-lg rounded-t-[2rem] bg-[var(--sf-surface)] p-5 shadow-2xl sm:rounded-[2rem]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0"><p className="text-[10px] font-bold text-[var(--sf-text-tertiary)]">{inspectedItem.sourceLabel || '课程'}</p>
+                <h2 className="mt-1 text-lg font-bold text-[var(--sf-text-primary)]">{inspectedItem.title}</h2></div>
+              <button type="button" onClick={() => setInspectedItem(null)} aria-label="关闭日程详情" className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--sf-bg)]"><X size={16} /></button>
+            </div>
+            <p className="mt-4 text-xs leading-6 text-[var(--sf-text-secondary)]">
+              {new Date(inspectedItem.start).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' })}
+              {' 至 '}
+              {new Date(inspectedItem.end).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' })}
+              {inspectedItem.location ? ` · ${inspectedItem.location}` : ''}
+            </p>
+            <p className="mt-3 rounded-xl bg-[var(--sf-bg)] px-3 py-2 text-xs text-[var(--sf-text-tertiary)]">
+              此处仅供查看；请在对应的来源中修改原记录。
+            </p>
+          </section>
+        </div>, document.body)}
       {section !== 'tasks' && <PlanHeader
         view={view}
         title={headerCopy.title}

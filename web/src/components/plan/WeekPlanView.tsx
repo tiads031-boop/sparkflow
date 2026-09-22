@@ -157,7 +157,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                 const itemLayouts = layoutTimetableIntervals(dayItems.flatMap((item) => {
                   const start = new Date(item.start);
                   const end = new Date(item.end);
-                  const visibleStart = Math.max(minutesOfDay(start), START_HOUR * 60);
+                  const visibleStart = localDateKey(start) !== localDateKey(day) ? 0 : Math.max(minutesOfDay(start), START_HOUR * 60);
                   const visibleEnd = Math.min(localDateKey(end) !== localDateKey(day) ? 1440 : minutesOfDay(end), END_HOUR * 60);
                   if (visibleEnd <= START_HOUR * 60 || visibleStart >= END_HOUR * 60) return [];
                   return [{
@@ -229,7 +229,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                             borderLeftColor: item.color,
                             backgroundColor: item.preview ? '#eeeafd' : cardBackground(item.color),
                           }}
-                          title={item.title}
+                          title={`${item.title}${item.sourceLabel ? ` · ${item.sourceLabel}` : ''}`}
                         >
                           <span
                             className="block overflow-hidden break-words text-[8px] font-black leading-[10px] text-[#242424]"
@@ -237,8 +237,10 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                           >
                             {item.preview ? '✨ ' : ''}{item.title}
                           </span>
-                          {height >= 44 && laneCount === 1 && item.location && (
-                            <span className="mt-0.5 block truncate text-[7px] leading-[9px] text-gray-500">@{item.location}</span>
+                          {height >= 44 && laneCount === 1 && (item.location || item.sourceLabel?.includes('日历')) && (
+                            <span className="mt-0.5 block truncate text-[7px] leading-[9px] text-gray-500">
+                              {item.sourceLabel?.includes('日历') ? item.sourceLabel : `@${item.location}`}
+                            </span>
                           )}
                           <span className="absolute bottom-0.5 right-0.5 flex items-center gap-0.5 text-gray-500">
                             {item.scheduleSource === 'ai' && <Sparkles size={7} />}

@@ -13,6 +13,7 @@ export interface PlanItem {
   locked: boolean;
   completed: boolean;
   location?: string;
+  sourceLabel?: string;
   taskId?: string;
   focusSessionId?: string;
   courseId?: string;
@@ -283,13 +284,17 @@ function buildCalendarItems(events: CalendarEvent[], range: DateRange): PlanItem
 
     const start = new Date(event.startTime);
     const end = new Date(event.endTime);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || !intersects(start, end, range)) return [];
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start || !intersects(start, end, range)) return [];
 
     const isCourse = event.eventType?.toLowerCase() === 'course' || Boolean(event.courseId);
     const isFocus = event.eventType?.toLowerCase() === 'focus' || Boolean(event.focusSessionId);
     // Focus CalendarEvents are compatibility projections. Actual Timeline reads
     // PomodoroSession directly so planned views never double-count execution.
     if (isFocus) return [];
+    const source = `${event.eventType || ''} ${event.externalSource || ''}`.toLowerCase();
+    const sourceLabel = isCourse ? '课程' : source.includes('google') ? 'Google 日历'
+      : source.includes('local') || source.includes('android') ? '本地日历'
+      : '日程';
     return [{
       id: `calendar:${event.id}`,
       kind: isCourse ? 'course' : 'calendar',
@@ -298,9 +303,10 @@ function buildCalendarItems(events: CalendarEvent[], range: DateRange): PlanItem
       start: start.toISOString(),
       end: end.toISOString(),
       color: event.color || (isCourse ? '#60a5fa' : '#f4b860'),
-      locked: event.scheduleLocked ?? true,
+      locked: true,
       completed: false,
       location: event.location || undefined,
+      sourceLabel: event.sourceCalendarTitle ? `${sourceLabel} · ${event.sourceCalendarTitle}` : sourceLabel,
       courseId: event.courseId,
       taskId: event.focusSession?.taskId || undefined,
       focusSessionId: event.focusSessionId || undefined,
@@ -402,8 +408,23 @@ export function buildPlannerPreviewItems(preview: PlannerPreview | null | undefi
 }
 
 export function itemsForLocalDay(items: PlanItem[], date: Date): PlanItem[] {
-  const key = localDateKey(date);
+  const start = startOfLocalDay(date);
+  const end = addLocalDays(start, 1);
   return items
-    .filter((item) => localDateKey(item.start) === key)
+    .filter((item) => {
+      const itemStart = new Date(item.start);
+      const itemEnd = new Date(item.end);
+      return itemStart < end && itemEnd > start;
+    })
     .toSorted((left, right) => new Date(left.start).getTime() - new Date(right.start).getTime());
+}
+
+export function clipPlanItemToLocalDay(item: PlanItem, date: Date): PlanItem {
+  const start = startOfLocalDay(date);
+  const end = addLocalDays(start, 1);
+  return {
+    ...item,
+    start: new Date(Math.max(start.getTime(), new Date(item.start).getTime())).toISOString(),
+    end: new Date(Math.min(end.getTime(), new Date(item.end).getTime())).toISOString(),
+  };
 }
