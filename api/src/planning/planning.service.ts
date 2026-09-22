@@ -31,6 +31,8 @@ import { WebResearchService } from '../research/web-research.service';
 import { CourseIntegrationsService } from '../course/course-integrations.service';
 import { templateData } from '../scenes/scene-schema';
 import { parseTimeTrackingPreferences } from '../users/time-tracking-preferences';
+import { AnalyticsService } from '../analytics/analytics.service';
+import { loadExecutionFeedback } from './execution-feedback';
 
 const SCOPE_TYPES = new Set(['general', 'goal', 'day', 'task', 'course']);
 const FACT_STATUSES = new Set<PlanningFactStatus>(['confirmed', 'inferred', 'assumed']);
@@ -308,6 +310,7 @@ export class PlanningService {
     @Inject(AI_PROVIDER) private readonly ai: AIProvider,
     private readonly research: WebResearchService,
     @Optional() private readonly holidayIntegrations?: CourseIntegrationsService,
+    @Optional() private readonly analytics?: AnalyticsService,
   ) {}
 
   async createThread(
@@ -701,6 +704,27 @@ export class PlanningService {
       );
     }
 
+    // Analytics is a separate, read-only fact source; it must never be written
+    // into the thread's confirmed preferences or strategy.
+    let executionFeedback;
+    if (this.analytics) {
+      try {
+        executionFeedback = await loadExecutionFeedback(
+          this.analytics,
+          userId,
+          currentTime,
+          timeZone,
+          thread.scopeType === 'goal' ? thread.scopeId : null,
+        );
+      } catch {
+        // Planning remains usable when an analytics query fails. The model
+        // receives no feedback rather than a fabricated zero-filled snapshot.
+      }
+    }
+    if (goalExecution && executionFeedback?.goalActualMinutesLast7Days !== undefined) {
+      goalExecution.focusMinutesLast7Days = executionFeedback.goalActualMinutesLast7Days;
+    }
+
     let holidayCalendar: PlanningHolidayDaySnapshot[] = [];
     if (thread.scopeType !== 'goal' && this.holidayIntegrations) {
       const yearAtStart = yearInTimeZone(currentTime, timeZone);
@@ -740,6 +764,7 @@ export class PlanningService {
         title: thread.title,
       },
       goalExecution,
+      executionFeedback,
       currentTime: currentTime.toISOString(),
       timeZone,
     };

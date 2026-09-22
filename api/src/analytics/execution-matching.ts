@@ -76,6 +76,7 @@ function describeMatch(
     confidence,
     startDeltaMinutes,
     durationDeltaMinutes,
+    plannedStart: planned.start.toISOString(),
   };
 }
 

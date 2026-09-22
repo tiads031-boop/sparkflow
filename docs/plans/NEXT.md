@@ -2,7 +2,7 @@
 
 > **最后更新**：2026-09-22  
 > **仓库代码基线**：`master@7bb2b375fa886b094855a084f2bb8590572640a4`（PR #132 已合并）
-> **开发状态**：R1–R6 已合并；R7-A 已合并，R7-B [PR #133](https://github.com/tiads031-boop/sparkflow/pull/133) 开放中且 CI #349 通过；R8/R9 尚未实施。
+> **开发状态**：R1–R7-B 已合并（#133 的 CI #352 通过）；R8 执行反馈接入中；R9 尚未实施。
 > **最近有直接回显的生产版本**：`990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21 `/api/health.buildSha`；当前运行版本须在发布时重新核对）。
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
@@ -93,9 +93,9 @@
 - [x] R5 Scene Core 代码（PR #126/#127/#128 已合并；细节与真机验收另行收口）；
 - [x] R6 Scene AI + Time Record Settings（R6-A/B/C PR #129/#130/#131 已合并）；
 - [x] R7-A Goal Progress 数据模型、三类聚合及数值进度 API（PR #132 已合并）；
-- [ ] R7-B Goal Progress 界面（PR #133 开放，CI #349 通过，待评审合并）；
+- [x] R7-B Goal Progress 界面（PR #133 已合并，CI #352 通过）；
 - [ ] R7-C 空态/错误态和发布验收（终端/生产部分放到最终集中验收）；
-- [ ] R8 AI Execution Feedback；
+- [ ] R8 AI Execution Feedback（执行摘要与来源约束的代码分支开发中）；
 - [ ] R9 Android Usage。
 
 代码存在、合并、部署和真机验收分别记录，不以 CI 通过代替发布验收。
@@ -168,11 +168,11 @@ M1 当前收口顺序：
 - [x] 7 天 / 30 天 / 12 周范围、加载 / 无数据 / 错误状态；
 - [ ] 目标投入与时间分析联动的产品回归及生产真实数据验收。
 
-### M4 — Goal Progress（R7-A 已合并，R7-B PR #133 待合并）
+### M4 — Goal Progress（R7-A/B 已合并，终端/生产验收待集中进行）
 
 - [x] Task / Numeric / Time 统一聚合 API，Focus 按有效 Actual 计入时间型指标；
 - [x] 可审计的 Numeric 进度条目 API；
-- [ ] 学习目标主指标、编辑与数值条目界面（PR #133）；
+- [x] 学习目标主指标、编辑与数值条目界面（PR #133）；
 - [ ] 普通任务默认不强制进度条。
 
 ### M5 — AI Behavior Feedback
@@ -225,7 +225,7 @@ M1 当前收口顺序：
 
 ## 5. 当前执行顺序
 
-1. 评审合并 R7-B PR #133，完成 R7-C 的非终端代码收口。
+1. 收口 R7-C 的非终端代码部分；终端/生产验收留到最后。
 2. 实施 R8 / M5 AI Execution Feedback：真实执行摘要进入 Planner Context，解释来源，建议继续走 Preview → Apply → Undo。
 3. 实施 R9 / M6 Android Usage（明确授权、默认关闭、独立事实表），随后处理仍适用的 Issue #26 Timeline 余项。
 4. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
