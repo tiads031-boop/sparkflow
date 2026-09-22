@@ -148,7 +148,7 @@ export class AnalyticsService {
     const dimension = requireOption(dimensionValue, dimensions, 'dimension');
     const duration = range.end.getTime() - range.start.getTime();
     const previousStart = new Date(range.start.getTime() - duration);
-    const [facts, previousFacts, tagRecords] = await Promise.all([
+    const [facts, previousFacts, tagRecords, appSessions] = await Promise.all([
       this.loadActualFacts(userId, range.start, range.end),
       this.loadActualFacts(userId, previousStart, range.start),
       dimension === 'tag'
@@ -157,7 +157,19 @@ export class AnalyticsService {
             select: { name: true, color: true },
           })
         : Promise.resolve([]),
+      this.prisma.appUsageSession?.findMany({
+        where: { userId, startTime: { lt: range.end }, endTime: { gt: range.start } },
+        orderBy: { startTime: 'desc' },
+        take: 10_001,
+        select: { startTime: true, endTime: true, tagName: true },
+      }) ?? Promise.resolve([]),
     ]);
+    const appTagSeconds = new Map<string, number>();
+    for (const session of appSessions.slice(0, 10_000)) {
+      const tag = session.tagName || '未分类';
+      appTagSeconds.set(tag, (appTagSeconds.get(tag) ?? 0) +
+        overlapSeconds(session.startTime, session.endTime, range.start, range.end));
+    }
     const tagColors = new Map(tagRecords.map((tag) => [tag.name, tag.color]));
     const bucketMap = new Map<
       string,
@@ -219,6 +231,13 @@ export class AnalyticsService {
         (sum, fact) => sum + fact.effectiveDurationSeconds,
         0,
       ),
+      appUsage: {
+        totalSeconds: [...appTagSeconds.values()].reduce((sum, seconds) => sum + seconds, 0),
+        sessionCount: Math.min(appSessions.length, 10_000),
+        truncated: appSessions.length > 10_000,
+        byTag: [...appTagSeconds.entries()].map(([name, seconds]) => ({ name, seconds }))
+          .sort((a, b) => b.seconds - a.seconds),
+      },
       buckets: [...bucketMap.entries()]
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([key, value]) => ({
