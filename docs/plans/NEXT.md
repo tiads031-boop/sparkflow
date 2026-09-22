@@ -1,8 +1,8 @@
 # SparkFlow — 下一步执行队列
 
 > **最后更新**：2026-09-23  
-> **仓库代码基线**：`master@ede2a343e275c06bb6867f65fa3abaa18316c330`（PR #145 已合并；后续文档提交不改变功能基线）
-> **开发状态**：R1–R9 代码已合并；R9 非法区间校验补丁 #138、Timeline 分步改动 #139/#140/#144/#145 已合并。Gantt 正式入口与多来源投影在 `feat/timeline-gantt-entry-20260923` 开发分支，合并状态须以 PR/CI 为准。R7-C 空态/错误态代码已由 #143 合并；Issue #26 终端/生产验收待功能完成后集中进行。
+> **仓库代码基线**：`master@d2ad7a15792919cb7e2edcf96fae0a2e0621ab94`（PR #146 已合并；后续文档提交不改变功能基线）
+> **开发状态**：R1–R9 代码已合并；R9 非法区间校验补丁 #138、Timeline 分步改动 #139/#140/#144/#145 已合并。Gantt 正式入口与多来源投影已由 PR #146 合并，Web CI 与 Android APK 构建通过。R7-C 空态/错误态代码已由 #143 合并；Issue #26 终端/生产验收待功能完成后集中进行。
 > **最近有直接回显的生产版本**：`990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21 `/api/health.buildSha`；当前运行版本须在发布时重新核对）。
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
@@ -14,7 +14,7 @@
 
 - 五工作空间：今天 / 计划 / 记录 / 学习 / 我的；
 - Month / Week / Agenda 计划视图与 Task / Course / CalendarEvent 统一投影；
-- 周视图 00:00–24:00、半小时辅助线、当前时间线；跨 DST 学期周数、窄屏横向滚动、空白格长按及单日 Task 拖动/缩放已合入（#139/#140/#144）；Gantt 入口及真机验收仍属 Issue #26 待办；
+- 周视图 00:00–24:00、半小时辅助线、当前时间线；跨 DST 学期周数、窄屏横向滚动、空白格长按及单日 Task 拖动/缩放已合入（#139/#140/#144）；Gantt 入口已由 #146 合并，真机验收仍属 Issue #26 待办；
 - 待办列表 / 四象限；
 - 对话式 AI Planner、持续 PlanningThread、语音、SearXNG Research；
 - Preview → Apply → Undo；
@@ -225,7 +225,7 @@ M1 当前收口顺序：
 
 ## 5. 当前执行顺序
 
-1. 完成 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项。PR #139/#140/#144/#145 已合并；Gantt 新入口及 Task/Course/Google/本地日历两周投影、任务拖动草案正在 `feat/timeline-gantt-entry-20260923` 分支，待远端 CI/合并。360/390/430px、PWA、Android 横向滚动/长按/拖动及跨时区真实验收仍待集中执行；不要提前关闭 Issue #26。
+1. 完成 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项。PR #139/#140/#144/#145 已合并；PR #146 已合并：Gantt 新入口及 Task/Course/Google/本地日历两周投影、任务拖动草案；Web CI 与 Android APK 构建通过。360/390/430px、PWA、Android 横向滚动/长按/拖动及跨时区真实验收仍待集中执行；不要提前关闭 Issue #26。
 2. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
 3. 最后核对生产 buildSha、migrations、真实账号链路与 Issue #31 导入幂等，记录发布结果。
 
