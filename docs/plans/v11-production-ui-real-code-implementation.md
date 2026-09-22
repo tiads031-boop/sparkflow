@@ -2018,7 +2018,7 @@ PR #136 已合并：默认关闭、Android Usage Access 显式授权，只读取
 
 ### Issue #26 — Timeline V2 余项
 
-Issue #26 的 Timeline 衔接已分步推进：PR #139 修复跨 DST 学期周数与窄屏周网格横向滚动，PR #140 实现周网格长按空白时段、按 15 分钟刻度预填当前 ScheduleEditor。PR #144 已合并：单日 Task 的周网格拖动/缩放先生成草案、经 ScheduleEditor 确认保存，固定项增加确认；跨午夜项目仍用编辑器，课程和外部日历不进入修改链路。PR #145 已合并：统一跨午夜任务/日历事项在月、周、日程和 Actual 计划对照中的投影，并为 Google/本地日历添加来源标识与只读详情。旧 CalendarView 内的 GanttView 当前不在 App 的 PlanWorkspace 路由中；正式入口和多来源一致性仍待确定，360px/PWA/Android 真机及生产验收仍待完成。
+Issue #26 的 Timeline 衔接已分步推进：PR #139 修复跨 DST 学期周数与窄屏周网格横向滚动，PR #140 实现周网格长按空白时段、按 15 分钟刻度预填当前 ScheduleEditor。PR #144 已合并：单日 Task 的周网格拖动/缩放先生成草案、经 ScheduleEditor 确认保存，固定项增加确认；跨午夜项目仍用编辑器，课程和外部日历不进入修改链路。PR #145 已合并：统一跨午夜任务/日历事项在月、周、日程和 Actual 计划对照中的投影，并为 Google/本地日历添加来源标识与只读详情。`feat/timeline-gantt-entry-20260923` 分支把两周甘特入口放入 Plan 工具栏，复用统一 PlanItem 日期范围及来源，只允许任务拖动生成 ScheduleEditor 草案、固定项由既有流程确认；课程/外部日历保持只读。该分支本地 Web build、97 tests、定向 ESLint 与跨 DST 时区测试通过；远端 CI/合并、360/390/430px/PWA/Android 真机及生产验收仍待完成。
 
 ---
 

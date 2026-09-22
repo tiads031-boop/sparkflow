@@ -7,6 +7,7 @@ const viewLabels: Record<PlanView, string> = {
   month: '月',
   agenda: '日程',
   timeline: '实际',
+  gantt: '甘特',
 };
 
 interface PlanHeaderProps {
@@ -45,7 +46,7 @@ export function PlanTitleBar({
 export function PlanViewToolbar({ view, onSelectView, onPlanner }: Pick<PlanHeaderProps, 'view' | 'onSelectView' | 'onPlanner'>) {
   return (
     <div className="mt-4 flex items-center gap-2">
-      <GlassSurface variant="surface" className="grid min-w-0 flex-1 grid-cols-4 p-1" role="group" aria-label="计划视图">
+      <GlassSurface variant="surface" className="grid min-w-0 flex-1 grid-cols-5 p-1" role="group" aria-label="计划视图">
         {(Object.keys(viewLabels) as PlanView[]).map((item) => (
           <button
             key={item}
