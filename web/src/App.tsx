@@ -24,6 +24,7 @@ const PlanWorkspace = lazy(() => import('./components/plan/PlanWorkspace'));
 const TodayWorkspace = lazy(() => import('./components/today/TodayWorkspace'));
 const RecordsWorkspace = lazy(() => import('./components/records/RecordsWorkspace'));
 const ProfileWorkspace = lazy(() => import('./components/profile/ProfileWorkspace'));
+const TimeAnalyticsView = lazy(() => import('./components/analytics/TimeAnalyticsView'));
 
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
@@ -94,7 +95,7 @@ export default function App() {
   const [plannerAutoVoice, setPlannerAutoVoice] = useState(false);
   const [plannerSeed, setPlannerSeed] = useState('');
   const [plannerPreview, setPlannerPreview] = useState<PlannerPreview | null>(null);
-  const [scheduleSurface, setScheduleSurface] = useState<'today' | 'plan' | 'actual'>(() => activeTab === 'timeline' ? 'actual' : 'today');
+  const [scheduleSurface, setScheduleSurface] = useState<'today' | 'plan' | 'actual' | 'analytics'>(() => activeTab === 'timeline' ? 'actual' : 'today');
   const activeWorkspace = workspaceTabForRoute(activeTab) ?? 'today';
   const isSchedulePlanRoute = activeWorkspace === 'today' && (activeTab === 'timeline' || scheduleSurface !== 'today');
   const isTaskPlanRoute = activeTab === 'plan' || activeTab === 'tasks' || activeTab === 'board';
@@ -382,10 +383,19 @@ export default function App() {
                 onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
                 onOpenPlan={() => setScheduleSurface('plan')}
                 onOpenActual={() => setScheduleSurface('actual')}
+                onOpenAnalytics={() => setScheduleSurface('analytics')}
               />
             </Suspense>
           )}
-          {(isSchedulePlanRoute || isTaskPlanRoute) && (
+          {activeWorkspace === 'today' && scheduleSurface === 'analytics' && (
+            <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在计算时间分析…</div>}>
+              <TimeAnalyticsView
+                onBack={() => setScheduleSurface('today')}
+                onOpenActual={() => setScheduleSurface('actual')}
+              />
+            </Suspense>
+          )}
+          {((isSchedulePlanRoute && scheduleSurface !== 'analytics') || isTaskPlanRoute) && (
             <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开计划空间…</div>}>
               <PlanWorkspace
                 key={`${activeTab}:${scheduleSurface}`}

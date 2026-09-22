@@ -22,6 +22,7 @@ import { AppService } from './app.service';
 import { StudyModule } from './study/study.module';
 import { PlanningModule } from './planning/planning.module';
 import { TagsModule } from './tags/tags.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { TagsModule } from './tags/tags.module';
     StudyModule,
     PlanningModule,
     TagsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
