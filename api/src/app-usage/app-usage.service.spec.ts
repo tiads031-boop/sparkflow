@@ -40,6 +40,8 @@ describe('AppUsageService', () => {
       },
     };
     const service = new AppUsageService(prisma as never);
+    await expect(service.ingest('owner', [null as never])).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.appUsageMapping.findMany).not.toHaveBeenCalled();
     expect(await service.ingest('owner', [interval])).toEqual({ inserted: 1 });
     expect(prisma.appUsageMapping.findMany).toHaveBeenCalledWith({
       where: {
