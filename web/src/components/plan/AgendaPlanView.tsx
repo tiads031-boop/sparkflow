@@ -1,6 +1,6 @@
 import { CalendarClock, LockKeyhole, Sparkles, Trash2 } from 'lucide-react';
 import type { PlanItem } from './planProjection';
-import { clipPlanItemToLocalDay, itemsForLocalDay } from './planProjection';
+import { clipPlanItemToLocalDay, itemsForLocalDay, localDateKey } from './planProjection';
 
 interface AgendaPlanViewProps {
   selectedDate: Date;
@@ -57,7 +57,7 @@ export default function AgendaPlanView({ selectedDate, items, onItemClick, onFoc
                     {item.locked && <LockKeyhole size={10} className="shrink-0 text-[var(--sf-text-tertiary)]" />}
                   </span>
                   <span className="mt-0.5 block text-[9px] text-[var(--sf-text-tertiary)]">
-                    {item.preview ? 'AI 预览' : typeLabel(item)} · {new Date(item.start) < start ? '延续 · ' : ''}{start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}–{end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    {item.preview ? 'AI 预览' : typeLabel(item)} · {new Date(item.start) < start ? '延续 · ' : ''}{start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}–{end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}{localDateKey(end) !== localDateKey(selectedDate) ? '（次日）' : ''}
                     {item.location ? ` · ${item.location}` : ''}
                   </span>
                   {item.preview && item.reason && <span className="mt-1 block line-clamp-2 text-[9px] text-[#6d638e]">{item.reason}</span>}
