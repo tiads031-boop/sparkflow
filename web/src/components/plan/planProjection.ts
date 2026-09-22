@@ -62,7 +62,7 @@ export function getMonday(date: Date): Date {
   return result;
 }
 
-export function getPlanRange(date: Date, view: 'month' | 'week' | 'agenda' | 'timeline' | 'timetable'): DateRange {
+export function getPlanRange(date: Date, view: 'month' | 'week' | 'agenda' | 'timeline' | 'timetable' | 'gantt'): DateRange {
   if (view === 'month') {
     const start = new Date(date.getFullYear(), date.getMonth(), 1);
     return { start, end: new Date(date.getFullYear(), date.getMonth() + 1, 1) };
@@ -74,7 +74,7 @@ export function getPlanRange(date: Date, view: 'month' | 'week' | 'agenda' | 'ti
   }
 
   const start = getMonday(date);
-  return { start, end: addLocalDays(start, 7) };
+  return { start, end: addLocalDays(start, view === 'gantt' ? 14 : 7) };
 }
 
 export function localDateKey(value: string | Date): string {

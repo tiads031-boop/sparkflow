@@ -10,6 +10,7 @@ import ActualTimelineView from './ActualTimelineView';
 import MonthPlanView from './MonthPlanView';
 import PlanHeader from './PlanHeader';
 import WeekPlanView from './WeekPlanView';
+import GanttPlanView from './GanttPlanView';
 import { readLastPlanView, writeLastPlanView } from './planPreferences';
 import { buildPlannerPreviewItems, getMonday, getSemesterWeekNumber, localDateKey, type PlanItem } from './planProjection';
 import { usePlanItems } from './usePlanItems';
@@ -83,7 +84,7 @@ export default function PlanWorkspace({
     () => buildPlannerPreviewItems(plannerPreview, tasks),
     [plannerPreview, tasks],
   );
-  const visibleItems = view === 'week' || view === 'agenda' || view === 'timeline'
+  const visibleItems = view === 'week' || view === 'agenda' || view === 'timeline' || view === 'gantt'
     ? [...planData.items, ...previewItems]
     : planData.items;
   const semesterWeek = getSemesterWeekNumber(selectedDate, activeSemester);
@@ -106,7 +107,7 @@ export default function PlanWorkspace({
 
     const monday = getMonday(selectedDate);
     const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
+    sunday.setDate(monday.getDate() + (view === 'gantt' ? 13 : 6));
     return {
       title: semesterWeek
         ? `第 ${semesterWeek} 周${currentWeek ? '' : '（非本周）'}`
@@ -130,7 +131,7 @@ export default function PlanWorkspace({
       const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
       next.setDate(Math.min(day, lastDay));
     } else {
-      next.setDate(next.getDate() + direction * (view === 'agenda' || view === 'timeline' ? 1 : 7));
+      next.setDate(next.getDate() + direction * (view === 'agenda' || view === 'timeline' ? 1 : view === 'gantt' ? 14 : 7));
     }
     setSelectedDate(next);
   };
@@ -276,6 +277,9 @@ export default function PlanWorkspace({
                   if (task) onTaskClick(task);
                 }}
               />
+            )}
+            {view === 'gantt' && (
+              <GanttPlanView items={visibleItems} selectedDate={selectedDate} onItemClick={handlePlanItemClick} onAdjustTask={handleAdjustTask} />
             )}
           </>
         )}

@@ -8,6 +8,7 @@ test('Plan view preference accepts only supported view ids', () => {
   assert.equal(isPlanView('agenda'), true);
   assert.equal(isPlanView('timetable'), false);
   assert.equal(isPlanView('timeline'), true);
+  assert.equal(isPlanView('gantt'), true);
   assert.equal(isPlanView(null), false);
 });
 
