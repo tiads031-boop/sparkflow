@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-23
-> **代码同步基线**：`master@76f8f77db2d6ed1abda8d98c4303d6c17b1a544f`（PR #144）；V11 R1–R9 与 R7-C 已合并，Issue #26 的周视图周数/横向滚动、长按创建及单日 Task 拖动/缩放已分步合并，跨视图与真机余项仍开放。最近有直接回显的生产版本为 `990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21）。
+> **代码同步基线**：`master@ede2a343e275c06bb6867f65fa3abaa18316c330`（PR #145）；V11 R1–R9 与 R7-C 已合并，Issue #26 的周网格交互、跨午夜多视图投影与同步日历只读详情已分步合并；Gantt 入口和真机余项仍开放。最近有直接回显的生产版本为 `990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21）。
 
 ---
 
@@ -148,7 +148,7 @@ flowchart TD
 
 - Month / Week / Agenda 继续使用 Task / Course / CalendarEvent 统一投影。
 - 周视图已覆盖 00:00–24:00、半小时辅助线和当前时间线。
-- PR #139/#140/#144 已补充跨 DST 学期周数、窄屏横向滚动、长按空白格创建与单日 Task 拖动/缩放；多来源只读和跨视图一致性仍属 Issue #26 待办，移动端验收集中在功能完成后。
+- PR #139/#140/#144 已补充跨 DST 学期周数、窄屏横向滚动、长按空白格创建与单日 Task 拖动/缩放；跨午夜投影与多来源只读详情已由 PR #145 合并；Gantt 入口和真机一致性仍属 Issue #26 待办，移动端验收集中在功能完成后。
 - 未排期待办不再因为 dueDate 被伪装成真实日程。
 - 下一轮 Timeline 2.0 将把 PomodoroSession 等真实执行数据作为 Actual Time，并与 Planned Time 分层展示。
 - 详细方案见 `docs/plans/vnext-execution-intelligence-ui-system.md`。
@@ -348,7 +348,7 @@ VNext M6 已进入主线：
 - ⚠️ 本次 Vercel 由 GitHub codeload 源码手工发布，deployment `meta` 为空；尝试仅补 Git metadata 的第二次部署被 Hobby 每日 deployment 限额拒绝。功能部署已成功，本蓝图/NEXT 记录 `e883b9a3 → dpl_BSM7vB7tF2V43sfDLw8cNPH2Pf6e` 的发布映射。
 - ✅ PR #27：旧 Phase 12 安全测试分支已关闭，由 #28/#29/#30/#36 覆盖。
 - 🚧 Issue #31：当前 Phase 12 生产验收主线。
-- 🚧 Issue #26：周网格交互已分步合并；继续跨视图一致性，终端与生产验收最后集中进行。
+- 🚧 Issue #26：周网格与跨午夜投影已分步合并；继续 Gantt 入口与跨视图验收，终端与生产验收最后集中进行。
 
 ---
 
@@ -364,7 +364,7 @@ VNext M6 已进入主线：
 | P1 | HTTP 未知结果恢复仍缺端到端证据 | 前端按 requestId 查询 + 服务端 replay；真实 PG 已验证最终状态 | 模拟客户端超时/断连后查询并恢复已提交结果 |
 | P1 | Vercel Hobby deployment 日配额 / 本次 Git metadata 缺失 | GitHub CI 独立；Git 自动 deployments 已关闭；VNext Production 首次手工发布已成功，仓库记录 SHA→deployment 映射 | 等额度恢复后的下一次正常 Git 可追溯发布自然覆盖；不为补 metadata 重复消耗当日 deployment |
 | ✅ | Push 到期提醒跨用户风险 | PR #55 已增加 user 分组、同 user subscriptions、server-only notification_deliveries 唯一 delivery key | 代码/migration/CI 已收口；生产 API 下一次部署应用 migration |
-| P1 | Issue #26 Timeline M3 尚未验收完成 | 当前主线仍保留 Gantt | 最新 master 上通过多来源、移动端、DST/边界验收 |
+| P1 | Issue #26 Timeline M3 尚未验收完成 | 旧 Gantt 组件仍在仓库，但当前主路由无入口 | 最新 master 上通过多来源、移动端、DST/边界验收 |
 
 ---
 
