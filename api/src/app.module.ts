@@ -24,6 +24,7 @@ import { PlanningModule } from './planning/planning.module';
 import { TagsModule } from './tags/tags.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ScenesModule } from './scenes/scenes.module';
+import { AppUsageModule } from './app-usage/app-usage.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { ScenesModule } from './scenes/scenes.module';
     TagsModule,
     AnalyticsModule,
     ScenesModule,
+    AppUsageModule,
   ],
   controllers: [AppController],
   providers: [
