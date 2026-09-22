@@ -16,4 +16,5 @@ export const reorderScenes = (ids: string[]) => api.post<SceneTemplate[]>('/scen
 export const listSceneEntries = (id: string, start: string, end: string, cursor?: string) => api.get<{ items: SceneEntry[]; nextCursor: string | null }>(`${path(id)}/entries?${new URLSearchParams({ start, end, limit: '30', ...(cursor ? { cursor } : {}) })}`, required);
 export const sceneAnalytics = (id: string, start: string, end: string, timeZone: string, bucket: 'day' | 'week' | 'month' = 'day') => api.get<SceneAnalytics>(`${path(id)}/analytics?${new URLSearchParams({ start, end, timeZone, bucket })}`, required);
 export const createSceneEntry = (id: string, input: Record<string, unknown>) => api.post<SceneEntry>(`${path(id)}/entries`, input, required);
+export const updateSceneEntry = (id: string, entryId: string, input: { occurredAt: string; metadata: Record<string, string | number>; tags: string[] }) => api.patch<SceneEntry>(`${path(id)}/entries/${encodeURIComponent(entryId)}`, input, required);
 export const deleteSceneEntry = (id: string, entryId: string) => api.delete(`${path(id)}/entries/${encodeURIComponent(entryId)}`, required);
