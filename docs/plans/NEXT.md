@@ -225,7 +225,7 @@ M1 当前收口顺序：
 
 ## 5. 当前执行顺序
 
-1. 完成 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项。PR #139 已修复跨 DST 的学期周数与窄屏周网格横向滚动；PR #140 已接入周网格长按创建。继续处理 15 分钟吸附的拖拽/缩放、锁定项确认、只读课程/Google/本地日历及 Month / Week / Timeline / Gantt 一致性；不要提前关闭 Issue #26。
+1. 完成 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项。PR #139 修复跨 DST 学期周数与窄屏滚动，PR #140 接入空白网格长按创建。本轮开发周网格 Task 拖动/缩放草案，通过现有 ScheduleEditor 确认保存，固定项先确认，移动保持任意分钟时长；仍需只读课程/Google/本地日历及 Month / Week / Timeline / Gantt 一致性和真机验收。不要提前关闭 Issue #26。
 2. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
 3. 最后核对生产 buildSha、migrations、真实账号链路与 Issue #31 导入幂等，记录发布结果。
 

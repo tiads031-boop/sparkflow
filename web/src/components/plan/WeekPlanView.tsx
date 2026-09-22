@@ -1,8 +1,9 @@
-import { useEffect, useRef, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { LockKeyhole, Sparkles } from 'lucide-react';
 import type { PlanItem } from './planProjection';
 import { itemsForLocalDay, localDateKey } from './planProjection';
 import { layoutTimetableIntervals } from './timetableLayout';
+import { proposeWeekAdjustment, type WeekAdjustmentMode } from './weekAdjustment';
 
 const START_HOUR = 0;
 const END_HOUR = 24;
@@ -24,11 +25,19 @@ interface WeekPlanViewProps {
   onSelectDate: (date: Date) => void;
   onItemClick?: (item: PlanItem) => void;
   onCreateAt?: (date: Date) => void;
+  onAdjustTask?: (item: PlanItem, start: Date, end: Date) => void;
 }
 
-export default function WeekPlanView({ selectedDate, items, onSelectDate, onItemClick, onCreateAt }: WeekPlanViewProps) {
+export default function WeekPlanView({ selectedDate, items, onSelectDate, onItemClick, onCreateAt, onAdjustTask }: WeekPlanViewProps) {
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressOrigin = useRef<{ x: number; y: number } | null>(null);
+  const adjustmentRef = useRef<{
+    item: PlanItem; day: Date; mode: WeekAdjustmentMode; x: number; y: number;
+    columnWidth: number; moved: boolean;
+  } | null>(null);
+  const suppressClick = useRef(false);
+  const draftRef = useRef<{ id: string; start: Date; end: Date; offsetX: number } | null>(null);
+  const [draft, setDraft] = useState<{ id: string; start: Date; end: Date; offsetX: number } | null>(null);
   const cancelPress = () => {
     if (pressTimer.current) clearTimeout(pressTimer.current);
     pressTimer.current = null;
@@ -53,6 +62,39 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
   };
   const movePress = (event: PointerEvent<HTMLDivElement>) => {
     if (pressOrigin.current && Math.hypot(event.clientX - pressOrigin.current.x, event.clientY - pressOrigin.current.y) > 8) cancelPress();
+  };
+  const beginAdjustment = (event: PointerEvent<HTMLButtonElement>, item: PlanItem, day: Date, mode: WeekAdjustmentMode) => {
+    if (!onAdjustTask || !item.taskId || !['task', 'study-task'].includes(item.kind) || item.preview || event.button !== 0) return;
+    const columnWidth = event.currentTarget.parentElement?.getBoundingClientRect().width || 84;
+    adjustmentRef.current = { item, day, mode, x: event.clientX, y: event.clientY, columnWidth, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const moveAdjustment = (event: PointerEvent<HTMLButtonElement>) => {
+    const active = adjustmentRef.current;
+    if (!active) return;
+    if (!active.moved && Math.hypot(event.clientX - active.x, event.clientY - active.y) <= 8) return;
+    active.moved = true;
+    const dayIndex = (active.day.getDay() + 6) % 7;
+    const dayOffset = Math.max(-dayIndex, Math.min(6 - dayIndex, Math.round((event.clientX - active.x) / active.columnWidth)));
+    const next = proposeWeekAdjustment(
+      new Date(active.item.start), new Date(active.item.end), active.day,
+      (event.clientY - active.y) / HOUR_HEIGHT * 60, dayOffset, active.mode,
+    );
+    draftRef.current = next ? { id: active.item.id, offsetX: active.mode === 'move' ? dayOffset * active.columnWidth : 0, ...next } : null;
+    setDraft(draftRef.current);
+  };
+  const finishAdjustment = (event: PointerEvent<HTMLButtonElement>) => {
+    const active = adjustmentRef.current;
+    if (!active) return;
+    adjustmentRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (active.moved) {
+      suppressClick.current = true;
+      if (draftRef.current?.id === active.item.id) onAdjustTask?.(active.item, draftRef.current.start, draftRef.current.end);
+      window.setTimeout(() => { suppressClick.current = false; }, 0);
+    }
+    draftRef.current = null;
+    setDraft(null);
   };
   const date = new Date(selectedDate.getTime());
   const monday = new Date(date);
@@ -108,7 +150,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                   const start = new Date(item.start);
                   const end = new Date(item.end);
                   const visibleStart = Math.max(minutesOfDay(start), START_HOUR * 60);
-                  const visibleEnd = Math.min(minutesOfDay(end), END_HOUR * 60);
+                  const visibleEnd = Math.min(localDateKey(end) !== localDateKey(day) ? 1440 : minutesOfDay(end), END_HOUR * 60);
                   if (visibleEnd <= START_HOUR * 60 || visibleStart >= END_HOUR * 60) return [];
                   return [{
                     item,
@@ -162,11 +204,19 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                         <button
                           type="button"
                           key={item.id}
-                          onClick={() => onItemClick?.(item)}
-                          className={`absolute z-10 overflow-hidden rounded-[5px] border-l-2 px-1 py-0.5 text-left shadow-sm ${item.preview ? 'outline outline-1 outline-dashed outline-[#8b7fbc]' : ''} ${item.completed ? 'opacity-45' : ''}`}
+                          onClick={() => {
+                            if (suppressClick.current) { suppressClick.current = false; return; }
+                            onItemClick?.(item);
+                          }}
+                          onPointerDown={(event) => beginAdjustment(event, item, day, (event.target as Element).closest('[data-resize]') ? 'resize' : 'move')}
+                          onPointerMove={moveAdjustment}
+                          onPointerUp={finishAdjustment}
+                          onPointerCancel={(event) => { adjustmentRef.current = null; draftRef.current = null; setDraft(null); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
+                          className={`absolute z-10 overflow-hidden rounded-[5px] border-l-2 px-1 py-0.5 text-left shadow-sm ${item.taskId && ['task', 'study-task'].includes(item.kind) && !item.preview && onAdjustTask ? 'touch-none cursor-grab active:cursor-grabbing' : ''} ${item.preview ? 'outline outline-1 outline-dashed outline-[#8b7fbc]' : ''} ${item.completed ? 'opacity-45' : ''}`}
                           style={{
-                            top,
-                            height,
+                            top: draft?.id === item.id ? ((draft.start.getHours() * 60 + draft.start.getMinutes()) / 60) * HOUR_HEIGHT : top,
+                            height: draft?.id === item.id ? Math.max(22, (draft.end.getTime() - draft.start.getTime()) / 3_600_000 * HOUR_HEIGHT) : height,
+                            transform: draft?.id === item.id && draft.offsetX ? `translateX(${draft.offsetX}px)` : undefined,
                             ...lanePosition,
                             borderLeftColor: item.color,
                             backgroundColor: item.preview ? '#eeeafd' : cardBackground(item.color),
@@ -186,6 +236,9 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                             {item.scheduleSource === 'ai' && <Sparkles size={7} />}
                             {item.locked && <LockKeyhole size={7} />}
                           </span>
+                          {item.taskId && ['task', 'study-task'].includes(item.kind) && !item.preview && onAdjustTask && height >= 30 && (
+                            <span data-resize="true" className="absolute bottom-0 left-0 right-4 z-10 h-2 cursor-ns-resize rounded-b-[5px] bg-black/10" aria-hidden="true" />
+                          )}
                         </button>
                       );
                     })}
