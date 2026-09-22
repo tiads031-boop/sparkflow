@@ -82,7 +82,8 @@
 - [ ] R2 生产 API、360px / PWA / Android 视觉与交互验收；
 - [x] R3-A 代码：Planner 对话 / Preview / Why 三层结构、高级依据入口、Flash / Pro 切换；Focus Setup / Running / Paused / Completed 状态与 Actual 刷新；
 - [x] R3-A 本地验证：Web 83 tests、API 163 tests、Web/API 生产构建、改动文件定向 ESLint；
-- [ ] R3-A 远端 CI、360px / PWA / Android 视觉与交互验收；
+- [x] R3-A GitHub Actions CI #321；
+- [ ] R3-A 360px / PWA / Android 视觉与交互验收；
 - [ ] R3-B Records + Study/Course + Profile 视觉收敛；
 - [ ] R4 Time Analytics；
 - [ ] R5 Scene Core；
