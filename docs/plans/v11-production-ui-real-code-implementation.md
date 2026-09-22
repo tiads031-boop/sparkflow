@@ -1994,7 +1994,7 @@ R5-A/B/C 已由 PR #126/#127/#128 合并：Scene Center、模板 Builder、已�
 
 执行拆分：先落地服务端时间记录偏好、历史保留的 countsTowardActual 迁移及各统计链路过滤；再接 UI 与默认场景自动触发；最后接 Planning create/update scene 的 Preview → Apply → Undo。每一步单独验证。
 
-R6-A 已由 PR #129 合并：时间记录偏好 API、`countsTowardActual` 快照与统计过滤已进入 master。R6-B 已完成代码实现：Profile 时间记录设置页、手工补记/快捷 Focus/专注附件开关、默认 Scene 选择，以及完成或中断 Focus 后的幂等自动关联；当前待独立 PR CI。R6-C 的 Planning Scene Preview → Apply → Undo 继续保持独立变更。
+R6-A 已由 PR #129 合并：时间记录偏好 API、`countsTowardActual` 快照与统计过滤已进入 master。R6-B 已由 PR #130 合并：Profile 时间记录设置页、手工补记/快捷 Focus/专注附件开关、默认 Scene 选择，以及完成或中断 Focus 后的幂等自动关联。R6-C 已完成代码实现：Planning 读取真实 Scene 上下文，生成 create/update Scene 草案，经用户确认后写入，并以并发安全快照支持 Undo；当前待独立 PR CI。
 
 ### R7 — Goal Progress
 

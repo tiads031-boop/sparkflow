@@ -122,6 +122,23 @@ describe('planning response recovery', () => {
 });
 
 describe('planning response parser', () => {
+  it('parses reviewable Scene create and update drafts', () => {
+    const result = toPlanningTurn({
+      reply: '请确认 Scene 草案。', readiness: 'ready', summary: '', openQuestions: [],
+      researchQueries: [], replanRequests: [],
+      actions: [
+        { type: 'create_scene', name: '晨间阅读', emoji: '📚', color: '#CAE393', triggers: ['manual', 'focus'], allowedViews: ['heatmap', 'list'] },
+        { type: 'update_scene', sceneId: 'scene-1', sceneName: '运动', changes: { description: '记录每日训练', allowedViews: ['trend', 'list'] } },
+      ],
+      context: { brief: [], constraints: [], preferences: [], strategy: [], assumptions: [] },
+    });
+
+    expect(result.actions).toEqual([
+      expect.objectContaining({ type: 'create_scene', name: '晨间阅读', color: '#cae393' }),
+      expect.objectContaining({ type: 'update_scene', sceneId: 'scene-1', changes: { description: '记录每日训练', allowedViews: ['trend', 'list'] } }),
+    ]);
+  });
+
   it('preserves a 30-day daily task plan instead of truncating it to 8 actions', () => {
     const actions = Array.from({ length: 30 }, (_, index) => ({
       type: 'create_task',
