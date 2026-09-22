@@ -300,7 +300,7 @@ export default function CourseView({ onCourseClick, onAddClick, onImportClick }:
     <div className="animate-page-enter pb-24 relative">
       {/* ── Header ── */}
       <div className="mb-4">
-        <h1 className="text-xl font-bold text-[var(--sf-text-primary)]">课程表</h1>
+        <h1 className="text-xl font-bold text-[var(--sf-text-primary)]">课程</h1>
         <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">查看课程、学期与导入设置</p>
         <input
           ref={fileInputRef}

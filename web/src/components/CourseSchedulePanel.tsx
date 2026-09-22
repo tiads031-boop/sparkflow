@@ -95,7 +95,7 @@ export default function CourseSchedulePanel({
       <div className="course-tools-overlay" role="presentation" onClick={() => setToolsOpen(false)}>
         <section className="course-tools-sheet" role="dialog" aria-modal="true" aria-labelledby="course-tools-title" onClick={(event) => event.stopPropagation()}>
           <div className="course-tools-sheet-header">
-            <div><p>课程表</p><h2 id="course-tools-title">导入与管理</h2></div>
+            <div><p>课程</p><h2 id="course-tools-title">导入与管理</h2></div>
             <button type="button" onClick={() => setToolsOpen(false)} aria-label="关闭课程管理"><X /></button>
           </div>
           <div className="course-tools-sheet-body">

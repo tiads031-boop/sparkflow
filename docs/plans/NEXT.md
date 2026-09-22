@@ -1,8 +1,8 @@
 # SparkFlow — 下一步执行队列
 
 > **最后更新**：2026-09-22  
-> **仓库代码基线**：`master@9681216d28e285ec3c208f16e9a19da36a068611`
-> **M1/M2/R1/R2 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)、[#120](https://github.com/tiads031-boop/sparkflow/pull/120)、[#121](https://github.com/tiads031-boop/sparkflow/pull/121)，GitHub Actions CI 全绿，均已 squash 合并
+> **仓库代码基线**：`master@37ac6690bcd2581f92172c46c83adc0c0ececdcd`
+> **M1/M2/R1/R2/R3-A 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)、[#120](https://github.com/tiads031-boop/sparkflow/pull/120)、[#121](https://github.com/tiads031-boop/sparkflow/pull/121)、[#122](https://github.com/tiads031-boop/sparkflow/pull/122)，GitHub Actions CI 全绿，均已 squash 合并
 > **最近已确认生产版本**：`9f72d16b`（生产仍落后于当前 master；后续部署必须重新核对 buildSha）  
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
@@ -83,8 +83,11 @@
 - [x] R3-A 代码：Planner 对话 / Preview / Why 三层结构、高级依据入口、Flash / Pro 切换；Focus Setup / Running / Paused / Completed 状态与 Actual 刷新；
 - [x] R3-A 本地验证：Web 83 tests、API 163 tests、Web/API 生产构建、改动文件定向 ESLint；
 - [x] R3-A GitHub Actions CI #321；
+- [x] R3-A squash 合并（PR #122）；
 - [ ] R3-A 360px / PWA / Android 视觉与交互验收；
-- [ ] R3-B Records + Study/Course + Profile 视觉收敛；
+- [x] R3-B1 代码：RecordsWorkspace 拆分；Study 目标 / 课程切换与课程详情 / 导入入口；Profile 标签 / Actual 时间记录一级入口；
+- [x] R3-B1 本地验证：Web 85 tests、Web production build、改动文件定向 ESLint；
+- [ ] R3-B2 Capture / Record Detail、Course Detail / Import、Tag Management 二级页视觉与移动端细节；
 - [ ] R4 Time Analytics；
 - [ ] R5 Scene Core；
 - [ ] R6 Scene AI + Time Record Settings；
@@ -92,7 +95,7 @@
 - [ ] R8 AI Execution Feedback；
 - [ ] R9 Android Usage。
 
-R1 已由 PR #120 合并，R2 已由 PR #121 合并。R3-A 实现分支：`feat/ui-v11-r3-planner-focus`。代码存在、合并、部署和真机验收继续分别记录。
+R1 已由 PR #120 合并，R2 已由 PR #121 合并，R3-A 已由 PR #122 合并。R3-B1 实现分支：`feat/ui-v11-r3-records-study-profile`。代码存在、合并、部署和真机验收继续分别记录。
 
 ---
 
