@@ -1949,6 +1949,7 @@ measured 是系统测得事实；Planner 可以引用，但不能自动改写成
 - [x] R3-B1 Study/Course：学习工作区增加“目标 / 课程”切换，课程列表、详情、ICS 导入、学期与管理能力继续复用真实 Course 事实源；
 - [x] R3-B1 Profile：建立 ProfileWorkspace 入口，并把标签管理、Actual 时间记录提升到一级卡片；
 - [x] R3-B1 本地验证：Web 85 tests、Web production build、改动文件定向 ESLint；
+- [x] R3-B1 GitHub Actions CI #324；
 - [ ] R3-B2 Capture / Record Detail、Course Detail / Import、Tag Management 二级页视觉与移动端细节；
 - [ ] R3-B 360px / PWA / Android WebView 视觉与交互验收。
 

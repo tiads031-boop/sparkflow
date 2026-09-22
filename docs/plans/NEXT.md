@@ -87,6 +87,7 @@
 - [ ] R3-A 360px / PWA / Android 视觉与交互验收；
 - [x] R3-B1 代码：RecordsWorkspace 拆分；Study 目标 / 课程切换与课程详情 / 导入入口；Profile 标签 / Actual 时间记录一级入口；
 - [x] R3-B1 本地验证：Web 85 tests、Web production build、改动文件定向 ESLint；
+- [x] R3-B1 GitHub Actions CI #324；
 - [ ] R3-B2 Capture / Record Detail、Course Detail / Import、Tag Management 二级页视觉与移动端细节；
 - [ ] R4 Time Analytics；
 - [ ] R5 Scene Core；
