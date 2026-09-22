@@ -40,6 +40,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
   return (
     <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
       <div className="w-full overflow-x-auto overscroll-x-contain" aria-label="周日程横向滚动区域">
+        <div style={{ minWidth: TIME_COLUMN_WIDTH + 7 * 84 }}>
           <div
             className="grid border-b border-black/5 px-1 py-2"
             style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(84px, 1fr))` }}
@@ -154,6 +155,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
               })}
             </div>
           </div>
+        </div>
       </div>
     </section>
   );
