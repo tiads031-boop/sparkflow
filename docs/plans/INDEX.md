@@ -1,9 +1,9 @@
 # SparkFlow — 实施方案索引
 
 > **最后更新**：2026-09-22  
-> **仓库代码基线**：`master@990edabb9a2b3d26f523f17850ed9080a7507ff8`
-> **M1/M2 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)，CI 全绿，均已 squash 合并
-> **最近已确认生产版本**：`9f72d16b`  
+> **仓库代码基线**：`master@7bb2b375fa886b094855a084f2bb8590572640a4`（PR #132）
+> **当前开发进度**：R1–R6 合并；R7-A 合并；R7-B PR #133 待合并；R8/R9 待开发。
+> **最近有直接回显的生产版本**：`990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21；发布时重新核对）
 > **唯一近期执行队列**：[NEXT.md](NEXT.md)
 
 本目录只保留仍需执行、验收或具有当前架构参考价值的方案。已经完成且被新架构覆盖的旧方案移动到 `docs/archive/`，避免旧任务继续与当前主线竞争优先级。
@@ -15,8 +15,8 @@
 | 文件 | 定位 | 状态 |
 |---|---|---|
 | [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 当前 |
-| [v11-production-ui-real-code-implementation.md](v11-production-ui-real-code-implementation.md) | V11 视觉与真实业务代码的主实施规格 | 🚧 R1 已实现，待 CI / 移动端验收 |
-| [vnext-execution-intelligence-ui-system.md](vnext-execution-intelligence-ui-system.md) | 新一轮产品与 UI 总方案：Tags → Actual Timeline → Analytics → Goal Progress → AI Feedback → Android Usage | 🚧 M1/M2 代码已合并，待生产/移动验收 |
+| [v11-production-ui-real-code-implementation.md](v11-production-ui-real-code-implementation.md) | V11 视觉与真实业务代码的主实施规格 | 🚧 R1–R6 代码已合并，R7-A 已合并，R7-B PR #133 待合并；R8/R9 待开发，终端与生产验收最后集中进行 |
+| [vnext-execution-intelligence-ui-system.md](vnext-execution-intelligence-ui-system.md) | Tags → Actual Timeline → Analytics → Goal Progress → AI Feedback → Android Usage | 🚧 M1–M3 代码已合并；M4 数据层已合并、界面待合并；M5/M6 待开发 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、幂等、冲突、Web/Android 真实验收 | 🚧 剩余生产/真机验收 |
 | [phase15-capture-review-insight-action.md](phase15-capture-review-insight-action.md) | Capture → Review → Insight → Action 与 Focus 多模态链路 | 🚧 主体完成，剩余 PWA/Android/多模态验收 |
 
