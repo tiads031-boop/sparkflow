@@ -36,6 +36,8 @@
 
 ### 1.1 生产版本对齐
 
+> 2026-09-22 部署现场记录：腾讯云轻量服务器 `/opt/sparkflow/app` 已快进至 `abbdca736168613cdbdbb65242b40ab7add72df5`，数据库备份 `/opt/sparkflow/postgres/backups/sparkflow-pre-abbdca7-20260922.dump`（159762 字节）已通过容器内 `pg_restore -l` 校验。更新前 Web `/var/www/sparkflow/.build-sha` 与 API `/api/health.buildSha` 均为 `990edabb9a2b3d26f523f17850ed9080a7507ff8`，数据库 healthy。新 API 镜像构建已发起，但控制台连接中断后未取得完成回显；容器切换、Web 发布、migration 与公网验收均不能标记完成。恢复操作须先确认实际镜像和进程状态，避免重复切换。
+
 - [ ] 部署或确认腾讯云 Web/API 当前运行版本；
 - [ ] 公网 `/api/health.buildSha` 与部署 commit 一致；
 - [ ] 若部署到最新 master，执行并确认 Prisma migration 状态；
