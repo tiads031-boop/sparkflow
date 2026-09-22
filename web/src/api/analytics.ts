@@ -6,6 +6,12 @@ export interface TimeAnalyticsResponse {
   range: { start: string; end: string; timeZone: string };
   totalActualSeconds: number;
   previousTotalActualSeconds: number;
+  appUsage?: {
+    totalSeconds: number;
+    sessionCount: number;
+    truncated: boolean;
+    byTag: Array<{ name: string; seconds: number }>;
+  };
   buckets: Array<{
     key: string;
     start: string;
