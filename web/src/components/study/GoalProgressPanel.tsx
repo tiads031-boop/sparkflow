@@ -31,6 +31,7 @@ export default function GoalProgressPanel({
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setSummary(null);
     try {
       setSummary(await fetchGoalProgress(goal.id));
     } catch (err) {
@@ -47,7 +48,10 @@ export default function GoalProgressPanel({
         if (active) setSummary(result);
       })
       .catch((err: unknown) => {
-        if (active) setError(err instanceof Error ? err.message : '加载目标进度失败');
+        if (active) {
+          setSummary(null);
+          setError(err instanceof Error ? err.message : '加载目标进度失败');
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -143,7 +147,9 @@ export default function GoalProgressPanel({
           <div className="mt-4">
             <div className="flex items-center justify-between text-[10px] font-bold text-gray-500">
               <span>
-                {summary.primary.target === null ? '还未设置目标值' : '总体完成度'}
+                {summary.primary.target === null
+                  ? type === 'task' ? '还没有关联任务' : '还未设置目标值'
+                  : '总体完成度'}
               </span>
               <span>
                 {summary.primary.percent === null
@@ -151,12 +157,23 @@ export default function GoalProgressPanel({
                   : `${summary.primary.percent}%`}
               </span>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/80">
-              <div
-                className="h-full rounded-full bg-[#242424] transition-[width]"
-                style={{ width: `${progressBarWidth(summary.primary.percent)}%` }}
-              />
-            </div>
+            {summary.primary.target !== null && (
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/80" role="progressbar"
+                aria-label="目标完成度" aria-valuenow={progressBarWidth(summary.primary.percent)}
+                aria-valuemin={0} aria-valuemax={100}>
+                <div
+                  className="h-full rounded-full bg-[#242424] transition-[width]"
+                  style={{ width: `${progressBarWidth(summary.primary.percent)}%` }}
+                />
+              </div>
+            )}
+            {summary.primary.target === null && (
+              <p className="mt-2 text-[10px] leading-4 text-gray-500">
+                {type === 'task'
+                  ? '把任务加入这个学习目标后，就能按完成数量查看进度。'
+                  : '已记录的投入仍会显示；设置目标值后才能计算完成度。'}
+              </p>
+            )}
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2">
@@ -220,6 +237,11 @@ export default function GoalProgressPanel({
             </div>
           )}
 
+          {type === 'numeric' && summary.numeric.entries.length === 0 && (
+            <p className="mt-3 rounded-2xl bg-white/65 px-3 py-2.5 text-[10px] text-gray-500">
+              还没有数值进度记录。填写增减值并保存后，会在这里显示记录。
+            </p>
+          )}
           {type === 'numeric' && summary.numeric.entries.length > 0 && (
             <div className="mt-3 space-y-2">
               {summary.numeric.entries.slice(0, 5).map((entry) => (
@@ -249,6 +271,7 @@ export default function GoalProgressPanel({
           {type === 'time' && (
             <p className="mt-3 flex items-start gap-2 rounded-2xl bg-white/65 px-3 py-2.5 text-[10px] leading-4 text-gray-500">
               <Clock3 size={13} className="mt-0.5 shrink-0" />
+              {summary.actual.totalMinutes === 0 ? '还没有可计入的实际专注时间。' : ''}
               完成或中断的有效专注会自动累计；关闭“计入实际时间”的记录不会推动进度。
             </p>
           )}
