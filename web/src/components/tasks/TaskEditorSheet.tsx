@@ -1,86 +1,59 @@
-import { useEffect, useMemo, useState } from 'react';
-import { BrainCircuit, CalendarClock, ChevronDown, ChevronUp, Clock3, X } from 'lucide-react';
-import type { Task, TaskSection } from '../types';
-import type { SaveParams } from './DarkFrostedModal';
-import { useModalLifecycle } from './ui/useModalLifecycle';
-import { readUserPreferences } from '../utils/userPreferences';
-import {
-  getTaskSectionPlaceholder,
-  presetTaskSections,
-  readCustomTaskSections,
-} from '../utils/taskSections';
-import TagSelector from './tags/TagSelector';
-import { BottomActionBar, SectionCard, SegmentControl } from './ui/foundation';
-import { fetchStudyFolders } from '../api/study';
-import type { StudyFolder } from '../types';
+import { useEffect, useState } from 'react';
+import { BrainCircuit, CalendarClock, ChevronDown, ChevronUp, X } from 'lucide-react';
+import type { Task, TaskSection } from '../../types';
+import type { SaveParams } from '../DarkFrostedModal';
+import { useModalLifecycle } from '../ui/useModalLifecycle';
+import { readUserPreferences } from '../../utils/userPreferences';
+import { presetTaskSections, readCustomTaskSections } from '../../utils/taskSections';
+import TagSelector from '../tags/TagSelector';
+import { BottomActionBar, DangerAction, SectionCard } from '../ui/foundation';
+import { fetchStudyFolders } from '../../api/study';
+import type { StudyFolder } from '../../types';
+import TaskDetailsForm from './TaskDetailsForm';
+import TaskQuickUpdate from './TaskQuickUpdate';
+import TaskSummaryCard from './TaskSummaryCard';
+import { localTaskDate, localTaskDateTime, type RepeatRule } from './taskEditorModel';
 
-type RepeatRule = 'none' | 'daily' | 'weekly' | 'monthly';
-
-interface TaskSheetProps {
+interface TaskEditorSheetProps {
   open: boolean;
+  task?: Task | null;
   onClose: () => void;
   onSave: (params: SaveParams) => void | Promise<void>;
+  onDelete?: (taskId: string) => void | Promise<void>;
   onPlanWithAI?: () => void;
 }
 
-const priorities: Array<{ value: Task['priority']; label: string }> = [
-  { value: 'High Priority', label: '高' },
-  { value: 'Medium', label: '中' },
-  { value: 'Low', label: '低' },
-];
-
-const durations = [15, 30, 45, 60, 90, 120];
-
-export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskSheetProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [section, setSection] = useState<TaskSection>('personal');
-  const [project, setProject] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
-  const [studyFolderId, setStudyFolderId] = useState('');
+export default function TaskEditorSheet({ open, task, onClose, onSave, onDelete, onPlanWithAI }: TaskEditorSheetProps) {
+  const editing = Boolean(task);
+  const [title, setTitle] = useState(() => task?.title || '');
+  const [description, setDescription] = useState(() => task?.description || '');
+  const [status, setStatus] = useState<Task['status']>(() => task?.status || 'To do');
+  const [section, setSection] = useState<TaskSection>(() => task?.section || 'personal');
+  const [project, setProject] = useState(() => task?.project || '');
+  const [tags, setTags] = useState<string[]>(() => task?.tags || []);
+  const [studyFolderId, setStudyFolderId] = useState(() => task?.studyFolderId || '');
   const [studyFolders, setStudyFolders] = useState<StudyFolder[]>([]);
-  const [priority, setPriority] = useState<Task['priority']>('Medium');
-  const [duration, setDuration] = useState<number | undefined>(30);
-  const [dueDate, setDueDate] = useState('');
-  const [scheduledStart, setScheduledStart] = useState('');
-  const [reminderAt, setReminderAt] = useState('');
-  const [repeatRule, setRepeatRule] = useState<RepeatRule>('none');
-  const [repeatStartDate, setRepeatStartDate] = useState('');
-  const [repeatEndDate, setRepeatEndDate] = useState('');
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [priority, setPriority] = useState<Task['priority']>(() => task?.priority || 'Medium');
+  const [duration, setDuration] = useState<number | undefined>(() => task?.estimatedMinutes || task?.duration || 30);
+  const [dueDate, setDueDate] = useState(() => localTaskDateTime(task?.dueDate));
+  const [scheduledStart, setScheduledStart] = useState(() => localTaskDateTime(task?.scheduledStart));
+  const [reminderAt, setReminderAt] = useState(() => localTaskDateTime(task?.reminderAt || undefined));
+  const [repeatRule, setRepeatRule] = useState<RepeatRule>(() => task?.repeatRule === 'daily' || task?.repeatRule === 'weekly' || task?.repeatRule === 'monthly' ? task.repeatRule : 'none');
+  const [repeatStartDate, setRepeatStartDate] = useState(() => localTaskDate(task?.repeatStartDate));
+  const [repeatEndDate, setRepeatEndDate] = useState(() => localTaskDate(task?.repeatEndDate));
+  const [moreOpen, setMoreOpen] = useState(() => Boolean(
+    task?.scheduledStart || task?.reminderAt || task?.repeatRule,
+  ));
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useModalLifecycle(open, onClose);
 
-  const sections = useMemo(
-    () => [
+  const [sections] = useState(() => [
       ...presetTaskSections.map((item) => ({ value: item.key as TaskSection, label: item.shortLabel })),
       ...readCustomTaskSections().map((value) => ({ value: value as TaskSection, label: value })),
-    ],
-    [open],
-  );
-
-  useEffect(() => {
-    if (!open) return;
-    setTitle('');
-    setDescription('');
-    setSection('personal');
-    setProject('');
-    setTags([]);
-    setStudyFolderId('');
-    setPriority('Medium');
-    setDuration(30);
-    setDueDate('');
-    setScheduledStart('');
-    setReminderAt('');
-    setRepeatRule('none');
-    setRepeatStartDate('');
-    setRepeatEndDate('');
-    setMoreOpen(false);
-    setSaving(false);
-    setError(null);
-  }, [open]);
+    ]);
 
   useEffect(() => {
     if (!open) return;
@@ -92,10 +65,11 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
   if (!open) return null;
 
   const buildParams = (): SaveParams => ({
+    id: task?.id,
     title: title.trim(),
     content: description.trim(),
     context: 'task',
-    status: 'To do',
+    status,
     priority,
     section,
     project: project.trim() || undefined,
@@ -109,6 +83,7 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
     repeatStartDate: repeatRule === 'none' ? undefined : (repeatStartDate || undefined),
     repeatEndDate: repeatRule === 'none' ? undefined : (repeatEndDate || undefined),
     duration,
+    subtasks: task?.subtasks,
   });
 
   const submit = async (planAfterSave = false) => {
@@ -119,10 +94,24 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
       await onSave(buildParams());
       onClose();
       if (planAfterSave) onPlanWithAI?.();
-    } catch (err: any) {
-      setError(err?.message || '保存失败，请稍后重试');
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : '保存失败，请稍后重试');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const removeTask = async () => {
+    if (!task || !onDelete || deleting || !window.confirm(`删除“${task.title}”？`)) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await onDelete(task.id);
+      onClose();
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : '删除失败，请稍后重试');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -137,14 +126,14 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="新建任务"
+        aria-label={editing ? '编辑任务' : '新建任务'}
         className="max-h-[92svh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] bg-[var(--sf-surface)] px-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-5 shadow-2xl animate-slide-up-sheet"
       >
         <header className="mb-5 flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--sf-text-tertiary)]">Task</p>
-            <h2 className="mt-1 text-xl font-black text-[var(--sf-text-primary)]">新建任务</h2>
-            <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">先写清要做什么，其余信息需要时再补。</p>
+            <h2 className="mt-1 text-xl font-black text-[var(--sf-text-primary)]">{editing ? '编辑任务' : '新建任务'}</h2>
+            <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">创建与编辑共用同一套字段和保存逻辑。</p>
           </div>
           <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-full bg-[var(--sf-bg)]" aria-label="关闭">
             <X size={16} />
@@ -152,81 +141,15 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
         </header>
 
         <div className="space-y-4">
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-bold text-[var(--sf-text-secondary)]">任务</span>
-            <input
-              autoFocus
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="例如：完成民法案例分析"
-              className="w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm font-semibold text-[var(--sf-text-primary)] outline-none focus:border-[var(--sf-text-primary)]"
-            />
-          </label>
+          <TaskSummaryCard title={title} description={description} section={section} project={project} tags={tags} onTitleChange={setTitle} onDescriptionChange={setDescription} />
 
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-bold text-[var(--sf-text-secondary)]">补充说明</span>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="写下要求、材料、上下文或你不想忘记的细节"
-              className="min-h-24 w-full resize-none rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm leading-6 outline-none focus:border-[var(--sf-text-primary)]"
-            />
-          </label>
-
-          <div className="grid grid-cols-2 gap-2">
-            <label>
-              <span className="mb-1.5 block text-xs font-bold text-[var(--sf-text-secondary)]">分组</span>
-              <select
-                value={section}
-                onChange={(event) => setSection(event.target.value as TaskSection)}
-                className="w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-3 text-sm outline-none"
-              >
-                {sections.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-              </select>
-            </label>
-            <label>
-              <span className="mb-1.5 block text-xs font-bold text-[var(--sf-text-secondary)]">阶段 / Project</span>
-              <input
-                value={project}
-                onChange={(event) => setProject(event.target.value)}
-                placeholder={section === 'study' ? '例如：强化训练' : getTaskSectionPlaceholder(section)}
-                className="w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-3 py-3 text-sm outline-none"
-              />
-            </label>
-          </div>
-
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-bold text-[var(--sf-text-secondary)]">长期目标 / Folder</span>
-            <select value={studyFolderId} onChange={(event) => setStudyFolderId(event.target.value)} className="w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm outline-none">
-              <option value="">不归入长期目标</option>
-              {studyFolders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
-            </select>
-          </label>
-
-          <SectionCard className="!p-3">
-            <span className="mb-2 block text-xs font-bold text-[var(--sf-text-secondary)]">优先级</span>
-            <SegmentControl value={priority} options={priorities} onChange={setPriority} ariaLabel="任务优先级" />
-          </SectionCard>
+          <TaskDetailsForm section={section} project={project} studyFolderId={studyFolderId} sections={sections} studyFolders={studyFolders} onSectionChange={setSection} onProjectChange={setProject} onStudyFolderChange={setStudyFolderId} />
 
           <SectionCard>
             <TagSelector value={tags} onChange={setTags} />
           </SectionCard>
 
-          <div>
-            <span className="mb-2 flex items-center gap-1.5 text-xs font-bold text-[var(--sf-text-secondary)]"><Clock3 size={13} />预计时长</span>
-            <div className="flex flex-wrap gap-2">
-              {durations.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setDuration(value)}
-                  className={`rounded-full px-3 py-2 text-xs font-bold ${duration === value ? 'bg-[#cae393] text-[#242424]' : 'bg-[var(--sf-bg)] text-[var(--sf-text-secondary)]'}`}
-                >
-                  {value >= 60 ? `${value / 60}h` : `${value}m`}
-                </button>
-              ))}
-            </div>
-          </div>
+          <TaskQuickUpdate editing={editing} status={status} priority={priority} duration={duration} onStatusChange={setStatus} onPriorityChange={setPriority} onDurationChange={setDuration} />
 
           <label className="block">
             <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-[var(--sf-text-secondary)]"><CalendarClock size={13} />截止时间</span>
@@ -314,18 +237,23 @@ export default function TaskSheet({ open, onClose, onSave, onPlanWithAI }: TaskS
         {error && <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">{error}</p>}
 
         <BottomActionBar>
+        {editing && task && onDelete && (
+          <div className="mb-2 flex justify-end">
+            <DangerAction onClick={() => void removeTask()} disabled={deleting || saving}>{deleting ? '删除中…' : '删除任务'}</DangerAction>
+          </div>
+        )}
         <div className="grid grid-cols-[1fr_1.25fr] gap-2">
           <button
             type="button"
-            disabled={!title.trim() || saving}
+            disabled={!title.trim() || saving || deleting}
             onClick={() => void submit(false)}
             className="rounded-full bg-[var(--sf-bg)] py-3 text-sm font-bold text-[var(--sf-text-primary)] disabled:opacity-40"
           >
-            {saving ? '保存中…' : '保存任务'}
+            {saving ? '保存中…' : editing ? '保存修改' : '保存任务'}
           </button>
           <button
             type="button"
-            disabled={!title.trim() || saving}
+            disabled={!title.trim() || saving || deleting}
             onClick={() => void submit(true)}
             className="flex items-center justify-center gap-2 rounded-full bg-[#242424] py-3 text-sm font-black text-[#cae393] disabled:opacity-40"
           >

@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -69,6 +70,24 @@ export class PomodoroController {
     },
   ) {
     return this.pomodoroService.createManual({ ...data, userId });
+  }
+
+  @Patch(':id/manual')
+  updateManual(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body()
+    data: {
+      expectedRevision: number;
+      title?: string;
+      taskId?: string | null;
+      startedAt: string;
+      endedAt: string;
+      notes?: string;
+      tags?: string[];
+    },
+  ) {
+    return this.pomodoroService.updateManual(id, userId, data);
   }
 
   @Post(':id/pause')

@@ -77,6 +77,7 @@ export class PomodoroService {
       status: session.status,
       notes: session.notes,
       tags: session.tags.length ? session.tags : (session.task?.tags ?? []),
+      revision: session.revision,
     }));
   }
 
@@ -221,24 +222,10 @@ export class PomodoroService {
     tags?: string[];
     clientRequestId?: string;
   }) {
-    const startedAt = new Date(data.startedAt);
-    const endedAt = new Date(data.endedAt);
-    const elapsedSeconds = Math.round(
-      (endedAt.getTime() - startedAt.getTime()) / 1000,
+    const { startedAt, endedAt, elapsedSeconds } = this.parseManualRange(
+      data.startedAt,
+      data.endedAt,
     );
-    if (
-      Number.isNaN(startedAt.getTime()) ||
-      Number.isNaN(endedAt.getTime()) ||
-      elapsedSeconds <= 0
-    ) {
-      throw new BadRequestException('Actual time range is invalid');
-    }
-    if (elapsedSeconds > 24 * 60 * 60) {
-      throw new BadRequestException('Actual time cannot exceed 24 hours');
-    }
-    if (endedAt.getTime() > Date.now() + 5 * 60_000) {
-      throw new BadRequestException('Actual time cannot end in the future');
-    }
 
     const tags = this.normalizeTags(data.tags);
     const title = data.title?.trim().slice(0, 120) || null;
@@ -300,6 +287,86 @@ export class PomodoroService {
       }
       throw error;
     }
+  }
+
+  async updateManual(
+    id: string,
+    userId: string,
+    data: {
+      expectedRevision: number;
+      title?: string;
+      taskId?: string | null;
+      startedAt: string;
+      endedAt: string;
+      notes?: string;
+      tags?: string[];
+    },
+  ) {
+    if (!Number.isInteger(data.expectedRevision)) {
+      throw new BadRequestException('Expected revision is required');
+    }
+    const { startedAt, endedAt, elapsedSeconds } = this.parseManualRange(
+      data.startedAt,
+      data.endedAt,
+    );
+    const tags = this.normalizeTags(data.tags);
+    const title = data.title?.trim().slice(0, 120) || null;
+    const notes = data.notes?.trim().slice(0, 2000) || null;
+
+    return this.prisma.$transaction(async (tx) => {
+      const session = await tx.pomodoroSession.findFirst({
+        where: { id, userId },
+        include: sessionInclude,
+      });
+      if (!session) throw new NotFoundException('Pomodoro session not found');
+      if (session.entrySource !== 'manual') {
+        throw new BadRequestException('Only manual actual time can be edited');
+      }
+      if (session.revision !== data.expectedRevision) {
+        throw new ConflictException('Actual time changed on another device; refresh and retry');
+      }
+
+      let task: { id: string; title: string; tags: string[] } | null = null;
+      if (data.taskId) {
+        task = await tx.task.findFirst({
+          where: { id: data.taskId, userId },
+          select: { id: true, title: true, tags: true },
+        });
+        if (!task) throw new NotFoundException('Task not found');
+      }
+      for (const [sortOrder, name] of tags.entries()) {
+        await tx.tag.upsert({
+          where: { userId_name: { userId, name } },
+          create: { userId, name, sortOrder },
+          update: { archived: false },
+        });
+      }
+
+      const changed = await tx.pomodoroSession.updateMany({
+        where: { id, userId, entrySource: 'manual', revision: data.expectedRevision },
+        data: {
+          taskId: task?.id ?? null,
+          title,
+          tags,
+          duration: Math.max(1, Math.ceil(elapsedSeconds / 60)),
+          effectiveDurationSeconds: elapsedSeconds,
+          startedAt,
+          endedAt,
+          notes,
+          revision: { increment: 1 },
+        },
+      });
+      if (changed.count !== 1) {
+        throw new ConflictException('Actual time changed on another device; refresh and retry');
+      }
+      await tx.pomodoroSegment.deleteMany({ where: { sessionId: id } });
+      await tx.pomodoroSegment.create({ data: { sessionId: id, startedAt, endedAt } });
+      const updated = await tx.pomodoroSession.findUniqueOrThrow({
+        where: { id },
+        include: sessionInclude,
+      });
+      return this.present(updated);
+    });
   }
 
   async pause(id: string, userId: string, expectedRevision?: number) {
@@ -552,6 +619,26 @@ export class PomodoroService {
           .filter(Boolean),
       ),
     ].slice(0, 12);
+  }
+
+  private parseManualRange(startValue: string, endValue: string) {
+    const startedAt = new Date(startValue);
+    const endedAt = new Date(endValue);
+    const elapsedSeconds = Math.round((endedAt.getTime() - startedAt.getTime()) / 1000);
+    if (
+      Number.isNaN(startedAt.getTime()) ||
+      Number.isNaN(endedAt.getTime()) ||
+      elapsedSeconds <= 0
+    ) {
+      throw new BadRequestException('Actual time range is invalid');
+    }
+    if (elapsedSeconds > 24 * 60 * 60) {
+      throw new BadRequestException('Actual time cannot exceed 24 hours');
+    }
+    if (endedAt.getTime() > Date.now() + 5 * 60_000) {
+      throw new BadRequestException('Actual time cannot end in the future');
+    }
+    return { startedAt, endedAt, elapsedSeconds };
   }
 
   private parseRange(startValue: string, endValue: string) {

@@ -70,6 +70,19 @@ describe('TasksService schedule metadata', () => {
     });
     expect(result.studyFolders).toEqual({ create: { folderId: 'folder-1' } });
   });
+
+  it('records completion time on done and clears it when reopened', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-21T12:00:00.000Z'));
+    const update = jest.fn(({ data }) => data);
+    const service = new TasksService({ task: { update } } as never);
+
+    const completed = await service.update('task-1', 'user-1', { status: 'done' });
+    const reopened = await service.update('task-1', 'user-1', { status: 'todo' });
+
+    expect(completed.completedAt).toEqual(new Date('2026-09-21T12:00:00.000Z'));
+    expect(reopened.completedAt).toBeNull();
+    jest.useRealTimers();
+  });
 });
 
 

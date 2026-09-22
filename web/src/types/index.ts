@@ -29,6 +29,7 @@ export interface Task {
   subtasks: Subtask[];
   description?: string;
   dueDate?: string;
+  completedAt?: string;
   estimatedMinutes?: number;
 
   /** 看板分区：项目待办 / 个人待办 / 工作待办 / 学业待办，并兼容自定义分组 */

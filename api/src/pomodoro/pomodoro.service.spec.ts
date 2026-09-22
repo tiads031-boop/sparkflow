@@ -136,6 +136,102 @@ describe('PomodoroService reliable completion', () => {
     );
   });
 
+  it('updates a manual entry with revision CAS and replaces its effective segment', async () => {
+    const current = session({
+      id: 'manual-1',
+      taskId: null,
+      task: null,
+      title: '阅读',
+      entrySource: 'manual',
+      status: 'completed',
+      focusMode: 'countup',
+      plannedDurationSeconds: 0,
+      effectiveDurationSeconds: 1800,
+      startedAt: new Date('2026-09-20T08:00:00.000Z'),
+      endedAt: new Date('2026-09-20T08:30:00.000Z'),
+      lastResumedAt: null,
+      revision: 4,
+      segments: [{
+        id: 'segment-manual', sessionId: 'manual-1',
+        startedAt: new Date('2026-09-20T08:00:00.000Z'),
+        endedAt: new Date('2026-09-20T08:30:00.000Z'),
+        createdAt: new Date('2026-09-20T08:30:00.000Z'),
+      }],
+    });
+    const updated = session({
+      ...current,
+      revision: 5,
+      title: '阅读判例',
+      effectiveDurationSeconds: 2700,
+      endedAt: new Date('2026-09-20T08:45:00.000Z'),
+      segments: [{
+        id: 'segment-updated', sessionId: 'manual-1',
+        startedAt: new Date('2026-09-20T08:00:00.000Z'),
+        endedAt: new Date('2026-09-20T08:45:00.000Z'),
+        createdAt: new Date('2026-09-20T08:45:00.000Z'),
+      }],
+    });
+    const tx = {
+      task: { findFirst: jest.fn() },
+      tag: { upsert: jest.fn().mockResolvedValue({ id: 'tag-1' }) },
+      pomodoroSession: {
+        findFirst: jest.fn().mockResolvedValue(current),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue(updated),
+      },
+      pomodoroSegment: {
+        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+        create: jest.fn().mockResolvedValue({ id: 'segment-updated' }),
+      },
+    };
+    const prisma = { $transaction: jest.fn((run) => run(tx)) };
+
+    const result = await new PomodoroService(prisma as never).updateManual('manual-1', 'user-1', {
+      expectedRevision: 4,
+      title: '阅读判例',
+      startedAt: '2026-09-20T08:00:00.000Z',
+      endedAt: '2026-09-20T08:45:00.000Z',
+      tags: ['学习'],
+    });
+
+    expect(tx.pomodoroSession.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: 'manual-1', userId: 'user-1', revision: 4, entrySource: 'manual' }),
+      data: expect.objectContaining({ effectiveDurationSeconds: 2700, revision: { increment: 1 } }),
+    }));
+    expect(tx.pomodoroSegment.deleteMany).toHaveBeenCalledWith({ where: { sessionId: 'manual-1' } });
+    expect(result.revision).toBe(5);
+  });
+
+  it('does not allow focus sessions to be edited through the manual endpoint', async () => {
+    const tx = { pomodoroSession: { findFirst: jest.fn().mockResolvedValue(session()) } };
+    const prisma = { $transaction: jest.fn((run) => run(tx)) };
+
+    await expect(new PomodoroService(prisma as never).updateManual('focus-1', 'user-1', {
+      expectedRevision: 1,
+      startedAt: '2026-09-20T10:00:00.000Z',
+      endedAt: '2026-09-20T10:30:00.000Z',
+    })).rejects.toThrow('Only manual actual time can be edited');
+  });
+
+  it('rejects a stale manual revision before changing segments', async () => {
+    const tx = {
+      pomodoroSession: {
+        findFirst: jest.fn().mockResolvedValue(session({
+          id: 'manual-1', entrySource: 'manual', status: 'completed', revision: 3,
+        })),
+      },
+      pomodoroSegment: { deleteMany: jest.fn() },
+    };
+    const prisma = { $transaction: jest.fn((run) => run(tx)) };
+
+    await expect(new PomodoroService(prisma as never).updateManual('manual-1', 'user-1', {
+      expectedRevision: 2,
+      startedAt: '2026-09-20T10:00:00.000Z',
+      endedAt: '2026-09-20T10:30:00.000Z',
+    })).rejects.toThrow('Actual time changed on another device');
+    expect(tx.pomodoroSegment.deleteMany).not.toHaveBeenCalled();
+  });
+
   it('creates a count-up session without an automatic cutoff', async () => {
     const created = session({
       taskId: null,

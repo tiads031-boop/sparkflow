@@ -1,7 +1,7 @@
 # SparkFlow V11 — 真实业务代码落地实施方案
 
-> **状态**：待评审，作为 V11 视觉与真实业务代码整合的主实施规格  
-> **方案基线**：master@990edabb9a2b3d26f523f17850ed9080a7507ff8  
+> **状态**：实施中；R1 已合并，R2 代码与本地验证已完成，待远端 CI / 合并 / 移动端验收
+> **方案基线**：master@74c70d6d2025d049f9b40f5ada6df86ffd37971e
 > **最后核对**：2026-09-22  
 > **视觉来源**：用户确认的 sparkflow_ui_integrated_v11(1).html  
 > **光学玻璃参考**：VII-Cae/hyalite--liquid-glass，v0.5.0，MIT  

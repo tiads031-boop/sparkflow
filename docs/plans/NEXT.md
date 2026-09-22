@@ -1,8 +1,8 @@
 # SparkFlow — 下一步执行队列
 
 > **最后更新**：2026-09-22  
-> **仓库代码基线**：`master@990edabb9a2b3d26f523f17850ed9080a7507ff8`
-> **M1/M2 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)，CI 全绿，均已 squash 合并
+> **仓库代码基线**：`master@74c70d6d2025d049f9b40f5ada6df86ffd37971e`
+> **M1/M2/R1 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)、[#120](https://github.com/tiads031-boop/sparkflow/pull/120)，GitHub Actions CI 全绿，均已 squash 合并
 > **最近已确认生产版本**：`9f72d16b`（生产仍落后于当前 master；后续部署必须重新核对 buildSha）  
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
@@ -74,8 +74,11 @@
 
 - [x] R1 代码：Graphite Aurora tokens、Hyalite 本地依赖与 fallback、GlassProvider、悬浮五栏导航、去除全局顶栏、QuickAdd、density / reduceMotion；
 - [x] R1 本地验证：Web 76 tests、生产构建、新增文件定向 ESLint；
-- [ ] R1 远端 CI、360px / PWA / Android WebView 与 Hyalite supported/fallback 视觉验收；
-- [ ] R2 Today + Plan + Task + Actual；
+- [x] R1 GitHub Actions 远端 CI 与 squash 合并；
+- [ ] R1 360px / PWA / Android WebView 与 Hyalite supported/fallback 视觉验收；
+- [x] R2 代码：Today 聚合首页、Plan 紧凑工具栏、统一 Task Editor、Actual 逐条匹配/gap/manual edit；
+- [x] R2 本地验证：Web 80 tests、API 163 tests、Web/API 生产构建、新增 TSX 定向 ESLint；
+- [ ] R2 远端 CI、生产 API、360px / PWA / Android 视觉与交互验收；
 - [ ] R3 Planner + Focus + Records + Study/Course + Profile；
 - [ ] R4 Time Analytics；
 - [ ] R5 Scene Core；
@@ -84,7 +87,7 @@
 - [ ] R8 AI Execution Feedback；
 - [ ] R9 Android Usage。
 
-R1 实现分支：`feat/ui-v11-foundation-shell`。代码存在、合并、部署和真机验收继续分别记录。
+R1 已由 PR #120 合并。R2 实现分支：`feat/ui-v11-today-plan-task`。代码存在、合并、部署和真机验收继续分别记录。
 
 ---
 
@@ -217,11 +220,11 @@ M1 当前收口顺序：
 ## 5. 当前执行顺序
 
 ```text
-A. V11 R1 合并与移动端视觉验收
+A. V11 R2 合并与 R1/R2 移动端视觉验收
         ↓
 B. 生产/真机关键路径收口
         ↓
-C. V11 R2 / R3 现有业务视觉收敛
+C. V11 R3 现有业务视觉收敛
         ↓
 D. V11 R4 / Execution Intelligence M3 Time Analytics
         ↓

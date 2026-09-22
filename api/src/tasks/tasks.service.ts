@@ -104,6 +104,7 @@ export class TasksService {
     estimatedMinutes?: number;
     scheduledStart?: string | null;
     scheduledEnd?: string | null;
+    completedAt?: string | null;
     tags?: string[];
     inspirationId?: string;
     insightId?: string;
@@ -126,6 +127,9 @@ export class TasksService {
       if (!insight) throw new NotFoundException('Insight not found');
     }
     const { studyFolderId, ...taskData } = data;
+    if (taskData.status === 'done' && taskData.completedAt === undefined) {
+      taskData.completedAt = new Date().toISOString();
+    }
     if (studyFolderId) {
       const folder = await this.prisma.studyFolder.findFirst({ where: { id: studyFolderId, userId: data.userId, status: 'active' }, select: { id: true } });
       if (!folder) throw new NotFoundException('Study folder not found');
@@ -147,6 +151,11 @@ export class TasksService {
       studyFolderId,
       ...safeData
     } = data;
+    if (safeData.status === 'done' && safeData.completedAt === undefined) {
+      safeData.completedAt = new Date();
+    } else if (safeData.status && safeData.status !== 'done' && safeData.completedAt === undefined) {
+      safeData.completedAt = null;
+    }
     if (studyFolderId) {
       const folder = await this.prisma.studyFolder.findFirst({ where: { id: studyFolderId, userId, status: 'active' }, select: { id: true } });
       if (!folder) throw new NotFoundException('Study folder not found');
