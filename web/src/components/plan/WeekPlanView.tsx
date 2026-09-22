@@ -1,3 +1,4 @@
+import { useEffect, useRef, type PointerEvent } from 'react';
 import { LockKeyhole, Sparkles } from 'lucide-react';
 import type { PlanItem } from './planProjection';
 import { itemsForLocalDay, localDateKey } from './planProjection';
@@ -22,9 +23,37 @@ interface WeekPlanViewProps {
   items: PlanItem[];
   onSelectDate: (date: Date) => void;
   onItemClick?: (item: PlanItem) => void;
+  onCreateAt?: (date: Date) => void;
 }
 
-export default function WeekPlanView({ selectedDate, items, onSelectDate, onItemClick }: WeekPlanViewProps) {
+export default function WeekPlanView({ selectedDate, items, onSelectDate, onItemClick, onCreateAt }: WeekPlanViewProps) {
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressOrigin = useRef<{ x: number; y: number } | null>(null);
+  const cancelPress = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+    pressOrigin.current = null;
+  };
+  useEffect(() => () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+  }, []);
+  const startPress = (event: PointerEvent<HTMLDivElement>, day: Date) => {
+    if (!onCreateAt || event.button !== 0 || (event.target as Element).closest('button')) return;
+    cancelPress();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const minutes = Math.min(23 * 60 + 45, Math.max(0, Math.round((event.clientY - rect.top) / HOUR_HEIGHT * 4) * 15));
+    const start = new Date(day);
+    start.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+    pressOrigin.current = { x: event.clientX, y: event.clientY };
+    pressTimer.current = setTimeout(() => {
+      pressTimer.current = null;
+      pressOrigin.current = null;
+      onCreateAt(start);
+    }, 500);
+  };
+  const movePress = (event: PointerEvent<HTMLDivElement>) => {
+    if (pressOrigin.current && Math.hypot(event.clientX - pressOrigin.current.x, event.clientY - pressOrigin.current.y) > 8) cancelPress();
+  };
   const date = new Date(selectedDate.getTime());
   const monday = new Date(date);
   const offset = (date.getDay() + 6) % 7;
@@ -89,7 +118,17 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                 }));
 
                 return (
-                  <div key={day.toISOString()} className="relative border-l border-black/[0.05]" style={{ height: TOTAL_HEIGHT }}>
+                  <div
+                    key={day.toISOString()}
+                    className="relative border-l border-black/[0.05]"
+                    style={{ height: TOTAL_HEIGHT, touchAction: "pan-y" }}
+                    onPointerDown={(event) => startPress(event, day)}
+                    onPointerMove={movePress}
+                    onPointerUp={cancelPress}
+                    onPointerCancel={cancelPress}
+                    onPointerLeave={cancelPress}
+                    onContextMenu={(event) => { if (onCreateAt) event.preventDefault(); }}
+                  >
                     {Array.from({ length: (END_HOUR - START_HOUR) * 2 + 1 }, (_, index) => (
                       <span
                         key={index}
