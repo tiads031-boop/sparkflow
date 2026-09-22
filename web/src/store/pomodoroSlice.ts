@@ -137,6 +137,7 @@ export const createPomodoroSlice: StateCreator<
       set((state) => ({ pomodoro: stateFromSession(state.pomodoro, session) }));
       if (session.status === "completed") {
         window.dispatchEvent(new Event("sparkflow:calendar-changed"));
+        window.dispatchEvent(new Event("sparkflow:actual-changed"));
         await get().loadPomodoroStats();
       }
     } catch (error) {
@@ -192,6 +193,8 @@ export const createPomodoroSlice: StateCreator<
         syncError: null,
       },
     }));
+    window.dispatchEvent(new Event("sparkflow:actual-changed"));
+    await get().loadPomodoroStats();
   },
 
   tick: () =>
@@ -252,6 +255,7 @@ export const createPomodoroSlice: StateCreator<
       },
     }));
     window.dispatchEvent(new Event("sparkflow:calendar-changed"));
+    window.dispatchEvent(new Event("sparkflow:actual-changed"));
     await get().loadPomodoroStats();
   },
 

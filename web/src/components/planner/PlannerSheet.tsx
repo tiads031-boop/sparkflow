@@ -6,7 +6,6 @@ import {
   CalendarClock,
   Check,
   ChevronDown,
-  ChevronUp,
   ExternalLink,
   Globe2,
   Loader2,
@@ -38,6 +37,9 @@ import type { PlannerPreview, PlannerReplanPreview } from '../../types';
 import { useModalLifecycle } from '../ui/useModalLifecycle';
 import { usePlanningVoiceInput } from '../../hooks/usePlanningVoiceInput';
 import PlanningContextEditor from './PlanningContextEditor';
+import PlannerAdvancedDrawer from './PlannerAdvancedDrawer';
+import PlannerModelSwitch from './PlannerModelSwitch';
+import PlannerPreviewCard from './PlannerPreviewCard';
 import { isExplicitApplyAllMessage } from './planningConfirmation';
 import {
   applyCourseChange,
@@ -63,14 +65,6 @@ function dateInput(date: Date) {
 
 function localIso(date: string, time: string) {
   return new Date(`${date}T${time}:00`).toISOString();
-}
-
-function timeLabel(value: string) {
-  return new Date(value).toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
 }
 
 function dateTimeLabel(value: string) {
@@ -197,7 +191,7 @@ export default function PlannerSheet({
 }) {
   const [thread, setThread] = useState<PlanningThreadDetail | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
-  const [messageInput, setMessageInput] = useState('');
+  const [messageInput, setMessageInput] = useState(initialPrompt || '');
   const [planningModel, setPlanningModel] = useState<PlanningModel>(() => {
     try {
       return localStorage.getItem('sparkflow.planningModel') === 'deepseek-v4-pro'
@@ -351,32 +345,10 @@ export default function PlannerSheet({
 
   useEffect(() => {
     if (!open) return;
-    setDate(dateInput(selectedDate));
-    setMessageInput(initialPrompt);
-    setPreview(null);
-    setPlanId(null);
-    setSchedulerOpen(false);
-    setScheduleMessage('');
-    setActionMessage('');
-    setActiveCourseProposalId(null);
-    setCourseChangePreview(null);
-    setCourseChangePlanId(null);
-    setCourseChangeMessage('');
-    setLastAppliedCourseAction(null);
-    setActiveTemplateProposalId(null);
-    setTemplateChangePreview(null);
-    setTemplateChangePlanId(null);
-    setTemplateChangeMessage('');
-    setLastAppliedTemplateAction(null);
-    setReplanMessage('');
-    setActiveReplanRequestId(null);
-    setReplanPreview(null);
-    setReplanPlanId(null);
-    setContextEditing(false);
-    setContextError('');
     onPreviewChange?.(null);
-    void loadLatestThread();
-  }, [open, selectedDate, initialPrompt, loadLatestThread, onPreviewChange]);
+    const timeoutId = window.setTimeout(() => void loadLatestThread(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [open, loadLatestThread, onPreviewChange]);
 
   useEffect(() => {
     if (!open && voiceState === 'recording') cancelVoice();
@@ -410,13 +382,9 @@ export default function PlannerSheet({
   }, []);
 
   useEffect(() => {
-    if (!open) {
-      previousMessageCountRef.current = 0;
-      nearBottomRef.current = true;
-      setNewReplyPending(false);
-      return;
-    }
-    window.setTimeout(() => scrollToBottom('auto'), 50);
+    if (!open) return;
+    const timeoutId = window.setTimeout(() => scrollToBottom('auto'), 50);
+    return () => window.clearTimeout(timeoutId);
   }, [open, scrollToBottom]);
 
   useEffect(() => {
@@ -465,6 +433,8 @@ export default function PlannerSheet({
   const templateChangeProposals = actionProposals.filter(
     (action): action is CourseTemplateChangeAction => action.type === 'course_template_change',
   );
+  const advancedItemCount = contextItemCount + latestEvidence.length + replanRequests.length
+    + courseChangeProposals.length + templateChangeProposals.length;
 
   const clearPreview = () => {
     setPreview(null);
@@ -1125,39 +1095,10 @@ export default function PlannerSheet({
               </button>
             )}
           </div>
-          <label className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-[var(--sf-bg)] px-3 py-2">
-            <span className="text-[10px] font-bold text-[var(--sf-text-tertiary)]">文字模型</span>
-            <select
-              value={planningModel}
-              onChange={(event) => setPlanningModel(event.target.value as PlanningModel)}
-              disabled={turnBusy}
-              className="min-w-0 bg-transparent text-right text-xs font-bold text-[var(--sf-text-primary)] outline-none disabled:opacity-50"
-              aria-label="选择文字模型"
-            >
-              <option value="deepseek-v4-flash">DeepSeek V4 Flash</option>
-              <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
-            </select>
-          </label>
+          <PlannerModelSwitch value={planningModel} disabled={turnBusy} onChange={setPlanningModel} />
 
           {thread && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => setContextOpen((value) => !value)}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-[#b0a8db]/25 bg-[#f7f5fc] px-3 py-2.5 text-left"
-              >
-                <span className="min-w-0 flex-1">
-                  <strong className="block text-[10px] font-black uppercase tracking-[0.12em] text-[#62578f]">当前规划依据</strong>
-                  <span className="mt-0.5 block truncate text-xs text-[var(--sf-text-primary)]">{contextSummary}</span>
-                  <span className="mt-0.5 block text-[9px] text-[var(--sf-text-tertiary)]">
-                    {thread.planningContext.constraints.length} 条约束 · {contextItemCount} 条依据 · revision {thread.revision}
-                  </span>
-                </span>
-                {contextOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-              </button>
-
-              {contextOpen && (
-                <div className="mt-2 max-h-[40vh] space-y-4 overflow-y-auto rounded-[1.5rem] border border-black/[0.05] bg-white p-4">
+            <PlannerAdvancedDrawer open={contextOpen} summary={contextSummary} detail={`${thread.planningContext.constraints.length} 条约束 · revision ${thread.revision}`} count={advancedItemCount} onToggle={() => setContextOpen((value) => !value)}>
                   {contextEditing ? (
                     <PlanningContextEditor
                       context={thread.planningContext}
@@ -1198,9 +1139,7 @@ export default function PlannerSheet({
                   {contextError && (
                     <p className="rounded-2xl bg-red-50 px-3 py-2 text-xs text-red-600">{contextError}</p>
                   )}
-                </div>
-              )}
-            </div>
+            </PlannerAdvancedDrawer>
           )}
         </header>
 
@@ -1284,7 +1223,7 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {latestEvidence.length > 0 && (
+          {contextOpen && latestEvidence.length > 0 && (
             <div className="mt-4 rounded-[1.5rem] border border-[#b0a8db]/30 bg-[#f7f5fc] p-4">
               <div className="mb-3 flex items-center gap-2">
                 <Globe2 size={14} className="text-[#6f63a8]" />
@@ -1320,7 +1259,7 @@ export default function PlannerSheet({
             </p>
           )}
 
-          {replanRequests.length > 0 && (
+          {contextOpen && replanRequests.length > 0 && (
             <div className="mt-5 space-y-3">
               {replanRequests.map((request) => {
                 const active = activeReplanRequestId === request.requestId;
@@ -1425,7 +1364,7 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {courseChangeProposals.length > 0 && (
+          {contextOpen && courseChangeProposals.length > 0 && (
             <div className="mt-5 rounded-[1.7rem] border border-[#b0a8db]/40 bg-[#f7f5fc] p-4">
               <div className="mb-3">
                 <div className="flex items-center gap-2">
@@ -1560,7 +1499,7 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {courseChangePlanId && lastAppliedCourseAction && (
+          {contextOpen && courseChangePlanId && lastAppliedCourseAction && (
             <div className="mt-4 rounded-[1.6rem] border border-[#cae393]/60 bg-[#f7faef] p-4">
               <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#72804f]">
                 课程变动已应用
@@ -1634,7 +1573,7 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {templateChangeProposals.length > 0 && (
+          {contextOpen && templateChangeProposals.length > 0 && (
             <div className="mt-5 rounded-[1.7rem] border border-[#f1c97b]/55 bg-[#fffaf0] p-4">
               <div className="mb-3">
                 <div className="flex items-center gap-2">
@@ -1776,7 +1715,7 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {templateChangePlanId && lastAppliedTemplateAction && (
+          {contextOpen && templateChangePlanId && lastAppliedTemplateAction && (
             <div className="mt-4 rounded-[1.6rem] border border-[#f1c97b]/60 bg-[#fffaf0] p-4">
               <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9a6c23]">
                 周期课表已修改
@@ -1816,10 +1755,12 @@ export default function PlannerSheet({
           {directActionProposals.length > 0 && (
             <div className="mt-5 rounded-[1.7rem] border border-[#cae393]/60 bg-[#f7faef] p-4">
               <div className="mb-3">
-                <h3 className="text-sm font-black text-[#242424]">待确认的操作</h3>
+                <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[#647440]">Preview</span>
+                <h3 className="mt-1 text-sm font-black text-[#242424]">方案草案 · {directActionProposals.length} 项</h3>
                 <p className="mt-1 text-[10px] leading-4 text-[#667252]">
                   AI 只是提出草案。你可以取消任意一项；确认后才会执行，永久删除课程不可撤销。
                 </p>
+                {thread?.planningContext.constraints.length ? <div className="mt-2 flex flex-wrap gap-1.5">{thread.planningContext.constraints.slice(0, 3).map((item) => <span key={`${item.key}:${item.value}`} className="rounded-full bg-white/75 px-2.5 py-1 text-[9px] font-bold text-[#667252]">{item.value}</span>)}</div> : null}
               </div>
               <div className="space-y-2">
                 {directActionProposals.map((action) => {
@@ -1932,6 +1873,13 @@ export default function PlannerSheet({
             </div>
           )}
 
+          {directActionProposals.length > 0 && thread?.planningContext.strategy.length ? (
+            <div className="mt-3 rounded-[1.4rem] border border-[#b0a8db]/25 bg-[#f7f5fc] px-4 py-3">
+              <span className="text-[9px] font-black uppercase tracking-[0.16em] text-[#62578f]">为什么这样安排</span>
+              <p className="mt-2 text-[10px] leading-4 text-[#6d6682]">{thread.planningContext.strategy[0].value}</p>
+            </div>
+          ) : null}
+
           {thread && (readiness === 'ready' || schedulerOpen) && (
             <div className="mt-5 rounded-[1.7rem] border border-black/[0.06] bg-white p-4">
               <div className="flex items-start justify-between gap-3">
@@ -1969,51 +1917,9 @@ export default function PlannerSheet({
                     {preview ? '重新生成时间块' : '生成时间块预览'}
                   </button>
 
-                  {preview?.proposals.length ? (
-                    <div className="mt-3 space-y-2">
-                      {preview.proposals.map((proposal) => (
-                        <article key={proposal.taskId} className="rounded-2xl bg-[var(--sf-bg)] px-3 py-2.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="min-w-0">
-                              <strong className="block truncate text-xs">{proposal.title}</strong>
-                              <span className="mt-0.5 block text-[10px] text-[var(--sf-text-secondary)]">
-                                {timeLabel(proposal.start)}–{timeLabel(proposal.end)} · {proposal.durationMinutes} 分钟
-                              </span>
-                            </span>
-                            <Check size={13} className="mt-0.5 shrink-0 text-[var(--sf-marker-green)]" />
-                          </div>
-                          <p className="mt-1 text-[9px] text-[var(--sf-text-tertiary)]">{proposal.reason}</p>
-                        </article>
-                      ))}
-                      {preview.unscheduledTaskIds.length > 0 && (
-                        <p className="rounded-xl bg-amber-50 px-3 py-2 text-[10px] text-amber-800">
-                          另有 {preview.unscheduledTaskIds.length} 项未能放入当前时间范围。
-                        </p>
-                      )}
-                      {!planId && (
-                        <button
-                          type="button"
-                          onClick={() => void applySchedule()}
-                          disabled={scheduleBusy}
-                          className="w-full rounded-full bg-[#cae393] py-3 text-xs font-black text-[#242424] disabled:opacity-40"
-                        >
-                          确认并应用
-                        </button>
-                      )}
-                    </div>
-                  ) : null}
+                  {preview?.proposals.length ? <PlannerPreviewCard preview={preview} constraintChips={(thread?.planningContext.constraints || []).slice(0, 3).map((item) => item.value)} busy={scheduleBusy} applied={Boolean(planId)} onApply={() => void applySchedule()} onUndo={() => void undoSchedule()} /> : null}
 
                   {scheduleMessage && <p className="mt-3 rounded-xl bg-[var(--sf-bg)] px-3 py-2 text-xs">{scheduleMessage}</p>}
-                  {planId && (
-                    <button
-                      type="button"
-                      onClick={() => void undoSchedule()}
-                      disabled={scheduleBusy}
-                      className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-bg)] py-3 text-xs font-bold disabled:opacity-40"
-                    >
-                      <RotateCcw size={14} /> 撤销本次安排
-                    </button>
-                  )}
                 </div>
               )}
             </div>

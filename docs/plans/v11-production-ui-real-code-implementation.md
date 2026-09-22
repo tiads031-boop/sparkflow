@@ -1,7 +1,7 @@
 # SparkFlow V11 — 真实业务代码落地实施方案
 
-> **状态**：实施中；R1 已合并，R2 代码与本地验证已完成，待远端 CI / 合并 / 移动端验收
-> **方案基线**：master@74c70d6d2025d049f9b40f5ada6df86ffd37971e
+> **状态**：实施中；R1/R2 已合并，R3-A Planner + Focus 代码、本地验证与远端 CI 已完成，待合并 / 移动端验收
+> **方案基线**：master@9681216d28e285ec3c208f16e9a19da36a068611
 > **最后核对**：2026-09-22  
 > **视觉来源**：用户确认的 sparkflow_ui_integrated_v11(1).html  
 > **光学玻璃参考**：VII-Cae/hyalite--liquid-glass，v0.5.0，MIT  
@@ -1935,6 +1935,16 @@ measured 是系统测得事实；Planner 可以引用，但不能自动改写成
 目标：把现有真实业务全部统一进 V11 视觉。
 
 不做 Scene/Analytics 的假实现。
+
+实施拆分：
+
+- [x] R3-A Planner：保留 PlanningThread、Evidence、语音、Replan、调课 / 课程模板与 Preview → Apply → Undo，默认收敛为 Conversation / Preview / Why，依据与高级操作按需展开；
+- [x] R3-A Focus：完成 Setup → Running / Paused → Completed 状态视觉，保留自由 / 关联任务、倒计时 / 正计时、25 / 45 / 60 / 自定义、Capture 与完成任务；
+- [x] R3-A 数据联动：完成或中断 Focus 后刷新 Actual；
+- [x] R3-A 本地验证：Web 83 tests、API 163 tests、Web/API production build、改动文件定向 ESLint；
+- [x] R3-A GitHub Actions CI #321；
+- [ ] R3-A 360px / PWA / Android WebView 视觉与交互验收；
+- [ ] R3-B Records + Study/Course + Profile。
 
 ### R4 — Time Analytics
 
