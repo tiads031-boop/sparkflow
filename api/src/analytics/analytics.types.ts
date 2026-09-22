@@ -41,4 +41,5 @@ export interface AnalyticsMatch {
   confidence: MatchConfidence;
   startDeltaMinutes?: number;
   durationDeltaMinutes?: number;
+  plannedStart?: string;
 }
