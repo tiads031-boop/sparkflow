@@ -60,11 +60,13 @@ export default function InspirationCaptureSheet({
   onClose,
   onSaved,
   focusSessionId,
+  allowMedia = true,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved?: (record: InspirationRecord) => void | Promise<void>;
   focusSessionId?: string;
+  allowMedia?: boolean;
 }) {
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -295,11 +297,11 @@ export default function InspirationCaptureSheet({
   };
 
   const save = async () => {
-    if (saving || (!text.trim() && files.length === 0)) return;
+    if (saving || (!text.trim() && (!allowMedia || files.length === 0))) return;
     setSaving(true);
     setError(null);
     try {
-      const record = await createMultimodalInspiration(text, files, tags, {
+      const record = await createMultimodalInspiration(text, allowMedia ? files : [], tags, {
         requestId: captureRequestIdRef.current,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         focusSessionId,
@@ -373,7 +375,7 @@ export default function InspirationCaptureSheet({
             <TagSelector value={tags} onChange={setTags} compact />
           </div>
 
-          <input
+          {allowMedia ? <input
             ref={fileInputRef}
             type="file"
             accept="image/*,video/*,audio/*"
@@ -383,9 +385,9 @@ export default function InspirationCaptureSheet({
               addFiles(Array.from(event.target.files || []));
               event.target.value = '';
             }}
-          />
+          /> : null}
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          {allowMedia ? <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -415,9 +417,9 @@ export default function InspirationCaptureSheet({
                 <Mic size={14} /> 录一段语音
               </button>
             )}
-          </div>
+          </div> : <p className="mt-3 text-xs text-[var(--sf-text-secondary)]">当前设置仅保存文字与标签。</p>}
 
-          {files.length > 0 && (
+          {allowMedia && files.length > 0 && (
             <div className="mt-3 space-y-2">
               {files.map((file, index) => {
                 const kind = fileKind(file);
@@ -471,7 +473,7 @@ export default function InspirationCaptureSheet({
           <button
             type="button"
             onClick={() => void save()}
-            disabled={!draftReady || saving || recording || (!text.trim() && files.length === 0)}
+            disabled={!draftReady || saving || recording || (!text.trim() && (!allowMedia || files.length === 0))}
             className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-black text-[var(--sf-surface)] shadow-[0_10px_28px_rgba(18,18,22,0.14)] disabled:opacity-40"
           >
             {saving && <Loader2 size={15} className="animate-spin" />}

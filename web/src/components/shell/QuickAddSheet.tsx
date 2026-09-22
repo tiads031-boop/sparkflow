@@ -7,6 +7,7 @@ export type QuickAddAction = 'task' | 'schedule' | 'spark' | 'focus' | 'planner'
 
 interface QuickAddSheetProps {
   open: boolean;
+  quickStartEnabled?: boolean;
   onClose: () => void;
   onSelect: (action: QuickAddAction) => void;
 }
@@ -19,7 +20,7 @@ const actions = [
   { id: 'planner', label: 'AI 规划', icon: BrainCircuit },
 ] as const;
 
-export default function QuickAddSheet({ open, onClose, onSelect }: QuickAddSheetProps) {
+export default function QuickAddSheet({ open, onClose, onSelect, quickStartEnabled = true }: QuickAddSheetProps) {
   useModalLifecycle(open, onClose, { isolateAppMain: true });
   if (!open) return null;
 
@@ -40,7 +41,7 @@ export default function QuickAddSheet({ open, onClose, onSelect }: QuickAddSheet
         }}
         onClick={(event) => event.stopPropagation()}
       >
-        {actions.map(({ id, label, icon: Icon }) => (
+        {actions.filter(({ id }) => id !== 'focus' || quickStartEnabled).map(({ id, label, icon: Icon }) => (
           <GlassSurface
             as="button"
             variant="composer"

@@ -18,6 +18,7 @@ import ScheduleEditor, { type ScheduleDraft } from './components/schedule/Schedu
 import FocusSession from './components/focus/FocusSession';
 import PlannerSheet from './components/planner/PlannerSheet';
 import InspirationCaptureSheet from './components/records/InspirationCaptureSheet';
+import { useTimeTrackingPreferences } from './components/profile/useTimeTrackingPreferences';
 
 const StudyWorkspace = lazy(() => import('./components/study/StudyWorkspace'));
 const PlanWorkspace = lazy(() => import('./components/plan/PlanWorkspace'));
@@ -62,6 +63,7 @@ function localDateBoundaryToIso(value: string | undefined, boundary: 'start' | '
 }
 
 export default function App() {
+  const timeTrackingPreferences = useTimeTrackingPreferences();
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const selectedDate = useAppStore((s) => s.selectedDate);
@@ -172,6 +174,12 @@ export default function App() {
     document.addEventListener('visibilitychange', refreshFocus);
     return () => document.removeEventListener('visibilitychange', refreshFocus);
   }, [loadActivePomodoro]);
+
+  useEffect(() => {
+    const openFocus = () => setFocusOpen(true);
+    window.addEventListener('sparkflow:start-focus', openFocus);
+    return () => window.removeEventListener('sparkflow:start-focus', openFocus);
+  }, []);
 
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -384,6 +392,7 @@ export default function App() {
                 onOpenPlan={() => setScheduleSurface('plan')}
                 onOpenActual={() => setScheduleSurface('actual')}
                 onOpenAnalytics={() => setScheduleSurface('analytics')}
+                onStartFocus={() => setFocusOpen(true)}
               />
             </Suspense>
           )}
@@ -469,7 +478,7 @@ export default function App() {
           onDelete={handleDeleteItem}
           onToggleSubtask={toggleSubtask}
         />
-        <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} onSelect={handleQuickAdd} />
+        <QuickAddSheet open={quickAddOpen} quickStartEnabled={timeTrackingPreferences?.quickStartEnabled === true} onClose={() => setQuickAddOpen(false)} onSelect={handleQuickAdd} />
         <InspirationCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} />
         {scheduleEditorOpen && (
           <ScheduleEditor

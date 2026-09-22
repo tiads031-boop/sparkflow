@@ -57,12 +57,14 @@ import {
 } from '../capacitor/calendar';
 import CourseWebDavBackup from './CourseWebDavBackup';
 import TagManagementView from './tags/TagManagementView';
+import TimeTrackingSettingsView from './profile/TimeTrackingSettingsView';
 
 type SettingsPage =
   | 'home'
   | 'appearance'
   | 'task'
   | 'tags'
+  | 'timeTracking'
   | 'notifications'
   | 'connections'
   | 'data'
@@ -756,6 +758,10 @@ export default function SettingsView() {
     return <TagManagementView onBack={() => setPage('home')} />;
   }
 
+  if (page === 'timeTracking') {
+    return <TimeTrackingSettingsView onBack={() => setPage('home')} onOpenActual={() => setActiveTab('timeline')} />;
+  }
+
   if (page === 'notifications') {
     const serverPreferences = notificationPreferences;
     return (
@@ -1314,14 +1320,14 @@ export default function SettingsView() {
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('timeline')}
+          onClick={() => setPage('timeTracking')}
           className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
         >
           <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#e7f2ef] text-[#3f6e65]">
             <Clock3 size={16} />
           </span>
           <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">时间记录</strong>
-          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">累计 {totalFocusMinutes} 分钟 · 今日 {todayFocusCount} 次</span>
+          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">累计 {totalFocusMinutes} 分钟 · 今日 {todayFocusCount} 次 · 偏好设置</span>
         </button>
         <button
           type="button"

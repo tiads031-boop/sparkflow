@@ -7,8 +7,10 @@ import { useModalLifecycle } from '../ui/useModalLifecycle';
 import FocusCompleted from './FocusCompleted';
 import FocusRunning from './FocusRunning';
 import FocusSetup, { type FocusMode } from './FocusSetup';
+import { useTimeTrackingPreferences } from '../profile/useTimeTrackingPreferences';
 
 export default function FocusSession({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const timeTrackingPreferences = useTimeTrackingPreferences();
   const tasks = useAppStore((state) => state.tasks);
   const pomodoro = useAppStore((state) => state.pomodoro);
   const startPomodoro = useAppStore((state) => state.startPomodoro);
@@ -59,6 +61,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
     setMessage('');
     try {
       await completePomodoro();
+      window.dispatchEvent(new CustomEvent('sparkflow:scenes-changed'));
     } catch (error: unknown) {
       setMessage(error instanceof Error ? error.message : '专注记录同步失败，请稍后重试');
     } finally {
@@ -122,7 +125,7 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
         {!activeOrSeen ? <FocusSetup tasks={availableTasks} taskId={taskId} duration={duration} mode={focusMode} busy={busy} onTaskChange={setTaskId} onDurationChange={setDuration} onModeChange={setFocusMode} onStart={() => void start()} /> : ended ? <FocusCompleted state={pomodoro} taskTitle={task?.title} hasTask={Boolean(task)} savedRecordCount={savedRecordCount} onCapture={() => setCaptureOpen(true)} onFinishTask={() => void finishTask()} onClose={closeCompleted} /> : <FocusRunning state={pomodoro} taskTitle={task?.title || '自由专注'} busy={busy} onRestart={() => void restart()} onTogglePause={() => void togglePause()} onComplete={() => void finish()} />}
         {(message || pomodoro.syncError) ? <p className="w-full rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{message || pomodoro.syncError}</p> : null}
       </main>
-      <InspirationCaptureSheet open={captureOpen} focusSessionId={pomodoro.lastCompletedSessionId || undefined} onClose={() => setCaptureOpen(false)} onSaved={() => setSavedRecordCount((count) => count + 1)} />
+      <InspirationCaptureSheet open={captureOpen} focusSessionId={pomodoro.lastCompletedSessionId || undefined} allowMedia={timeTrackingPreferences?.focusAttachmentEnabled === true} onClose={() => setCaptureOpen(false)} onSaved={() => setSavedRecordCount((count) => count + 1)} />
     </div>,
     document.body,
   );
