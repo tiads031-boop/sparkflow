@@ -68,6 +68,7 @@ export default function App() {
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const selectedDate = useAppStore((s) => s.selectedDate);
+  const setSelectedDate = useAppStore((s) => s.setSelectedDate);
   const tasks = useAppStore((s) => s.tasks);
   const sparks = useAppStore((s) => s.sparks);
   const setSparks = useAppStore((s) => s.setSparks);
@@ -394,12 +395,6 @@ export default function App() {
                   setActiveTab('courses');
                 }}
                 onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
-                onCreateAt={(date) => {
-                  setSelectedDate(date);
-                  setScheduleDraftStart(date);
-                  setEditingScheduleTask(null);
-                  setScheduleEditorOpen(true);
-                }}
                 onOpenPlan={() => setScheduleSurface('plan')}
                 onOpenActual={() => setScheduleSurface('actual')}
                 onOpenAnalytics={() => setScheduleSurface('analytics')}
@@ -427,6 +422,12 @@ export default function App() {
                   setActiveTab('courses');
                 }}
                 onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
+                onCreateAt={(date) => {
+                  setSelectedDate(date);
+                  setScheduleDraftStart(date);
+                  setEditingScheduleTask(null);
+                  setScheduleEditorOpen(true);
+                }}
                 plannerPreview={plannerPreview}
                 initialSection={isSchedulePlanRoute ? 'calendar' : 'tasks'}
                 sectionOnly={isSchedulePlanRoute ? 'calendar' : 'tasks'}
