@@ -1,8 +1,8 @@
 # SparkFlow — 下一步执行队列
 
 > **最后更新**：2026-09-23  
-> **仓库代码基线**：`master@64e1be1f6d781adfebb81ea4a4e4ed86cd536ddd`（PR #143 已合并；后续文档提交不改变功能基线）
-> **开发状态**：R1–R9 代码已合并；R9 非法区间校验补丁 #138、Timeline 分步改动 #139/#140 已合并。对应 CI 通过；R7-C 空态/错误态代码已由 #143 合并，Issue #26 余项仍在开发，终端/生产验收待功能完成后集中进行。
+> **仓库代码基线**：master@76f8f77db2d6ed1abda8d98c4303d6c17b1a544f`（PR #144 已合并；后续文档提交不改变功能基线）
+> **开发状态**：R1–R9 代码已合并；R9 非法区间校验补丁 #138、Timeline 分步改动 #139/#140/#144 已合并。对应 CI 通过；R7-C 空态/错误态代码已由 #143 合并，Issue #26 余项仍在开发，终端/生产验收待功能完成后集中进行。
 > **最近有直接回显的生产版本**：`990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21 `/api/health.buildSha`；当前运行版本须在发布时重新核对）。
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
@@ -14,7 +14,7 @@
 
 - 五工作空间：今天 / 计划 / 记录 / 学习 / 我的；
 - Month / Week / Agenda 计划视图与 Task / Course / CalendarEvent 统一投影；
-- 周视图 00:00–24:00、半小时辅助线、当前时间线；跨 DST 学期周数、窄屏横向滚动及空白时间格长按创建已合入（#139/#140），拖拽/缩放仍属 Issue #26 待办；
+- 周视图 00:00–24:00、半小时辅助线、当前时间线；跨 DST 学期周数、窄屏横向滚动、空白格长按及单日 Task 拖动/缩放已合入（#139/#140/#144）；跨视图与真机验收仍属 Issue #26 待办；
 - 待办列表 / 四象限；
 - 对话式 AI Planner、持续 PlanningThread、语音、SearXNG Research；
 - Preview → Apply → Undo；
@@ -225,7 +225,7 @@ M1 当前收口顺序：
 
 ## 5. 当前执行顺序
 
-1. 完成 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项。PR #139 修复跨 DST 学期周数与窄屏滚动，PR #140 接入空白网格长按创建。本轮开发单日 Task 的周网格拖动/缩放草案，通过现有 ScheduleEditor 确认保存，固定项先确认，移动保持任意分钟时长；跨午夜项目仍用编辑器调整。还需只读课程/Google/本地日历及 Month / Week / Timeline / Gantt 一致性和真机验收。不要提前关闭 Issue #26。
+1. 完成 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项。PR #139 修复跨 DST 学期周数与窄屏滚动，PR #140 接入空白网格长按创建。PR #144 已合并单日 Task 的周网格拖动/缩放草案，通过现有 ScheduleEditor 确认保存，固定项先确认，移动保持任意分钟时长；跨午夜项目仍用编辑器调整。还需只读课程/Google/本地日历及 Month / Week / Timeline / Gantt 一致性和真机验收。不要提前关闭 Issue #26。
 2. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
 3. 最后核对生产 buildSha、migrations、真实账号链路与 Issue #31 导入幂等，记录发布结果。
 
