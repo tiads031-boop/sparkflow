@@ -1,7 +1,7 @@
 # SparkFlow V11 — 真实业务代码落地实施方案
 
-> **状态**：实施中；R1/R2/R3 已合并，R4 Time Analytics 已完成本地实现
-> **方案基线**：master@90204270e84e47d92b0f4eec59a3ccd4aa92ac5d
+> **状态**：实施中；R1–R6 和 R7-A 已合并；R7-B PR #133 开放、CI #349 通过；R8/R9 待开发；终端与生产验收最后集中进行
+> **方案基线**：master@7bb2b375fa886b094855a084f2bb8590572640a4
 > **最后核对**：2026-09-22  
 > **视觉来源**：用户确认的 sparkflow_ui_integrated_v11(1).html  
 > **光学玻璃参考**：VII-Cae/hyalite--liquid-glass，v0.5.0，MIT  
@@ -2002,7 +2002,7 @@ R6-A 已由 PR #129 合并：时间记录偏好 API、`countsTowardActual` 快�
 
 执行拆分：R7-A 先落数据模型、Task / Numeric / Time 三类统一聚合及数值进度写入 API；R7-B 接 Study Goal 主指标、进度编辑与记录交互；R7-C 收口空态、错误态、360px / PWA / Android 视觉和生产迁移验收。
 
-R7-A 已由 PR #132 合并：StudyFolder 增加进度类型、目标值与单位，新增可审计的数值进度记录；Task 进度排除取消任务，Time 进度复用 `countsTowardActual` 有效专注口径并按周边界裁剪。R7-B 已完成代码实现并待独立 PR CI：Study Goal 详情展示统一主指标、任务/累计投入/近 7 天辅助指标，编辑页可切换指标类型，数值型目标可手工增减并删除记录。
+R7-A 已由 PR #132 合并：StudyFolder 增加进度类型、目标值与单位，新增可审计的数值进度记录；Task 进度排除取消任务，Time 进度复用 `countsTowardActual` 有效专注口径并按周边界裁剪。R7-B 界面 PR #133 开放中且 CI #349 通过。R7-C 的空态/错误态可先做代码收口，360px / PWA / Android 和生产 migration 留待功能完成后统一验收。
 
 ### R8 — AI Execution Feedback
 
