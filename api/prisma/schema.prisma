@@ -43,6 +43,9 @@ model User {
   sceneTemplates         SceneTemplate[]
   sceneEntries           SceneEntry[]
   goalProgressEntries    GoalProgressEntry[]
+  appUsageConfig          AppUsageConfig?
+  appUsageMappings        AppUsageMapping[]
+  appUsageSessions        AppUsageSession[]
 
   @@map("users")
 }
@@ -61,11 +64,59 @@ model Tag {
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   parent   Tag?   @relation("TagHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children Tag[]  @relation("TagHierarchy")
+  appUsageMappings AppUsageMapping[]
 
   @@unique([userId, name])
   @@index([userId, archived, sortOrder])
   @@index([parentId])
   @@map("tags")
+}
+
+model AppUsageConfig {
+  userId    String   @id
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("app_usage_configs")
+}
+
+model AppUsageMapping {
+  id          String   @id @default(uuid())
+  userId      String
+  packageName String
+  appName     String
+  tagId       String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag  Tag? @relation(fields: [tagId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, packageName])
+  @@index([userId, enabled])
+  @@map("app_usage_mappings")
+}
+
+model AppUsageSession {
+  id              String   @id @default(uuid())
+  userId          String
+  packageName     String
+  appName         String
+  startTime       DateTime
+  endTime         DateTime
+  durationSeconds Int
+  tagId           String?
+  tagName         String?
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, packageName, startTime, endTime])
+  @@index([userId, startTime])
+  @@map("app_usage_sessions")
 }
 
 model SceneTemplate {
