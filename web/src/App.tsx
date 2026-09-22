@@ -19,6 +19,7 @@ import FocusSession from './components/focus/FocusSession';
 import PlannerSheet from './components/planner/PlannerSheet';
 import InspirationCaptureSheet from './components/records/InspirationCaptureSheet';
 import { useTimeTrackingPreferences } from './components/profile/useTimeTrackingPreferences';
+import { syncAppUsage } from './lib/appUsageSync';
 
 const StudyWorkspace = lazy(() => import('./components/study/StudyWorkspace'));
 const PlanWorkspace = lazy(() => import('./components/plan/PlanWorkspace'));
@@ -132,6 +133,7 @@ export default function App() {
 
     // 注册前台推送消息 & 通知点击监听（与注册流程解耦，只挂一次）
     import('./capacitor/push').then((m) => m.listenToPushEvents()).catch(() => {});
+    void syncAppUsage().catch(() => {});
 
     // @capacitor/app 在 PWA 构建时不可用，运行时动态加载
     let cleanup: (() => void) | undefined;
@@ -146,6 +148,7 @@ export default function App() {
             checkGoogleStatus();
             loadTasks();
             loadActivePomodoro();
+            void syncAppUsage().catch(() => {});
           }
         });
         cleanup = handler.remove;
