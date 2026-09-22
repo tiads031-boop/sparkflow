@@ -46,6 +46,11 @@ describe('AnalyticsService', () => {
     );
 
     expect(result.totalActualSeconds).toBe(1800);
+    expect(pomodoroSession.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ countsTowardActual: true }),
+      }),
+    );
     expect(result.buckets).toEqual([
       expect.objectContaining({ key: '2026-09-22', actualSeconds: 1800 }),
     ]);

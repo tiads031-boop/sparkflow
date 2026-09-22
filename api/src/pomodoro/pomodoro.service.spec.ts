@@ -68,7 +68,7 @@ describe('PomodoroService reliable completion', () => {
       tag: { upsert: jest.fn().mockResolvedValue({ id: 'tag-1' }) },
       pomodoroSession: { create: jest.fn().mockResolvedValue(created) },
     };
-    const prisma = { $transaction: jest.fn((run) => run(tx)) };
+    const prisma = { user: { findUnique: jest.fn().mockResolvedValue({ settings: {} }) }, $transaction: jest.fn((run) => run(tx)) };
 
     const result = await new PomodoroService(prisma as never).createManual({
       userId: 'user-1',
@@ -83,6 +83,7 @@ describe('PomodoroService reliable completion', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           entrySource: 'manual',
+          countsTowardActual: true,
           effectiveDurationSeconds: 2700,
           tags: ['学习'],
           status: 'completed',
@@ -95,6 +96,14 @@ describe('PomodoroService reliable completion', () => {
       }),
     );
     expect(result.effectiveDurationSeconds).toBe(2700);
+  });
+
+  it('rejects manual backfill when disabled', async () => {
+    const prisma = { user: { findUnique: jest.fn().mockResolvedValue({ settings: { timeTracking: { manualBackfillEnabled: false } } }) }, $transaction: jest.fn() };
+    await expect(new PomodoroService(prisma as never).createManual({
+      userId: 'user-1', startedAt: '2026-09-20T08:00:00.000Z', endedAt: '2026-09-20T08:30:00.000Z',
+    })).rejects.toThrow('手工补记已关闭');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('returns actual timeline entries from sessions rather than calendar projections', async () => {
@@ -122,6 +131,7 @@ describe('PomodoroService reliable completion', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           userId: 'user-1',
+          countsTowardActual: true,
           effectiveDurationSeconds: { gt: 0 },
         }),
       }),
@@ -240,6 +250,7 @@ describe('PomodoroService reliable completion', () => {
       plannedDurationSeconds: 0,
     });
     const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue({ settings: { timeTracking: { focusActualEnabled: false } } }) },
       pomodoroSession: {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue(created),
@@ -257,6 +268,7 @@ describe('PomodoroService reliable completion', () => {
         data: expect.objectContaining({
           focusMode: 'countup',
           plannedDurationSeconds: 0,
+          countsTowardActual: false,
         }),
       }),
     );

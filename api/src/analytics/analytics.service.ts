@@ -57,6 +57,7 @@ export class AnalyticsService {
     const sessions = await this.prisma.pomodoroSession.findMany({
       where: {
         userId,
+        countsTowardActual: true,
         status: { in: ['completed', 'interrupted'] },
         effectiveDurationSeconds: { gt: 0 },
         startedAt: { lt: end },

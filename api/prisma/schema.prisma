@@ -421,6 +421,7 @@ model PomodoroSession {
   taskId            String?
   title             String?
   entrySource       String    @default("focus") // focus/manual
+  countsTowardActual Boolean  @default(true)
   tags              String[]  @default([])
   duration          Int       @default(25)
   focusMode         String    @default("countdown") // countdown/countup
