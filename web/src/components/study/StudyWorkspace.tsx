@@ -347,16 +347,22 @@ function GoalCard({
           </div>
 
           <div className="mt-3">
-            <div className="flex items-center justify-between text-[9px] font-bold text-gray-400">
-              <span>{progress.done}/{progress.total || 0} 个执行任务已完成</span>
-              <span>{progress.percent}%</span>
-            </div>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/80">
-              <div
-                className="h-full rounded-full bg-[#242424] transition-[width]"
-                style={{ width: `${progress.percent}%` }}
-              />
-            </div>
+            {progress.total === 0 ? (
+              <p className="text-[9px] font-bold text-gray-500">尚未关联执行任务</p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-[9px] font-bold text-gray-400">
+                  <span>{progress.done}/{progress.total} 个执行任务已完成</span>
+                  <span>{progress.percent}%</span>
+                </div>
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/80">
+                  <div
+                    className="h-full rounded-full bg-[#242424] transition-[width]"
+                    style={{ width: `${progress.percent}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1.5 text-[9px] font-bold">
@@ -443,7 +449,11 @@ function GoalRoadmap({
         </div>
       </header>
 
-      <GoalProgressPanel goal={goal} onEdit={onEdit} />
+      <GoalProgressPanel
+        key={`${goal.id}:${goal.progressType}:${goal.targetValue}:${goal.progressUnit}`}
+        goal={goal}
+        onEdit={onEdit}
+      />
 
       {goal.status === 'active' && (
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -778,13 +788,18 @@ export default function StudyWorkspace({
           {error && (
             <div className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
               {error}
+              <button type="button" onClick={() => void loadGoals()} className="ml-2 font-bold underline">
+                重新加载
+              </button>
             </div>
           )}
 
           <div className="mb-4 grid grid-cols-2 gap-3">
             <div className="rounded-[1.6rem] bg-white p-4 shadow-sm">
               <Target size={17} className="text-[#8b7fbc]" />
-              <p className="mt-3 text-2xl font-black text-[#242424]">{activeGoals.length}</p>
+              <p className="mt-3 text-2xl font-black text-[#242424]">
+                {error && goals.length === 0 ? '—' : activeGoals.length}
+              </p>
               <p className="text-[10px] text-gray-400">进行中的学习目标</p>
             </div>
             <div className="rounded-[1.6rem] bg-[#e5e2f3] p-4 shadow-sm">
@@ -857,7 +872,7 @@ export default function StudyWorkspace({
               <div className="flex justify-center py-12">
                 <Loader2 className="animate-spin text-gray-400" />
               </div>
-            ) : (
+            ) : error && goals.length === 0 ? null : (
               <div className="space-y-3">
                 {visibleGoals.map((goal) => (
                   <GoalCard
