@@ -7,6 +7,10 @@ on:
     paths:
       - 'web/**'
       - '.github/workflows/android-apk.yml'
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/android-apk.yml'
 
 permissions:
   contents: write
