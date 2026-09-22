@@ -19,6 +19,14 @@ function cardBackground(color: string) {
   return /^#[0-9a-f]{6}$/i.test(color) ? `${color}26` : '#f4f4f6';
 }
 
+function canAdjustWeekTask(item: PlanItem) {
+  return Boolean(item.taskId)
+    && (item.kind === 'task' || item.kind === 'study-task')
+    && !item.preview
+    && localDateKey(item.start) === localDateKey(item.end)
+    && new Date(item.end).getTime() > new Date(item.start).getTime();
+}
+
 interface WeekPlanViewProps {
   selectedDate: Date;
   items: PlanItem[];
@@ -64,7 +72,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
     if (pressOrigin.current && Math.hypot(event.clientX - pressOrigin.current.x, event.clientY - pressOrigin.current.y) > 8) cancelPress();
   };
   const beginAdjustment = (event: PointerEvent<HTMLButtonElement>, item: PlanItem, day: Date, mode: WeekAdjustmentMode) => {
-    if (!onAdjustTask || !item.taskId || !['task', 'study-task'].includes(item.kind) || item.preview || event.button !== 0) return;
+    if (!onAdjustTask || !canAdjustWeekTask(item) || event.button !== 0) return;
     const columnWidth = event.currentTarget.parentElement?.getBoundingClientRect().width || 84;
     adjustmentRef.current = { item, day, mode, x: event.clientX, y: event.clientY, columnWidth, moved: false };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -212,7 +220,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                           onPointerMove={moveAdjustment}
                           onPointerUp={finishAdjustment}
                           onPointerCancel={(event) => { adjustmentRef.current = null; draftRef.current = null; setDraft(null); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
-                          className={`absolute z-10 overflow-hidden rounded-[5px] border-l-2 px-1 py-0.5 text-left shadow-sm ${item.taskId && ['task', 'study-task'].includes(item.kind) && !item.preview && onAdjustTask ? 'touch-none cursor-grab active:cursor-grabbing' : ''} ${item.preview ? 'outline outline-1 outline-dashed outline-[#8b7fbc]' : ''} ${item.completed ? 'opacity-45' : ''}`}
+                          className={`absolute z-10 overflow-hidden rounded-[5px] border-l-2 px-1 py-0.5 text-left shadow-sm ${canAdjustWeekTask(item) && onAdjustTask ? 'touch-none cursor-grab active:cursor-grabbing' : ''} ${item.preview ? 'outline outline-1 outline-dashed outline-[#8b7fbc]' : ''} ${item.completed ? 'opacity-45' : ''}`}
                           style={{
                             top: draft?.id === item.id ? ((draft.start.getHours() * 60 + draft.start.getMinutes()) / 60) * HOUR_HEIGHT : top,
                             height: draft?.id === item.id ? Math.max(22, (draft.end.getTime() - draft.start.getTime()) / 3_600_000 * HOUR_HEIGHT) : height,
@@ -236,8 +244,8 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                             {item.scheduleSource === 'ai' && <Sparkles size={7} />}
                             {item.locked && <LockKeyhole size={7} />}
                           </span>
-                          {item.taskId && ['task', 'study-task'].includes(item.kind) && !item.preview && onAdjustTask && height >= 30 && (
-                            <span data-resize="true" className="absolute bottom-0 left-0 right-4 z-10 h-2 cursor-ns-resize rounded-b-[5px] bg-black/10" aria-hidden="true" />
+                          {canAdjustWeekTask(item) && onAdjustTask && (
+                            <span data-resize="true" className="absolute bottom-0 left-0 right-4 z-10 h-1.5 cursor-ns-resize rounded-b-[5px] bg-black/10" aria-hidden="true" />
                           )}
                         </button>
                       );
