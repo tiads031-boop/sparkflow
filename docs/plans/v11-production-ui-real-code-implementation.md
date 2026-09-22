@@ -1,7 +1,7 @@
 # SparkFlow V11 — 真实业务代码落地实施方案
 
 > **状态**：实施中；R1–R9 代码已合并；终端与生产验收最后集中进行
-> **进度核对基线**：master@76f8f77db2d6ed1abda8d98c4303d6c17b1a544f（PR #144；实现方案中的早期基线仅作历史参考）
+> **进度核对基线**：master@ede2a343e275c06bb6867f65fa3abaa18316c330（PR #145；实现方案中的早期基线仅作历史参考）
 > **最后核对**：2026-09-23  
 > **视觉来源**：用户确认的 sparkflow_ui_integrated_v11(1).html  
 > **光学玻璃参考**：VII-Cae/hyalite--liquid-glass，v0.5.0，MIT  
@@ -2018,7 +2018,7 @@ PR #136 已合并：默认关闭、Android Usage Access 显式授权，只读取
 
 ### Issue #26 — Timeline V2 余项
 
-Issue #26 的 Timeline 衔接已分步推进：PR #139 修复跨 DST 学期周数与窄屏周网格横向滚动，PR #140 实现周网格长按空白时段、按 15 分钟刻度预填当前 ScheduleEditor。PR #144 已合并：单日 Task 的周网格拖动/缩放先生成草案、经 ScheduleEditor 确认保存，固定项增加确认；跨午夜项目仍用编辑器，课程和外部日历不进入修改链路。本轮统一跨午夜任务/日历事项在月、周、日程和 Actual 计划对照中的投影，并为 Google/本地日历添加来源标识与只读详情。旧 CalendarView 内的 GanttView 当前不在 App 的 PlanWorkspace 路由中；正式入口和多来源一致性仍待确定，360px/PWA/Android 真机及生产验收仍待完成。
+Issue #26 的 Timeline 衔接已分步推进：PR #139 修复跨 DST 学期周数与窄屏周网格横向滚动，PR #140 实现周网格长按空白时段、按 15 分钟刻度预填当前 ScheduleEditor。PR #144 已合并：单日 Task 的周网格拖动/缩放先生成草案、经 ScheduleEditor 确认保存，固定项增加确认；跨午夜项目仍用编辑器，课程和外部日历不进入修改链路。PR #145 已合并：统一跨午夜任务/日历事项在月、周、日程和 Actual 计划对照中的投影，并为 Google/本地日历添加来源标识与只读详情。旧 CalendarView 内的 GanttView 当前不在 App 的 PlanWorkspace 路由中；正式入口和多来源一致性仍待确定，360px/PWA/Android 真机及生产验收仍待完成。
 
 ---
 
