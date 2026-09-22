@@ -68,6 +68,7 @@ export default function App() {
   const activeTab = useAppStore((s) => s.activeTab);
   const setActiveTab = useAppStore((s) => s.setActiveTab);
   const selectedDate = useAppStore((s) => s.selectedDate);
+  const setSelectedDate = useAppStore((s) => s.setSelectedDate);
   const tasks = useAppStore((s) => s.tasks);
   const sparks = useAppStore((s) => s.sparks);
   const setSparks = useAppStore((s) => s.setSparks);
@@ -93,6 +94,7 @@ export default function App() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [scheduleEditorOpen, setScheduleEditorOpen] = useState(false);
   const [editingScheduleTask, setEditingScheduleTask] = useState<Task | null>(null);
+  const [scheduleDraftStart, setScheduleDraftStart] = useState<Date | null>(null);
   const [focusOpen, setFocusOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [plannerAutoVoice, setPlannerAutoVoice] = useState(false);
@@ -202,6 +204,7 @@ export default function App() {
       return;
     }
     if (action === 'schedule') {
+      setScheduleDraftStart(null);
       setEditingScheduleTask(null);
       setScheduleEditorOpen(true);
       return;
@@ -419,6 +422,12 @@ export default function App() {
                   setActiveTab('courses');
                 }}
                 onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
+                onCreateAt={(date) => {
+                  setSelectedDate(date);
+                  setScheduleDraftStart(date);
+                  setEditingScheduleTask(null);
+                  setScheduleEditorOpen(true);
+                }}
                 plannerPreview={plannerPreview}
                 initialSection={isSchedulePlanRoute ? 'calendar' : 'tasks'}
                 sectionOnly={isSchedulePlanRoute ? 'calendar' : 'tasks'}
@@ -485,11 +494,12 @@ export default function App() {
         <InspirationCaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} />
         {scheduleEditorOpen && (
           <ScheduleEditor
-            key={editingScheduleTask?.id ?? selectedDate.toDateString()}
+            key={editingScheduleTask?.id ?? scheduleDraftStart?.toISOString() ?? selectedDate.toDateString()}
             open
             initialDate={selectedDate}
+            initialTime={scheduleDraftStart ?? undefined}
             initialTask={editingScheduleTask}
-            onClose={() => { setScheduleEditorOpen(false); setEditingScheduleTask(null); }}
+            onClose={() => { setScheduleEditorOpen(false); setEditingScheduleTask(null); setScheduleDraftStart(null); }}
             onSave={handleSaveSchedule}
           />
         )}

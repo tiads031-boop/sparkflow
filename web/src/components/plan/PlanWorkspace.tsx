@@ -22,6 +22,7 @@ interface PlanWorkspaceProps {
   tasks: Task[];
   onTaskClick: (task: Task) => void;
   onCourseClick?: (courseId: string) => void;
+  onCreateAt?: (date: Date) => void;
   onPlanner: () => void;
   plannerPreview?: PlannerPreview | null;
   initialSection?: PlanSection;
@@ -50,6 +51,7 @@ export default function PlanWorkspace({
   tasks,
   onTaskClick,
   onCourseClick,
+  onCreateAt,
   onPlanner,
   plannerPreview,
   initialSection = 'calendar',
@@ -215,6 +217,7 @@ export default function PlanWorkspace({
                 items={visibleItems}
                 onSelectDate={setSelectedDate}
                 onItemClick={handlePlanItemClick}
+                onCreateAt={onCreateAt}
               />
             )}
             {view === 'agenda' && (
