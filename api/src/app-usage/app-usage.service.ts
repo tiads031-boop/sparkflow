@@ -107,6 +107,12 @@ export class AppUsageService {
       throw new BadRequestException('Expected at most 200 intervals');
     }
     if (!intervals.length) return { inserted: 0 };
+    for (const item of intervals) {
+      if (!item || typeof item.packageName !== 'string' ||
+          typeof item.startTime !== 'string' || typeof item.endTime !== 'string') {
+        throw new BadRequestException('Interval is invalid');
+      }
+    }
     const now = Date.now();
     const packages = [...new Set(intervals.map((item) => item.packageName))];
     const mappings = await this.prisma.appUsageMapping.findMany({
