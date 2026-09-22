@@ -1969,7 +1969,7 @@ measured 是系统测得事实；Planner 可以引用，但不能自动改写成
 - [x] TimeAnalyticsView：完成 7 天/30 天/12 周范围、graphite 总投入、标签分布、计划与实际、12 周 heatmap、加载/空数据/错误状态；
 - [x] 日程入口：从 Today 紧凑工具区进入时间分析，并可返回 Today 或跳转 Actual Timeline；
 - [x] R4 本地验证：Web 88 tests、API 175 tests、Web/API production build、改动文件定向 ESLint、git diff --check；
-- [ ] R4 GitHub Actions CI；
+- [x] R4 GitHub Actions CI #330；
 
 这对应现有 vNext M3。
 
