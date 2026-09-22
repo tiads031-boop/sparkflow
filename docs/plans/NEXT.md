@@ -1,7 +1,7 @@
 # SparkFlow — 下一步执行队列
 
 > **最后更新**：2026-09-22  
-> **仓库代码基线**：`master@7bb2b375fa886b094855a084f2bb8590572640a4`（PR #132 已合并）
+> **仓库代码基线**：`master@42c9b4d7047a565634b96937dd73fc40024c77c2`（PR #140 已合并）
 > **开发状态**：R1–R9 代码已合并（R9 PR #136，API/Web/Android PR CI 通过）；终端/生产验收待集中进行。
 > **最近有直接回显的生产版本**：`990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21 `/api/health.buildSha`；当前运行版本须在发布时重新核对）。
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
@@ -175,23 +175,22 @@ M1 当前收口顺序：
 - [x] 学习目标主指标、编辑与数值条目界面（PR #133）；
 - [ ] 普通任务默认不强制进度条。
 
-### M5 — AI Behavior Feedback
+### M5 — AI Behavior Feedback（R8 代码已合并，终端/生产验收待集中进行）
 
-- [ ] Planner Context 接入真实执行摘要；
-- [ ] 使用计划偏差、真实投入、常见顺延时段解释调整建议；
-- [ ] 不把统计相关性当成用户确认事实；
-- [ ] 仍由 Scheduler 生成 Preview → Apply → Undo。
+- [x] Planner Context 接入带来源的真实执行摘要（PR #135）；
+- [x] 使用计划偏差、真实投入、可靠的延迟开始信号解释调整建议；
+- [x] 统计观察与用户确认的偏好分离；
+- [x] 仍由 Scheduler 生成 Preview → Apply → Undo。
 
-### M6 — Android App Usage Tracking
+### M6 — Android App Usage Tracking（R9 代码已合并，终端/生产验收待集中进行）
 
-仅在 M1–M3 数据链稳定后进入。
-
-- [ ] Usage Access 授权；
-- [ ] App → Tag 映射；
-- [ ] UsageStatsManager / UsageEvents 读取；
-- [ ] 独立 AppUsageSession；
-- [ ] Actual Timeline / Analytics 接入；
-- [ ] 默认关闭，不读取页面、聊天、输入、通知内容。
+- [x] Usage Access 授权与独立开关（PR #136）；
+- [x] App → Tag 映射与显式选择；
+- [x] UsageStatsManager / UsageEvents 前台区间读取；
+- [x] 独立 AppUsageSession 与服务端幂等写入（PR #138 补充非法区间校验）；
+- [x] Actual Timeline / Analytics 单独接入，避免与 Focus 重复计数；
+- [x] 默认关闭，不读取页面、聊天、输入、通知内容；
+- [ ] 生产 migration、真实设备授权/同步/断连恢复验收。
 
 ---
 
@@ -225,11 +224,10 @@ M1 当前收口顺序：
 
 ## 5. 当前执行顺序
 
-1. 收口 R7-C 的非终端代码部分；终端/生产验收留到最后。
-2. 实施 R8 / M5 AI Execution Feedback：真实执行摘要进入 Planner Context，解释来源，建议继续走 Preview → Apply → Undo。
-3. 基于最新 master 处理仍适用的 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项，保留现有 Gantt、课程和移动端流程。
-4. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
-5. 最后核对生产 buildSha、migrations、真实账号链路与 Issue #31 导入幂等，记录发布结果。
+1. 收口 R7-C 非终端代码部分，并核实 M4 中普通任务默认进度条行为；终端/生产验收留到最后。
+2. 完成 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项。PR #139 已修复跨 DST 的学期周数与窄屏周网格横向滚动；PR #140 已接入周网格长按创建。继续处理 15 分钟吸附的拖拽/缩放、锁定项确认、只读课程/Google/本地日历及 Month / Week / Timeline / Gantt 一致性；不要提前关闭 Issue #26。
+3. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
+4. 最后核对生产 buildSha、migrations、真实账号链路与 Issue #31 导入幂等，记录发布结果。
 
 ---
 
