@@ -1,9 +1,9 @@
 # SparkFlow — 下一步执行队列
 
 > **最后更新**：2026-09-22  
-> **仓库代码基线**：`master@37ac6690bcd2581f92172c46c83adc0c0ececdcd`
-> **M1/M2/R1/R2/R3-A 合并记录**：[#118](https://github.com/tiads031-boop/sparkflow/pull/118)、[#119](https://github.com/tiads031-boop/sparkflow/pull/119)、[#120](https://github.com/tiads031-boop/sparkflow/pull/120)、[#121](https://github.com/tiads031-boop/sparkflow/pull/121)、[#122](https://github.com/tiads031-boop/sparkflow/pull/122)，GitHub Actions CI 全绿，均已 squash 合并
-> **最近已确认生产版本**：`9f72d16b`（生产仍落后于当前 master；后续部署必须重新核对 buildSha）  
+> **仓库代码基线**：`master@7bb2b375fa886b094855a084f2bb8590572640a4`（PR #132 已合并）
+> **开发状态**：R1–R6 已合并；R7-A 已合并，R7-B [PR #133](https://github.com/tiads031-boop/sparkflow/pull/133) 开放中且 CI #349 通过；R8/R9 尚未实施。
+> **最近有直接回显的生产版本**：`990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21 `/api/health.buildSha`；当前运行版本须在发布时重新核对）。
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
 ---
@@ -30,9 +30,9 @@
 
 ---
 
-## 1. P0：生产与真机收口
+## 1. 发布前：生产与真机收口
 
-代码已经明显领先最近一次确认的生产版本，因此新功能开发可以继续，但发布前必须先知道实际运行版本。
+按用户当前安排，先完成剩余功能，最后集中进行 360px / PWA / Android WebView、生产迁移和真实业务验收。代码构建、单测、CI 与 fresh PostgreSQL migration 在开发期间继续执行；未做的终端验收保持未完成。
 
 ### 1.1 生产版本对齐
 
@@ -88,15 +88,17 @@
 - [x] R3-B1 代码：RecordsWorkspace 拆分；Study 目标 / 课程切换与课程详情 / 导入入口；Profile 标签 / Actual 时间记录一级入口；
 - [x] R3-B1 本地验证：Web 85 tests、Web production build、改动文件定向 ESLint；
 - [x] R3-B1 GitHub Actions CI #324；
-- [ ] R3-B2 Capture / Record Detail、Course Detail / Import、Tag Management 二级页视觉与移动端细节；
-- [ ] R4 Time Analytics；
-- [x] R5 Scene Core 代码（PR #126/#127/#128 已合并；自动触发依赖 R6 默认场景；细节与真机验收另行收口）；
+- [x] R3-B2 Capture / Record Detail、Course Detail / Import、Tag Management 二级页代码与 CI（PR #124）；
+- [x] R4 Time Analytics 代码与 CI（PR #125）；
+- [x] R5 Scene Core 代码（PR #126/#127/#128 已合并；细节与真机验收另行收口）；
 - [x] R6 Scene AI + Time Record Settings（R6-A/B/C PR #129/#130/#131 已合并）；
-- [ ] R7 Goal Progress（R7-A 数据模型、三类聚合与数值进度 API 已实现，待独立 CI；R7-B/C 待推进）；
+- [x] R7-A Goal Progress 数据模型、三类聚合及数值进度 API（PR #132 已合并）；
+- [ ] R7-B Goal Progress 界面（PR #133 开放，CI #349 通过，待评审合并）；
+- [ ] R7-C 空态/错误态和发布验收（终端/生产部分放到最终集中验收）；
 - [ ] R8 AI Execution Feedback；
 - [ ] R9 Android Usage。
 
-R1 已由 PR #120 合并，R2 已由 PR #121 合并，R3-A 已由 PR #122 合并。R3-B1 实现分支：`feat/ui-v11-r3-records-study-profile`。代码存在、合并、部署和真机验收继续分别记录。
+代码存在、合并、部署和真机验收分别记录，不以 CI 通过代替发布验收。
 
 ---
 
@@ -160,22 +162,17 @@ M1 当前收口顺序：
 
 实现分支：`codex/m2-timeline-actual`，PR [#119](https://github.com/tiads031-boop/sparkflow/pull/119) 已 squash 合并为 `master@b40854c`。本地 Prisma validate、API/Web build、API 159 tests、Web 73 tests 与新增前端专项 ESLint 已通过；CI run #313 的 fresh PostgreSQL migration/API/Web jobs 全绿。浏览器自动化守护进程仍无法在当前环境启动，因此移动视觉验收不标记为完成。
 
-### M3 — Time Analytics
+### M3 — Time Analytics（R4 代码已合并，待发布验收）
 
-- [ ] 时间热力图；
-- [ ] 标签 / 分类时间分布；
-- [ ] 计划 vs 实际；
-- [ ] 学习目标实际投入；
-- [ ] 日 / 周 / 月切换；
-- [ ] 清楚区分无数据、部分数据、加载失败。
+- [x] 12 周热力图、标签分布和计划 vs 实际；
+- [x] 7 天 / 30 天 / 12 周范围、加载 / 无数据 / 错误状态；
+- [ ] 目标投入与时间分析联动的产品回归及生产真实数据验收。
 
-### M4 — Goal Progress
+### M4 — Goal Progress（R7-A 已合并，R7-B PR #133 待合并）
 
-- [ ] Task Progress；
-- [ ] Numeric Progress；
-- [ ] Time Progress；
-- [ ] 学习目标主指标；
-- [ ] Focus 可推动时间型指标；
+- [x] Task / Numeric / Time 统一聚合 API，Focus 按有效 Actual 计入时间型指标；
+- [x] 可审计的 Numeric 进度条目 API；
+- [ ] 学习目标主指标、编辑与数值条目界面（PR #133）；
 - [ ] 普通任务默认不强制进度条。
 
 ### M5 — AI Behavior Feedback
@@ -228,23 +225,11 @@ M1 当前收口顺序：
 
 ## 5. 当前执行顺序
 
-```text
-A. V11 R3-A 评审与 R1/R2/R3-A 移动端视觉验收
-        ↓
-B. 生产/真机关键路径收口
-        ↓
-C. V11 R3-B Records / Study / Course / Profile 视觉收敛
-        ↓
-D. V11 R4 / Execution Intelligence M3 Time Analytics
-        ↓
-E. M4 Goal Progress
-        ↓
-F. M5 AI Behavior Feedback
-        ↓
-G. M6 Android Usage Tracking
-```
-
-生产验收与 M1 文档/前端开发可并行，但任何正式发布仍需按真实运行版本、migration 与关键业务路径确认。
+1. 评审合并 R7-B PR #133，完成 R7-C 的非终端代码收口。
+2. 实施 R8 / M5 AI Execution Feedback：真实执行摘要进入 Planner Context，解释来源，建议继续走 Preview → Apply → Undo。
+3. 实施 R9 / M6 Android Usage（明确授权、默认关闭、独立事实表），随后处理仍适用的 Issue #26 Timeline 余项。
+4. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
+5. 最后核对生产 buildSha、migrations、真实账号链路与 Issue #31 导入幂等，记录发布结果。
 
 ---
 
