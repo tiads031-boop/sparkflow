@@ -26,6 +26,7 @@ import {
   updateStudyFolder,
 } from '../../api/study';
 import PlannerSheet from '../planner/PlannerSheet';
+import GoalProgressPanel from './GoalProgressPanel';
 import StudyCourseWorkspace from './StudyCourseWorkspace';
 import StudySurfaceSwitch, { type StudySurface } from './StudySurfaceSwitch';
 
@@ -44,8 +45,9 @@ function isDone(task: Task) {
 }
 
 function goalProgress(goal: StudyFolder) {
-  const total = goal.tasks.length;
-  const done = goal.tasks.filter(isDone).length;
+  const relevantTasks = goal.tasks.filter((task) => task.status !== 'Cancelled');
+  const total = relevantTasks.length;
+  const done = relevantTasks.filter((task) => task.status === 'Done').length;
   return {
     total,
     done,
@@ -55,7 +57,7 @@ function goalProgress(goal: StudyFolder) {
 
 function goalMilestones(goal: StudyFolder) {
   const groups = new Map<string, Task[]>();
-  for (const task of goal.tasks) {
+  for (const task of goal.tasks.filter((item) => item.status !== 'Cancelled')) {
     const title = task.project?.trim() || '待整理';
     const current = groups.get(title) || [];
     current.push(task);
@@ -102,6 +104,13 @@ function GoalDialog({
   const [name, setName] = useState(goal?.name || '');
   const [description, setDescription] = useState(goal?.description || '');
   const [color, setColor] = useState(goal?.color || goalColors[0]);
+  const [progressType, setProgressType] = useState(goal?.progressType || 'task');
+  const [targetValue, setTargetValue] = useState(
+    goal?.targetValue === null || goal?.targetValue === undefined
+      ? ''
+      : String(goal.targetValue),
+  );
+  const [progressUnit, setProgressUnit] = useState(goal?.progressUnit || '项');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,6 +126,15 @@ function GoalDialog({
         onSubmit={async (event) => {
           event.preventDefault();
           if (!name.trim() || saving) return;
+          const parsedTarget = targetValue.trim() ? Number(targetValue) : null;
+          if (
+            progressType !== 'task'
+            && parsedTarget !== null
+            && (!Number.isFinite(parsedTarget) || parsedTarget <= 0)
+          ) {
+            setError('目标值需要是大于 0 的数字');
+            return;
+          }
           setSaving(true);
           setError(null);
           try {
@@ -125,6 +143,11 @@ function GoalDialog({
               description: description.trim() || null,
               color,
               taskIds: goal?.tasks.map((task) => task.id),
+              progressType,
+              targetValue: progressType === 'task' ? null : parsedTarget,
+              progressUnit: progressType === 'numeric'
+                ? progressUnit.trim() || '项'
+                : progressType === 'time' ? '分钟' : null,
             });
           } catch (err) {
             setError(err instanceof Error ? err.message : '保存失败');
@@ -196,6 +219,63 @@ function GoalDialog({
             ))}
           </div>
         </div>
+
+        <div className="mt-5">
+          <p className="mb-2 text-xs font-bold text-[#242424]">如何衡量进度</p>
+          <div className="grid grid-cols-3 gap-2 rounded-2xl bg-[#f4f4f6] p-1">
+            {([
+              ['task', '按任务'],
+              ['numeric', '按数值'],
+              ['time', '按专注'],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setProgressType(value)}
+                className={`rounded-xl px-2 py-2 text-[11px] font-black ${progressType === value ? 'bg-white text-[#242424] shadow-sm' : 'text-gray-400'}`}
+                aria-pressed={progressType === value}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] leading-4 text-gray-400">
+            {progressType === 'task'
+              ? '按已完成任务计算，取消任务不计入总数。'
+              : progressType === 'time'
+                ? '有效专注会自动累计，目标值使用分钟。'
+                : '通过手工增减记录累计，例如读完 5 本、完成 200 题。'}
+          </p>
+        </div>
+
+        {progressType !== 'task' && (
+          <div className={`mt-4 grid gap-3 ${progressType === 'numeric' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <label className="block text-xs font-bold text-[#242424]">
+              目标值（可稍后设置）
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={targetValue}
+                onChange={(event) => setTargetValue(event.target.value)}
+                placeholder={progressType === 'time' ? '例如 2000' : '例如 48'}
+                className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm outline-none ring-2 ring-transparent focus:ring-[#cae393]"
+              />
+            </label>
+            {progressType === 'numeric' && (
+              <label className="block text-xs font-bold text-[#242424]">
+                单位
+                <input
+                  value={progressUnit}
+                  onChange={(event) => setProgressUnit(event.target.value)}
+                  maxLength={30}
+                  placeholder="本 / 题 / 字"
+                  className="mt-1 w-full rounded-2xl bg-[#f4f4f6] px-4 py-3 text-sm outline-none ring-2 ring-transparent focus:ring-[#cae393]"
+                />
+              </label>
+            )}
+          </div>
+        )}
 
         {error && (
           <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
@@ -284,7 +364,7 @@ function GoalCard({
               {milestones.filter((item) => item.title !== '待整理').length} 个阶段
             </span>
             <span className="rounded-full bg-white/80 px-2.5 py-1 text-gray-500">
-              {goal.tasks.length} 个任务
+              {progress.total} 个有效任务
             </span>
             <span className="rounded-full bg-white/80 px-2.5 py-1 text-gray-500">
               {goal.planningThread
@@ -332,15 +412,16 @@ function GoalCard({
 function GoalRoadmap({
   goal,
   onBack,
+  onEdit,
   onPlan,
   onStartFocus,
 }: {
   goal: StudyFolder;
   onBack: () => void;
+  onEdit: () => void;
   onPlan: (seed?: string) => void;
   onStartFocus: () => void;
 }) {
-  const progress = goalProgress(goal);
   const milestones = goalMilestones(goal);
 
   return (
@@ -362,57 +443,26 @@ function GoalRoadmap({
         </div>
       </header>
 
-      <section
-        className="rounded-[1.8rem] p-5 shadow-sm"
-        style={{ backgroundColor: `${goal.color}25` }}
-      >
-        <div className="flex items-start gap-3">
-          <div
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl"
-            style={{ backgroundColor: goal.color }}
+      <GoalProgressPanel goal={goal} onEdit={onEdit} />
+
+      {goal.status === 'active' && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onPlan()}
+            className="flex items-center justify-center gap-2 rounded-full bg-[#242424] py-2.5 text-xs font-black text-[#cae393]"
           >
-            <Target size={19} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-black text-[#242424]">目标进度</h2>
-            <p className="mt-1 text-xs leading-5 text-gray-500">
-              {goal.description || 'AI 会继续通过对话完善成功标准和执行策略。'}
-            </p>
-          </div>
+            <BrainCircuit size={13} /> 继续 AI 规划
+          </button>
+          <button
+            type="button"
+            onClick={onStartFocus}
+            className="flex items-center justify-center gap-2 rounded-full bg-white py-2.5 text-xs font-bold text-gray-600 shadow-sm"
+          >
+            <Focus size={13} /> 开始专注
+          </button>
         </div>
-
-        <div className="mt-4">
-          <div className="flex items-center justify-between text-[10px] font-bold text-gray-500">
-            <span>{progress.done} / {progress.total} 个任务完成</span>
-            <span>{progress.percent}%</span>
-          </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/80">
-            <div
-              className="h-full rounded-full bg-[#242424]"
-              style={{ width: `${progress.percent}%` }}
-            />
-          </div>
-        </div>
-
-        {goal.status === 'active' && (
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => onPlan()}
-              className="flex items-center justify-center gap-2 rounded-full bg-[#242424] py-2.5 text-xs font-black text-[#cae393]"
-            >
-              <BrainCircuit size={13} /> 继续 AI 规划
-            </button>
-            <button
-              type="button"
-              onClick={onStartFocus}
-              className="flex items-center justify-center gap-2 rounded-full bg-white/80 py-2.5 text-xs font-bold text-gray-600"
-            >
-              <Focus size={13} /> 开始专注
-            </button>
-          </div>
-        )}
-      </section>
+      )}
 
       {goal.status === 'active' && (
         <section className="mt-4 rounded-[1.8rem] border border-[#b0a8db]/35 bg-[#f7f5fc] p-4">
@@ -649,6 +699,9 @@ export default function StudyWorkspace({
       color: input.color,
       icon: 'target',
       taskIds: [],
+      progressType: input.progressType,
+      targetValue: input.targetValue,
+      progressUnit: input.progressUnit,
     });
     setEditingGoal(undefined);
     await loadGoals();
@@ -678,6 +731,7 @@ export default function StudyWorkspace({
         <GoalRoadmap
           goal={roadmapGoal}
           onBack={() => setRoadmapGoalId(null)}
+          onEdit={() => setEditingGoal(roadmapGoal)}
           onPlan={(seed) => openGoalPlanning(roadmapGoal, seed)}
           onStartFocus={onStartFocus}
         />

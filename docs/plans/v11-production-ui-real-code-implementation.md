@@ -2002,7 +2002,7 @@ R6-A 已由 PR #129 合并：时间记录偏好 API、`countsTowardActual` 快�
 
 执行拆分：R7-A 先落数据模型、Task / Numeric / Time 三类统一聚合及数值进度写入 API；R7-B 接 Study Goal 主指标、进度编辑与记录交互；R7-C 收口空态、错误态、360px / PWA / Android 视觉和生产迁移验收。
 
-R7-A 已完成代码实现并待独立 PR CI：StudyFolder 增加进度类型、目标值与单位，新增可审计的数值进度记录；Task 进度排除取消任务，Time 进度复用 `countsTowardActual` 有效专注口径并按周边界裁剪。
+R7-A 已由 PR #132 合并：StudyFolder 增加进度类型、目标值与单位，新增可审计的数值进度记录；Task 进度排除取消任务，Time 进度复用 `countsTowardActual` 有效专注口径并按周边界裁剪。R7-B 已完成代码实现并待独立 PR CI：Study Goal 详情展示统一主指标、任务/累计投入/近 7 天辅助指标，编辑页可切换指标类型，数值型目标可手工增减并删除记录。
 
 ### R8 — AI Execution Feedback
 

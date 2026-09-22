@@ -92,7 +92,7 @@
 - [ ] R4 Time Analytics；
 - [x] R5 Scene Core 代码（PR #126/#127/#128 已合并；自动触发依赖 R6 默认场景；细节与真机验收另行收口）；
 - [x] R6 Scene AI + Time Record Settings（R6-A/B/C PR #129/#130/#131 已合并）；
-- [ ] R7 Goal Progress（R7-A 数据模型、三类聚合与数值进度 API 已实现，待独立 CI；R7-B/C 待推进）；
+- [ ] R7 Goal Progress（R7-A PR #132 已合并；R7-B Study Goal 主指标、指标编辑和数值记录 UI 已实现并待独立 CI；R7-C 真机/视觉与生产迁移验收待推进）；
 - [ ] R8 AI Execution Feedback；
 - [ ] R9 Android Usage。
 
