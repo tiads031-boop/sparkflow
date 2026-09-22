@@ -42,6 +42,7 @@ model User {
   tags                   Tag[]
   sceneTemplates         SceneTemplate[]
   sceneEntries           SceneEntry[]
+  goalProgressEntries    GoalProgressEntry[]
 
   @@map("users")
 }
@@ -627,17 +628,40 @@ model StudyFolder {
   description String?
   icon        String   @default("book-open")
   color       String   @default("#cae393")
-  status      String   @default("active")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status       String   @default("active")
+  progressType String   @default("task")
+  targetValue  Float?
+  progressUnit String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courses StudyFolderCourse[]
-  tasks   StudyFolderTask[]
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courses         StudyFolderCourse[]
+  tasks           StudyFolderTask[]
+  progressEntries GoalProgressEntry[]
 
   @@index([userId, status])
   @@index([userId, updatedAt])
   @@map("study_folders")
+}
+
+model GoalProgressEntry {
+  id            String   @id @default(uuid())
+  userId        String
+  studyFolderId String
+  value         Float
+  occurredAt    DateTime @default(now()) @db.Timestamptz(6)
+  source        String   @default("manual")
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studyFolder StudyFolder @relation(fields: [studyFolderId], references: [id], onDelete: Cascade)
+
+  @@index([studyFolderId, occurredAt, id])
+  @@index([userId, occurredAt])
+  @@map("goal_progress_entries")
 }
 
 model StudyFolderCourse {
