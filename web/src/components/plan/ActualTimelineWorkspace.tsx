@@ -7,6 +7,7 @@ import ActualEditorSheet, { type ActualEditorRange } from './ActualEditorSheet';
 import ActualTimelineGap from './ActualTimelineGap';
 import ActualTimelineHeader, { type ActualTimelineMode } from './ActualTimelineHeader';
 import ActualTimelineRow from './ActualTimelineRow';
+import { useTimeTrackingPreferences } from '../profile/useTimeTrackingPreferences';
 import { findActualTimelineGaps, matchActualToPlan, type ActualTimelineGapValue } from './executionMatching';
 import { addLocalDays, itemsForLocalDay, localDateKey, startOfLocalDay, type PlanItem } from './planProjection';
 
@@ -33,6 +34,7 @@ function duration(seconds: number) {
 }
 
 export default function ActualTimelineWorkspace({ selectedDate, plannedItems, tasks, onTaskClick }: ActualTimelineWorkspaceProps) {
+  const manualBackfillEnabled = useTimeTrackingPreferences()?.manualBackfillEnabled === true;
   const [mode, setMode] = useState<ActualTimelineMode>('actual');
   const [entries, setEntries] = useState<ActualTimelineEntry[]>([]);
   const [loadedKey, setLoadedKey] = useState('');
@@ -72,7 +74,7 @@ export default function ActualTimelineWorkspace({ selectedDate, plannedItems, ta
 
   return (
     <div className="space-y-3">
-      <ActualTimelineHeader mode={mode} totalLabel={duration(totalSeconds)} onModeChange={setMode} onAdd={() => openNew()} />
+      <ActualTimelineHeader mode={mode} totalLabel={duration(totalSeconds)} onModeChange={setMode} onAdd={() => openNew()} manualBackfillEnabled={manualBackfillEnabled} />
       {error && <div className="rounded-2xl bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div>}
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-[var(--sf-text-tertiary)]"><Loader2 size={15} className="animate-spin" />读取实际执行记录…</div>
@@ -81,11 +83,11 @@ export default function ActualTimelineWorkspace({ selectedDate, plannedItems, ta
           <div className="space-y-2">
             {entries.map((entry) => {
               const gap = gaps.get(entry.id);
-              return <Fragment key={entry.id}>{gap && <ActualTimelineGap gap={gap} onAdd={openGap} />}<ActualTimelineRow entry={entry} match={matches.get(entry.id)!} compare={mode === 'compare'} onOpenTask={onTaskClick} onEdit={openEdit} onDelete={(item) => void remove(item)} /></Fragment>;
+              return <Fragment key={entry.id}>{manualBackfillEnabled && gap && <ActualTimelineGap gap={gap} onAdd={openGap} />}<ActualTimelineRow entry={entry} match={matches.get(entry.id)!} compare={mode === 'compare'} onOpenTask={onTaskClick} onEdit={openEdit} onDelete={(item) => void remove(item)} /></Fragment>;
             })}
           </div>
         </SectionCard>
-      ) : <EmptyState title="这一天还没有实际时间记录" description="完成 Focus 后会自动出现，也可以补记未使用计时器的投入。" />}
+      ) : <EmptyState title="这一天还没有实际时间记录" description={manualBackfillEnabled ? '完成 Focus 后会自动出现，也可以补记未使用计时器的投入。' : '开启时间记录设置中的手工补记，或完成一次计入实际时间的 Focus。'} />}
       <p className="px-2 text-[9px] leading-4 text-[var(--sf-text-tertiary)]">Actual 只来自 PomodoroSession；Focus 暂停不计入有效时长。计划对照按任务关系、标题与时间置信度匹配。</p>
       {editorRange && <ActualEditorSheet key={`${editingEntry?.id || 'new'}:${editorRange.start}:${editorRange.end}`} entry={editingEntry} range={editorRange} tasks={tasks} onClose={() => { setEditingEntry(null); setEditorRange(null); }} onSaved={changed} />}
     </div>

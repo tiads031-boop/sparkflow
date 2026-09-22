@@ -3,6 +3,7 @@ import { deleteSceneEntry, listSceneEntries, sceneAnalytics, type SceneAnalytics
 import InspirationAttachmentList from '../InspirationAttachmentList';
 import SceneEntrySheet from './SceneEntrySheet';
 import SceneEntryEditSheet from './SceneEntryEditSheet';
+import { useTimeTrackingPreferences } from '../../profile/useTimeTrackingPreferences';
 
 type View = 'heatmap' | 'trend' | 'list' | 'photo';
 type Period = 'week' | 'month' | 'year' | 'custom';
@@ -10,6 +11,7 @@ const daysAgo = (count: number) => new Date(Date.now() - count * 86_400_000).toI
 const viewLabels: Record<View, string> = { heatmap: '热力图', trend: '趋势', list: '列表', photo: '照片' };
 
 export default function SceneDetail({ scene, onBack, onEdit }: { scene: SceneTemplate; onBack: () => void; onEdit: () => void }) {
+  const quickStartEnabled = useTimeTrackingPreferences()?.quickStartEnabled === true;
   const [period, setPeriod] = useState<Period>('month');
   const [customStart, setCustomStart] = useState(daysAgo(30));
   const [customEnd, setCustomEnd] = useState(daysAgo(0));
@@ -40,6 +42,11 @@ export default function SceneDetail({ scene, onBack, onEdit }: { scene: SceneTem
   }, [scene.id, start, end, timeZone, validRange]);
 
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
+  useEffect(() => {
+    const refresh = () => { void load(); };
+    window.addEventListener('sparkflow:scenes-changed', refresh);
+    return () => window.removeEventListener('sparkflow:scenes-changed', refresh);
+  }, [load]);
   const more = async () => {
     if (!cursor) return;
     try { const page = await listSceneEntries(scene.id, start, end, cursor); setEntries((current) => [...current, ...page.items]); setCursor(page.nextCursor); }
@@ -77,6 +84,7 @@ export default function SceneDetail({ scene, onBack, onEdit }: { scene: SceneTem
     {!loading && activeView === 'trend' ? <div className="space-y-3 rounded-[24px] bg-white p-4"><h3 className="text-xs font-bold">记录趋势</h3>{summary?.buckets.map((bucket) => <div key={bucket.key} className="flex items-center gap-2 text-xs"><time className="w-20 shrink-0">{bucket.key}</time><span className="h-3 min-w-1 rounded-full" style={{ width: `${Math.max(2, bucket.count / maxBucket * 70)}%`, backgroundColor: scene.color }} /><span>{bucket.count}</span></div>)}</div> : null}
     {!loading && (activeView === 'list' || activeView === 'photo') ? <div className="space-y-3">{(activeView === 'photo' ? photos : entries).map((entry) => <article key={entry.id} className="rounded-[24px] bg-white p-4"><div className="flex justify-between gap-2 text-xs"><time className="text-[var(--sf-text-secondary)]">{new Date(entry.occurredAt).toLocaleString('zh-CN')}</time><div className="flex gap-3"><button type="button" onClick={() => setEditing(entry)} className="text-[var(--sf-text-secondary)]">编辑</button><button type="button" disabled={busyId === entry.id} onClick={() => void remove(entry)} className="text-red-600">移出场景</button></div></div><p className="mt-2 text-sm font-semibold">{entry.inspiration?.title || entry.inspiration?.contentText || entry.pomodoroSession?.title || '场景记录'}</p>{entry.pomodoroSession ? <p className="mt-1 text-xs">实际 {Math.round(entry.pomodoroSession.effectiveDurationSeconds / 60)} 分钟</p> : null}{Object.entries(entry.metadata).length ? <div className="mt-2 flex flex-wrap gap-1">{Object.entries(entry.metadata).map(([key, value]) => <span key={key} className="rounded-full bg-[var(--sf-bg)] px-2 py-1 text-[10px]">{scene.fieldSchema.find((field) => field.key === key)?.label || key}：{value}</span>)}</div> : null}{activeView === 'photo' && entry.inspiration?.attachments ? <InspirationAttachmentList inspirationId={entry.inspiration.id} attachments={entry.inspiration.attachments.filter((attachment) => attachment.kind === 'image')} /> : null}</article>)}{cursor ? <button type="button" onClick={() => void more()} className="w-full rounded-xl bg-white p-3 text-xs">加载更多</button> : null}</div> : null}
     {scene.status === 'active' ? <button type="button" onClick={() => setAdding(true)} className="w-full rounded-2xl bg-[var(--sf-graphite)] p-4 text-sm font-bold text-white">+ 添加已有记录</button> : <p className="rounded-2xl bg-white p-4 text-xs text-[var(--sf-text-secondary)]">此场景已归档，恢复后可以继续添加记录。</p>}
+    {scene.status === 'active' && quickStartEnabled ? <button type="button" onClick={() => window.dispatchEvent(new Event('sparkflow:start-focus'))} className="w-full rounded-2xl bg-[var(--sf-purple-soft)] p-4 text-sm font-bold">开始 Focus</button> : null}
     {adding ? <SceneEntrySheet scene={scene} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); void load(); }} /> : null}
     {editing ? <SceneEntryEditSheet scene={scene} entry={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void load(); }} /> : null}
   </section>;

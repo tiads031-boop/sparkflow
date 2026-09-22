@@ -300,6 +300,7 @@ describe('PomodoroService reliable completion', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       calendarEvent: { upsert: jest.fn().mockResolvedValue({ id: 'event-1' }) },
+      user: { findUnique: jest.fn().mockResolvedValue({ settings: {} }) },
     };
     const prisma = { $transaction: jest.fn((run) => run(tx)) };
     const result = await new PomodoroService(prisma as never).complete(

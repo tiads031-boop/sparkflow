@@ -8,6 +8,7 @@ import { Prisma, type PomodoroSession } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { calculateFocusTiming, focusCompletionTime } from './focus-timing';
 import { parseTimeTrackingPreferences } from '../users/time-tracking-preferences';
+import { attachDefaultFocusScene } from '../scenes/scene-trigger';
 
 const openStatuses = ['active', 'paused'];
 const sessionInclude = {
@@ -582,6 +583,7 @@ export class PomodoroService {
           scheduleLocked: true,
         },
       });
+      await attachDefaultFocusScene(tx, updated);
       return this.present(updated);
     });
   }
@@ -637,6 +639,7 @@ export class PomodoroService {
         where: { id },
         include: sessionInclude,
       });
+      await attachDefaultFocusScene(tx, updated);
       return this.present(updated);
     });
   }
