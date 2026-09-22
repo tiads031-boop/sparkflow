@@ -1,7 +1,7 @@
 # SparkFlow V11 — 真实业务代码落地实施方案
 
 > **状态**：实施中；R1–R9 代码已合并；终端与生产验收最后集中进行
-> **进度核对基线**：master@64e1be1f6d781adfebb81ea4a4e4ed86cd536ddd（PR #143；实现方案中的早期基线仅作历史参考）
+> **进度核对基线**：master@76f8f77db2d6ed1abda8d98c4303d6c17b1a544f（PR #144；实现方案中的早期基线仅作历史参考）
 > **最后核对**：2026-09-23  
 > **视觉来源**：用户确认的 sparkflow_ui_integrated_v11(1).html  
 > **光学玻璃参考**：VII-Cae/hyalite--liquid-glass，v0.5.0，MIT  
@@ -2018,7 +2018,7 @@ PR #136 已合并：默认关闭、Android Usage Access 显式授权，只读取
 
 ### Issue #26 — Timeline V2 余项
 
-Issue #26 的 Timeline 衔接已分步推进：PR #139 修复跨 DST 学期周数与窄屏周网格横向滚动，PR #140 实现周网格长按空白时段、按 15 分钟刻度预填当前 ScheduleEditor。本轮单日 Task 的周网格拖动/缩放先生成草案、经 ScheduleEditor 确认保存，固定项增加确认；跨午夜项目仍用编辑器，课程和外部日历不进入修改链路。多来源只读一致性与跨视图、360px/PWA/Android 真机及生产验收仍待完成。
+Issue #26 的 Timeline 衔接已分步推进：PR #139 修复跨 DST 学期周数与窄屏周网格横向滚动，PR #140 实现周网格长按空白时段、按 15 分钟刻度预填当前 ScheduleEditor。PR #144 已合并：单日 Task 的周网格拖动/缩放先生成草案、经 ScheduleEditor 确认保存，固定项增加确认；跨午夜项目仍用编辑器，课程和外部日历不进入修改链路。多来源只读一致性与跨视图、360px/PWA/Android 真机及生产验收仍待完成。
 
 ---
 
