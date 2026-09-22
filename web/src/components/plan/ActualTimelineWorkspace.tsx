@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { deleteActualTime, getActualTimeline, type ActualTimelineEntry } from '../../api/actualTimeline';
+import { getAppUsageSessions, type AppUsageSession } from '../../api/appUsage';
 import type { Task } from '../../types';
 import { EmptyState, SectionCard } from '../ui/foundation';
 import ActualEditorSheet, { type ActualEditorRange } from './ActualEditorSheet';
@@ -37,6 +38,7 @@ export default function ActualTimelineWorkspace({ selectedDate, plannedItems, ta
   const manualBackfillEnabled = useTimeTrackingPreferences()?.manualBackfillEnabled === true;
   const [mode, setMode] = useState<ActualTimelineMode>('actual');
   const [entries, setEntries] = useState<ActualTimelineEntry[]>([]);
+  const [appEntries, setAppEntries] = useState<AppUsageSession[]>([]);
   const [loadedKey, setLoadedKey] = useState('');
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
@@ -53,6 +55,16 @@ export default function ActualTimelineWorkspace({ selectedDate, plannedItems, ta
       .then((result) => { setEntries((result || []).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())); setError(''); setLoadedKey(requestKey); })
       .catch((reason: unknown) => { if (!controller.signal.aborted) { setEntries([]); setError(reason instanceof Error ? reason.message : '加载实际时间失败'); setLoadedKey(requestKey); } });
     return () => controller.abort();
+  }, [requestKey, selectedDate]);
+
+  useEffect(() => {
+    let active = true;
+    const start = startOfLocalDay(selectedDate);
+    const end = addLocalDays(start, 1);
+    void getAppUsageSessions(start.toISOString(), end.toISOString())
+      .then((sessions) => { if (active) setAppEntries(sessions); })
+      .catch(() => { if (active) setAppEntries([]); });
+    return () => { active = false; };
   }, [requestKey, selectedDate]);
 
   const planned = useMemo(() => itemsForLocalDay(plannedItems, selectedDate).filter((item) => !item.preview), [plannedItems, selectedDate]);
@@ -88,6 +100,11 @@ export default function ActualTimelineWorkspace({ selectedDate, plannedItems, ta
           </div>
         </SectionCard>
       ) : <EmptyState title="这一天还没有实际时间记录" description={manualBackfillEnabled ? '完成 Focus 后会自动出现，也可以补记未使用计时器的投入。' : '开启时间记录设置中的手工补记，或完成一次计入实际时间的 Focus。'} />}
+      {appEntries.length > 0 && <SectionCard className="!p-4">
+        <h3 className="text-sm font-bold">Android 应用使用 · {duration(appEntries.reduce((sum, item) => sum + item.durationSeconds, 0))}</h3>
+        <p className="mt-1 text-[10px] text-[var(--sf-text-tertiary)]">系统观察到的前台区间，与专注可能重叠；不加入上方主动投入总数。</p>
+        <div className="mt-3 space-y-2">{appEntries.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-[var(--sf-bg)] p-3 text-xs"><span className="min-w-0 truncate">{item.appName}<span className="ml-2 opacity-60">{item.tagName || '未分类'}</span></span><span className="shrink-0">{new Date(item.startTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} · {duration(item.durationSeconds)}</span></div>)}</div>
+      </SectionCard>}
       <p className="px-2 text-[9px] leading-4 text-[var(--sf-text-tertiary)]">Actual 只来自 PomodoroSession；Focus 暂停不计入有效时长。计划对照按任务关系、标题与时间置信度匹配。</p>
       {editorRange && <ActualEditorSheet key={`${editingEntry?.id || 'new'}:${editorRange.start}:${editorRange.end}`} entry={editingEntry} range={editorRange} tasks={tasks} onClose={() => { setEditingEntry(null); setEditorRange(null); }} onSaved={changed} />}
     </div>
