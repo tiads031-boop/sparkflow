@@ -26,6 +26,8 @@ import {
   updateStudyFolder,
 } from '../../api/study';
 import PlannerSheet from '../planner/PlannerSheet';
+import StudyCourseWorkspace from './StudyCourseWorkspace';
+import StudySurfaceSwitch, { type StudySurface } from './StudySurfaceSwitch';
 
 const goalColors = ['#cae393', '#b0a8db', '#f5c98b', '#8fd6cf', '#f4a6b8'];
 
@@ -550,13 +552,18 @@ function GoalRoadmap({
 
 export default function StudyWorkspace({
   onStartFocus,
+  initialSurface = 'goals',
+  initialCourseId = null,
 }: {
   onStartFocus: () => void;
+  initialSurface?: StudySurface;
+  initialCourseId?: string | null;
 }) {
   const loadTasks = useAppStore((state) => state.loadTasks);
   const todayCount = useAppStore((state) => state.pomodoro.todayCount);
   const totalFocusMinutes = useAppStore((state) => state.pomodoro.totalFocusMinutes);
 
+  const [surface, setSurface] = useState<StudySurface>(() => initialSurface);
   const [goals, setGoals] = useState<StudyFolder[]>([]);
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -603,7 +610,6 @@ export default function StudyWorkspace({
     ? goals.find((goal) => goal.id === roadmapGoalId) || null
     : null;
 
-  const todayKey = new Date().toDateString();
   const todayTasks = useMemo(() => {
     const today = new Date();
     const byId = new Map<string, Task>();
@@ -622,7 +628,7 @@ export default function StudyWorkspace({
       const bTime = b.scheduledStart || b.dueDate || '';
       return aTime.localeCompare(bTime);
     });
-  }, [activeGoals, todayKey]);
+  }, [activeGoals]);
 
   const openGoalPlanning = (goal: StudyFolder, seed?: string) => {
     setPlannerSeed(seed ?? (goal.planningThread ? '' : planningSeed(goal)));
@@ -667,6 +673,7 @@ export default function StudyWorkspace({
 
   return (
     <>
+      {!roadmapGoal ? <StudySurfaceSwitch value={surface} onChange={setSurface} /> : null}
       {roadmapGoal ? (
         <GoalRoadmap
           goal={roadmapGoal}
@@ -674,6 +681,10 @@ export default function StudyWorkspace({
           onPlan={(seed) => openGoalPlanning(roadmapGoal, seed)}
           onStartFocus={onStartFocus}
         />
+      ) : surface === 'courses' ? (
+        <div className="animate-page-enter pb-24">
+          <StudyCourseWorkspace initialCourseId={initialCourseId} />
+        </div>
       ) : (
         <div className="animate-page-enter pb-24">
           <header className="mb-5 rounded-[2rem] bg-[#242424] p-5 text-white shadow-sm">
@@ -728,7 +739,7 @@ export default function StudyWorkspace({
                 {totalFocusMinutes}
                 <span className="ml-1 text-xs text-gray-500">分钟</span>
               </p>
-              <p className="text-[10px] text-gray-500">今日专注 · {todayCount} 次</p>
+              <p className="text-[10px] text-gray-500">累计专注 · 今日 {todayCount} 次</p>
             </div>
           </div>
 

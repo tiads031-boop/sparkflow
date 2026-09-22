@@ -1,7 +1,7 @@
 # SparkFlow V11 — 真实业务代码落地实施方案
 
-> **状态**：实施中；R1/R2 已合并，R3-A Planner + Focus 代码、本地验证与远端 CI 已完成，待合并 / 移动端验收
-> **方案基线**：master@9681216d28e285ec3c208f16e9a19da36a068611
+> **状态**：实施中；R1/R2/R3-A 已合并，R3-B1 工作区结构与真实入口已完成本地验证
+> **方案基线**：master@37ac6690bcd2581f92172c46c83adc0c0ececdcd
 > **最后核对**：2026-09-22  
 > **视觉来源**：用户确认的 sparkflow_ui_integrated_v11(1).html  
 > **光学玻璃参考**：VII-Cae/hyalite--liquid-glass，v0.5.0，MIT  
@@ -1943,8 +1943,15 @@ measured 是系统测得事实；Planner 可以引用，但不能自动改写成
 - [x] R3-A 数据联动：完成或中断 Focus 后刷新 Actual；
 - [x] R3-A 本地验证：Web 83 tests、API 163 tests、Web/API production build、改动文件定向 ESLint；
 - [x] R3-A GitHub Actions CI #321；
+- [x] R3-A squash 合并（PR #122）；
 - [ ] R3-A 360px / PWA / Android WebView 视觉与交互验收；
-- [ ] R3-B Records + Study/Course + Profile。
+- [x] R3-B1 Records：迁移为 RecordsWorkspace，并拆出 RecordToolbar、RecordCardsView、ReviewWorkspace、InsightsWorkspace；保留 SparksView 兼容导出；
+- [x] R3-B1 Study/Course：学习工作区增加“目标 / 课程”切换，课程列表、详情、ICS 导入、学期与管理能力继续复用真实 Course 事实源；
+- [x] R3-B1 Profile：建立 ProfileWorkspace 入口，并把标签管理、Actual 时间记录提升到一级卡片；
+- [x] R3-B1 本地验证：Web 85 tests、Web production build、改动文件定向 ESLint；
+- [x] R3-B1 GitHub Actions CI #324；
+- [ ] R3-B2 Capture / Record Detail、Course Detail / Import、Tag Management 二级页视觉与移动端细节；
+- [ ] R3-B 360px / PWA / Android WebView 视觉与交互验收。
 
 ### R4 — Time Analytics
 

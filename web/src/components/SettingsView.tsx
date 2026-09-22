@@ -7,6 +7,7 @@ import {
   Check,
   ChevronRight,
   Cloud,
+  Clock3,
   Database,
   Download,
   Grid2X2,
@@ -236,6 +237,7 @@ function InlineCard({ children }: { children: ReactNode }) {
 }
 
 export default function SettingsView() {
+  const setActiveTab = useAppStore((s) => s.setActiveTab);
   const tasks = useAppStore((s) => s.tasks);
   const sparks = useAppStore((s) => s.sparks);
   const events = useAppStore((s) => s.events);
@@ -270,6 +272,8 @@ export default function SettingsView() {
   const statusNeeds = useAppStore((s) => s.statusNeeds);
   const changePassword = useAppStore((s) => s.changePassword);
   const logout = useAppStore((s) => s.logout);
+  const todayFocusCount = useAppStore((s) => s.pomodoro.todayCount);
+  const totalFocusMinutes = useAppStore((s) => s.pomodoro.totalFocusMinutes);
 
   const [page, setPage] = useState<SettingsPage>('home');
   const [preferences, setPreferences] = useState<UserPreferences>(() => readUserPreferences());
@@ -315,30 +319,33 @@ export default function SettingsView() {
   useEffect(() => {
     if (page !== 'notifications') return;
     let active = true;
-    setNotificationLoading(true);
-    setPushMessage(null);
+    const timeoutId = window.setTimeout(() => {
+      setNotificationLoading(true);
+      setPushMessage(null);
 
-    void Promise.all([
-      checkPushStatus(),
-      getNotificationPreferences(),
-    ])
-      .then(async ([, serverPreferences]) => {
-        if (!active) return;
-        setNotificationPreferences(serverPreferences);
-        const nextLocal = updateUserPreferences({
-          defaultReminderMinutes: serverPreferences.defaultReminderMinutes,
+      void Promise.all([
+        checkPushStatus(),
+        getNotificationPreferences(),
+      ])
+        .then(async ([, serverPreferences]) => {
+          if (!active) return;
+          setNotificationPreferences(serverPreferences);
+          const nextLocal = updateUserPreferences({
+            defaultReminderMinutes: serverPreferences.defaultReminderMinutes,
+          });
+          setPreferences(nextLocal);
+        })
+        .catch((err) => {
+          if (active) setPushMessage(errorMessage(err, '读取通知偏好失败'));
+        })
+        .finally(() => {
+          if (active) setNotificationLoading(false);
         });
-        setPreferences(nextLocal);
-      })
-      .catch((err) => {
-        if (active) setPushMessage(errorMessage(err, '读取通知偏好失败'));
-      })
-      .finally(() => {
-        if (active) setNotificationLoading(false);
-      });
+    }, 0);
 
     return () => {
       active = false;
+      window.clearTimeout(timeoutId);
     };
   }, [page, checkPushStatus]);
 
@@ -1293,6 +1300,28 @@ export default function SettingsView() {
           <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">
             {preferences.appearance === 'system' ? '跟随系统' : preferences.appearance === 'dark' ? '深色模式' : '浅色模式'}
           </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setPage('tags')}
+          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
+        >
+          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#fff4df] text-[#8a642e]">
+            <TagIcon size={16} />
+          </span>
+          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">标签</strong>
+          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">分类、颜色与归档</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('timeline')}
+          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
+        >
+          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#e7f2ef] text-[#3f6e65]">
+            <Clock3 size={16} />
+          </span>
+          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">时间记录</strong>
+          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">累计 {totalFocusMinutes} 分钟 · 今日 {todayFocusCount} 次</span>
         </button>
         <button
           type="button"

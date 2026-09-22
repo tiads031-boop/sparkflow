@@ -4,14 +4,8 @@ import {
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
 import type { ActiveTab, PlannerPreview, Spark } from './types';
-import SparksView from './components/SparksView';
-import CourseView from './components/CourseView';
-import CourseTheme from './components/CourseTheme';
 import CourseReminderRuntime from './components/CourseReminderRuntime';
 import CourseIntegrationsRuntime from './components/CourseIntegrationsRuntime';
-import CourseDetailView from './components/CourseDetailView';
-import SettingsView from './components/SettingsView';
-import { importIcs } from './api/courses';
 import { getNotificationPreferences } from './api/push';
 import { updateUserPreferences } from './utils/userPreferences';
 import DarkFrostedModal, { type SaveParams } from './components/DarkFrostedModal';
@@ -28,6 +22,8 @@ import InspirationCaptureSheet from './components/records/InspirationCaptureShee
 const StudyWorkspace = lazy(() => import('./components/study/StudyWorkspace'));
 const PlanWorkspace = lazy(() => import('./components/plan/PlanWorkspace'));
 const TodayWorkspace = lazy(() => import('./components/today/TodayWorkspace'));
+const RecordsWorkspace = lazy(() => import('./components/records/RecordsWorkspace'));
+const ProfileWorkspace = lazy(() => import('./components/profile/ProfileWorkspace'));
 
 // ── Capacitor 平台检测（轻量内联，不引入原生模块 import） ──
 function isCapacitorNative(): boolean {
@@ -88,7 +84,6 @@ export default function App() {
   const loadCourses = useAppStore((s) => s.loadCourses);
   const loadSemesters = useAppStore((s) => s.loadSemesters);
   const loadCourseDetail = useAppStore((s) => s.loadCourseDetail);
-
   const [viewingCourseId, setViewingCourseId] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -380,7 +375,7 @@ export default function App() {
                 plannerPreview={plannerPreview}
                 onTaskClick={(task) => handleOpenDetail(task, 'task')}
                 onCourseClick={(courseId) => {
-                  loadCourseDetail(courseId);
+                  void loadCourseDetail(courseId);
                   setViewingCourseId(courseId);
                   setActiveTab('courses');
                 }}
@@ -397,7 +392,7 @@ export default function App() {
                 tasks={tasks}
                 onTaskClick={(task) => handleOpenDetail(task, 'task')}
                 onCourseClick={(courseId) => {
-                  loadCourseDetail(courseId);
+                  void loadCourseDetail(courseId);
                   setViewingCourseId(courseId);
                   setActiveTab('courses');
                 }}
@@ -410,52 +405,24 @@ export default function App() {
               />
             </Suspense>
           )}
-          {/* Course detail view (full page) */}
-          {activeTab === 'courses' && viewingCourseId && (
-            <CourseTheme><CourseDetailView onBack={() => setViewingCourseId(null)} /></CourseTheme>
-          )}
-          {activeTab === 'courses' && !viewingCourseId && (
-            <CourseTheme>
-            <CourseView
-              onCourseClick={(courseId) => {
-                loadCourseDetail(courseId);
-                setViewingCourseId(courseId);
-              }}
-              onAddClick={() => {}}
-              onImportClick={async (file) => {
-                try {
-                  const result = await importIcs(file, undefined, { semesterId: useAppStore.getState().activeSemesterId || undefined });
-                  alert(`导入完成：新增 ${result.created.length} 门，更新 ${result.updated.length} 门，共 ${result.eventCount} 次课`);
-                  loadCourses();
-                } catch (error: unknown) {
-                  alert(`导入失败：${errorMessage(error, '请稍后重试')}`);
-                }
-              }}
-            />
-            </CourseTheme>
-          )}
-          {activeTab === 'sparks' && (
-            <SparksView
-              sparks={sparks}
-              setSparks={setSparks}
-              onSparkClick={(s) => handleOpenDetail(s, 'spark')}
-              onAddClick={() => setCaptureOpen(true)}
-            />
-          )}
-          {activeTab === 'records' && (
-            <SparksView
-              sparks={sparks}
-              setSparks={setSparks}
-              onSparkClick={(s) => handleOpenDetail(s, 'spark')}
-              onAddClick={() => setCaptureOpen(true)}
-            />
-          )}
-          {activeTab === 'study' && (
-            <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开学习空间…</div>}>
-              <StudyWorkspace onStartFocus={() => setFocusOpen(true)} />
+          {activeWorkspace === 'records' && (
+            <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开记录空间…</div>}>
+              <RecordsWorkspace sparks={sparks} setSparks={setSparks} onSparkClick={(spark) => handleOpenDetail(spark, 'spark')} onAddClick={() => setCaptureOpen(true)} />
             </Suspense>
           )}
-          {(activeTab === 'settings' || activeTab === 'profile') && <SettingsView />}
+          {activeWorkspace === 'study' && (
+            <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开学习空间…</div>}>
+              <StudyWorkspace
+                key={activeTab === 'courses' ? `courses:${viewingCourseId || 'list'}` : 'goals'}
+                onStartFocus={() => setFocusOpen(true)}
+                initialSurface={activeTab === 'courses' ? 'courses' : 'goals'}
+                initialCourseId={activeTab === 'courses' ? viewingCourseId : null}
+              />
+            </Suspense>
+          )}
+          {activeWorkspace === 'profile' && (
+            <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开我的…</div>}><ProfileWorkspace /></Suspense>
+          )}
         {/* Modals */}
         {modalConfig.isOpen && modalConfig.context === 'task' && <TaskEditorSheet
           key={modalConfig.mode === 'edit' ? modalConfig.data?.id : 'create'}
