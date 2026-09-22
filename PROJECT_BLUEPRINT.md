@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-22
-> **代码同步基线**：`master@c15e779ed30d136cd7745a67a5c63a312bf4a56f`；V11 R1–R9 代码已合并。最近有直接回显的生产版本为 `990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21）。
+> **代码同步基线**：`master@42c9b4d7047a565634b96937dd73fc40024c77c2`；V11 R1–R9 代码已合并，Issue #26 的周视图周数/横向滚动及长按创建已分步合并，余项仍开放。最近有直接回显的生产版本为 `990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21）。
 
 ---
 
@@ -148,6 +148,7 @@ flowchart TD
 
 - Month / Week / Agenda 继续使用 Task / Course / CalendarEvent 统一投影。
 - 周视图已覆盖 00:00–24:00、半小时辅助线和当前时间线。
+- PR #139/#140 已补充跨 DST 学期周数、窄屏横向滚动与长按空白时间格按 15 分钟吸附创建；拖拽/缩放与多来源只读行为仍属 Issue #26 待办，移动端验收集中在功能完成后。
 - 未排期待办不再因为 dueDate 被伪装成真实日程。
 - 下一轮 Timeline 2.0 将把 PomodoroSession 等真实执行数据作为 Actual Time，并与 Planned Time 分层展示。
 - 详细方案见 `docs/plans/vnext-execution-intelligence-ui-system.md`。
