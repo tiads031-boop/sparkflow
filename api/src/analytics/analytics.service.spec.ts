@@ -1,6 +1,28 @@
 import { AnalyticsService } from './analytics.service';
 
 describe('AnalyticsService', () => {
+  it('reports selected Android app usage separately from deliberate actual time', async () => {
+    const prisma = {
+      pomodoroSession: { findMany: jest.fn().mockResolvedValue([]) },
+      tag: { findMany: jest.fn().mockResolvedValue([]) },
+      appUsageSession: { findMany: jest.fn().mockResolvedValue([{
+        startTime: new Date('2026-09-22T00:00:00Z'),
+        endTime: new Date('2026-09-22T00:30:00Z'), tagName: '阅读',
+      }]) },
+    };
+    const result = await new AnalyticsService(prisma as never).getTime(
+      'owner', '2026-09-22T00:00:00Z', '2026-09-22T01:00:00Z', 'UTC',
+    );
+    expect(result.totalActualSeconds).toBe(0);
+    expect(result.appUsage).toEqual({
+      totalSeconds: 1800, sessionCount: 1, truncated: false,
+      byTag: [{ name: '阅读', seconds: 1800 }],
+    });
+    expect(prisma.appUsageSession.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: 'owner' }),
+    }));
+  });
+
   it('clips a cross-range actual session to its effective segments', async () => {
     const pomodoroSession = {
       findMany: jest
