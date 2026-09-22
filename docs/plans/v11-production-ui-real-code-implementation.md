@@ -2002,7 +2002,7 @@ R6-A 已由 PR #129 合并：时间记录偏好 API、`countsTowardActual` 快�
 
 执行拆分：R7-A 先落数据模型、Task / Numeric / Time 三类统一聚合及数值进度写入 API；R7-B 接 Study Goal 主指标、进度编辑与记录交互；R7-C 收口空态、错误态、360px / PWA / Android 视觉和生产迁移验收。
 
-R7-A 已由 PR #132 合并：StudyFolder 增加进度类型、目标值与单位，新增可审计的数值进度记录；Task 进度排除取消任务，Time 进度复用 `countsTowardActual` 有效专注口径并按周边界裁剪。R7-B 界面 PR #133 已合并且 CI #352 通过。R7-C 的空态/错误态可先做代码收口，360px / PWA / Android 和生产 migration 留待功能完成后统一验收。
+R7-A 已由 PR #132 合并：StudyFolder 增加进度类型、目标值与单位，新增可审计的数值进度记录；Task 进度排除取消任务，Time 进度复用 `countsTowardActual` 有效专注口径并按周边界裁剪。R7-B 界面 PR #133 已合并且 CI #352 通过。R7-C 空态/错误态代码由 PR #143 合并，区分请求失败与空目标、无任务/目标值时不显示未定义的完成比例，普通任务仅有子任务时展示子任务进度；Web build、92 tests、定向 ESLint、远端 CI 与 Android APK 构建通过。360px / PWA / Android 和生产 migration 仍留待功能完成后统一验收。
 
 ### R8 — AI Execution Feedback
 
