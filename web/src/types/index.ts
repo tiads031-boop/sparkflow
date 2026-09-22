@@ -251,6 +251,10 @@ export interface StudyFolder {
   icon: string;
   color: string;
   status: 'active' | 'archived';
+  /** 旧数据响应可能暂未携带；界面默认按 task 展示。 */
+  progressType?: 'task' | 'numeric' | 'time';
+  targetValue?: number | null;
+  progressUnit?: string | null;
   courses: Course[];
   tasks: Task[];
   planningThread?: {
@@ -271,6 +275,41 @@ export interface StudyFolderInput {
   color?: string;
   courseIds?: string[];
   taskIds?: string[];
+  progressType?: 'task' | 'numeric' | 'time';
+  targetValue?: number | null;
+  progressUnit?: string | null;
+}
+
+export interface GoalProgressEntry {
+  id: string;
+  userId: string;
+  studyFolderId: string;
+  value: number;
+  occurredAt: string;
+  source: string;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoalProgressSummary {
+  goalId: string;
+  progressType: 'task' | 'numeric' | 'time';
+  primary: {
+    current: number;
+    target: number | null;
+    percent: number | null;
+    unit: string;
+    source: 'tasks' | 'manual_entries' | 'actual_time';
+  };
+  task: { completed: number; total: number; percent: number | null };
+  actual: {
+    totalMinutes: number;
+    weekMinutes: number;
+    weekStart: string;
+    weekEnd: string;
+  };
+  numeric: { current: number; unit: string; entries: GoalProgressEntry[] };
 }
 
 // ════════════════════════════════════════════════════

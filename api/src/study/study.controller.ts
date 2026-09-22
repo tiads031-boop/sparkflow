@@ -18,6 +18,15 @@ export interface StudyFolderInput {
   color?: string;
   courseIds?: string[];
   taskIds?: string[];
+  progressType?: 'task' | 'numeric' | 'time';
+  targetValue?: number | null;
+  progressUnit?: string | null;
+}
+
+export interface GoalProgressEntryInput {
+  value?: number;
+  occurredAt?: string;
+  note?: string | null;
 }
 
 @Controller('study/folders')
@@ -32,6 +41,44 @@ export class StudyController {
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUserId() userId: string) {
     return this.studyService.findOne(id, userId);
+  }
+
+  @Get(':id/progress')
+  progress(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Query('weekStart') weekStart?: string,
+    @Query('weekEnd') weekEnd?: string,
+  ) {
+    return this.studyService.progress(id, userId, weekStart, weekEnd);
+  }
+
+  @Post(':id/progress-entries')
+  createProgressEntry(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body() input: GoalProgressEntryInput,
+  ) {
+    return this.studyService.createProgressEntry(id, userId, input);
+  }
+
+  @Patch(':id/progress-entries/:entryId')
+  updateProgressEntry(
+    @Param('id') id: string,
+    @Param('entryId') entryId: string,
+    @CurrentUserId() userId: string,
+    @Body() input: GoalProgressEntryInput,
+  ) {
+    return this.studyService.updateProgressEntry(id, entryId, userId, input);
+  }
+
+  @Delete(':id/progress-entries/:entryId')
+  deleteProgressEntry(
+    @Param('id') id: string,
+    @Param('entryId') entryId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.studyService.deleteProgressEntry(id, entryId, userId);
   }
 
   @Post()
