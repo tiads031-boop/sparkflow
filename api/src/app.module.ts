@@ -23,6 +23,7 @@ import { StudyModule } from './study/study.module';
 import { PlanningModule } from './planning/planning.module';
 import { TagsModule } from './tags/tags.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { ScenesModule } from './scenes/scenes.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     PlanningModule,
     TagsModule,
     AnalyticsModule,
+    ScenesModule,
   ],
   controllers: [AppController],
   providers: [
