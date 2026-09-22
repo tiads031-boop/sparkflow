@@ -92,7 +92,7 @@ export default function TimeAnalyticsView({
       <PageHeader
         eyebrow="Execution intelligence"
         title="时间分析"
-        subtitle="只统计 Focus 与手工补记产生的真实投入。"
+        subtitle="主动投入统计 Focus 与手工补记；Android 应用使用另列，可能与专注重叠。"
         onBack={onBack}
         action={(
           <button type="button" onClick={onOpenActual} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--sf-surface)] shadow-sm" aria-label="打开实际时间线">
@@ -142,6 +142,13 @@ export default function TimeAnalyticsView({
             </div>
             <TimeDistributionBars breakdown={current.time.breakdown} totalSeconds={current.time.totalActualSeconds} />
           </SectionCard>
+
+          {current.time.appUsage && <SectionCard>
+            <h2 className="text-sm font-black">Android 应用使用 · 单独统计</h2>
+            <p className="mt-1 text-xs text-[var(--sf-text-secondary)]">{formatAnalyticsDuration(current.time.appUsage.totalSeconds)} · {current.time.appUsage.sessionCount} 段；与 Focus 可能重叠，不加入主动投入或计划偏差。</p>
+            {current.time.appUsage.byTag.slice(0, 5).map((item) => <p key={item.name} className="mt-2 flex justify-between text-xs"><span>{item.name}</span><span>{formatAnalyticsDuration(item.seconds)}</span></p>)}
+            {current.time.appUsage.truncated && <p className="mt-2 text-xs text-amber-700">记录过多，此范围仅显示最近 10000 段。</p>}
+          </SectionCard>}
 
           <SectionCard>
             <div className="mb-4">
