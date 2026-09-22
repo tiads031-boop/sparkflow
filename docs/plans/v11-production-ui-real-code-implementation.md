@@ -1,7 +1,7 @@
 # SparkFlow V11 — 真实业务代码落地实施方案
 
-> **状态**：实施中；R1/R2/R3-A 已合并，R3-B1 工作区结构与真实入口已完成本地验证
-> **方案基线**：master@37ac6690bcd2581f92172c46c83adc0c0ececdcd
+> **状态**：实施中；R1/R2/R3-A/R3-B1 已合并，R3-B2 二级页视觉已完成本地验证
+> **方案基线**：master@6d2e045c1d4e3817a4aa6e497254aa3b5ec53298
 > **最后核对**：2026-09-22  
 > **视觉来源**：用户确认的 sparkflow_ui_integrated_v11(1).html  
 > **光学玻璃参考**：VII-Cae/hyalite--liquid-glass，v0.5.0，MIT  
@@ -1950,7 +1950,12 @@ measured 是系统测得事实；Planner 可以引用，但不能自动改写成
 - [x] R3-B1 Profile：建立 ProfileWorkspace 入口，并把标签管理、Actual 时间记录提升到一级卡片；
 - [x] R3-B1 本地验证：Web 85 tests、Web production build、改动文件定向 ESLint；
 - [x] R3-B1 GitHub Actions CI #324；
-- [ ] R3-B2 Capture / Record Detail、Course Detail / Import、Tag Management 二级页视觉与移动端细节；
+- [x] R3-B1 squash 合并（PR #123）；
+- [x] R3-B2 Capture / Record Detail：移动端 Sheet 使用独立滚动区、固定安全区操作栏，并保持多模态附件、录音、草稿与 Reflection 真实链路；
+- [x] R3-B2 Course Detail / Import：统一 Graphite Aurora token、课程详情表面与焦点态、导入步骤/卡片/底部操作区，不修改真实导入流程；
+- [x] R3-B2 Tag Management：完成真实一级/二级层级、颜色、编辑与归档视觉，并只展示可由 Tag 数据计算的概览；
+- [x] R3-B2 本地验证：Web 85 tests、API 163 tests、Web/API production build、改动文件定向 ESLint、git diff --check；
+- [ ] R3-B2 GitHub Actions CI；
 - [ ] R3-B 360px / PWA / Android WebView 视觉与交互验收。
 
 ### R4 — Time Analytics

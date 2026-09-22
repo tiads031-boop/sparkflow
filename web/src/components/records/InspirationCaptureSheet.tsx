@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   FileAudio,
@@ -117,7 +117,7 @@ export default function InspirationCaptureSheet({
   };
   useModalLifecycle(open, requestClose, { isolateAppMain: true });
 
-  const cleanupRecording = () => {
+  const releaseRecordingResources = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     recorderRef.current = null;
@@ -125,55 +125,64 @@ export default function InspirationCaptureSheet({
       window.clearTimeout(recordingStopTimerRef.current);
       recordingStopTimerRef.current = null;
     }
+  }, []);
+
+  const cleanupRecording = () => {
+    releaseRecordingResources();
     setRecording(false);
     setRecordingSeconds(0);
   };
 
   useEffect(() => {
-    if (!open) {
-      try {
-        if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-      } catch {
-        // Ignore recorder shutdown during close.
-      }
-      cleanupRecording();
-      setSaving(false);
-      setError(null);
-      setDraftReady(false);
-      return;
-    }
-
     let cancelled = false;
-    setDraftReady(false);
-    setTags([]);
-    void (async () => {
-      if (currentUserId && !focusSessionId) {
-        const draft = await readCaptureDraft(currentUserId);
-        if (cancelled) return;
-        if (draft) {
-          setText(draft.text);
-          setFiles(draft.files || []);
-          captureRequestIdRef.current = draft.requestId || crypto.randomUUID();
+    const resetTimer = window.setTimeout(() => {
+      if (!open) {
+        try {
+          if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
+        } catch {
+          // Ignore recorder shutdown during close.
+        }
+        releaseRecordingResources();
+        setRecording(false);
+        setRecordingSeconds(0);
+        setSaving(false);
+        setError(null);
+        setDraftReady(false);
+        return;
+      }
+
+      setDraftReady(false);
+      setTags([]);
+      void (async () => {
+        if (currentUserId && !focusSessionId) {
+          const draft = await readCaptureDraft(currentUserId);
+          if (cancelled) return;
+          if (draft) {
+            setText(draft.text);
+            setFiles(draft.files || []);
+            captureRequestIdRef.current = draft.requestId || crypto.randomUUID();
+          } else {
+            setText('');
+            setFiles([]);
+            setTags([]);
+            captureRequestIdRef.current = crypto.randomUUID();
+          }
         } else {
           setText('');
           setFiles([]);
           setTags([]);
           captureRequestIdRef.current = crypto.randomUUID();
         }
-      } else {
-        setText('');
-        setFiles([]);
-        setTags([]);
-        captureRequestIdRef.current = crypto.randomUUID();
-      }
-      setDraftReady(true);
-      window.setTimeout(() => textareaRef.current?.focus(), 30);
-    })();
+        setDraftReady(true);
+        window.setTimeout(() => textareaRef.current?.focus(), 30);
+      })();
+    }, 0);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(resetTimer);
     };
-  }, [open, currentUserId, focusSessionId]);
+  }, [open, currentUserId, focusSessionId, releaseRecordingResources]);
 
   useEffect(() => {
     if (!recording) return;
@@ -191,8 +200,8 @@ export default function InspirationCaptureSheet({
     } catch {
       // Ignore recorder shutdown on unmount.
     }
-    cleanupRecording();
-  }, []);
+    releaseRecordingResources();
+  }, [releaseRecordingResources]);
 
   const addFiles = (incoming: File[]) => {
     setError(null);
@@ -322,11 +331,15 @@ export default function InspirationCaptureSheet({
         role="dialog"
         aria-modal="true"
         aria-label={focusSessionId ? '专注记录' : '多模态随手记'}
-        className="w-full max-w-lg rounded-t-[2rem] bg-[var(--sf-surface)] p-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] shadow-2xl"
+        className="flex max-h-[min(92dvh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[2rem] bg-[var(--sf-surface)] shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="mb-4 flex items-start justify-between gap-3">
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-[var(--sf-border)]" aria-hidden="true" />
+        <header className="flex shrink-0 items-start justify-between gap-3 px-5 pb-4 pt-3">
           <div>
+            <p className="mb-1 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--sf-accent)]">
+              {focusSessionId ? 'Focus note' : 'Capture'}
+            </p>
             <h2 className="text-base font-black text-[var(--sf-text-primary)]">
               {focusSessionId ? '记录这次专注' : '随手记'}
             </h2>
@@ -347,120 +360,124 @@ export default function InspirationCaptureSheet({
           </button>
         </header>
 
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder={focusSessionId ? '这次专注里，有什么值得留下？' : '现在想到什么，就先留下来……'}
-          className="min-h-32 w-full resize-none rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm leading-6 outline-none focus:border-[var(--sf-text-primary)]"
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5">
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder={focusSessionId ? '这次专注里，有什么值得留下？' : '现在想到什么，就先留下来……'}
+            className="min-h-32 w-full resize-none rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm leading-6 outline-none focus:border-[var(--sf-text-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--sf-accent)_28%,transparent)]"
+          />
 
-        <div className="mt-3 rounded-2xl border border-[var(--sf-border)] p-3">
-          <TagSelector value={tags} onChange={setTags} compact />
-        </div>
+          <div className="mt-3 rounded-2xl border border-[var(--sf-border)] p-3">
+            <TagSelector value={tags} onChange={setTags} compact />
+          </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*,audio/*"
-          multiple
-          className="hidden"
-          onChange={(event) => {
-            addFiles(Array.from(event.target.files || []));
-            event.target.value = '';
-          }}
-        />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,audio/*"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              addFiles(Array.from(event.target.files || []));
+              event.target.value = '';
+            }}
+          />
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={saving || recording || files.length >= MAX_FILES}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--sf-bg)] px-3 py-3 text-xs font-bold text-[var(--sf-text-secondary)] disabled:opacity-40"
-          >
-            <Paperclip size={14} /> 图片 / 视频
-          </button>
-
-          {recording ? (
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={stopRecording}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-red-50 px-3 py-3 text-xs font-bold text-red-700"
-            >
-              <Square size={12} fill="currentColor" />
-              完成录音 {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, '0')}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void startRecording()}
-              disabled={saving || !microphoneSupported || files.length >= MAX_FILES}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={saving || recording || files.length >= MAX_FILES}
               className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--sf-bg)] px-3 py-3 text-xs font-bold text-[var(--sf-text-secondary)] disabled:opacity-40"
-              title={microphoneSupported ? '录制语音' : '当前环境不支持录音'}
             >
-              <Mic size={14} /> 录一段语音
+              <Paperclip size={14} /> 图片 / 视频
             </button>
+
+            {recording ? (
+              <button
+                type="button"
+                onClick={stopRecording}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-red-50 px-3 py-3 text-xs font-bold text-red-700"
+              >
+                <Square size={12} fill="currentColor" />
+                完成录音 {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, '0')}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void startRecording()}
+                disabled={saving || !microphoneSupported || files.length >= MAX_FILES}
+                className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--sf-bg)] px-3 py-3 text-xs font-bold text-[var(--sf-text-secondary)] disabled:opacity-40"
+                title={microphoneSupported ? '录制语音' : '当前环境不支持录音'}
+              >
+                <Mic size={14} /> 录一段语音
+              </button>
+            )}
+          </div>
+
+          {files.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {files.map((file, index) => {
+                const kind = fileKind(file);
+                const Icon = kind === 'image'
+                  ? ImageIcon
+                  : kind === 'video'
+                    ? Video
+                    : FileAudio;
+                return (
+                  <div
+                    key={`${file.name}-${file.lastModified}-${index}`}
+                    className="flex items-center gap-3 rounded-2xl border border-[var(--sf-border)] px-3 py-2.5"
+                  >
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--sf-bg)]">
+                      <Icon size={15} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <strong className="block truncate text-xs text-[var(--sf-text-primary)]">
+                        {kind === 'image' ? '图片' : kind === 'video' ? '视频' : '语音 / 音频'}
+                      </strong>
+                      <span className="mt-0.5 block truncate text-[10px] text-[var(--sf-text-tertiary)]">
+                        {file.name} · {formatBytes(file.size)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                      disabled={saving || recording}
+                      className="grid h-8 w-8 place-items-center rounded-full bg-[var(--sf-bg)] text-[var(--sf-text-tertiary)] disabled:opacity-40"
+                      aria-label="移除附件"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                );
+              })}
+              <p className="text-right text-[9px] text-[var(--sf-text-tertiary)]">
+                {files.length}/{MAX_FILES} 个附件 · {formatBytes(totalBytes)}
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">
+              {error}
+            </p>
           )}
         </div>
 
-        {files.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {files.map((file, index) => {
-              const kind = fileKind(file);
-              const Icon = kind === 'image'
-                ? ImageIcon
-                : kind === 'video'
-                  ? Video
-                  : FileAudio;
-              return (
-                <div
-                  key={`${file.name}-${file.lastModified}-${index}`}
-                  className="flex items-center gap-3 rounded-2xl border border-[var(--sf-border)] px-3 py-2.5"
-                >
-                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--sf-bg)]">
-                    <Icon size={15} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <strong className="block truncate text-xs text-[var(--sf-text-primary)]">
-                      {kind === 'image' ? '图片' : kind === 'video' ? '视频' : '语音 / 音频'}
-                    </strong>
-                    <span className="mt-0.5 block truncate text-[10px] text-[var(--sf-text-tertiary)]">
-                      {file.name} · {formatBytes(file.size)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                    disabled={saving || recording}
-                    className="grid h-8 w-8 place-items-center rounded-full bg-[var(--sf-bg)] text-[var(--sf-text-tertiary)] disabled:opacity-40"
-                    aria-label="移除附件"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              );
-            })}
-            <p className="text-right text-[9px] text-[var(--sf-text-tertiary)]">
-              {files.length}/{MAX_FILES} 个附件 · {formatBytes(totalBytes)}
-            </p>
-          </div>
-        )}
-
-        {error && (
-          <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">
-            {error}
-          </p>
-        )}
-
-        <button
-          type="button"
-          onClick={() => void save()}
-          disabled={!draftReady || saving || recording || (!text.trim() && files.length === 0)}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-black text-[var(--sf-surface)] disabled:opacity-40"
-        >
-          {saving && <Loader2 size={15} className="animate-spin" />}
-          {saving ? '正在保存附件…' : focusSessionId ? '保存专注记录' : '保存记录'}
-        </button>
+        <footer className="shrink-0 border-t border-[var(--sf-divider)] bg-[var(--sf-surface)] px-5 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-3">
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={!draftReady || saving || recording || (!text.trim() && files.length === 0)}
+            className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-black text-[var(--sf-surface)] shadow-[0_10px_28px_rgba(18,18,22,0.14)] disabled:opacity-40"
+          >
+            {saving && <Loader2 size={15} className="animate-spin" />}
+            {saving ? '正在保存附件…' : focusSessionId ? '保存专注记录' : '保存记录'}
+          </button>
+        </footer>
       </section>
     </div>,
     document.body,
