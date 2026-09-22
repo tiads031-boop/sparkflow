@@ -88,7 +88,10 @@ export function getSemesterWeekNumber(date: Date, semester?: Semester | null): n
   if (!semester?.startDate) return null;
   const start = dateAtLocalMidnight(semester.startDate);
   const target = startOfLocalDay(date);
-  const days = Math.floor((target.getTime() - start.getTime()) / 86_400_000);
+  // Count local calendar dates rather than elapsed milliseconds: a DST day can
+  // have 23 or 25 hours, while the academic week still advances by 7 dates.
+  const calendarUtc = (value: Date) => Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+  const days = Math.round((calendarUtc(target) - calendarUtc(start)) / 86_400_000);
   if (days < 0) return null;
   const week = Math.floor(days / 7) + 1;
   if (semester.weeks && week > semester.weeks) return null;

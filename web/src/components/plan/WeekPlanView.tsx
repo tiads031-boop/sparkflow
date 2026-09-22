@@ -39,10 +39,11 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
 
   return (
     <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
-      <div className="w-full">
+      <div className="w-full overflow-x-auto overscroll-x-contain" aria-label="周日程横向滚动区域">
+        <div style={{ minWidth: TIME_COLUMN_WIDTH + 7 * 84 }}>
           <div
             className="grid border-b border-black/5 px-1 py-2"
-            style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(84px, 1fr))` }}
           >
             <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" />
             {days.map((day) => (
@@ -58,7 +59,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
           <div className="max-h-[66svh] overflow-y-auto">
             <div
               className="grid px-1"
-              style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(0, 1fr))` }}
+              style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(84px, 1fr))` }}
             >
               <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" style={{ height: TOTAL_HEIGHT }}>
                 {Array.from({ length: END_HOUR - START_HOUR }, (_, index) => (
@@ -154,6 +155,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
               })}
             </div>
           </div>
+        </div>
       </div>
     </section>
   );
