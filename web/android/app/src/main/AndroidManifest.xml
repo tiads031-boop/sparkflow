@@ -64,6 +64,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- User grants Usage Access in Android Settings; collection stays off until enabled in SparkFlow. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
 
     <!-- Calendar permissions for system calendar integration -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
