@@ -2,7 +2,7 @@
 
 > **最后更新**：2026-09-22  
 > **仓库代码基线**：`master@6140a6e9dbec574d62029d9e73c5b0a8cf7da990`（PR #141 已合并；后续文档提交不改变功能基线）
-> **开发状态**：R1–R9 代码已合并；R9 非法区间校验补丁 #138、Timeline 分步改动 #139/#140 已合并。对应 CI 通过；R7-C 和 Issue #26 余项仍在开发，终端/生产验收待功能完成后集中进行。
+> **开发状态**：R1–R9 代码已合并；R9 非法区间校验补丁 #138、Timeline 分步改动 #139/#140 已合并。对应 CI 通过；R7-C 空态/错误态代码已由 #143 合并，Issue #26 余项仍在开发，终端/生产验收待功能完成后集中进行。
 > **最近有直接回显的生产版本**：`990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21 `/api/health.buildSha`；当前运行版本须在发布时重新核对）。
 > **规则**：本文件只维护近期执行顺序；详细产品范围见对应方案文档。
 
@@ -94,7 +94,8 @@
 - [x] R6 Scene AI + Time Record Settings（R6-A/B/C PR #129/#130/#131 已合并）；
 - [x] R7-A Goal Progress 数据模型、三类聚合及数值进度 API（PR #132 已合并）；
 - [x] R7-B Goal Progress 界面（PR #133 已合并，CI #352 通过）；
-- [ ] R7-C 空态/错误态和发布验收（终端/生产部分放到最终集中验收）；
+- [x] R7-C 空态/错误态代码（PR #143 已合并；普通任务默认不强制进度条）；
+- [ ] R7-C 360px / PWA / Android 与生产验收（最终集中进行）；
 - [x] R8 AI Execution Feedback：PR #135 已合并，Planner 使用带来源标记的真实执行摘要；
 - [x] R9 Android Usage 代码：PR #136 已合并，独立事实源、系统授权、标签映射、前台同步和独立统计；生产 migration 与真机验收未完成。
 
@@ -224,10 +225,9 @@ M1 当前收口顺序：
 
 ## 5. 当前执行顺序
 
-1. 收口 R7-C 非终端代码部分，并核实 M4 中普通任务默认进度条行为；终端/生产验收留到最后。
-2. 完成 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项。PR #139 已修复跨 DST 的学期周数与窄屏周网格横向滚动；PR #140 已接入周网格长按创建。继续处理 15 分钟吸附的拖拽/缩放、锁定项确认、只读课程/Google/本地日历及 Month / Week / Timeline / Gantt 一致性；不要提前关闭 Issue #26。
-3. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
-4. 最后核对生产 buildSha、migrations、真实账号链路与 Issue #31 导入幂等，记录发布结果。
+1. 完成 [Issue #26](https://github.com/tiads031-boop/sparkflow/issues/26) Timeline 余项。PR #139 已修复跨 DST 的学期周数与窄屏周网格横向滚动；PR #140 已接入周网格长按创建。继续处理 15 分钟吸附的拖拽/缩放、锁定项确认、只读课程/Google/本地日历及 Month / Week / Timeline / Gantt 一致性；不要提前关闭 Issue #26。
+2. 所有功能完成后，集中执行 360/390/430px、PWA、Android WebView 和真机验收，并修复发现的问题。
+3. 最后核对生产 buildSha、migrations、真实账号链路与 Issue #31 导入幂等，记录发布结果。
 
 ---
 
