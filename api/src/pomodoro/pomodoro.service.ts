@@ -7,6 +7,7 @@ import {
 import { Prisma, type PomodoroSession } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { calculateFocusTiming, focusCompletionTime } from './focus-timing';
+import { parseTimeTrackingPreferences } from '../users/time-tracking-preferences';
 
 const openStatuses = ['active', 'paused'];
 const sessionInclude = {
@@ -53,6 +54,7 @@ export class PomodoroService {
     const sessions = await this.prisma.pomodoroSession.findMany({
       where: {
         userId,
+        countsTowardActual: true,
         status: { in: ['completed', 'interrupted'] },
         effectiveDurationSeconds: { gt: 0 },
         startedAt: { lt: end },
@@ -103,6 +105,7 @@ export class PomodoroService {
       this.prisma.pomodoroSession.findMany({
         where: {
           userId,
+          countsTowardActual: true,
           status: { in: ['completed', 'interrupted'] },
           effectiveDurationSeconds: { gt: 0 },
           startedAt: { gte: today },
@@ -112,6 +115,7 @@ export class PomodoroService {
       this.prisma.pomodoroSession.count({
         where: {
           userId,
+          countsTowardActual: true,
           status: { in: ['completed', 'interrupted'] },
           effectiveDurationSeconds: { gt: 0 },
           startedAt: { gte: weekStart },
@@ -120,6 +124,7 @@ export class PomodoroService {
       this.prisma.pomodoroSession.aggregate({
         where: {
           userId,
+          countsTowardActual: true,
           status: { in: ['completed', 'interrupted'] },
           effectiveDurationSeconds: { gt: 0 },
         },
@@ -178,6 +183,12 @@ export class PomodoroService {
       await this.complete(existing.id, data.userId, existing.revision);
     }
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: data.userId },
+      select: { settings: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    const preferences = parseTimeTrackingPreferences(user.settings);
     const now = new Date();
     const focusMode = data.focusMode === 'countup' ? 'countup' : 'countdown';
     const duration = Math.min(
@@ -188,6 +199,7 @@ export class PomodoroService {
       const session = await this.prisma.pomodoroSession.create({
         data: {
           userId: data.userId,
+          countsTowardActual: preferences.focusActualEnabled,
           taskId: data.taskId || null,
           duration,
           focusMode,
@@ -222,6 +234,13 @@ export class PomodoroService {
     tags?: string[];
     clientRequestId?: string;
   }) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: data.userId },
+      select: { settings: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    if (!parseTimeTrackingPreferences(user.settings).manualBackfillEnabled)
+      throw new BadRequestException('手工补记已关闭');
     const { startedAt, endedAt, elapsedSeconds } = this.parseManualRange(
       data.startedAt,
       data.endedAt,
@@ -254,6 +273,7 @@ export class PomodoroService {
             taskId: task?.id ?? null,
             title,
             entrySource: 'manual',
+            countsTowardActual: true,
             tags,
             duration: Math.max(1, Math.ceil(elapsedSeconds / 60)),
             focusMode: 'countup',
@@ -323,7 +343,9 @@ export class PomodoroService {
         throw new BadRequestException('Only manual actual time can be edited');
       }
       if (session.revision !== data.expectedRevision) {
-        throw new ConflictException('Actual time changed on another device; refresh and retry');
+        throw new ConflictException(
+          'Actual time changed on another device; refresh and retry',
+        );
       }
 
       let task: { id: string; title: string; tags: string[] } | null = null;
@@ -343,7 +365,12 @@ export class PomodoroService {
       }
 
       const changed = await tx.pomodoroSession.updateMany({
-        where: { id, userId, entrySource: 'manual', revision: data.expectedRevision },
+        where: {
+          id,
+          userId,
+          entrySource: 'manual',
+          revision: data.expectedRevision,
+        },
         data: {
           taskId: task?.id ?? null,
           title,
@@ -357,10 +384,14 @@ export class PomodoroService {
         },
       });
       if (changed.count !== 1) {
-        throw new ConflictException('Actual time changed on another device; refresh and retry');
+        throw new ConflictException(
+          'Actual time changed on another device; refresh and retry',
+        );
       }
       await tx.pomodoroSegment.deleteMany({ where: { sessionId: id } });
-      await tx.pomodoroSegment.create({ data: { sessionId: id, startedAt, endedAt } });
+      await tx.pomodoroSegment.create({
+        data: { sessionId: id, startedAt, endedAt },
+      });
       const updated = await tx.pomodoroSession.findUniqueOrThrow({
         where: { id },
         include: sessionInclude,
@@ -624,7 +655,9 @@ export class PomodoroService {
   private parseManualRange(startValue: string, endValue: string) {
     const startedAt = new Date(startValue);
     const endedAt = new Date(endValue);
-    const elapsedSeconds = Math.round((endedAt.getTime() - startedAt.getTime()) / 1000);
+    const elapsedSeconds = Math.round(
+      (endedAt.getTime() - startedAt.getTime()) / 1000,
+    );
     if (
       Number.isNaN(startedAt.getTime()) ||
       Number.isNaN(endedAt.getTime()) ||

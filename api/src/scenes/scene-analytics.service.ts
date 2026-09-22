@@ -57,7 +57,11 @@ export class SceneAnalyticsService {
         metadata: true,
         inspiration: { select: { attachments: { select: { kind: true } } } },
         pomodoroSession: {
-          select: { effectiveDurationSeconds: true, status: true },
+          select: {
+            effectiveDurationSeconds: true,
+            status: true,
+            countsTowardActual: true,
+          },
         },
       },
       orderBy: { occurredAt: 'asc' },
@@ -85,7 +89,7 @@ export class SceneAnalyticsService {
       };
       value.count++;
       if (
-        row.pomodoroSession &&
+        row.pomodoroSession?.countsTowardActual &&
         ['completed', 'interrupted'].includes(row.pomodoroSession.status)
       )
         value.durationSeconds += Math.max(
@@ -144,7 +148,7 @@ export class SceneAnalyticsService {
     const totalDurationSeconds = rows.reduce(
       (sum, row) =>
         sum +
-        (row.pomodoroSession &&
+        (row.pomodoroSession?.countsTowardActual &&
         ['completed', 'interrupted'].includes(row.pomodoroSession.status)
           ? Math.max(0, row.pomodoroSession.effectiveDurationSeconds)
           : 0),
