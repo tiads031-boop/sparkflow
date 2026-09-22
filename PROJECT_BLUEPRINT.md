@@ -3,7 +3,7 @@
 > **角色**：记录当前架构、产品主线、阶段状态、关键风险和长期方向。  
 > **近期执行顺序**：以 [`docs/plans/NEXT.md`](docs/plans/NEXT.md) 为唯一事实源。  
 > **最后更新**：2026-09-22
-> **代码同步基线**：`master@b40854c76cfac6801f866ef9bbd63110e780aaac`；Execution Intelligence M1/M2 已合并（最近确认生产版本 `9f72d16b`）
+> **代码同步基线**：`master@7bb2b375fa886b094855a084f2bb8590572640a4`；V11 R1–R6 和 R7-A 已合并，R7-B PR #133 待合并。最近有直接回显的生产版本为 `990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21）。
 
 ---
 
@@ -284,12 +284,15 @@ VNext M6 已进入主线：
 | Study Mode | 🚧 M1 已部署 | PR #45 已合入；StudyFolder migration、API 与 Web Production 已上线，待真实账户验收 |
 | VNext Plan | 🚧 M1–M3 已发布，待剩余 PWA/真机 | PR #48/#49/#50 已合入；Web 真实账号 Planner Preview→Apply→Undo 已通过，最新 Focus C2 APK `android-e5978ecbbc24` 已生成；四视图/PWA/Android 真机仍需验收 |
 | VNext AI Orchestration | ✅ M4–M8 代码/CI；🚧 最终验收 | PR #59–#81 与 #105/#106 已完成主体能力；剩余 PWA/Android 真机、多模态/通知/外观验收 |
-| Execution Intelligence & UI | 🚧 M1/M2 已合并，待验收 | PR #118/#119 已合并；M2 Actual Timeline、手工补记、计划对照与 Focus 去重已进入 master，待生产 migration、真实 API 与移动验收 |
+| Execution Intelligence & UI | 🚧 M1–M3 已合并，M4 进行中 | V11 R1–R6（#120–#131）和 R7-A（#132）进入 master；R7-B #133 开放且 CI #349 通过。R8 AI 执行反馈与 R9 Android Usage 待开发；移动端与生产验收在功能完成后集中进行 |
 
 ---
 
 ## 七、仓库与近期里程碑
 
+- ✅ V11 R1–R6：PR #120–#131 已合并，覆盖外壳、业务工作区、时间分析、Scene、时间偏好与场景 AI；终端/生产验收未据此标记完成。
+- ✅ R7-A：PR #132 已合并，目标 Task / Numeric / Time 统一聚合与数值进度 API 进入主线。
+- 🚧 R7-B：PR #133 开放，CI #349 通过；先评审合并，再推进 R8/R9。360px / PWA / Android WebView 验收按用户安排在功能完成后集中进行。
 - 🚧 PR #118 已 squash 合并为 `master@c856b4f`：Execution Intelligence M1 的 Tag metadata/API/管理页、Task/Inspiration 标签选择、Folder/Project/Tag 分离、Planner 分类可见与 Task Edit Deck 视觉收敛已进入主线；CI run #310 全绿，待部署和移动端验收。
 - 🚧 Execution Intelligence M2 分支 `codex/m2-timeline-actual`：Timeline 直接消费 PomodoroSession，支持手工补记、仅实际/计划对照、暂停时长排除与 CalendarEvent Focus 投影去重；本地 API 159 tests、Web 73 tests 与两端 build 通过，PR 与 fresh PostgreSQL CI 已完成，待生产 migration、真实 API 与移动验收。
 - 🚧 PR #119 已 squash 合并为 `master@b40854c`：M2 CI run #313 全绿；代码已进入主线，生产 migration、真实 API 与移动端验收仍待完成。
