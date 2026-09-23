@@ -34,18 +34,19 @@ export default function BottomNav({ activeTab, setActiveTab, items }: BottomNavP
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1 text-[10px] font-extrabold transition-all ${
+              aria-label={tab.label}
+              title={tab.label}
+              className={`flex min-h-14 items-center justify-center rounded-2xl px-1 py-1 transition-all ${
                 isActive
                   ? 'text-[var(--sf-text-primary)]'
                   : 'text-[var(--sf-text-tertiary)]'
               }`}
             >
-              <span className={`grid h-7 w-10 place-items-center rounded-full transition-all ${
+              <span className={`grid h-9 w-11 place-items-center rounded-full transition-all ${
                 isActive ? 'bg-[var(--sf-green)]' : 'bg-transparent'
               }`}>
-                <Icon size={17} strokeWidth={isActive ? 2.5 : 2} />
+                <Icon size={21} strokeWidth={isActive ? 2.4 : 1.9} aria-hidden="true" />
               </span>
-              <span>{tab.label}</span>
             </button>
           );
         })}

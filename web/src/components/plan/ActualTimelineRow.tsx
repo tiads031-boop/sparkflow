@@ -23,12 +23,13 @@ export default function ActualTimelineRow({ entry, match, compare, onOpenTask, o
 }) {
   const warning = match.relation !== 'on_time' && match.relation !== 'unplanned';
   return (
-    <article className="grid grid-cols-[34px_1fr] gap-2">
-      <span className="pt-3 text-right text-[9px] font-black text-[var(--sf-text-secondary)]">{time(entry.start)}</span>
-      <div className="rounded-[20px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-3 shadow-sm">
-        <div className="flex items-start gap-2">
+    <article className="relative grid grid-cols-[38px_10px_minmax(0,1fr)] items-start gap-2">
+      <span className="pt-3 text-right text-[10px] font-black text-[var(--sf-text-secondary)]">{time(entry.start)}</span>
+      <span className="relative z-10 mt-4 h-2.5 w-2.5 rounded-full border-2 border-[var(--sf-bg)] bg-[var(--sf-purple)]" aria-hidden="true" />
+      <div className="min-w-0 rounded-[19px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-3 shadow-[0_5px_16px_rgba(25,31,28,0.055)]">
+        <div className="flex min-w-0 flex-wrap items-start gap-2">
           <button type="button" onClick={() => entry.taskId && onOpenTask?.(entry.taskId)} disabled={!entry.taskId} className="min-w-0 flex-1 text-left">
-            <strong className="block truncate text-xs text-[var(--sf-text-primary)]">{entry.title}</strong>
+            <strong className="block truncate text-xs font-black text-[var(--sf-text-primary)]">{entry.title}</strong>
             <span className="mt-0.5 block text-[9px] text-[var(--sf-text-tertiary)]">{entry.source === 'manual' ? '手工补记' : 'Focus'} · {time(entry.start)}–{time(entry.end)} · 有效 {duration(entry.effectiveDurationSeconds)}</span>
           </button>
           <StatusChip tone={warning ? 'warning' : match.relation === 'on_time' ? 'success' : 'neutral'}>{match.label}</StatusChip>

@@ -582,7 +582,7 @@ export default function SettingsView() {
       <div className="animate-page-enter pb-24">
         <PageHeader
           title="外观"
-          subtitle="选择界面明暗模式；不影响任务、课程或账户数据。"
+          subtitle="Graphite Aurora · 轻盈、安静、可读"
           onBack={() => setPage('home')}
         />
 
@@ -611,7 +611,8 @@ export default function SettingsView() {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--sf-text-tertiary)]">THEME</p>
+        <div className="grid grid-cols-3 gap-2">
           {appearanceOptions.map((option) => {
             const selected = preferences.appearance === option.id;
             return (
@@ -619,30 +620,22 @@ export default function SettingsView() {
                 key={option.id}
                 type="button"
                 onClick={() => savePreferences({ appearance: option.id })}
-                className={`flex w-full items-center gap-3 rounded-[1.5rem] border px-4 py-4 text-left transition ${
+                aria-pressed={selected}
+                className={`min-w-0 rounded-[18px] border p-2 text-center transition ${
                   selected
                     ? 'border-[var(--sf-text-primary)] bg-[var(--sf-surface)]'
                     : 'border-[var(--sf-border)] bg-[var(--sf-surface)]'
                 }`}
               >
-                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${
+                <span className={`mx-auto grid h-12 w-full place-items-center rounded-xl ${
                   selected
                     ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]'
                     : 'bg-[var(--sf-bg)] text-[var(--sf-text-secondary)]'
                 }`}>
                   {option.icon}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <strong className="block text-sm font-black text-[var(--sf-text-primary)]">{option.title}</strong>
-                  <span className="mt-0.5 block text-[10px] leading-4 text-[var(--sf-text-tertiary)]">{option.description}</span>
-                </span>
-                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
-                  selected
-                    ? 'border-[var(--sf-text-primary)] bg-[var(--sf-text-primary)] text-[var(--sf-surface)]'
-                    : 'border-[var(--sf-border)]'
-                }`}>
-                  {selected && <Check size={12} />}
-                </span>
+                <strong className="mt-2 block truncate text-[10px] font-black text-[var(--sf-text-primary)]">{option.title}</strong>
+                <span className="sr-only">{option.description}</span>
               </button>
             );
           })}
