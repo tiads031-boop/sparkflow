@@ -1,6 +1,5 @@
 import type { ActualTimelineEntry } from '../../api/actualTimeline';
 import type { PlanItem } from '../plan/planProjection';
-import { useTimeTrackingPreferences } from '../profile/useTimeTrackingPreferences';
 
 interface ActiveFocusRailItem { id: string; title: string; start: string; end: string }
 interface TodayTimeRailProps {
@@ -9,7 +8,6 @@ interface TodayTimeRailProps {
   previewItems: PlanItem[];
   actualEntries: ActualTimelineEntry[];
   activeFocus?: ActiveFocusRailItem | null;
-  onStartFocus: () => void;
 }
 
 const START_MINUTE = 8 * 60;
@@ -26,17 +24,14 @@ function withinRail(start: string, end: string) {
   return position(end) > 0 && position(start) < 100 && new Date(end) > new Date(start);
 }
 
-export default function TodayTimeRail({ date, plannedItems, previewItems, actualEntries, activeFocus, onStartFocus }: TodayTimeRailProps) {
-  const quickStartEnabled = useTimeTrackingPreferences()?.quickStartEnabled === true;
+export default function TodayTimeRail({ date, plannedItems, previewItems, actualEntries, activeFocus }: TodayTimeRailProps) {
   const isToday = date.toDateString() === new Date().toDateString();
   const nowLeft = position(new Date());
   return (
     <section className="rounded-[24px] border border-[#e8ece7] bg-[linear-gradient(145deg,#fbfcf8,#fff)] px-[15px] pb-3.5 pt-3.5 shadow-[0_10px_30px_rgba(22,28,25,.08)]" aria-label="今日时间轨道">
       <div className="mb-2.5 flex items-center justify-between gap-2">
         <h2 className="text-[11px] font-black text-[var(--sf-text-primary)]">今日时间轨道</h2>
-        {quickStartEnabled && isToday && actualEntries.length === 0 && !activeFocus
-          ? <button type="button" onClick={onStartFocus} className="rounded-full bg-[var(--sf-graphite)] px-2.5 py-1.5 text-[9px] font-bold text-[var(--sf-green)]">开始专注</button>
-          : <span className="text-[9px] font-extrabold text-[var(--sf-text-secondary)]">08:00 — 22:00</span>}
+        <span className="text-[9px] font-extrabold text-[var(--sf-text-secondary)]">08:00 — 22:00</span>
       </div>
       <div className="relative mx-0.5 h-[70px]" role="img" aria-label={`08:00 至 22:00，计划 ${plannedItems.length} 项，实际 ${actualEntries.length} 项`}>
         <div className="absolute inset-x-0 top-7 h-[3px] rounded-full bg-[#e7eae7]" />

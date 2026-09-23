@@ -9,6 +9,7 @@ const viewLabels: Record<PlanView, string> = {
   timeline: '实际',
   gantt: '甘特',
 };
+const visibleViews: PlanView[] = ['week', 'month', 'gantt'];
 
 interface PlanHeaderProps {
   view: PlanView;
@@ -48,14 +49,14 @@ export function PlanTitleBar({
 export function PlanViewToolbar({ view, onSelectView, onPlanner }: Pick<PlanHeaderProps, 'view' | 'onSelectView' | 'onPlanner'>) {
   return (
     <div className="mt-3 flex items-center gap-2">
-      <GlassSurface variant="surface" className="flex min-w-0 flex-1 overflow-x-auto rounded-[14px] bg-transparent p-0 shadow-none hide-scrollbar" role="group" aria-label="计划视图">
-        {(Object.keys(viewLabels) as PlanView[]).map((item) => (
+      <GlassSurface variant="surface" className="flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-[18px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-1 shadow-[0_5px_18px_rgba(30,40,30,.045)] hide-scrollbar" role="group" aria-label="计划视图">
+        {visibleViews.map((item) => (
           <button
             key={item}
             type="button"
             aria-pressed={item === view}
             onClick={() => onSelectView(item)}
-            className={`mr-1 shrink-0 rounded-full border border-[var(--sf-border)] px-2.5 py-1.5 text-[10px] font-extrabold transition ${item === view ? 'bg-[var(--sf-graphite)] text-[var(--sf-green)]' : 'bg-[var(--sf-surface)] text-[var(--sf-text-secondary)]'}`}
+            className={`shrink-0 rounded-[13px] px-3 py-1.5 text-[11px] font-extrabold transition ${item === view ? 'bg-[var(--sf-graphite)] text-[var(--sf-green)] shadow-sm' : 'text-[var(--sf-text-secondary)]'}`}
           >
             {viewLabels[item]}
           </button>

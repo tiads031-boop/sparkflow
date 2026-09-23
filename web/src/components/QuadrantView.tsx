@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '../store/appStore';
 import type { Task } from '../types';
-import { getTaskQuadrant, groupTasksByQuadrant, QUADRANT_META, QUADRANT_ORDER, type TaskQuadrant } from '../utils/taskQuadrants';
+import { getTaskQuadrant, groupTasksByQuadrant, QUADRANT_META, QUADRANT_ORDER, withTaskQuadrant, type TaskQuadrant } from '../utils/taskQuadrants';
 import { useModalLifecycle } from './ui/useModalLifecycle';
 
 function dueLabel(value?: string) {
@@ -23,7 +23,7 @@ function QuadrantPanel({ quadrant, tasks, onTaskClick, onMove, onDropTask, onDra
   const meta = QUADRANT_META[quadrant];
   return (
     <section
-      className="min-h-[220px] overflow-hidden rounded-[var(--sf-radius-lg)] bg-[var(--sf-surface)] p-2.5 shadow-sm sm:min-h-64 sm:p-4"
+      className="min-h-[174px] min-w-0 overflow-hidden rounded-[22px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-3 shadow-[0_8px_24px_rgba(30,40,30,.045)] sm:min-h-56 sm:p-4"
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
@@ -40,7 +40,7 @@ function QuadrantPanel({ quadrant, tasks, onTaskClick, onMove, onDropTask, onDra
         </div>
         <span className="rounded-full bg-[var(--sf-bg)] px-2 py-0.5 text-[9px] font-bold sm:px-2.5 sm:py-1 sm:text-xs">{tasks.length}</span>
       </header>
-      <div className="max-h-[34svh] space-y-1.5 overflow-y-auto pr-0.5 sm:max-h-none sm:space-y-2 sm:overflow-visible">
+      <div className="max-h-[28svh] space-y-1.5 overflow-y-auto pr-0.5 sm:max-h-none sm:space-y-2 sm:overflow-visible">
         {tasks.map((task) => (
           <article
             key={task.id}
@@ -82,9 +82,8 @@ export default function QuadrantView({ tasks, onTaskClick }: { tasks: Task[]; on
   useModalLifecycle(Boolean(pendingMove), closeMoveDialog);
 
   const applyMove = useCallback((task: Task, target: TaskQuadrant, dueDate?: string) => {
-    const important = target === 'important-urgent' || target === 'important-later';
     void updateTask(task.id, {
-      priority: important ? 'High Priority' : task.priority === 'High Priority' ? 'Medium' : task.priority,
+      tags: withTaskQuadrant(task.tags ?? [], target),
       ...(dueDate ? { dueDate: new Date(`${dueDate}T23:59:00`).toISOString() } : {}),
     });
   }, [updateTask]);
@@ -118,7 +117,7 @@ export default function QuadrantView({ tasks, onTaskClick }: { tasks: Task[]; on
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 items-start gap-2.5 sm:gap-3">
         {QUADRANT_ORDER.map((key) => (
           <QuadrantPanel key={key} quadrant={key} tasks={groups[key]} {...panelProps} />
         ))}

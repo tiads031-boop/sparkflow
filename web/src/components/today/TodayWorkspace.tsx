@@ -29,7 +29,6 @@ export default function TodayWorkspace({
   onOpenPlan,
   onOpenActual,
   onOpenAnalytics,
-  onStartFocus,
 }: TodayWorkspaceProps) {
   const [date] = useState(() => new Date());
   const activeSessionId = useAppStore((state) => state.pomodoro.activeSessionId);
@@ -76,7 +75,7 @@ export default function TodayWorkspace({
             <BrainCircuit size={17} className="text-[#665a91]" />
           </button>
         )}
-        <TodayTimeRail date={date} plannedItems={plannedItems} previewItems={previewItems} actualEntries={actualEntries} activeFocus={activeFocus} onStartFocus={onStartFocus} />
+        <TodayTimeRail date={date} plannedItems={plannedItems} previewItems={previewItems} actualEntries={actualEntries} activeFocus={activeFocus} />
         <div className="flex justify-end gap-2" role="group" aria-label="时间页面">
           <button type="button" onClick={onOpenActual} className="inline-flex items-center gap-1 rounded-full bg-[var(--sf-surface)] px-2.5 py-1.5 text-[10px] font-bold text-[var(--sf-text-secondary)]"><Clock3 size={12} />实际时间</button>
           <button type="button" onClick={onOpenAnalytics} className="inline-flex items-center gap-1 rounded-full bg-[var(--sf-surface)] px-2.5 py-1.5 text-[10px] font-bold text-[var(--sf-text-secondary)]"><BarChart3 size={12} />时间分析</button>

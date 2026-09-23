@@ -7,10 +7,10 @@ import { proposeWeekAdjustment, type WeekAdjustmentMode } from './weekAdjustment
 
 const START_HOUR = 0;
 const END_HOUR = 24;
-const HOUR_HEIGHT = 36;
+const HOUR_HEIGHT = 30;
 const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
 const TIME_COLUMN_WIDTH = 36;
-const MIN_DAY_WIDTH = 40;
+const MIN_DAY_WIDTH = 64;
 
 function minutesOfDay(date: Date) {
   return date.getHours() * 60 + date.getMinutes();
@@ -122,7 +122,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
   const now = new Date();
 
   return (
-    <section className="overflow-hidden rounded-[22px] border border-[var(--sf-border)] bg-[var(--sf-surface)]">
+    <section className="overflow-hidden rounded-[28px] border border-[var(--sf-border)] bg-[var(--sf-surface)] shadow-[0_10px_28px_rgba(30,40,30,.055)]">
       <div className="w-full overflow-x-auto overscroll-x-contain" aria-label="周日程横向滚动区域">
         <div style={{ minWidth: TIME_COLUMN_WIDTH + 7 * MIN_DAY_WIDTH }}>
           <div

@@ -76,7 +76,10 @@ export default function PlanWorkspace({
     const requested = initialTaskView ?? readTaskView();
     return requested === 'quadrant' && !quadrantEnabled ? 'list' : requested;
   });
-  const [view, setView] = useState<PlanView>(() => initialPlanView ?? readLastPlanView());
+  const [view, setView] = useState<PlanView>(() => {
+    const requested = initialPlanView ?? readLastPlanView();
+    return requested === 'month' || requested === 'gantt' ? requested : 'week';
+  });
   const [inspectedItem, setInspectedItem] = useState<PlanItem | null>(null);
   useModalLifecycle(Boolean(inspectedItem), () => setInspectedItem(null), { isolateAppMain: true });
 
@@ -274,12 +277,12 @@ export default function PlanWorkspace({
 
         {section === 'tasks' && (
           <section>
-            <div className="mb-3 flex items-center justify-between rounded-2xl bg-[var(--sf-surface)] px-3 py-2 shadow-sm">
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-[22px] border border-[var(--sf-border)] bg-[var(--sf-surface)] px-3 py-2.5 shadow-[0_7px_20px_rgba(30,40,30,.045)]">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">Tasks</p>
                 <h2 className="text-sm font-black text-[var(--sf-text-primary)]">待办工作区</h2>
               </div>
-              <div className="flex rounded-xl bg-[var(--sf-bg)] p-1">
+              {quadrantEnabled && <div className="flex rounded-xl bg-[var(--sf-bg)] p-1">
                 <button
                   type="button"
                   onClick={() => { setTaskView('list'); writeTaskView('list'); }}
@@ -298,9 +301,9 @@ export default function PlanWorkspace({
                     <Grid2X2 size={14} /><span className="text-[10px] font-bold">四象限</span>
                   </button>
                 )}
-              </div>
+              </div>}
             </div>
-            {taskView === 'list'
+            {taskView === 'list' || !quadrantEnabled
               ? <TasksView tasks={tasks} onTaskClick={onTaskClick} />
               : <QuadrantView tasks={tasks} onTaskClick={onTaskClick} />}
           </section>

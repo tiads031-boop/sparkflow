@@ -16,7 +16,25 @@ export const QUADRANT_META: Record<TaskQuadrant, { title: string; hint: string; 
   later: { title: '有空再做', hint: '不紧急不重要', color: 'var(--sf-marker-green)' },
 };
 
+const QUADRANT_TAG_PREFIX = 'sparkflow:quadrant:';
+
+export function explicitTaskQuadrant(tags?: string[]): TaskQuadrant | null {
+  const value = tags?.find((tag) => tag.startsWith(QUADRANT_TAG_PREFIX))?.slice(QUADRANT_TAG_PREFIX.length);
+  return QUADRANT_ORDER.find((quadrant) => quadrant === value) ?? null;
+}
+
+export function taskTagsWithoutQuadrant(tags?: string[]): string[] {
+  return (tags ?? []).filter((tag) => !tag.startsWith(QUADRANT_TAG_PREFIX));
+}
+
+export function withTaskQuadrant(tags: string[], quadrant: TaskQuadrant | null): string[] {
+  const visibleTags = taskTagsWithoutQuadrant(tags);
+  return quadrant ? [...visibleTags, `${QUADRANT_TAG_PREFIX}${quadrant}`] : visibleTags;
+}
+
 export function getTaskQuadrant(task: Task, now = Date.now(), urgencyWindowHours = 72): TaskQuadrant {
+  const explicit = explicitTaskQuadrant(task.tags);
+  if (explicit) return explicit;
   const important = task.priority === 'High Priority';
   const deadline = task.dueDate ? new Date(task.dueDate).getTime() : Number.NaN;
   const urgent = Number.isFinite(deadline) && deadline <= now + urgencyWindowHours * 60 * 60 * 1000;
