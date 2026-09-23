@@ -21,7 +21,7 @@ export default function BottomNav({ activeTab, setActiveTab, items }: BottomNavP
       as="nav"
       variant="nav"
       aria-label="主导航"
-      className="fixed bottom-0 left-1/2 z-40 h-[74px] w-full max-w-lg -translate-x-1/2 rounded-none border-x-0 border-b-0 px-2 pb-[env(safe-area-inset-bottom,0px)] pt-1.5"
+      className="fixed bottom-0 left-1/2 z-40 h-[calc(74px+env(safe-area-inset-bottom,0px))] w-full max-w-lg -translate-x-1/2 rounded-none border-x-0 border-b-0 px-2 pb-[env(safe-area-inset-bottom,0px)] pt-1.5"
       style={{ bottom: 0 }}
     >
       <div className="grid grid-cols-5">
