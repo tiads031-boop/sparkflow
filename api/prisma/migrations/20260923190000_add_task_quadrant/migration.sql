@@ -1,1 +1,1 @@
-ALTER TABLE "Task" ADD COLUMN "quadrant" TEXT;
+ALTER TABLE "tasks" ADD COLUMN "quadrant" TEXT;
