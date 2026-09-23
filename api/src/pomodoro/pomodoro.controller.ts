@@ -46,6 +46,7 @@ export class PomodoroController {
     data: {
       userId?: string;
       taskId?: string;
+      title?: string;
       duration?: number;
       focusMode?: 'countdown' | 'countup';
       notes?: string;
@@ -88,6 +89,15 @@ export class PomodoroController {
     },
   ) {
     return this.pomodoroService.updateManual(id, userId, data);
+  }
+
+  @Patch(':id/focus')
+  updateFocus(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @Body() data: { title?: string; notes?: string; taskId?: string | null; tags?: string[] },
+  ) {
+    return this.pomodoroService.updateFocus(id, userId, data);
   }
 
   @Post(':id/pause')

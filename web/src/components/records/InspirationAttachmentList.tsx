@@ -41,13 +41,22 @@ function AttachmentItem({
   const [expandedTranscript, setExpandedTranscript] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    setCurrent(attachment);
-  }, [attachment]);
-
   useEffect(() => () => {
     if (url) URL.revokeObjectURL(url);
   }, [url]);
+
+  useEffect(() => {
+    if (attachment.kind !== 'image') return;
+    let cancelled = false;
+    void fetchInspirationAttachmentBlob(inspirationId, attachment.id)
+      .then((blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        if (cancelled) URL.revokeObjectURL(objectUrl);
+        else setUrl(objectUrl);
+      })
+      .catch(() => { if (!cancelled) setError('图片加载失败，点击重试'); });
+    return () => { cancelled = true; };
+  }, [inspirationId, attachment.id, attachment.kind]);
 
   const load = async () => {
     if (url || loading) return;
@@ -138,7 +147,7 @@ function AttachmentItem({
         <img
           src={url}
           alt={current.originalName || '记录图片'}
-          className="max-h-72 w-full bg-black/[0.03] object-contain"
+          className="max-h-80 w-full bg-black/[0.03] object-contain"
         />
       )}
       {url && current.kind === 'video' && (
@@ -159,7 +168,7 @@ function AttachmentItem({
         type="button"
         onClick={() => void load()}
         disabled={loading || Boolean(url)}
-        className="flex w-full items-center gap-3 px-3 py-2.5 text-left disabled:cursor-default"
+        className={`flex w-full items-center gap-3 px-3 py-2.5 text-left disabled:cursor-default ${url && current.kind === 'image' ? 'sr-only' : ''}`}
       >
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--sf-surface)]">
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Icon size={14} />}

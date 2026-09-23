@@ -7,6 +7,8 @@ import { DEFAULT_DURATION } from "./constants";
 interface FocusSessionResponse {
   id: string;
   taskId: string | null;
+  title?: string | null;
+  notes?: string | null;
   status: "active" | "paused" | "completed" | "interrupted";
   revision: number;
   startedAt: string;
@@ -24,6 +26,8 @@ export interface PomodoroSlice {
     taskId?: string,
     durationMinutes?: number,
     focusMode?: "countdown" | "countup",
+    title?: string,
+    notes?: string,
   ) => Promise<void>;
   loadActivePomodoro: () => Promise<void>;
   pausePomodoro: () => Promise<void>;
@@ -41,6 +45,8 @@ const INITIAL_POMODORO: PomodoroState = {
   timeLeft: DEFAULT_DURATION,
   duration: DEFAULT_DURATION,
   activeTaskId: null,
+  title: null,
+  notes: null,
   activeSessionId: null,
   revision: null,
   startedAt: null,
@@ -71,6 +77,8 @@ function stateFromSession(
         ? session.effectiveDurationSeconds
         : session.remainingSeconds,
     activeTaskId: session.taskId,
+    title: session.title ?? null,
+    notes: session.notes ?? null,
     activeSessionId: open ? session.id : null,
     revision: open ? session.revision : null,
     startedAt: session.startedAt,
@@ -90,8 +98,17 @@ function stateFromSession(
   };
 }
 
-async function readSession(response: Response) {
-  return (await response.json()) as FocusSessionResponse;
+async function readSession(response: Response, sessionId?: string) {
+  const body = await response.text();
+  if (body.trim()) {
+    try { return JSON.parse(body) as FocusSessionResponse; }
+    catch { throw new Error('专注状态同步失败，请重试'); }
+  }
+  const fallback = await apiRequest(sessionId ? '/pomodoro' : '/pomodoro/active');
+  const data = await fallback.json() as FocusSessionResponse[] | FocusSessionResponse | null;
+  const session = Array.isArray(data) ? data.find((item) => item.id === sessionId) : data;
+  if (!session) throw new Error('专注状态同步失败，请重试');
+  return session;
 }
 
 export const createPomodoroSlice: StateCreator<
@@ -102,11 +119,13 @@ export const createPomodoroSlice: StateCreator<
 > = (set, get) => ({
   pomodoro: { ...INITIAL_POMODORO },
 
-  startPomodoro: async (taskId, durationMinutes = 25, focusMode = "countdown") => {
+  startPomodoro: async (taskId, durationMinutes = 25, focusMode = "countdown", title, notes) => {
     const res = await apiRequest("/pomodoro", {
       method: "POST",
       body: JSON.stringify({
         taskId,
+        title,
+        notes,
         duration: durationMinutes,
         focusMode,
         clientRequestId: crypto.randomUUID(),
@@ -119,7 +138,8 @@ export const createPomodoroSlice: StateCreator<
   loadActivePomodoro: async () => {
     try {
       const res = await apiRequest("/pomodoro/active");
-      const session = (await res.json()) as FocusSessionResponse | null;
+      const body = await res.text();
+      const session = body.trim() ? JSON.parse(body) as FocusSessionResponse | null : null;
       if (!session) {
         set((state) => ({
           pomodoro: {
@@ -158,7 +178,7 @@ export const createPomodoroSlice: StateCreator<
       method: "POST",
       body: JSON.stringify({ revision }),
     });
-    const session = await readSession(res);
+    const session = await readSession(res, activeSessionId);
     set((state) => ({ pomodoro: stateFromSession(state.pomodoro, session) }));
   },
 
@@ -169,7 +189,7 @@ export const createPomodoroSlice: StateCreator<
       method: "POST",
       body: JSON.stringify({ revision }),
     });
-    const session = await readSession(res);
+    const session = await readSession(res, activeSessionId);
     set((state) => ({ pomodoro: stateFromSession(state.pomodoro, session) }));
   },
 
@@ -187,6 +207,8 @@ export const createPomodoroSlice: StateCreator<
         isPaused: false,
         timeLeft: state.pomodoro.duration,
         activeTaskId: null,
+        title: null,
+        notes: null,
         activeSessionId: null,
         revision: null,
         startedAt: null,
@@ -235,7 +257,7 @@ export const createPomodoroSlice: StateCreator<
       method: "POST",
       body: JSON.stringify({ revision }),
     });
-    const session = await readSession(res);
+    const session = await readSession(res, activeSessionId);
     set((state) => ({
       pomodoro: {
         ...state.pomodoro,
@@ -243,6 +265,8 @@ export const createPomodoroSlice: StateCreator<
         isPaused: false,
         timeLeft: 0,
         activeTaskId: session.taskId,
+        title: session.title ?? null,
+        notes: session.notes ?? null,
         activeSessionId: null,
         revision: null,
         effectiveDurationSeconds: session.effectiveDurationSeconds,

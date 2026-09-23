@@ -223,6 +223,28 @@ describe('PomodoroService reliable completion', () => {
     })).rejects.toThrow('Only manual actual time can be edited');
   });
 
+  it('edits a completed focus and updates its calendar title after validating task ownership', async () => {
+    const current = session({ status: 'completed', calendarEvent: { id: 'event-1' } });
+    const updated = session({ ...current, taskId: 'task-2', task: { id: 'task-2', title: '新任务' }, title: '复盘', notes: '有进展', revision: 2 });
+    const tx = {
+      pomodoroSession: { findFirst: jest.fn().mockResolvedValue(current), update: jest.fn().mockResolvedValue(updated) },
+      task: { findFirst: jest.fn().mockResolvedValue({ id: 'task-2' }) },
+      calendarEvent: { update: jest.fn() },
+    };
+    const prisma = { $transaction: jest.fn((run) => run(tx)) };
+    const result = await new PomodoroService(prisma as never).updateFocus('focus-1', 'user-1', { title: '复盘', notes: '有进展', taskId: 'task-2' });
+    expect(tx.task.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'task-2', userId: 'user-1' } }));
+    expect(tx.calendarEvent.update).toHaveBeenCalledWith(expect.objectContaining({ data: { title: '专注 · 复盘', taskId: 'task-2' } }));
+    expect(result.title).toBe('复盘');
+  });
+
+  it('does not allow an active focus to be edited as completed', async () => {
+    const tx = { pomodoroSession: { findFirst: jest.fn().mockResolvedValue(session()), update: jest.fn() } };
+    const prisma = { $transaction: jest.fn((run) => run(tx)) };
+    await expect(new PomodoroService(prisma as never).updateFocus('focus-1', 'user-1', { title: '修改' })).rejects.toThrow('只能编辑已完成的专注');
+    expect(tx.pomodoroSession.update).not.toHaveBeenCalled();
+  });
+
   it('rejects a stale manual revision before changing segments', async () => {
     const tx = {
       pomodoroSession: {

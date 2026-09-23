@@ -19,6 +19,8 @@ function QuadrantPanel({ quadrant, tasks, onTaskClick, onMove, onDropTask, onDra
   onDragEnd: () => void;
 }) {
   const meta = QUADRANT_META[quadrant];
+  const [expanded, setExpanded] = useState(false);
+  const visibleTasks = expanded ? tasks : tasks.slice(0, 6);
   return (
     <section
       className="min-w-0 rounded-[var(--sf-radius-lg)] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-3 shadow-sm sm:p-4"
@@ -32,14 +34,14 @@ function QuadrantPanel({ quadrant, tasks, onTaskClick, onMove, onDropTask, onDra
         <div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
-            <h2 className="text-[11px] font-black leading-tight sm:text-sm">{meta.title}</h2>
+            <h2 className="text-sm font-black leading-tight sm:text-base">{meta.title}</h2>
           </div>
           <p className="mt-1 hidden text-[11px] text-[var(--sf-text-tertiary)] sm:block">{meta.hint}</p>
         </div>
         <span className="rounded-full bg-[var(--sf-bg)] px-2 py-0.5 text-[9px] font-bold sm:px-2.5 sm:py-1 sm:text-xs">{tasks.length}</span>
       </header>
       <div className="space-y-2">
-        {tasks.map((task) => (
+        {visibleTasks.map((task) => (
           <article
             key={task.id}
             draggable
@@ -52,20 +54,21 @@ function QuadrantPanel({ quadrant, tasks, onTaskClick, onMove, onDropTask, onDra
             className="min-w-0 rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] p-2.5 sm:p-3"
           >
             <button type="button" onClick={() => onTaskClick(task)} className="block w-full text-left btn-press focus-ring">
-              <strong className="block line-clamp-2 break-words text-xs leading-5 sm:text-sm">{task.title}</strong>
-              <span className="mt-1 block truncate text-[10px] text-[var(--sf-text-secondary)] sm:text-[11px]">{task.project || '未分项目'} · {dueLabel(task.dueDate)}</span>
+              <strong className="block line-clamp-2 break-words text-[13px] leading-5 sm:text-sm">{task.title}</strong>
+              <span className="mt-1 block truncate text-[10px] text-[var(--sf-text-secondary)]">{task.project || '未分项目'} · {dueLabel(task.dueDate)}</span>
             </button>
             <select
               aria-label={`移动“${task.title}”到其他象限`}
               value={quadrant}
               onChange={(event) => onMove(task, event.target.value as TaskQuadrant)}
-              className="mt-2 w-full min-w-0 rounded-xl border border-[var(--sf-border)] bg-[var(--sf-surface)] px-2 py-2 text-[11px] text-[var(--sf-text-secondary)] outline-none"
+              className="mt-2 w-full min-w-0 rounded-xl border border-[var(--sf-border)] bg-[var(--sf-surface)] px-2 py-1.5 text-[10px] text-[var(--sf-text-secondary)] outline-none"
             >
               {QUADRANT_ORDER.map((key) => <option key={key} value={key}>{QUADRANT_META[key].title}</option>)}
             </select>
           </article>
         ))}
         {tasks.length === 0 ? <p className="py-8 text-center text-[9px] text-[var(--sf-text-tertiary)] sm:text-xs">这里暂时是空的</p> : null}
+        {tasks.length > 6 ? <button type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)} className="w-full rounded-xl bg-[var(--sf-bg)] py-2 text-[11px] font-bold text-[var(--sf-text-secondary)]">{expanded ? '收起' : `展开其余 ${tasks.length - 6} 项`}</button> : null}
       </div>
     </section>
   );

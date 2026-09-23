@@ -102,6 +102,8 @@ export interface PomodoroState {
   timeLeft: number;
   duration: number;
   activeTaskId: string | null;
+  title: string | null;
+  notes: string | null;
   activeSessionId: string | null;
   revision: number | null;
   startedAt: string | null;

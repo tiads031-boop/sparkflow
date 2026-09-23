@@ -9,7 +9,7 @@ export default function RecordToolbar({ panel, pendingReviews, onPanelChange }: 
 }) {
   return (
     <nav aria-label="记录分类" className="space-y-3">
-      <div className="grid grid-cols-2 rounded-full border border-[var(--sf-border)] bg-[var(--sf-surface)] p-1 shadow-sm">
+      <div className="grid grid-cols-2 rounded-full bg-[var(--sf-surface)] p-1">
         <button type="button" aria-pressed={panel !== 'scenes'} onClick={() => onPanelChange(null)} className={`rounded-full py-2.5 text-xs font-bold transition ${panel !== 'scenes' ? 'bg-[var(--sf-graphite)] text-white' : 'text-[var(--sf-text-secondary)]'}`}>默认</button>
         <button type="button" aria-pressed={panel === 'scenes'} onClick={() => onPanelChange('scenes')} className={`rounded-full py-2.5 text-xs font-bold transition ${panel === 'scenes' ? 'bg-[var(--sf-graphite)] text-white' : 'text-[var(--sf-text-secondary)]'}`}>场景</button>
       </div>

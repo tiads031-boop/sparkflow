@@ -160,6 +160,7 @@ export class PomodoroService {
   async create(data: {
     userId: string;
     taskId?: string;
+    title?: string;
     duration?: number;
     focusMode?: 'countdown' | 'countup';
     notes?: string;
@@ -202,6 +203,7 @@ export class PomodoroService {
           userId: data.userId,
           countsTowardActual: preferences.focusActualEnabled,
           taskId: data.taskId || null,
+          title: data.title?.trim().slice(0, 120) || null,
           duration,
           focusMode,
           plannedDurationSeconds: focusMode === 'countup' ? 0 : duration * 60,
@@ -401,6 +403,38 @@ export class PomodoroService {
     });
   }
 
+  async updateFocus(id: string, userId: string, data: { title?: string; notes?: string; taskId?: string | null; tags?: string[] }) {
+    return this.prisma.$transaction(async (tx) => {
+      const session = await tx.pomodoroSession.findFirst({ where: { id, userId }, include: sessionInclude });
+      if (!session) throw new NotFoundException('Focus session not found');
+      if (session.entrySource !== 'focus' || session.status !== 'completed') {
+        throw new BadRequestException('只能编辑已完成的专注');
+      }
+      if (data.taskId) {
+        const task = await tx.task.findFirst({ where: { id: data.taskId, userId }, select: { id: true } });
+        if (!task) throw new NotFoundException('Task not found');
+      }
+      const updated = await tx.pomodoroSession.update({
+        where: { id },
+        data: {
+          title: data.title?.trim().slice(0, 120) || null,
+          notes: data.notes?.trim().slice(0, 2000) || null,
+          taskId: data.taskId || null,
+          ...(data.tags ? { tags: this.normalizeTags(data.tags) } : {}),
+          revision: { increment: 1 },
+        },
+        include: sessionInclude,
+      });
+      if (session.calendarEvent) {
+        await tx.calendarEvent.update({
+          where: { id: session.calendarEvent.id },
+          data: { title: `专注 · ${updated.title || updated.task?.title || '自由专注'}`, taskId: updated.taskId },
+        });
+      }
+      return this.present(updated);
+    });
+  }
+
   async pause(id: string, userId: string, expectedRevision?: number) {
     const open = await this.findOpen(userId);
     if (
@@ -562,8 +596,8 @@ export class PomodoroService {
       await tx.calendarEvent.upsert({
         where: { focusSessionId: id },
         update: {
-          title: session.task?.title
-            ? `专注 · ${session.task.title}`
+          title: session.title || session.task?.title
+            ? `专注 · ${session.title || session.task?.title}`
             : '自由专注',
           startTime: session.startedAt,
           endTime: endedAt,
@@ -572,8 +606,8 @@ export class PomodoroService {
           userId,
           focusSessionId: id,
           taskId: null,
-          title: session.task?.title
-            ? `专注 · ${session.task.title}`
+          title: session.title || session.task?.title
+            ? `专注 · ${session.title || session.task?.title}`
             : '自由专注',
           eventType: 'focus',
           startTime: session.startedAt,
