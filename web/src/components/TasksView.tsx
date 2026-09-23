@@ -8,26 +8,26 @@ interface TasksViewProps {
 }
 
 export default function TasksView({ tasks, onTaskClick }: TasksViewProps) {
-  const [filter, setFilter] = useState('All');
-  const filters = ['All', 'In progress', 'To do', 'Done'];
+  const [filter, setFilter] = useState('In progress');
+  const [openedAt] = useState(() => Date.now());
+  const filters = ['In progress', 'To do', 'Done', 'All'];
+
+  const hasStarted = (task: Task) => !task.scheduledStart || new Date(task.scheduledStart).getTime() <= openedAt;
 
   const displayTasks =
     filter === 'All'
       ? tasks.filter((t) => t.status !== 'Cancelled')
       : filter === 'In progress'
-        ? tasks.filter((t) => t.status === 'In progress' || t.status === 'In review')
-        : tasks.filter((t) => t.status === filter);
+        ? tasks.filter((t) => (t.status === 'In progress' || t.status === 'In review') && hasStarted(t))
+        : filter === 'To do'
+          ? tasks.filter((t) => t.status === 'To do' || (['In progress', 'In review'].includes(t.status) && !hasStarted(t)))
+          : tasks.filter((t) => t.status === filter);
 
   const filterLabel = (f: string) =>
     f === 'All' ? '全部' : f === 'In progress' ? '进行中' : f === 'Done' ? '已完成' : '待处理';
 
   return (
     <div className="animate-page-enter">
-      <div className="flex justify-between items-center mb-3">
-        <h1 className="text-xl font-bold text-[#242424]">任务列表</h1>
-        <span className="text-xs text-gray-400">{tasks.filter((t) => t.status !== 'Cancelled').length} 项</span>
-      </div>
-
       {/* Filter pills */}
       <div className="mb-2 flex gap-2 overflow-x-auto pb-3 hide-scrollbar">
         {filters.map((f) => (

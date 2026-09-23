@@ -46,6 +46,10 @@ export function updateManualActualTime(id: string, input: UpdateManualActualTime
   return api.patch<ActualTimelineEntry>(`/pomodoro/${encodeURIComponent(id)}/manual`, input, { throwOnError: true });
 }
 
+export function updateFocusActualTime(id: string, input: { title: string; notes: string; taskId: string | null; tags: string[] }) {
+  return api.patch<ActualTimelineEntry>(`/pomodoro/${encodeURIComponent(id)}/focus`, input, { throwOnError: true });
+}
+
 export function deleteActualTime(id: string) {
   return api.delete(`/pomodoro/${id}`, { throwOnError: true });
 }

@@ -32,7 +32,7 @@ export default function ActualTimelineRow({ entry, match, compare, onOpenTask, o
             <span className="mt-0.5 block text-[9px] text-[var(--sf-text-tertiary)]">{entry.source === 'manual' ? '手工补记' : 'Focus'} · {time(entry.start)}–{time(entry.end)} · 有效 {duration(entry.effectiveDurationSeconds)}</span>
           </button>
           <StatusChip tone={warning ? 'warning' : match.relation === 'on_time' ? 'success' : 'neutral'}>{match.label}</StatusChip>
-          {entry.source === 'manual' && <button type="button" onClick={() => onEdit(entry)} className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--sf-bg)]" aria-label={`编辑 ${entry.title}`}><Pencil size={12} /></button>}
+          {entry.status === 'completed' && <button type="button" onClick={() => onEdit(entry)} className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--sf-bg)]" aria-label={`编辑 ${entry.title}`}><Pencil size={12} /></button>}
           <button type="button" onClick={() => onDelete(entry)} className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[var(--sf-text-tertiary)] hover:bg-red-50 hover:text-red-600" aria-label={`删除 ${entry.title}`}><Trash2 size={12} /></button>
         </div>
         {compare && <ActualCompareTrack entry={entry} match={match} />}

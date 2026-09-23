@@ -28,13 +28,17 @@ function DurationDial({ value, onChange }: { value: number; onChange: (minutes: 
   );
 }
 
-export default function FocusSetup({ tasks, taskId, duration, mode, busy, onTaskChange, onDurationChange, onModeChange, onStart }: {
+export default function FocusSetup({ tasks, taskId, title, notes, duration, mode, busy, onTaskChange, onTitleChange, onNotesChange, onDurationChange, onModeChange, onStart }: {
   tasks: Task[];
   taskId: string;
+  title: string;
+  notes: string;
   duration: number;
   mode: FocusMode;
   busy: boolean;
   onTaskChange: (taskId: string) => void;
+  onTitleChange: (title: string) => void;
+  onNotesChange: (notes: string) => void;
   onDurationChange: (duration: number) => void;
   onModeChange: (mode: FocusMode) => void;
   onStart: () => void;
@@ -53,6 +57,8 @@ export default function FocusSetup({ tasks, taskId, duration, mode, busy, onTask
 
       <GlassSurface variant="surface" as="div" className="space-y-3 rounded-[1.7rem] p-4">
         <label className="block text-xs font-bold text-[var(--sf-text-secondary)]">关联任务<select value={taskId} onChange={(event) => onTaskChange(event.target.value)} className="mt-2 w-full rounded-2xl bg-[var(--sf-bg)] px-4 py-3 text-sm font-normal text-[var(--sf-text-primary)] outline-none"><option value="">自由专注，不关联任务</option>{tasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}</select></label>
+        <label className="block text-xs font-bold text-[var(--sf-text-secondary)]">专注标题<input value={title} maxLength={120} onChange={(event) => onTitleChange(event.target.value)} placeholder="例如：整理今天的想法" className="mt-2 w-full rounded-2xl bg-[var(--sf-bg)] px-4 py-3 text-sm font-normal text-[var(--sf-text-primary)] outline-none" /></label>
+        <label className="block text-xs font-bold text-[var(--sf-text-secondary)]">感想与备注<textarea value={notes} maxLength={2000} rows={2} onChange={(event) => onNotesChange(event.target.value)} placeholder="可以稍后补充" className="mt-2 w-full resize-none rounded-2xl bg-[var(--sf-bg)] px-4 py-3 text-sm font-normal text-[var(--sf-text-primary)] outline-none" /></label>
         {mode === 'countdown' ? <label className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--sf-bg)] px-4 py-2 text-xs font-bold text-[var(--sf-text-secondary)]">精确时长<input type="number" min={MIN_FOCUS_MINUTES} max={MAX_FOCUS_MINUTES} step={1} value={duration} onChange={(event) => onDurationChange(clampFocusDuration(Number(event.target.value)))} className="w-20 bg-transparent py-1 text-right text-sm font-black text-[var(--sf-text-primary)] outline-none" aria-label="精确专注分钟数" /></label> : null}
       </GlassSurface>
       <button type="button" disabled={busy} onClick={onStart} className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-graphite)] py-4 font-black text-[#cae393] shadow-lg disabled:opacity-50"><Play size={18} fill="currentColor" />开始专注</button>
