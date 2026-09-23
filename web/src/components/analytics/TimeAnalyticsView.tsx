@@ -55,7 +55,7 @@ export default function TimeAnalyticsView({
   onBack: () => void;
   onOpenActual: () => void;
 }) {
-  const [period, setPeriod] = useState<AnalyticsPeriod>('quarter');
+  const [period, setPeriod] = useState<AnalyticsPeriod>('week');
   const [anchor] = useState(() => new Date());
   const [retry, setRetry] = useState(0);
   const query = useMemo(() => analyticsRange(anchor, period), [anchor, period]);
@@ -90,9 +90,8 @@ export default function TimeAnalyticsView({
   return (
     <div className="min-h-full animate-page-enter px-4 pb-24">
       <PageHeader
-        eyebrow="Execution intelligence"
-        title="时间分析"
-        subtitle="主动投入统计 Focus 与手工补记；Android 应用使用另列，可能与专注重叠。"
+        title="分析"
+        subtitle="只展示可解释的执行数据"
         onBack={onBack}
         action={(
           <button type="button" onClick={onOpenActual} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--sf-surface)] shadow-sm" aria-label="打开实际时间线">
