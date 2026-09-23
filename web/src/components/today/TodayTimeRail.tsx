@@ -42,7 +42,7 @@ function RailRow({
   return (
     <div className="grid grid-cols-[46px_1fr] items-center gap-2">
       <span className="text-[9px] font-bold text-[var(--sf-text-tertiary)]">{label}</span>
-      <div className="relative h-5 overflow-hidden rounded-full bg-black/[0.035]">{children}</div>
+      <div className="relative h-7 overflow-hidden rounded-lg bg-[var(--sf-bg)]">{children}</div>
     </div>
   );
 }
@@ -60,37 +60,36 @@ export default function TodayTimeRail({
   const nowLeft = dayPosition(new Date(), date);
 
   return (
-    <section className="rounded-[26px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 shadow-[0_14px_36px_rgba(31,37,34,0.055)]">
+    <section className="rounded-[24px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 shadow-[0_10px_30px_rgba(22,28,25,0.06)]">
       <div className="mb-3 flex items-center justify-between">
         <div>
-          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">Time rail</p>
-          <h2 className="mt-0.5 text-sm font-black text-[var(--sf-text-primary)]">今日时间轨道</h2>
+          <h2 className="text-xs font-black text-[var(--sf-text-primary)]">今日时间轨道</h2>
         </div>
-        {quickStartEnabled && isToday && actualEntries.length === 0 && !activeFocus ? <button type="button" onClick={onStartFocus} className="rounded-full bg-[var(--sf-graphite)] px-3 py-2 text-[10px] font-bold text-white">空白开始 Focus</button> : <span className="text-[9px] text-[var(--sf-text-tertiary)]">计划与实际分开</span>}
+        {quickStartEnabled && isToday && actualEntries.length === 0 && !activeFocus ? <button type="button" onClick={onStartFocus} className="rounded-full bg-[var(--sf-graphite)] px-3 py-2 text-[10px] font-bold text-white">空白开始 Focus</button> : <span className="text-[9px] font-bold text-[var(--sf-text-tertiary)]">00:00 — 24:00</span>}
       </div>
       <div className="space-y-2">
         <RailRow label="计划">
           {plannedItems.map((item) => (
-            <span key={item.id} title={item.title} className="absolute inset-y-1 rounded-full" style={{ ...rangeStyle(item.start, item.end, date), backgroundColor: item.kind === 'course' || item.kind === 'calendar' ? 'var(--sf-blue)' : item.color }} />
+            <span key={item.id} title={item.title} className="absolute inset-y-1 rounded-md" style={{ ...rangeStyle(item.start, item.end, date), backgroundColor: item.kind === 'course' || item.kind === 'calendar' ? 'var(--sf-blue)' : item.color }} />
           ))}
         </RailRow>
         <RailRow label="实际">
           {actualEntries.map((entry) => (
-            <span key={entry.id} title={entry.title} className="absolute inset-y-1 rounded-full bg-[var(--sf-green-strong)]" style={rangeStyle(entry.start, entry.end, date)} />
+            <span key={entry.id} title={entry.title} className="absolute inset-y-1 rounded-md bg-[var(--sf-green-strong)]" style={rangeStyle(entry.start, entry.end, date)} />
           ))}
         </RailRow>
         {(activeFocus || previewItems.length > 0) && (
           <RailRow label="进行中">
             {previewItems.map((item) => (
-              <span key={item.id} title={item.title} className="absolute inset-y-1 rounded-full border border-dashed border-[#7467a9] bg-[var(--sf-purple-soft)]" style={rangeStyle(item.start, item.end, date)} />
+              <span key={item.id} title={item.title} className="absolute inset-y-1 rounded-md border border-dashed border-[#7467a9] bg-[var(--sf-purple-soft)]" style={rangeStyle(item.start, item.end, date)} />
             ))}
-            {activeFocus && <span title={activeFocus.title} className="absolute inset-y-1 rounded-full bg-[var(--sf-purple)]" style={rangeStyle(activeFocus.start, activeFocus.end, date)} />}
+            {activeFocus && <span title={activeFocus.title} className="absolute inset-y-1 rounded-md bg-[var(--sf-purple)]" style={rangeStyle(activeFocus.start, activeFocus.end, date)} />}
           </RailRow>
         )}
       </div>
       <div className="relative ml-[54px] mt-2 h-4 text-[8px] text-[var(--sf-text-tertiary)]">
         {[0, 6, 12, 18, 24].map((hour) => <span key={hour} className="absolute -translate-x-1/2" style={{ left: `${(hour / 24) * 100}%` }}>{String(hour).padStart(2, '0')}</span>)}
-        {isToday && <span className="absolute bottom-4 top-[-78px] w-px bg-[#c77979]" style={{ left: `${nowLeft}%` }} aria-label="当前时间" />}
+        {isToday && <span className="absolute bottom-4 top-[-100px] w-px bg-[#c77979]" style={{ left: `${nowLeft}%` }} aria-label="当前时间" />}
       </div>
     </section>
   );
