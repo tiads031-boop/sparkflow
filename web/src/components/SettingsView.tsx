@@ -7,7 +7,6 @@ import {
   Check,
   ChevronRight,
   Cloud,
-  Clock3,
   Database,
   Download,
   Grid2X2,
@@ -274,8 +273,6 @@ export default function SettingsView() {
   const statusNeeds = useAppStore((s) => s.statusNeeds);
   const changePassword = useAppStore((s) => s.changePassword);
   const logout = useAppStore((s) => s.logout);
-  const todayFocusCount = useAppStore((s) => s.pomodoro.todayCount);
-  const totalFocusMinutes = useAppStore((s) => s.pomodoro.totalFocusMinutes);
 
   const [page, setPage] = useState<SettingsPage>('home');
   const [preferences, setPreferences] = useState<UserPreferences>(() => readUserPreferences());
