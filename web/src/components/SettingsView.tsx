@@ -1247,10 +1247,9 @@ export default function SettingsView() {
   return (
     <div className="animate-page-enter pb-24">
       <header className="mb-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--sf-text-tertiary)]">SparkFlow</p>
         <div className="mt-1 flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-black text-[var(--sf-text-primary)]">我的</h1>
+            <h1 className="text-[27px] font-black text-[var(--sf-text-primary)]">我的</h1>
             <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">偏好、连接、数据和账户都在这里。</p>
           </div>
           <span className="rounded-full bg-[var(--sf-surface)] px-3 py-1.5 text-[9px] font-bold text-[var(--sf-text-secondary)] shadow-sm">
@@ -1262,87 +1261,21 @@ export default function SettingsView() {
       <button
         type="button"
         onClick={() => setPage('security')}
-        className="mb-3 w-full overflow-hidden rounded-[2rem] bg-[#242424] p-5 text-left shadow-sm"
+        className="mb-4 w-full overflow-hidden rounded-[24px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
       >
         <div className="flex items-center gap-3">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#cae393] text-xl font-black text-[#242424]">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-[var(--sf-graphite)] text-lg font-black text-[var(--sf-green)]">
             {(displayName || 'S').slice(0, 1).toUpperCase()}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-[#cae393]">Account</span>
-            <strong className="mt-0.5 block truncate text-lg font-black text-white">{displayName || 'SparkFlow 用户'}</strong>
-            <span className="mt-1 block truncate text-[10px] text-white/50">
+            <strong className="block truncate text-base font-black text-[var(--sf-text-primary)]">{displayName || 'SparkFlow 用户'}</strong>
+            <span className="mt-1 block truncate text-[10px] text-[var(--sf-text-secondary)]">
               {[...professions.map((item) => professionLabels[item]), ...statusNeeds.map((item) => statusLabels[item])].join(' · ') || '管理账户与安全'}
             </span>
           </span>
-          <ChevronRight size={17} className="text-white/35" />
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <span className="rounded-2xl bg-white/[0.07] px-3 py-2.5">
-            <span className="block text-[9px] text-white/40">通知</span>
-            <strong className="mt-0.5 block text-[10px] text-white">{pushEnabled ? '已开启' : '未开启'}</strong>
-          </span>
-          <span className="rounded-2xl bg-white/[0.07] px-3 py-2.5">
-            <span className="block text-[9px] text-white/40">Google</span>
-            <strong className="mt-0.5 block text-[10px] text-white">{isConnected ? '已连接' : '未连接'}</strong>
-          </span>
-          <span className="rounded-2xl bg-white/[0.07] px-3 py-2.5">
-            <span className="block text-[9px] text-white/40">推送通道</span>
-            <strong className="mt-0.5 block truncate text-[10px] text-white">{pushEnabled ? pushChannel.toUpperCase() : '—'}</strong>
-          </span>
+          <span className="rounded-full border border-[var(--sf-border)] bg-[var(--sf-surface)] px-3 py-1.5 text-[10px] font-bold text-[var(--sf-text-secondary)]">账户</span>
         </div>
       </button>
-
-      <div className="mb-5 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setPage('appearance')}
-          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#f4f2fb] text-[#665a91]">
-            <Palette size={16} />
-          </span>
-          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">外观</strong>
-          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">
-            {preferences.appearance === 'system' ? '跟随系统' : preferences.appearance === 'dark' ? '深色模式' : '浅色模式'}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setPage('tags')}
-          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#fff4df] text-[#8a642e]">
-            <TagIcon size={16} />
-          </span>
-          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">标签</strong>
-          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">分类、颜色与归档</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setPage('timeTracking')}
-          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#e7f2ef] text-[#3f6e65]">
-            <Clock3 size={16} />
-          </span>
-          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">时间记录</strong>
-          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">累计 {totalFocusMinutes} 分钟 · 今日 {todayFocusCount} 次 · 偏好设置</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setPage('notifications')}
-          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#eef6dc] text-[#526339]">
-            <Bell size={16} />
-          </span>
-          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">提醒</strong>
-          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">
-            {pushEnabled ? '设备通知已开启' : '设备通知未开启'}
-          </span>
-        </button>
-      </div>
 
       <Group title="偏好">
         <SettingRow
