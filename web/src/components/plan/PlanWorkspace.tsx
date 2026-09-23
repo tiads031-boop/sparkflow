@@ -289,9 +289,9 @@ export default function PlanWorkspace({
             <div className="mb-3 flex items-center justify-between rounded-2xl bg-[var(--sf-surface)] px-3 py-2 shadow-sm">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">Tasks</p>
-                <h2 className="text-sm font-black text-[var(--sf-text-primary)]">待办工作区</h2>
+                <h2 className="text-sm font-black text-[var(--sf-text-primary)]">待办</h2>
               </div>
-              <div className="flex rounded-xl bg-[var(--sf-bg)] p-1">
+              {quadrantEnabled && <div className="flex rounded-xl bg-[var(--sf-bg)] p-1">
                 <button
                   type="button"
                   onClick={() => { setTaskView('list'); writeTaskView('list'); }}
@@ -300,7 +300,6 @@ export default function PlanWorkspace({
                 >
                   <ListTodo size={14} /><span className="text-[10px] font-bold">列表</span>
                 </button>
-                {quadrantEnabled && (
                   <button
                     type="button"
                     onClick={() => { setTaskView('quadrant'); writeTaskView('quadrant'); }}
@@ -309,8 +308,7 @@ export default function PlanWorkspace({
                   >
                     <Grid2X2 size={14} /><span className="text-[10px] font-bold">四象限</span>
                   </button>
-                )}
-              </div>
+              </div>}
             </div>
             {taskView === 'list'
               ? <TasksView tasks={tasks} onTaskClick={onTaskClick} />

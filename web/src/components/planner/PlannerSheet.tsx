@@ -193,6 +193,7 @@ export default function PlannerSheet({
   const [thread, setThread] = useState<PlanningThreadDetail | null>(null);
   const [loadingThread, setLoadingThread] = useState(false);
   const [messageInput, setMessageInput] = useState(initialPrompt || '');
+  const [pendingMessage, setPendingMessage] = useState('');
   const [planningModel, setPlanningModel] = useState<PlanningModel>(() => {
     try {
       return localStorage.getItem('sparkflow.planningModel') === 'deepseek-v4-pro'
@@ -483,6 +484,8 @@ export default function PlannerSheet({
     }
 
     setTurnBusy(true);
+    setPendingMessage(message);
+    setMessageInput('');
     setTurnMessage('');
     clearPreview();
     setActiveReplanRequestId(null);
@@ -493,7 +496,6 @@ export default function PlannerSheet({
 
     try {
       const activeThread = await ensureThread(message);
-      setMessageInput('');
       const result = await sendPlanningTurn(
         activeThread.id,
         message,
@@ -502,6 +504,7 @@ export default function PlannerSheet({
       );
       const detail = await getPlanningThread(activeThread.id);
       setThread(detail);
+      setPendingMessage('');
       setReadiness(result.readiness);
       setLatestEvidence(result.research.evidence.length
         ? result.research.evidence
@@ -539,8 +542,10 @@ export default function PlannerSheet({
         setTurnMessage('这轮联网核验没有成功，AI 已明确按未核验状态继续。');
       }
     } catch (error) {
+      setMessageInput((current) => current || message);
       setTurnMessage(error instanceof Error ? error.message : 'AI 规划暂时不可用');
     } finally {
+      setPendingMessage('');
       setTurnBusy(false);
     }
   };
@@ -1176,7 +1181,7 @@ export default function PlannerSheet({
             <div className="flex items-center justify-center gap-2 py-20 text-sm text-[var(--sf-text-tertiary)]">
               <Loader2 size={16} className="animate-spin" /> 正在读取规划上下文…
             </div>
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && !pendingMessage ? (
             <div className="py-10">
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-[1.4rem] bg-[#f1eefb] text-[#6f63a8]">
                 <Sparkles size={24} />
@@ -1231,11 +1236,12 @@ export default function PlannerSheet({
                         <MarkdownMessage content={item.content} />
                       </Suspense>
                     ) : (
-                      <p className="whitespace-pre-wrap">{item.content}</p>
+                      <><p className="whitespace-pre-wrap">{item.content}</p><button type="button" onClick={() => setMessageInput(item.content)} className="mt-2 flex items-center gap-1 text-[10px] text-white/70" aria-label="复制这条消息到输入框编辑并重新发送"><Pencil size={11} /> 编辑并重发</button></>
                     )}
                   </div>
                 </div>
               ))}
+              {pendingMessage && <div className="flex justify-end"><div className="max-w-[88%] rounded-[1.4rem] rounded-br-md bg-[#242424] px-4 py-3 text-sm leading-6 text-white"><p className="whitespace-pre-wrap">{pendingMessage}</p><span className="mt-1 block text-[10px] text-white/60">正在发送…</span></div></div>}
               {turnBusy && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2 rounded-[1.4rem] rounded-bl-md bg-[var(--sf-bg)] px-4 py-3 text-xs text-[var(--sf-text-secondary)]">

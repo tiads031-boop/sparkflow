@@ -17,6 +17,7 @@ export const QUADRANT_META: Record<TaskQuadrant, { title: string; hint: string; 
 };
 
 export function getTaskQuadrant(task: Task, now = Date.now(), urgencyWindowHours = 72): TaskQuadrant {
+  if (task.quadrant && QUADRANT_ORDER.includes(task.quadrant)) return task.quadrant;
   const important = task.priority === 'High Priority';
   const deadline = task.dueDate ? new Date(task.dueDate).getTime() : Number.NaN;
   const urgent = Number.isFinite(deadline) && deadline <= now + urgencyWindowHours * 60 * 60 * 1000;

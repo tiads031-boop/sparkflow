@@ -424,6 +424,7 @@ model Task {
   description     String?
   status          String    @default("todo")
   priority        String    @default("medium")
+  quadrant        String?
   section         String?   @default("personal") // RENAMED from 'column'
   project         String?
   notes           Json?     @default("[]")

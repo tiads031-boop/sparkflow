@@ -13,6 +13,7 @@ import TaskDetailsForm from './TaskDetailsForm';
 import TaskQuickUpdate from './TaskQuickUpdate';
 import TaskSummaryCard from './TaskSummaryCard';
 import { localTaskDate, localTaskDateTime, type RepeatRule } from './taskEditorModel';
+import { getTaskQuadrant, QUADRANT_META, QUADRANT_ORDER } from '../../utils/taskQuadrants';
 
 interface TaskEditorSheetProps {
   open: boolean;
@@ -34,6 +35,7 @@ export default function TaskEditorSheet({ open, task, onClose, onSave, onDelete,
   const [studyFolderId, setStudyFolderId] = useState(() => task?.studyFolderId || '');
   const [studyFolders, setStudyFolders] = useState<StudyFolder[]>([]);
   const [priority, setPriority] = useState<Task['priority']>(() => task?.priority || 'Medium');
+  const [quadrant, setQuadrant] = useState<Task['quadrant']>(() => task?.quadrant || null);
   const [duration, setDuration] = useState<number | undefined>(() => task?.estimatedMinutes || task?.duration || 30);
   const [dueDate, setDueDate] = useState(() => localTaskDateTime(task?.dueDate));
   const [scheduledStart, setScheduledStart] = useState(() => localTaskDateTime(task?.scheduledStart));
@@ -71,6 +73,7 @@ export default function TaskEditorSheet({ open, task, onClose, onSave, onDelete,
     context: 'task',
     status,
     priority,
+    quadrant,
     section,
     project: project.trim() || undefined,
     tags,
@@ -150,6 +153,15 @@ export default function TaskEditorSheet({ open, task, onClose, onSave, onDelete,
           </SectionCard>
 
           <TaskQuickUpdate editing={editing} status={status} priority={priority} duration={duration} onStatusChange={setStatus} onPriorityChange={setPriority} onDurationChange={setDuration} />
+
+          {readUserPreferences().quadrantEnabled && <fieldset className="rounded-[var(--sf-radius-lg)] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4">
+            <legend className="px-1 text-xs font-bold text-[var(--sf-text-secondary)]">四象限</legend>
+            <p className="mb-3 text-[11px] text-[var(--sf-text-tertiary)]">可指定任务所在象限；自动分类根据优先级和截止时间计算。</p>
+            <div className="grid grid-cols-2 gap-2">
+              {QUADRANT_ORDER.map((value) => <button key={value} type="button" aria-pressed={quadrant === value} onClick={() => setQuadrant(value)} className={`rounded-2xl border px-3 py-3 text-left text-xs font-bold ${quadrant === value ? 'border-[#99b960] bg-[#f0f9dc]' : 'border-[var(--sf-border)] bg-[var(--sf-bg)]'}`}><span className="mr-2 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: QUADRANT_META[value].color }} />{QUADRANT_META[value].title}<span className="mt-1 block text-[10px] font-normal text-[var(--sf-text-tertiary)]">{QUADRANT_META[value].hint}</span></button>)}
+            </div>
+            <button type="button" onClick={() => setQuadrant(null)} className="mt-3 text-xs text-[var(--sf-text-secondary)]">{quadrant ? '改为自动分类' : `当前自动分类：${QUADRANT_META[getTaskQuadrant({ priority, dueDate: dueDate || undefined } as Task)].title}`}</button>
+          </fieldset>}
 
           <label className="block">
             <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-[var(--sf-text-secondary)]"><CalendarClock size={13} />截止时间</span>

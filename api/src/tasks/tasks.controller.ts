@@ -27,6 +27,7 @@ export class TasksController {
     description?: string;
     status?: string;
     priority?: string;
+    quadrant?: string | null;
     section?: string | null;
     project?: string | null;
     dueDate?: string;

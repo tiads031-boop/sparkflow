@@ -767,22 +767,9 @@ export default function StudyWorkspace({
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-[1.35fr_1fr] gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingGoal(null)}
-                className="flex items-center justify-center gap-2 rounded-full bg-[#cae393] py-3 text-sm font-black text-[#242424] active:scale-[0.99]"
-              >
-                <Plus size={15} /> 新学习目标
-              </button>
-              <button
-                type="button"
-                onClick={onStartFocus}
-                className="flex items-center justify-center gap-2 rounded-full bg-white/10 py-3 text-sm font-black text-white active:scale-[0.99]"
-              >
-                <Focus size={15} /> 开始专注
-              </button>
-            </div>
+            <button type="button" onClick={() => setEditingGoal(null)} className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#cae393] px-5 py-3 text-xs font-bold text-[#242424] active:scale-[0.99]">
+              <Plus size={15} /> 新学习目标
+            </button>
           </header>
 
           {error && (

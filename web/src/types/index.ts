@@ -23,6 +23,7 @@ export interface Task {
   title: string;
   status: 'To do' | 'In progress' | 'In review' | 'Done' | 'Cancelled';
   priority: 'High Priority' | 'Medium' | 'Low';
+  quadrant?: 'important-urgent' | 'important-later' | 'urgent' | 'later' | null;
   colorType: 'dark' | 'green' | 'purple';
   time?: string;
   comments: number;
