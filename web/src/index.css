@@ -177,3 +177,23 @@ select {
   font-weight: 650;
   line-height: 1.45;
 }
+
+/* V11: solid paper surfaces and an edge anchored mobile dock. */
+.sf-glass-nav {
+  border-radius: 0;
+  background: color-mix(in srgb, var(--sf-bg) 96%, transparent);
+  border-color: var(--sf-border);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+.sf-glass-surface {
+  background: var(--sf-surface);
+  border-color: var(--sf-border);
+  box-shadow: 0 10px 30px rgba(22, 28, 25, .065);
+}
+.sf-glass-control {
+  box-shadow: 0 12px 26px rgba(20, 25, 23, .24);
+}
+@media (min-width: 640px) {
+  .sf-glass-nav { border-radius: 22px 22px 0 0; }
+}
