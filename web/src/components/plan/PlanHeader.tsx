@@ -46,20 +46,20 @@ export function PlanTitleBar({
 export function PlanViewToolbar({ view, onSelectView, onPlanner }: Pick<PlanHeaderProps, 'view' | 'onSelectView' | 'onPlanner'>) {
   return (
     <div className="mt-4 flex items-center gap-2">
-      <GlassSurface variant="surface" className="grid min-w-0 flex-1 grid-cols-5 p-1" role="group" aria-label="计划视图">
+      <GlassSurface variant="surface" className="grid min-w-0 flex-1 grid-cols-5 rounded-[14px] bg-[#e9ece9] p-[3px] shadow-none" role="group" aria-label="计划视图">
         {(Object.keys(viewLabels) as PlanView[]).map((item) => (
           <button
             key={item}
             type="button"
             aria-pressed={item === view}
             onClick={() => onSelectView(item)}
-            className={`rounded-2xl px-2 py-2 text-[10px] font-extrabold transition ${item === view ? 'bg-[var(--sf-graphite)] text-[var(--sf-bg)]' : 'text-[var(--sf-text-secondary)]'}`}
+            className={`rounded-[11px] px-1 py-2 text-[10px] font-extrabold transition ${item === view ? 'bg-[var(--sf-surface)] text-[var(--sf-text-primary)] shadow-sm' : 'text-[var(--sf-text-secondary)]'}`}
           >
             {viewLabels[item]}
           </button>
         ))}
       </GlassSurface>
-      <button type="button" onClick={onPlanner} className="grid h-11 w-11 shrink-0 place-items-center rounded-[18px] bg-[var(--sf-purple)] text-[#302b41]" aria-label="打开 AI 规划"><BrainCircuit size={18} /></button>
+      <button type="button" onClick={onPlanner} className="flex h-10 shrink-0 items-center gap-1 rounded-full bg-[var(--sf-graphite)] px-2.5 text-[10px] font-black text-[var(--sf-green)]" aria-label="打开 AI 规划"><BrainCircuit size={14} /><span>AI 规划</span></button>
     </div>
   );
 }
