@@ -10,7 +10,7 @@ const END_HOUR = 24;
 const HOUR_HEIGHT = 36;
 const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
 const TIME_COLUMN_WIDTH = 36;
-const MIN_DAY_WIDTH = 42;
+const MIN_DAY_WIDTH = 40;
 
 function minutesOfDay(date: Date) {
   return date.getHours() * 60 + date.getMinutes();
