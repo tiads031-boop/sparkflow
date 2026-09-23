@@ -7,7 +7,6 @@ import {
   Circle,
   Clock3,
   Focus,
-  GraduationCap,
   Loader2,
   Pencil,
   Plus,
