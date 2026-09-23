@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CalendarDays, Grid2X2, ListTodo, Loader2, X } from 'lucide-react';
+import { Grid2X2, ListTodo, Loader2, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { apiRequest } from '../../api/client';
 import type { PlannerPreview, PlanView, Task } from '../../types';
@@ -33,6 +33,7 @@ interface PlanWorkspaceProps {
   sectionOnly?: PlanSection;
   initialTaskView?: TaskView;
   initialPlanView?: PlanView;
+  onSectionChange?: (section: PlanSection) => void;
 }
 
 function formatShortDate(date: Date) {
@@ -63,6 +64,7 @@ export default function PlanWorkspace({
   sectionOnly,
   initialTaskView,
   initialPlanView,
+  onSectionChange,
 }: PlanWorkspaceProps) {
   const selectedDate = useAppStore((state) => state.selectedDate);
   const setSelectedDate = useAppStore((state) => state.setSelectedDate);
@@ -74,7 +76,10 @@ export default function PlanWorkspace({
     const requested = initialTaskView ?? readTaskView();
     return requested === 'quadrant' && !quadrantEnabled ? 'list' : requested;
   });
-  const [view, setView] = useState<PlanView>(() => initialPlanView ?? readLastPlanView());
+  const [view, setView] = useState<PlanView>(() => {
+    const requested = initialPlanView ?? readLastPlanView();
+    return requested === 'month' || requested === 'gantt' ? requested : 'week';
+  });
   const [inspectedItem, setInspectedItem] = useState<PlanItem | null>(null);
   useModalLifecycle(Boolean(inspectedItem), () => setInspectedItem(null), { isolateAppMain: true });
 
@@ -185,7 +190,7 @@ export default function PlanWorkspace({
             </p>
           </section>
         </div>, document.body)}
-      {section !== 'tasks' && <PlanHeader
+      <PlanHeader
         view={view}
         title={headerCopy.title}
         subtitle={headerCopy.subtitle}
@@ -194,25 +199,11 @@ export default function PlanWorkspace({
         onNext={() => shiftDate(1)}
         onToday={() => setSelectedDate(new Date())}
         onPlanner={onPlanner}
-      />}
+        section={section}
+        onSectionChange={onSectionChange ?? (sectionOnly ? undefined : setSection)}
+      />
 
-      <div className="px-3">
-        {!sectionOnly && <nav aria-label="计划工作区" className="mb-3 grid grid-cols-2 rounded-2xl bg-[var(--sf-surface)] p-1 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setSection('calendar')}
-            className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold ${section === 'calendar' ? 'bg-[#242424] text-white' : 'text-[var(--sf-text-tertiary)]'}`}
-          >
-            <CalendarDays size={14} /> 日历
-          </button>
-          <button
-            type="button"
-            onClick={() => setSection('tasks')}
-            className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold ${section === 'tasks' ? 'bg-[#242424] text-white' : 'text-[var(--sf-text-tertiary)]'}`}
-          >
-            <ListTodo size={14} /> 待办
-          </button>
-        </nav>}
+      <div>
 
         {section === 'calendar' && previewItems.length > 0 && (
           <button
@@ -286,12 +277,12 @@ export default function PlanWorkspace({
 
         {section === 'tasks' && (
           <section>
-            <div className="mb-3 flex items-center justify-between rounded-2xl bg-[var(--sf-surface)] px-3 py-2 shadow-sm">
+            <div className="mb-3 flex items-center justify-between gap-2 rounded-[22px] border border-[var(--sf-border)] bg-[var(--sf-surface)] px-3 py-2.5 shadow-[0_7px_20px_rgba(30,40,30,.045)]">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">Tasks</p>
                 <h2 className="text-sm font-black text-[var(--sf-text-primary)]">待办工作区</h2>
               </div>
-              <div className="flex rounded-xl bg-[var(--sf-bg)] p-1">
+              {quadrantEnabled && <div className="flex rounded-xl bg-[var(--sf-bg)] p-1">
                 <button
                   type="button"
                   onClick={() => { setTaskView('list'); writeTaskView('list'); }}
@@ -310,9 +301,9 @@ export default function PlanWorkspace({
                     <Grid2X2 size={14} /><span className="text-[10px] font-bold">四象限</span>
                   </button>
                 )}
-              </div>
+              </div>}
             </div>
-            {taskView === 'list'
+            {taskView === 'list' || !quadrantEnabled
               ? <TasksView tasks={tasks} onTaskClick={onTaskClick} />
               : <QuadrantView tasks={tasks} onTaskClick={onTaskClick} />}
           </section>

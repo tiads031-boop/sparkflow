@@ -17,6 +17,8 @@ import {
   readCustomTaskSections,
 } from '../utils/taskSections';
 import TagSelector from './tags/TagSelector';
+import { explicitTaskQuadrant, QUADRANT_META, QUADRANT_ORDER, taskTagsWithoutQuadrant, withTaskQuadrant, type TaskQuadrant } from '../utils/taskQuadrants';
+import { readUserPreferences } from '../utils/userPreferences';
 import { fetchStudyFolders } from '../api/study';
 import type { StudyFolder } from '../types';
 
@@ -80,6 +82,18 @@ const visibleStatusOptions: Array<{ value: Task['status']; label: string }> = [
   { value: 'In progress', label: '进行中' },
   { value: 'Done', label: '已完成' },
 ];
+
+function QuadrantPicker({ value, onChange }: { value: TaskQuadrant | null; onChange: (value: TaskQuadrant | null) => void }) {
+  return <fieldset className="mb-3">
+    <legend className="mb-1.5 text-[10px] font-medium tracking-wider text-white/50">四象限 · 独立于优先级</legend>
+    <div className="grid grid-cols-2 gap-1.5">
+      {QUADRANT_ORDER.map((key) => <button key={key} type="button" aria-pressed={value === key} onClick={() => onChange(value === key ? null : key)} className={`rounded-xl border px-2 py-2 text-left text-[10px] font-semibold transition ${value === key ? 'border-[#cae393] bg-[#cae393] text-[#242424]' : 'border-white/15 bg-white/10 text-white/75'}`}>
+        {QUADRANT_META[key].title}<span className="ml-1 opacity-70">{QUADRANT_META[key].hint}</span>
+      </button>)}
+    </div>
+    <p className="mt-1.5 text-[10px] text-white/45">不选时按优先级和截止时间自动归类</p>
+  </fieldset>;
+}
 
 function normalizeEditableStatus(value?: Task['status']): Task['status'] {
   if (value === 'Done') return 'Done';
@@ -145,6 +159,8 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
   const [content, setContent] = useState('');
   const [status, setStatus] = useState<Task['status']>('To do');
   const [priority, setPriority] = useState<Task['priority']>('Medium');
+  const [quadrant, setQuadrant] = useState<TaskQuadrant | null>(null);
+  const quadrantEnabled = readUserPreferences().quadrantEnabled;
   const [dueDate, setDueDate] = useState('');
   const [section, setSection] = useState<TaskSection>('personal');
   const [folder, setFolder] = useState('');
@@ -221,6 +237,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setContent('');
         setStatus('To do');
         setPriority('Medium');
+        setQuadrant(null);
         setDueDate('');
         setSection(getDefaultSectionForProfile(professions, statusNeeds));
         setFolder('');
@@ -243,10 +260,11 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
         setContent(config.data.description || config.data.text || '');
         setStatus(normalizeEditableStatus(config.data.status));
         setPriority(config.data.priority || 'Medium');
+        setQuadrant(explicitTaskQuadrant(config.data.tags));
         setDueDate(localDueDate);
         setSection(normalizeTaskSection(config.data.section));
         setFolder(config.data.project || '');
-        setTags(config.data.tags || []);
+        setTags(taskTagsWithoutQuadrant(config.data.tags));
         setStudyFolderId(config.data.studyFolderId || '');
         setSubtasks(config.data.subtasks || []);
         setHasDueDate(hasExistingDueDate);
@@ -287,7 +305,7 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
       dueDate: isTask ? (hasDueDate && dueDate ? dueDate : undefined) : undefined,
       section: isTask ? section : undefined,
       project: isTask ? (folder || undefined) : undefined,
-      tags: isTask ? tags : undefined,
+      tags: isTask ? withTaskQuadrant(tags, quadrantEnabled ? quadrant : explicitTaskQuadrant(config.data?.tags)) : undefined,
       studyFolderId: isTask ? (isCreate ? (studyFolderId || undefined) : (studyFolderId || null)) : undefined,
       subtasks: isTask && !isCreate ? subtasks : undefined,
       startTime: isTask ? getTimePart(resolvedStart) : undefined,
@@ -653,12 +671,14 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                   : 'bg-white/10 text-white/60 hover:bg-white/20'
               }`}
             >
-              {p === 'High Priority' ? 'P0' : p === 'Medium' ? 'P1' : 'P2'}
+              {p === 'High Priority' ? '高优先级' : p === 'Medium' ? '中优先级' : '低优先级'}
             </button>
           ))}
         </div>
       </div>
 
+      {/* Section + Folder row */}
+      {isTask && quadrantEnabled && <QuadrantPicker value={quadrant} onChange={setQuadrant} />}
       {/* Section + Folder row */}
       <div className="flex gap-3 mb-3">
         <div className="flex-1">
@@ -1078,12 +1098,13 @@ export default function DarkFrostedModal({ config, onClose, onSave, onDelete, on
                             : 'bg-white/10 text-white/60 hover:bg-white/20'
                         }`}
                       >
-                        {p === 'High Priority' ? 'P0' : p === 'Medium' ? 'P1' : 'P2'}
+                        {p === 'High Priority' ? '高优先级' : p === 'Medium' ? '中优先级' : '低优先级'}
                       </button>
                     ))}
                   </div>
                 </div>
 
+                {isTask && quadrantEnabled && <QuadrantPicker value={quadrant} onChange={setQuadrant} />}
                 <div>
                   <span className="text-[10px] text-white/40 font-medium tracking-wider uppercase block mb-1.5">分类</span>
                   <div className="flex gap-1.5 mb-2">

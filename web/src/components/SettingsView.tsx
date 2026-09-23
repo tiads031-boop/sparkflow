@@ -7,7 +7,6 @@ import {
   Check,
   ChevronRight,
   Cloud,
-  Clock3,
   Database,
   Download,
   Grid2X2,
@@ -274,8 +273,6 @@ export default function SettingsView() {
   const statusNeeds = useAppStore((s) => s.statusNeeds);
   const changePassword = useAppStore((s) => s.changePassword);
   const logout = useAppStore((s) => s.logout);
-  const todayFocusCount = useAppStore((s) => s.pomodoro.todayCount);
-  const totalFocusMinutes = useAppStore((s) => s.pomodoro.totalFocusMinutes);
 
   const [page, setPage] = useState<SettingsPage>('home');
   const [preferences, setPreferences] = useState<UserPreferences>(() => readUserPreferences());
@@ -585,7 +582,7 @@ export default function SettingsView() {
       <div className="animate-page-enter pb-24">
         <PageHeader
           title="外观"
-          subtitle="选择界面明暗模式；不影响任务、课程或账户数据。"
+          subtitle="Graphite Aurora · 轻盈、安静、可读"
           onBack={() => setPage('home')}
         />
 
@@ -614,7 +611,8 @@ export default function SettingsView() {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--sf-text-tertiary)]">THEME</p>
+        <div className="grid grid-cols-3 gap-2">
           {appearanceOptions.map((option) => {
             const selected = preferences.appearance === option.id;
             return (
@@ -622,30 +620,22 @@ export default function SettingsView() {
                 key={option.id}
                 type="button"
                 onClick={() => savePreferences({ appearance: option.id })}
-                className={`flex w-full items-center gap-3 rounded-[1.5rem] border px-4 py-4 text-left transition ${
+                aria-pressed={selected}
+                className={`min-w-0 rounded-[18px] border p-2 text-center transition ${
                   selected
                     ? 'border-[var(--sf-text-primary)] bg-[var(--sf-surface)]'
                     : 'border-[var(--sf-border)] bg-[var(--sf-surface)]'
                 }`}
               >
-                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${
+                <span className={`mx-auto grid h-12 w-full place-items-center rounded-xl ${
                   selected
                     ? 'bg-[var(--sf-text-primary)] text-[var(--sf-surface)]'
                     : 'bg-[var(--sf-bg)] text-[var(--sf-text-secondary)]'
                 }`}>
                   {option.icon}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <strong className="block text-sm font-black text-[var(--sf-text-primary)]">{option.title}</strong>
-                  <span className="mt-0.5 block text-[10px] leading-4 text-[var(--sf-text-tertiary)]">{option.description}</span>
-                </span>
-                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
-                  selected
-                    ? 'border-[var(--sf-text-primary)] bg-[var(--sf-text-primary)] text-[var(--sf-surface)]'
-                    : 'border-[var(--sf-border)]'
-                }`}>
-                  {selected && <Check size={12} />}
-                </span>
+                <strong className="mt-2 block truncate text-[10px] font-black text-[var(--sf-text-primary)]">{option.title}</strong>
+                <span className="sr-only">{option.description}</span>
               </button>
             );
           })}
@@ -1247,11 +1237,10 @@ export default function SettingsView() {
   return (
     <div className="animate-page-enter pb-24">
       <header className="mb-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--sf-text-tertiary)]">SparkFlow</p>
         <div className="mt-1 flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-black text-[var(--sf-text-primary)]">我的</h1>
-            <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">偏好、连接、数据和账户都在这里。</p>
+            <h1 className="text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">我的</h1>
+            <p className="mt-0.5 text-[11px] text-[var(--sf-text-secondary)]">偏好、连接、数据和账户</p>
           </div>
           <span className="rounded-full bg-[var(--sf-surface)] px-3 py-1.5 text-[9px] font-bold text-[var(--sf-text-secondary)] shadow-sm">
             {preferences.appearance === 'system' ? '系统外观' : preferences.appearance === 'dark' ? '深色' : '浅色'}
@@ -1262,87 +1251,21 @@ export default function SettingsView() {
       <button
         type="button"
         onClick={() => setPage('security')}
-        className="mb-3 w-full overflow-hidden rounded-[2rem] bg-[#242424] p-5 text-left shadow-sm"
+        className="mb-4 w-full overflow-hidden rounded-[24px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
       >
         <div className="flex items-center gap-3">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-[#cae393] text-xl font-black text-[#242424]">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[20px] bg-[linear-gradient(145deg,var(--sf-green),var(--sf-purple))] text-lg font-black text-[var(--sf-text-primary)]">
             {(displayName || 'S').slice(0, 1).toUpperCase()}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-[#cae393]">Account</span>
-            <strong className="mt-0.5 block truncate text-lg font-black text-white">{displayName || 'SparkFlow 用户'}</strong>
-            <span className="mt-1 block truncate text-[10px] text-white/50">
+            <strong className="block truncate text-base font-black text-[var(--sf-text-primary)]">{displayName || 'SparkFlow 用户'}</strong>
+            <span className="mt-1 block truncate text-[10px] text-[var(--sf-text-secondary)]">
               {[...professions.map((item) => professionLabels[item]), ...statusNeeds.map((item) => statusLabels[item])].join(' · ') || '管理账户与安全'}
             </span>
           </span>
-          <ChevronRight size={17} className="text-white/35" />
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <span className="rounded-2xl bg-white/[0.07] px-3 py-2.5">
-            <span className="block text-[9px] text-white/40">通知</span>
-            <strong className="mt-0.5 block text-[10px] text-white">{pushEnabled ? '已开启' : '未开启'}</strong>
-          </span>
-          <span className="rounded-2xl bg-white/[0.07] px-3 py-2.5">
-            <span className="block text-[9px] text-white/40">Google</span>
-            <strong className="mt-0.5 block text-[10px] text-white">{isConnected ? '已连接' : '未连接'}</strong>
-          </span>
-          <span className="rounded-2xl bg-white/[0.07] px-3 py-2.5">
-            <span className="block text-[9px] text-white/40">推送通道</span>
-            <strong className="mt-0.5 block truncate text-[10px] text-white">{pushEnabled ? pushChannel.toUpperCase() : '—'}</strong>
-          </span>
+          <span className="rounded-full border border-[var(--sf-border)] bg-[var(--sf-surface)] px-3 py-1.5 text-[10px] font-bold text-[var(--sf-text-secondary)]">账户</span>
         </div>
       </button>
-
-      <div className="mb-5 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setPage('appearance')}
-          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#f4f2fb] text-[#665a91]">
-            <Palette size={16} />
-          </span>
-          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">外观</strong>
-          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">
-            {preferences.appearance === 'system' ? '跟随系统' : preferences.appearance === 'dark' ? '深色模式' : '浅色模式'}
-          </span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setPage('tags')}
-          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#fff4df] text-[#8a642e]">
-            <TagIcon size={16} />
-          </span>
-          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">标签</strong>
-          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">分类、颜色与归档</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setPage('timeTracking')}
-          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#e7f2ef] text-[#3f6e65]">
-            <Clock3 size={16} />
-          </span>
-          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">时间记录</strong>
-          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">累计 {totalFocusMinutes} 分钟 · 今日 {todayFocusCount} 次 · 偏好设置</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setPage('notifications')}
-          className="rounded-[1.5rem] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-2xl bg-[#eef6dc] text-[#526339]">
-            <Bell size={16} />
-          </span>
-          <strong className="mt-3 block text-sm font-black text-[var(--sf-text-primary)]">提醒</strong>
-          <span className="mt-1 block text-[10px] text-[var(--sf-text-tertiary)]">
-            {pushEnabled ? '设备通知已开启' : '设备通知未开启'}
-          </span>
-        </button>
-      </div>
 
       <Group title="偏好">
         <SettingRow

@@ -21,7 +21,7 @@ export default function AppShell(props: AppShellProps) {
         <div className="flex h-svh w-full flex-col overflow-hidden sm:mx-auto sm:max-w-lg">
           <main
             data-sf-app-main
-            className={`app-safe-top relative flex-1 overflow-y-auto hide-scrollbar ${props.edgeToEdge ? 'px-0' : 'px-5'}`}
+            className={`app-safe-top relative flex-1 overflow-y-auto hide-scrollbar ${props.edgeToEdge ? 'px-0' : 'px-[18px]'}`}
             style={{
               paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 106px)',
               scrollPaddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 106px)',

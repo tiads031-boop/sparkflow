@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { archiveTag, createTag, listTags, updateTag, type TagRecord } from '../../api/tags';
-import { PageHeader, SectionCard, TagChip } from '../ui/foundation';
+import { PageHeader, SectionCard } from '../ui/foundation';
 
 const COLORS = ['#cae393', '#b0a8db', '#8fc7bb', '#f1c97b', '#df9f9f', '#8fb5df'];
 
@@ -37,14 +37,13 @@ function TagListRow({
       : '一级标签';
 
   return (
-    <div className={`flex items-center gap-2 border-b border-[var(--sf-divider)] px-3 py-3.5 last:border-0 ${parent ? 'pl-7' : ''}`}>
-      {parent ? <span className="h-px w-3 shrink-0 bg-[var(--sf-border)]" aria-hidden="true" /> : null}
+    <div className={`flex items-center gap-3 border-b border-[var(--sf-divider)] px-3 py-3 last:border-0 ${parent ? 'pl-7' : ''}`}>
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[11px] bg-[var(--sf-bg)] text-sm font-black text-[var(--sf-text-secondary)]">{parent ? '↳' : '#'}</span>
       <span className="min-w-0 flex-1">
-        <TagChip name={tag.name} color={tag.color} muted={tag.archived} />
-        <span className="ml-2 text-[9px] text-[var(--sf-text-tertiary)]">
-          {detail}{tag.archived ? ' · 已归档' : ''}
-        </span>
+        <strong className="block truncate text-[11px] text-[var(--sf-text-primary)]">{tag.name}</strong>
+        <span className="block truncate text-[9px] text-[var(--sf-text-tertiary)]">{detail}{tag.archived ? ' · 已归档' : ''}</span>
       </span>
+      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tag.color }} aria-hidden="true" />
       <button
         type="button"
         onClick={() => onEdit(tag)}
@@ -77,6 +76,7 @@ export default function TagManagementView({ onBack }: { onBack: () => void }) {
   const [color, setColor] = useState(COLORS[0]);
   const [parentId, setParentId] = useState('');
   const [editing, setEditing] = useState<TagRecord | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [error, setError] = useState('');
 
@@ -102,7 +102,6 @@ export default function TagManagementView({ onBack }: { onBack: () => void }) {
 
   const active = useMemo(() => tags.filter((tag) => !tag.archived), [tags]);
   const roots = useMemo(() => active.filter((tag) => !tag.parentId), [active]);
-  const archivedCount = tags.length - active.length;
   const visible = useMemo(() => {
     const candidates = tags.filter((tag) => showArchived || !tag.archived);
     const rootTags = candidates.filter((tag) => !tag.parentId);
@@ -119,10 +118,12 @@ export default function TagManagementView({ onBack }: { onBack: () => void }) {
     setColor(COLORS[0]);
     setParentId('');
     setEditing(null);
+    setEditorOpen(false);
   };
 
   const startEdit = (tag: TagRecord) => {
     setEditing(tag);
+    setEditorOpen(true);
     setName(tag.name);
     setColor(tag.color);
     setParentId(tag.parentId || '');
@@ -160,22 +161,9 @@ export default function TagManagementView({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="animate-page-enter pb-24">
-      <PageHeader title="标签管理" subtitle="用稳定的标签维度串联记录、待办与回顾。" onBack={onBack} />
+      <PageHeader title="标签管理" subtitle="分类、颜色、层级与归档" onBack={onBack} action={<button type="button" onClick={() => { reset(); setEditorOpen(true); }} className="shrink-0 rounded-full bg-[var(--sf-green)] px-3 py-2 text-[10px] font-black text-[var(--sf-text-primary)]"><Plus size={13} className="mr-1 inline" />新建</button>} />
 
-      <div className="mb-4 grid grid-cols-3 gap-2" aria-label="标签概览">
-        {[
-          { label: '使用中', value: active.length },
-          { label: '一级标签', value: roots.length },
-          { label: '已归档', value: archivedCount },
-        ].map((metric) => (
-          <div key={metric.label} className="rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-surface)] px-3 py-3">
-            <strong className="block text-lg font-black tabular-nums text-[var(--sf-text-primary)]">{metric.value}</strong>
-            <span className="mt-0.5 block text-[9px] font-bold text-[var(--sf-text-tertiary)]">{metric.label}</span>
-          </div>
-        ))}
-      </div>
-
-      <SectionCard>
+      {editorOpen && <SectionCard className="mb-4">
         <div className="mb-4 flex items-center gap-3">
           <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#eef6dc] text-[#40551d]"><TagIcon size={17} /></span>
           <div>
@@ -240,9 +228,9 @@ export default function TagManagementView({ onBack }: { onBack: () => void }) {
             {editing ? '保存修改' : '创建标签'}
           </button>
         </div>
-      </SectionCard>
+      </SectionCard>}
 
-      <div className="mb-2 mt-5 flex items-center justify-between px-1">
+      <div className="mb-2 mt-2 flex items-center justify-between px-1">
         <div className="flex items-center gap-1.5">
           <Layers3 size={13} className="text-[var(--sf-text-tertiary)]" />
           <h2 className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">标签层级</h2>

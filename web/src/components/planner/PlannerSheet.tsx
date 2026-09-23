@@ -203,6 +203,7 @@ export default function PlannerSheet({
     }
   });
   const [turnBusy, setTurnBusy] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState('');
   const [turnMessage, setTurnMessage] = useState('');
   const [readiness, setReadiness] = useState<'clarify' | 'ready' | null>(null);
   const [latestEvidence, setLatestEvidence] = useState<PlanningEvidenceItem[]>([]);
@@ -458,8 +459,8 @@ export default function PlannerSheet({
     return detail;
   };
 
-  const sendMessage = async () => {
-    const message = messageInput.trim();
+  const sendMessage = async (override?: string) => {
+    const message = (override ?? messageInput).trim();
     if (!message || turnBusy) return;
 
     if (
@@ -483,6 +484,8 @@ export default function PlannerSheet({
     }
 
     setTurnBusy(true);
+    setPendingMessage(message);
+    setMessageInput('');
     setTurnMessage('');
     clearPreview();
     setActiveReplanRequestId(null);
@@ -493,7 +496,6 @@ export default function PlannerSheet({
 
     try {
       const activeThread = await ensureThread(message);
-      setMessageInput('');
       const result = await sendPlanningTurn(
         activeThread.id,
         message,
@@ -539,8 +541,10 @@ export default function PlannerSheet({
         setTurnMessage('这轮联网核验没有成功，AI 已明确按未核验状态继续。');
       }
     } catch (error) {
+      setMessageInput(message);
       setTurnMessage(error instanceof Error ? error.message : 'AI 规划暂时不可用');
     } finally {
+      setPendingMessage('');
       setTurnBusy(false);
     }
   };
@@ -1176,7 +1180,7 @@ export default function PlannerSheet({
             <div className="flex items-center justify-center gap-2 py-20 text-sm text-[var(--sf-text-tertiary)]">
               <Loader2 size={16} className="animate-spin" /> 正在读取规划上下文…
             </div>
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && !pendingMessage ? (
             <div className="py-10">
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-[1.4rem] bg-[#f1eefb] text-[#6f63a8]">
                 <Sparkles size={24} />
@@ -1231,11 +1235,12 @@ export default function PlannerSheet({
                         <MarkdownMessage content={item.content} />
                       </Suspense>
                     ) : (
-                      <p className="whitespace-pre-wrap">{item.content}</p>
+                      <><p className="whitespace-pre-wrap">{item.content}</p><div className="mt-2 flex gap-3 border-t border-white/20 pt-1 text-[10px] text-white/75"><button type="button" onClick={() => setMessageInput(item.content)}>编辑并重发</button><button type="button" disabled={turnBusy} onClick={() => void sendMessage(item.content)}>再发送</button></div></>
                     )}
                   </div>
                 </div>
               ))}
+              {pendingMessage && <div className="flex justify-end"><div className="max-w-[88%] rounded-[1.4rem] rounded-br-md bg-[var(--sf-graphite)] px-4 py-3 text-sm leading-6 text-white"><p className="whitespace-pre-wrap">{pendingMessage}</p><span className="mt-1 block text-[10px] text-white/60">已发送 · 等待回复</span></div></div>}
               {turnBusy && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2 rounded-[1.4rem] rounded-bl-md bg-[var(--sf-bg)] px-4 py-3 text-xs text-[var(--sf-text-secondary)]">
@@ -2033,6 +2038,7 @@ export default function PlannerSheet({
           )}
           <div className="flex items-end gap-2 rounded-[1.5rem] bg-[var(--sf-bg)] p-2">
             <textarea
+              aria-label="规划消息"
               rows={1}
               value={messageInput}
               onChange={(event) => setMessageInput(event.target.value)}

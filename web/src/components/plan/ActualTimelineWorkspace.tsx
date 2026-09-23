@@ -93,14 +93,12 @@ export default function ActualTimelineWorkspace({ selectedDate, plannedItems, ta
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-[var(--sf-text-tertiary)]"><Loader2 size={15} className="animate-spin" />读取实际执行记录…</div>
       ) : entries.length ? (
-        <SectionCard className="!p-3">
-          <div className="space-y-2">
+        <div className="relative space-y-2 before:absolute before:bottom-4 before:left-[51px] before:top-4 before:w-px before:bg-[var(--sf-border)]">
             {entries.map((entry) => {
               const gap = gaps.get(entry.id);
               return <Fragment key={entry.id}>{manualBackfillEnabled && gap && <ActualTimelineGap gap={gap} onAdd={openGap} />}<ActualTimelineRow entry={entry} match={matches.get(entry.id)!} compare={mode === 'compare'} onOpenTask={onTaskClick} onEdit={openEdit} onDelete={(item) => void remove(item)} /></Fragment>;
             })}
-          </div>
-        </SectionCard>
+        </div>
       ) : <EmptyState title="这一天还没有实际时间记录" description={manualBackfillEnabled ? '完成 Focus 后会自动出现，也可以补记未使用计时器的投入。' : '开启时间记录设置中的手工补记，或完成一次计入实际时间的 Focus。'} />}
       {appEntries.length > 0 && <SectionCard className="!p-4">
         <h3 className="text-sm font-bold">Android 应用使用 · {duration(appEntries.reduce((sum, item) => sum + item.durationSeconds, 0))}</h3>

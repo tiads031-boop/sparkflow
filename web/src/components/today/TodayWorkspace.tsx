@@ -1,4 +1,4 @@
-import { BarChart3, BrainCircuit, CalendarDays, Clock3, Loader2 } from 'lucide-react';
+import { BarChart3, BrainCircuit, Clock3, Loader2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAppStore } from '../../store/appStore';
 import type { PlannerPreview, Task } from '../../types';
@@ -29,7 +29,6 @@ export default function TodayWorkspace({
   onOpenPlan,
   onOpenActual,
   onOpenAnalytics,
-  onStartFocus,
 }: TodayWorkspaceProps) {
   const [date] = useState(() => new Date());
   const activeSessionId = useAppStore((state) => state.pomodoro.activeSessionId);
@@ -57,21 +56,18 @@ export default function TodayWorkspace({
   };
 
   return (
-    <div className="min-h-full animate-page-enter px-4 pb-24">
-      <header className="mb-5 flex items-end justify-between gap-3">
+    <div className="min-h-full animate-page-enter pb-24">
+      <header className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--sf-text-tertiary)]">{date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</p>
-          <h1 className="mt-1 text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">今天</h1>
+          <h1 className="text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">今天</h1>
+          <p className="mt-0.5 text-[11px] text-[var(--sf-text-secondary)]">{date.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}</p>
         </div>
-        <div className="flex items-center gap-1 rounded-full bg-[var(--sf-surface)] p-1 shadow-sm" role="group" aria-label="日程页面">
-          <button type="button" aria-pressed="true" className="rounded-full bg-[var(--sf-graphite)] px-3 py-2 text-[10px] font-black text-[var(--sf-bg)]">今天</button>
-          <button type="button" onClick={onOpenPlan} className="grid h-8 w-8 place-items-center rounded-full text-[var(--sf-text-secondary)]" aria-label="打开计划"><CalendarDays size={15} /></button>
-          <button type="button" onClick={onOpenActual} className="grid h-8 w-8 place-items-center rounded-full text-[var(--sf-text-secondary)]" aria-label="打开实际时间线"><Clock3 size={15} /></button>
-          <button type="button" onClick={onOpenAnalytics} className="grid h-8 w-8 place-items-center rounded-full text-[var(--sf-text-secondary)]" aria-label="打开时间分析"><BarChart3 size={15} /></button>
+        <div className="flex items-center gap-1" role="group" aria-label="日程页面">
+          <button type="button" onClick={onOpenPlan} className="rounded-full border border-[var(--sf-border)] bg-[var(--sf-surface)] px-3 py-2 text-[10px] font-extrabold text-[var(--sf-text-primary)]" aria-label="打开本周计划">本周计划</button>
         </div>
       </header>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <TodayMetrics values={metrics} />
         {plannerPreview && previewItems.length > 0 && (
           <button type="button" onClick={onPlanner} className="flex w-full items-center justify-between rounded-[22px] border border-dashed border-[#8d82bd] bg-[var(--sf-purple-soft)] px-4 py-3 text-left">
@@ -79,7 +75,11 @@ export default function TodayWorkspace({
             <BrainCircuit size={17} className="text-[#665a91]" />
           </button>
         )}
-        <TodayTimeRail date={date} plannedItems={plannedItems} previewItems={previewItems} actualEntries={actualEntries} activeFocus={activeFocus} onStartFocus={onStartFocus} />
+        <TodayTimeRail date={date} plannedItems={plannedItems} previewItems={previewItems} actualEntries={actualEntries} activeFocus={activeFocus} />
+        <div className="flex justify-end gap-2" role="group" aria-label="时间页面">
+          <button type="button" onClick={onOpenActual} className="inline-flex items-center gap-1 rounded-full bg-[var(--sf-surface)] px-2.5 py-1.5 text-[10px] font-bold text-[var(--sf-text-secondary)]"><Clock3 size={12} />实际时间</button>
+          <button type="button" onClick={onOpenAnalytics} className="inline-flex items-center gap-1 rounded-full bg-[var(--sf-surface)] px-2.5 py-1.5 text-[10px] font-bold text-[var(--sf-text-secondary)]"><BarChart3 size={12} />时间分析</button>
+        </div>
         {error && <div className="rounded-2xl bg-red-50 px-4 py-3 text-xs text-red-700">部分今日数据加载失败：{error}</div>}
         {loading && <div className="flex items-center justify-center gap-2 py-3 text-xs text-[var(--sf-text-tertiary)]"><Loader2 size={14} className="animate-spin" />同步今日数据…</div>}
         <TodayAgenda items={plannedItems} onItemClick={openItem} />

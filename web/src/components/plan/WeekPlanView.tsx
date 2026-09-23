@@ -7,9 +7,10 @@ import { proposeWeekAdjustment, type WeekAdjustmentMode } from './weekAdjustment
 
 const START_HOUR = 0;
 const END_HOUR = 24;
-const HOUR_HEIGHT = 36;
+const HOUR_HEIGHT = 30;
 const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
 const TIME_COLUMN_WIDTH = 36;
+const MIN_DAY_WIDTH = 64;
 
 function minutesOfDay(date: Date) {
   return date.getHours() * 60 + date.getMinutes();
@@ -37,6 +38,7 @@ interface WeekPlanViewProps {
 }
 
 export default function WeekPlanView({ selectedDate, items, onSelectDate, onItemClick, onCreateAt, onAdjustTask }: WeekPlanViewProps) {
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressOrigin = useRef<{ x: number; y: number } | null>(null);
   const adjustmentRef = useRef<{
@@ -46,6 +48,9 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
   const suppressClick = useRef(false);
   const draftRef = useRef<{ id: string; start: Date; end: Date; offsetX: number } | null>(null);
   const [draft, setDraft] = useState<{ id: string; start: Date; end: Date; offsetX: number } | null>(null);
+  useEffect(() => {
+    if (gridScrollRef.current) gridScrollRef.current.scrollTop = 7 * HOUR_HEIGHT;
+  }, []);
   const cancelPress = () => {
     if (pressTimer.current) clearTimeout(pressTimer.current);
     pressTimer.current = null;
@@ -73,7 +78,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
   };
   const beginAdjustment = (event: PointerEvent<HTMLButtonElement>, item: PlanItem, day: Date, mode: WeekAdjustmentMode) => {
     if (!onAdjustTask || !canAdjustWeekTask(item) || event.button !== 0) return;
-    const columnWidth = event.currentTarget.parentElement?.getBoundingClientRect().width || 84;
+    const columnWidth = event.currentTarget.parentElement?.getBoundingClientRect().width || MIN_DAY_WIDTH;
     adjustmentRef.current = { item, day, mode, x: event.clientX, y: event.clientY, columnWidth, moved: false };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -117,12 +122,12 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
   const now = new Date();
 
   return (
-    <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
+    <section className="overflow-hidden rounded-[28px] border border-[var(--sf-border)] bg-[var(--sf-surface)] shadow-[0_10px_28px_rgba(30,40,30,.055)]">
       <div className="w-full overflow-x-auto overscroll-x-contain" aria-label="周日程横向滚动区域">
-        <div style={{ minWidth: TIME_COLUMN_WIDTH + 7 * 84 }}>
+        <div style={{ minWidth: TIME_COLUMN_WIDTH + 7 * MIN_DAY_WIDTH }}>
           <div
             className="grid border-b border-black/5 px-1 py-2"
-            style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(84px, 1fr))` }}
+            style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(${MIN_DAY_WIDTH}px, 1fr))` }}
           >
             <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" />
             {days.map((day) => (
@@ -135,10 +140,10 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
             ))}
           </div>
 
-          <div className="max-h-[66svh] overflow-y-auto">
+          <div ref={gridScrollRef} className="max-h-[66svh] overflow-y-auto">
             <div
               className="grid px-1"
-              style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(84px, 1fr))` }}
+              style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(${MIN_DAY_WIDTH}px, 1fr))` }}
             >
               <div className="sticky left-0 z-20 bg-[var(--sf-surface)]" style={{ height: TOTAL_HEIGHT }}>
                 {Array.from({ length: END_HOUR - START_HOUR }, (_, index) => (
@@ -220,7 +225,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
                           onPointerMove={moveAdjustment}
                           onPointerUp={finishAdjustment}
                           onPointerCancel={(event) => { adjustmentRef.current = null; draftRef.current = null; setDraft(null); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
-                          className={`absolute z-10 overflow-hidden rounded-[5px] border-l-2 px-1 py-0.5 text-left shadow-sm ${canAdjustWeekTask(item) && onAdjustTask ? 'touch-none cursor-grab active:cursor-grabbing' : ''} ${item.preview ? 'outline outline-1 outline-dashed outline-[#8b7fbc]' : ''} ${item.completed ? 'opacity-45' : ''}`}
+                          className={`absolute z-10 overflow-hidden rounded-[9px] border-l-2 px-1 py-1 text-left shadow-sm ${canAdjustWeekTask(item) && onAdjustTask ? 'touch-none cursor-grab active:cursor-grabbing' : ''} ${item.preview ? 'outline outline-1 outline-dashed outline-[#8b7fbc]' : ''} ${item.completed ? 'opacity-45' : ''}`}
                           style={{
                             top: draft?.id === item.id ? ((draft.start.getHours() * 60 + draft.start.getMinutes()) / 60) * HOUR_HEIGHT : top,
                             height: draft?.id === item.id ? Math.max(22, (draft.end.getTime() - draft.start.getTime()) / 3_600_000 * HOUR_HEIGHT) : height,

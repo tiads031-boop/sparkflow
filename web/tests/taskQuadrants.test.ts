@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Task } from '../src/types/index.ts';
-import { getTaskQuadrant, groupTasksByQuadrant } from '../src/utils/taskQuadrants.ts';
+import { explicitTaskQuadrant, getTaskQuadrant, groupTasksByQuadrant, taskTagsWithoutQuadrant, withTaskQuadrant } from '../src/utils/taskQuadrants.ts';
 
 const NOW = new Date('2026-09-17T00:00:00.000Z').getTime();
 const task = (overrides: Partial<Task>): Task => ({
@@ -22,4 +22,13 @@ test('excludes completed and cancelled tasks from quadrant groups', () => {
     task({ id: 'cancelled', status: 'Cancelled' }),
   ], NOW);
   assert.deepEqual(groups.later.map((item) => item.id), ['open']);
+});
+
+test('an explicitly selected quadrant survives deadlines and remains separate from visible tags', () => {
+  const tags = withTaskQuadrant(['学习'], 'important-later');
+  assert.equal(explicitTaskQuadrant(tags), 'important-later');
+  assert.equal(getTaskQuadrant(task({ priority: 'Low', dueDate: '2026-09-18T00:00:00.000Z', tags }), NOW), 'important-later');
+  assert.deepEqual(taskTagsWithoutQuadrant(tags), ['学习']);
+  assert.deepEqual(withTaskQuadrant(tags, 'urgent'), ['学习', 'sparkflow:quadrant:urgent']);
+  assert.deepEqual(withTaskQuadrant(tags, null), ['学习']);
 });

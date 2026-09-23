@@ -116,9 +116,9 @@ export default function FocusSession({ open, onClose }: { open: boolean; onClose
   const stateLabel = !activeOrSeen ? 'Setup' : ended ? 'Completed' : pomodoro.isPaused ? 'Paused' : 'Running';
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[var(--sf-bg)] text-[var(--sf-text-primary)]" role="dialog" aria-modal="true" aria-label="专注模式">
+    <div className={`fixed inset-0 z-[100] flex flex-col ${activeOrSeen && !ended ? 'bg-[#202422] text-white' : 'bg-[var(--sf-bg)] text-[var(--sf-text-primary)]'}`} role="dialog" aria-modal="true" aria-label="专注模式">
       <header className="flex items-center justify-between px-5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+20px)]">
-        <div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--sf-marker-purple)]">Focus · {stateLabel}</p><h2 className="mt-0.5 text-lg font-black">专注这一件事</h2></div>
+        <div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-[var(--sf-purple)]">Focus · {stateLabel}</p><h2 className="mt-0.5 text-lg font-black">专注这一件事</h2></div>
         <ModalCloseButton onClick={exit} label="收起专注" />
       </header>
       <main className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-5 py-4">
