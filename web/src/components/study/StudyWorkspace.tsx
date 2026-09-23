@@ -751,39 +751,26 @@ export default function StudyWorkspace({
         </div>
       ) : (
         <div className="animate-page-enter pb-24">
-          <header className="mb-5 rounded-[2rem] bg-[#242424] p-5 text-white shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#cae393]">
-                  AI Learning Goals
-                </p>
-                <h1 className="mt-1 text-2xl font-black">学习，不再从“选一门课”开始。</h1>
-                <p className="mt-2 max-w-md text-xs leading-5 text-white/60">
-                  先说清你想达到什么。AI 会持续了解你的现状和约束，必要时联网核实，再把目标拆成阶段、任务与真实时间安排。
-                </p>
-              </div>
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#cae393] text-[#242424]">
-                <GraduationCap size={21} />
-              </div>
+          <header className="mb-4 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-[27px] font-black tracking-tight text-[var(--sf-text-primary)]">学习</h1>
+              <p className="mt-0.5 text-[11px] text-[var(--sf-text-secondary)]">长期目标、阶段和真实投入</p>
             </div>
-
-            <div className="mt-5 grid grid-cols-[1.35fr_1fr] gap-2">
-              <button
-                type="button"
-                onClick={() => setEditingGoal(null)}
-                className="flex items-center justify-center gap-2 rounded-full bg-[#cae393] py-3 text-sm font-black text-[#242424] active:scale-[0.99]"
-              >
-                <Plus size={15} /> 新学习目标
-              </button>
-              <button
-                type="button"
-                onClick={onStartFocus}
-                className="flex items-center justify-center gap-2 rounded-full bg-white/10 py-3 text-sm font-black text-white active:scale-[0.99]"
-              >
-                <Focus size={15} /> 开始专注
-              </button>
-            </div>
+            <button type="button" onClick={() => activeGoals[0] ? openGoalPlanning(activeGoals[0]) : setEditingGoal(null)}
+              className="shrink-0 rounded-full bg-[var(--sf-purple-soft)] px-3 py-2 text-[10px] font-black text-[#584f80]">
+              <BrainCircuit size={13} className="mr-1 inline" />AI 规划
+            </button>
           </header>
+          <div className="mb-4 flex gap-2">
+            <button type="button" onClick={() => setEditingGoal(null)}
+              className="rounded-full bg-[var(--sf-green)] px-3 py-2 text-[10px] font-black text-[var(--sf-text-primary)]">
+              <Plus size={13} className="mr-1 inline" />新学习目标
+            </button>
+            <button type="button" onClick={onStartFocus}
+              className="rounded-full bg-[var(--sf-surface)] px-3 py-2 text-[10px] font-black text-[var(--sf-text-secondary)]">
+              <Focus size={13} className="mr-1 inline" />开始专注
+            </button>
+          </div>
 
           {error && (
             <div className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-xs font-medium text-red-700">
