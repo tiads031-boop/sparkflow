@@ -89,7 +89,7 @@ export default function TodayTimeRail({
       </div>
       <div className="relative ml-[54px] mt-2 h-4 text-[8px] text-[var(--sf-text-tertiary)]">
         {[0, 6, 12, 18, 24].map((hour) => <span key={hour} className="absolute -translate-x-1/2" style={{ left: `${(hour / 24) * 100}%` }}>{String(hour).padStart(2, '0')}</span>)}
-        {isToday && <span className="absolute bottom-4 top-[-100px] w-px bg-[#c77979]" style={{ left: `${nowLeft}%` }} aria-label="当前时间" />}
+        {isToday && <span className="absolute bottom-4 top-[-78px] w-px bg-[#c77979]" style={{ left: `${nowLeft}%` }} aria-label="当前时间" />}
       </div>
     </section>
   );
