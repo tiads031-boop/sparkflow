@@ -34,6 +34,7 @@ export interface SaveParams {
   context: string;
   status?: Task['status'];
   priority?: Task['priority'];
+  quadrant?: Task['quadrant'];
   dueDate?: string;
   section?: TaskSection;
   subtasks?: Subtask[];

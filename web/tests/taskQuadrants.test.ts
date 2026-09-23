@@ -23,3 +23,9 @@ test('excludes completed and cancelled tasks from quadrant groups', () => {
   ], NOW);
   assert.deepEqual(groups.later.map((item) => item.id), ['open']);
 });
+
+test('an explicitly chosen quadrant persists independently of deadline changes', () => {
+  const chosen = task({ priority: 'Low', dueDate: '2026-09-18T00:00:00.000Z', quadrant: 'important-later' });
+  assert.equal(getTaskQuadrant(chosen, NOW), 'important-later');
+  assert.equal(getTaskQuadrant({ ...chosen, dueDate: '2026-09-19T00:00:00.000Z' }, NOW), 'important-later');
+});

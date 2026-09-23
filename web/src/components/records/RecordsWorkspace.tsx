@@ -11,11 +11,10 @@ import {
   type InspirationRecord,
   type TodayReviewBatch,
 } from '../../api/inspirations';
-import InspirationWall from './InspirationWall';
 import InspirationDetailSheet from './InspirationDetailSheet';
 import InsightsWorkspace from './InsightsWorkspace';
 import RecordCardsView from './RecordCardsView';
-import RecordToolbar, { type RecordPanel, type RecordViewMode } from './RecordToolbar';
+import RecordToolbar, { type RecordPanel } from './RecordToolbar';
 import ReviewWorkspace from './ReviewWorkspace';
 const SceneCenter = lazy(() => import('./scenes/SceneCenter'));
 
@@ -28,7 +27,6 @@ export interface RecordsWorkspaceProps {
 
 export default function RecordsWorkspace({ onAddClick }: RecordsWorkspaceProps) {
   const loadTasks = useAppStore((state) => state.loadTasks);
-  const [mode, setMode] = useState<RecordViewMode>('cards');
   const [panel, setPanel] = useState<RecordPanel>(null);
   const [selectedRecord, setSelectedRecord] = useState<InspirationRecord | null>(null);
   const [records, setRecords] = useState<InspirationRecord[]>([]);
@@ -162,10 +160,8 @@ export default function RecordsWorkspace({ onAddClick }: RecordsWorkspaceProps) 
       </header>
 
       <RecordToolbar
-        mode={mode}
         panel={panel}
         pendingReviews={reviewBatch.pending}
-        onModeChange={setMode}
         onPanelChange={(nextPanel) => {
           setPanel(nextPanel);
           if (nextPanel === 'review') void loadReviews();
@@ -175,18 +171,10 @@ export default function RecordsWorkspace({ onAddClick }: RecordsWorkspaceProps) 
       {error && <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-xs text-red-700">{error}</div>}
       {message && <div className="rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-surface)] px-4 py-3 text-xs text-[var(--sf-text-secondary)]">{message}</div>}
 
-      {!panel && mode === 'cards' ? <RecordCardsView records={records} loading={loading} onOpen={setSelectedRecord} onRefresh={() => void refreshAll()} /> : null}
+      {!panel ? <RecordCardsView records={records} loading={loading} onOpen={setSelectedRecord} onRefresh={() => void refreshAll()} /> : null}
 
       {panel === 'insights' ? <InsightsWorkspace recordCount={records.length} /> : null}
       {panel === 'scenes' ? <Suspense fallback={<p className="rounded-2xl bg-white p-4 text-sm">加载场景…</p>}><SceneCenter /></Suspense> : null}
-
-      {!panel && mode === 'wall' && (
-        records.length === 0 ? (
-          <p className="rounded-[var(--sf-radius-md)] bg-[var(--sf-surface)] p-5 text-sm text-[var(--sf-text-secondary)]">自由墙会使用同一份记录数据，不维护第二套正文。</p>
-        ) : (
-          <InspirationWall records={records} onOpen={setSelectedRecord} />
-        )
-      )}
 
       {panel === 'review' ? <ReviewWorkspace batch={reviewBatch} currentReview={currentReview} reviewText={reviewText} busy={reviewBusy} onReviewTextChange={setReviewText} onLoadMore={() => void loadMoreReviews()} onSaveReflection={() => void saveReflection()} onFinish={(action) => void finishReviewAction(action)} onConvertToTask={() => void convertCurrentToTask()} /> : null}
 

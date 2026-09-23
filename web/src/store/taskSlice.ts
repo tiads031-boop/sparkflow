@@ -20,6 +20,7 @@ interface ApiTask {
   description?: string | null;
   status: string;
   priority: string;
+  quadrant?: Task['quadrant'];
   section?: string | null;
   project?: string | null;
   notes?: { text: string; completed: boolean }[] | null;
@@ -106,6 +107,7 @@ function fromApiTask(api: ApiTask): Task {
     description: api.description || undefined,
     status: STATUS_DB_TO_FRONT[api.status] || 'To do',
     priority: PRIORITY_DB_TO_FRONT[api.priority] || 'Medium',
+    quadrant: api.quadrant || undefined,
     colorType: PRIORITY_TO_COLOR[api.priority] || 'green',
     section: (api.section as Task['section']) || undefined,
     project: api.project || undefined,
@@ -151,6 +153,7 @@ function toApiPayload(task: Partial<Task> & { title?: string }): Record<string, 
   if (task.description !== undefined) payload.description = task.description || '';
   if (task.status !== undefined) payload.status = STATUS_FRONT_TO_DB[task.status] || 'todo';
   if (task.priority !== undefined) payload.priority = PRIORITY_FRONT_TO_DB[task.priority] || 'medium';
+  if (task.quadrant !== undefined) payload.quadrant = task.quadrant;
   if (task.section !== undefined) payload.section = task.section;
   if (task.project !== undefined) payload.project = task.project;
   if (task.courseId !== undefined) payload.courseId = task.courseId;

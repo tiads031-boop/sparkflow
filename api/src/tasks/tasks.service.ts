@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+
+const taskQuadrants = ['important-urgent', 'important-later', 'urgent', 'later'];
 
 const taskSourceInclude = {
   insight: {
@@ -93,6 +95,7 @@ export class TasksService {
     description?: string;
     status?: string;
     priority?: string;
+    quadrant?: string | null;
     section?: string | null;
     project?: string | null;
     notes?: any;
@@ -114,6 +117,7 @@ export class TasksService {
     scheduleColor?: string | null;
     studyFolderId?: string | null;
   }) {
+    if (data.quadrant != null && !taskQuadrants.includes(data.quadrant)) throw new BadRequestException('Invalid task quadrant');
     if (data.courseId) {
       const course = await this.prisma.course.findFirst({ where: { id: data.courseId, userId: data.userId }, select: { id: true } });
       if (!course) throw new NotFoundException('Course not found');
@@ -151,6 +155,7 @@ export class TasksService {
       studyFolderId,
       ...safeData
     } = data;
+    if (safeData.quadrant != null && !taskQuadrants.includes(safeData.quadrant)) throw new BadRequestException('Invalid task quadrant');
     if (safeData.status === 'done' && safeData.completedAt === undefined) {
       safeData.completedAt = new Date();
     } else if (safeData.status && safeData.status !== 'done' && safeData.completedAt === undefined) {

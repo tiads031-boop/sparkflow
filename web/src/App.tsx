@@ -249,7 +249,7 @@ export default function App() {
     setModalConfig((prev) => ({ ...prev, isOpen: false }));
 
   const handleSaveItem = async ({
-    id, title, content, context, status, priority, dueDate, section, subtasks, project, startTime,
+    id, title, content, context, status, priority, quadrant, dueDate, section, subtasks, project, startTime,
     scheduledStart, reminderAt, repeatRule, repeatStartDate, repeatEndDate, duration, tags, studyFolderId,
   }: SaveParams) => {
     const sparkColors = ['bg-[#cae393]', 'bg-[#b0a8db]', 'bg-white', 'bg-[#f4f4f4]'];
@@ -274,6 +274,7 @@ export default function App() {
           description: content,
           status: status || 'To do',
           priority: priority || 'Medium',
+          quadrant,
           colorType,
           section: normalizeTaskSection(section),
           dueDate: normalizedDueDate || undefined,
@@ -296,6 +297,7 @@ export default function App() {
           time: 'Just now',
           status: status || 'To do' as const,
           priority: priority || 'Medium' as const,
+          quadrant,
           colorType,
           comments: 0,
           subtasks: content ? [{ id: String(Date.now() + 1), title: content, completed: false }] : [],
