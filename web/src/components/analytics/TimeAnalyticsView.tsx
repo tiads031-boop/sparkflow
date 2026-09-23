@@ -88,7 +88,7 @@ export default function TimeAnalyticsView({
   const hasActual = Boolean(current?.time?.totalActualSeconds);
 
   return (
-    <div className="min-h-full animate-page-enter px-4 pb-24">
+    <div className="min-h-full animate-page-enter pb-24">
       <PageHeader
         title="分析"
         subtitle="只展示可解释的执行数据"

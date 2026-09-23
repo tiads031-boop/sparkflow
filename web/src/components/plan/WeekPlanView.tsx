@@ -38,6 +38,7 @@ interface WeekPlanViewProps {
 }
 
 export default function WeekPlanView({ selectedDate, items, onSelectDate, onItemClick, onCreateAt, onAdjustTask }: WeekPlanViewProps) {
+  const gridScrollRef = useRef<HTMLDivElement | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressOrigin = useRef<{ x: number; y: number } | null>(null);
   const adjustmentRef = useRef<{
@@ -47,6 +48,9 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
   const suppressClick = useRef(false);
   const draftRef = useRef<{ id: string; start: Date; end: Date; offsetX: number } | null>(null);
   const [draft, setDraft] = useState<{ id: string; start: Date; end: Date; offsetX: number } | null>(null);
+  useEffect(() => {
+    if (gridScrollRef.current) gridScrollRef.current.scrollTop = 7 * HOUR_HEIGHT;
+  }, []);
   const cancelPress = () => {
     if (pressTimer.current) clearTimeout(pressTimer.current);
     pressTimer.current = null;
@@ -118,7 +122,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
   const now = new Date();
 
   return (
-    <section className="overflow-hidden rounded-[1.75rem] bg-[var(--sf-surface)] shadow-sm">
+    <section className="overflow-hidden rounded-[22px] border border-[var(--sf-border)] bg-[var(--sf-surface)]">
       <div className="w-full overflow-x-auto overscroll-x-contain" aria-label="周日程横向滚动区域">
         <div style={{ minWidth: TIME_COLUMN_WIDTH + 7 * MIN_DAY_WIDTH }}>
           <div
@@ -136,7 +140,7 @@ export default function WeekPlanView({ selectedDate, items, onSelectDate, onItem
             ))}
           </div>
 
-          <div className="max-h-[66svh] overflow-y-auto">
+          <div ref={gridScrollRef} className="max-h-[66svh] overflow-y-auto">
             <div
               className="grid px-1"
               style={{ gridTemplateColumns: `${TIME_COLUMN_WIDTH}px repeat(7, minmax(${MIN_DAY_WIDTH}px, 1fr))` }}

@@ -157,8 +157,8 @@ export default function RecordsWorkspace({ onAddClick }: RecordsWorkspaceProps) 
   return (
     <div className="animate-page-enter space-y-4 pb-6">
       <header className="flex items-end justify-between gap-3">
-        <div><h1 className="text-xl font-bold text-[var(--sf-text-primary)]">记录</h1><p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">随手记下来，之后再想清楚。</p></div>
-        <button type="button" onClick={onAddClick} className="flex items-center gap-1 rounded-full bg-[var(--sf-graphite)] px-3 py-2 text-xs font-black text-[#cae393]"><Plus size={13} />记录</button>
+        <div><h1 className="text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">记录</h1><p className="mt-0.5 text-[11px] text-[var(--sf-text-secondary)]">先记下来，之后再想清楚</p></div>
+        <button type="button" onClick={onAddClick} className="flex items-center gap-1 rounded-full bg-[var(--sf-graphite)] px-3 py-2 text-[10px] font-black text-[var(--sf-green)]"><Plus size={13} />记录</button>
       </header>
 
       <RecordToolbar

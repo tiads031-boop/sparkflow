@@ -53,7 +53,7 @@ export default function FloatingActionButton({
       onContextMenu={(event) => event.preventDefault()}
       className="fixed z-[45] grid h-14 w-14 touch-none select-none place-items-center bg-[var(--sf-graphite)] text-[var(--sf-bg)] transition-transform active:scale-95"
       style={{
-        right: 'max(20px, calc((100vw - 32rem) / 2 + 20px))',
+        right: 'max(18px, calc((100vw - 32rem) / 2 + 18px))',
         bottom: 'calc(env(safe-area-inset-bottom, 0px) + 88px)',
         background: '#222625',
         color: '#d9f2a6',

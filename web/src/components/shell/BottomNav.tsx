@@ -21,8 +21,8 @@ export default function BottomNav({ activeTab, setActiveTab, items }: BottomNavP
       as="nav"
       variant="nav"
       aria-label="主导航"
-      className="fixed bottom-0 left-1/2 z-40 h-[calc(74px+env(safe-area-inset-bottom,0px))] w-full max-w-lg -translate-x-1/2 rounded-none border-x-0 border-b-0 px-2 pb-[env(safe-area-inset-bottom,0px)] pt-1.5"
-      style={{ bottom: 0 }}
+      className="fixed left-1/2 z-40 h-[70px] w-[calc(100%-20px)] max-w-[492px] -translate-x-1/2 overflow-hidden px-2 py-1.5"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 9px)' }}
     >
       <div className="grid grid-cols-5">
         {items.map((tab) => {
@@ -36,16 +36,14 @@ export default function BottomNav({ activeTab, setActiveTab, items }: BottomNavP
               aria-current={isActive ? 'page' : undefined}
               aria-label={tab.label}
               title={tab.label}
-              className={`flex min-h-14 items-center justify-center rounded-2xl px-1 py-1 transition-all ${
+              className={`flex min-h-[56px] items-center justify-center rounded-[19px] px-1 py-1 transition-all ${
                 isActive
-                  ? 'text-[var(--sf-text-primary)]'
+                  ? 'bg-[linear-gradient(180deg,rgba(228,244,205,.82),rgba(216,238,183,.68))] text-[var(--sf-text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,.72),0_5px_14px_rgba(92,116,64,.08)]'
                   : 'text-[var(--sf-text-tertiary)]'
               }`}
             >
-              <span className={`grid h-9 w-11 place-items-center rounded-full transition-all ${
-                isActive ? 'bg-[var(--sf-green)]' : 'bg-transparent'
-              }`}>
-                <Icon size={21} strokeWidth={isActive ? 2.4 : 1.9} aria-hidden="true" />
+              <span className="grid h-8 w-11 place-items-center">
+                <Icon size={22} strokeWidth={isActive ? 2 : 1.65} aria-hidden="true" />
               </span>
             </button>
           );

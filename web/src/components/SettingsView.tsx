@@ -1239,8 +1239,8 @@ export default function SettingsView() {
       <header className="mb-4">
         <div className="mt-1 flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-[27px] font-black text-[var(--sf-text-primary)]">我的</h1>
-            <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">偏好、连接、数据和账户都在这里。</p>
+            <h1 className="text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">我的</h1>
+            <p className="mt-0.5 text-[11px] text-[var(--sf-text-secondary)]">偏好、连接、数据和账户</p>
           </div>
           <span className="rounded-full bg-[var(--sf-surface)] px-3 py-1.5 text-[9px] font-bold text-[var(--sf-text-secondary)] shadow-sm">
             {preferences.appearance === 'system' ? '系统外观' : preferences.appearance === 'dark' ? '深色' : '浅色'}
@@ -1254,7 +1254,7 @@ export default function SettingsView() {
         className="mb-4 w-full overflow-hidden rounded-[24px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 text-left shadow-sm"
       >
         <div className="flex items-center gap-3">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[18px] bg-[var(--sf-graphite)] text-lg font-black text-[var(--sf-green)]">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[20px] bg-[linear-gradient(145deg,var(--sf-green),var(--sf-purple))] text-lg font-black text-[var(--sf-text-primary)]">
             {(displayName || 'S').slice(0, 1).toUpperCase()}
           </span>
           <span className="min-w-0 flex-1">

@@ -349,7 +349,6 @@ export default function App() {
       activeTab={activeWorkspace}
       setActiveTab={handleWorkspaceChange}
       navItems={workspaceNavItems}
-      edgeToEdge={activeWorkspace === 'today' || activeWorkspace === 'plan'}
       onQuickAdd={() => setQuickAddOpen((open) => !open)}
       onPlannerVoice={() => {
         setQuickAddOpen(false);
@@ -442,6 +441,10 @@ export default function App() {
                 sectionOnly={isSchedulePlanRoute ? 'calendar' : 'tasks'}
                 initialTaskView={activeTab === 'board' ? 'quadrant' : undefined}
                 initialPlanView={activeTab === 'timeline' || scheduleSurface === 'actual' ? 'timeline' : scheduleSurface === 'plan' ? 'week' : undefined}
+                onSectionChange={(section) => {
+                  if (section === 'tasks') setActiveTab('tasks');
+                  else { setScheduleSurface('plan'); setActiveTab('today'); }
+                }}
               />
             </Suspense>
           )}
