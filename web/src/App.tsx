@@ -401,7 +401,6 @@ export default function App() {
                 onOpenPlan={() => setScheduleSurface('plan')}
                 onOpenActual={() => setScheduleSurface('actual')}
                 onOpenAnalytics={() => setScheduleSurface('analytics')}
-                onStartFocus={() => setFocusOpen(true)}
               />
             </Suspense>
           )}
