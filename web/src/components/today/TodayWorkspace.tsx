@@ -17,7 +17,6 @@ interface TodayWorkspaceProps {
   onOpenPlan: () => void;
   onOpenActual: () => void;
   onOpenAnalytics: () => void;
-  onStartFocus: () => void;
 }
 
 export default function TodayWorkspace({
@@ -29,7 +28,6 @@ export default function TodayWorkspace({
   onOpenPlan,
   onOpenActual,
   onOpenAnalytics,
-  onStartFocus,
 }: TodayWorkspaceProps) {
   const [date] = useState(() => new Date());
   const activeSessionId = useAppStore((state) => state.pomodoro.activeSessionId);
@@ -79,7 +77,7 @@ export default function TodayWorkspace({
             <BrainCircuit size={17} className="text-[#665a91]" />
           </button>
         )}
-        <TodayTimeRail date={date} plannedItems={plannedItems} previewItems={previewItems} actualEntries={actualEntries} activeFocus={activeFocus} onStartFocus={onStartFocus} />
+        <TodayTimeRail date={date} plannedItems={plannedItems} previewItems={previewItems} actualEntries={actualEntries} activeFocus={activeFocus} />
         {error && <div className="rounded-2xl bg-red-50 px-4 py-3 text-xs text-red-700">部分今日数据加载失败：{error}</div>}
         {loading && <div className="flex items-center justify-center gap-2 py-3 text-xs text-[var(--sf-text-tertiary)]"><Loader2 size={14} className="animate-spin" />同步今日数据…</div>}
         <TodayAgenda items={plannedItems} onItemClick={openItem} />

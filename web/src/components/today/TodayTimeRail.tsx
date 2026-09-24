@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ActualTimelineEntry } from '../../api/actualTimeline';
 import type { PlanItem } from '../plan/planProjection';
-import { useTimeTrackingPreferences } from '../profile/useTimeTrackingPreferences';
 
 interface ActiveFocusRailItem {
   id: string;
@@ -16,7 +15,6 @@ interface TodayTimeRailProps {
   previewItems: PlanItem[];
   actualEntries: ActualTimelineEntry[];
   activeFocus?: ActiveFocusRailItem | null;
-  onStartFocus: () => void;
 }
 
 function dayPosition(value: string | Date, date: Date) {
@@ -53,20 +51,15 @@ export default function TodayTimeRail({
   previewItems,
   actualEntries,
   activeFocus,
-  onStartFocus,
 }: TodayTimeRailProps) {
-  const quickStartEnabled = useTimeTrackingPreferences()?.quickStartEnabled === true;
   const isToday = date.toDateString() === new Date().toDateString();
   const nowLeft = dayPosition(new Date(), date);
 
   return (
     <section className="rounded-[26px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 shadow-[0_14px_36px_rgba(31,37,34,0.055)]">
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">Time rail</p>
-          <h2 className="mt-0.5 text-sm font-black text-[var(--sf-text-primary)]">今日时间轨道</h2>
-        </div>
-        {quickStartEnabled && isToday && actualEntries.length === 0 && !activeFocus ? <button type="button" onClick={onStartFocus} className="rounded-full bg-[var(--sf-graphite)] px-3 py-2 text-[10px] font-bold text-white">空白开始 Focus</button> : <span className="text-[9px] text-[var(--sf-text-tertiary)]">计划与实际分开</span>}
+      <div className="mb-3">
+        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">Time rail</p>
+        <h2 className="mt-0.5 text-sm font-black text-[var(--sf-text-primary)]">今日时间轨道</h2>
       </div>
       <div className="space-y-2">
         <RailRow label="计划">
