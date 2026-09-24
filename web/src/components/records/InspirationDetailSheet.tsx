@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, Save, Trash2, X } from 'lucide-react';
+import { Loader2, Save, Trash2, X, Plus } from 'lucide-react';
 import {
+  addInspirationAttachments,
+  deleteInspirationAttachment,
+  updateInspirationAttachmentCaption,
+  type InspirationAttachment,
   deleteInspiration,
   updateInspiration,
   type InspirationRecord,
@@ -47,16 +51,19 @@ function InspirationDetailDialog({
     () => record.contentText || record.description || record.title || '',
   );
   const [tags, setTags] = useState<string[]>(() => record.tags);
+  const [title, setTitle] = useState(record.title || '');
+  const [attachments, setAttachments] = useState(record.attachments || []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const save = async () => {
-    if (!text.trim() || busy) return;
+    if ((!text.trim() && !title.trim() && !attachments.length) || busy) return;
     setBusy(true);
     setError('');
     try {
       await updateInspiration(record.id, {
         contentText: text.trim(),
+        title: title.trim(),
         tags,
       });
       await onChanged();
@@ -108,6 +115,12 @@ function InspirationDetailDialog({
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain border-t border-[var(--sf-divider)] px-5 py-4">
           <label className="block">
+            <span className="text-xs font-bold text-[var(--sf-text-secondary)]">标题（可选）</span>
+            <input value={title} onChange={(event) => setTitle(event.target.value)}
+              placeholder="给这段记录起个名字"
+              className="mt-2 w-full rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm outline-none focus:border-[var(--sf-text-primary)]" />
+          </label>
+          <label className="block">
             <span className="text-xs font-bold text-[var(--sf-text-secondary)]">内容</span>
             <textarea
               value={text}
@@ -120,7 +133,54 @@ function InspirationDetailDialog({
             <TagSelector value={tags} onChange={setTags} compact />
           </div>
 
-          <InspirationAttachmentList inspirationId={record.id} attachments={record.attachments} />
+          <div>
+            <div className="flex items-center justify-between">
+              <strong className="text-xs text-[var(--sf-text-secondary)]">照片与附件 · {attachments.length}/6</strong>
+              <label className={`flex items-center gap-1 rounded-full bg-[var(--sf-bg)] px-3 py-2 text-xs font-bold ${busy || attachments.length >= 6 ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}>
+                <Plus size={13} /> 添加
+                <input type="file" accept="image/*,video/*,audio/*" multiple className="sr-only" disabled={busy || attachments.length >= 6}
+                  onChange={(event) => {
+                    const files = Array.from(event.target.files || []);
+                    event.target.value = '';
+                    if (!files.length) return;
+                    if (files.length + attachments.length > 6 || files.some((file) => file.size > 25 * 1024 * 1024) ||
+                      files.reduce((sum, file) => sum + file.size, attachments.reduce((sum, item) => sum + item.sizeBytes, 0)) > 50 * 1024 * 1024) {
+                      setError('最多 6 个附件；单个不超过 25MB，总大小不超过 50MB。');
+                      return;
+                    }
+                    setBusy(true); setError('');
+                    void addInspirationAttachments(record.id, files).then(async (updated) => {
+                      setAttachments(updated.attachments || []);
+                      await onChanged();
+                    }).catch((err: unknown) => setError(err instanceof Error ? err.message : '添加附件失败'))
+                      .finally(() => setBusy(false));
+                  }} />
+              </label>
+            </div>
+            <InspirationAttachmentList inspirationId={record.id} attachments={attachments} />
+            {attachments.length > 0 && <div className="mt-3 space-y-2">
+              {attachments.map((attachment) => <div key={attachment.id} className="rounded-xl bg-[var(--sf-bg)] p-3">
+                {attachment.kind === 'image' && <PhotoStoryEditor attachment={attachment} disabled={busy}
+                  onSave={async (caption) => {
+                    const updated = await updateInspirationAttachmentCaption(record.id, attachment.id, caption);
+                    setAttachments((current) => current.map((item) => item.id === updated.id ? updated : item));
+                    await onChanged();
+                  }} />}
+                <button type="button" disabled={busy}
+                onClick={() => {
+                  if (!window.confirm(`移除附件「${attachment.originalName || '未命名'}」？`)) return;
+                  setBusy(true); setError('');
+                  void deleteInspirationAttachment(record.id, attachment.id).then(async (updated) => {
+                    setAttachments(updated.attachments || []);
+                    await onChanged();
+                  }).catch((err: unknown) => setError(err instanceof Error ? err.message : '移除失败'))
+                    .finally(() => setBusy(false));
+                }}
+                className="mt-2 rounded-full bg-red-50 px-3 py-1.5 text-[10px] text-red-700 disabled:opacity-40">
+                移除 {attachment.originalName || '附件'}
+              </button></div>)}
+            </div>}
+          </div>
 
           {record.reflections?.length ? (
             <div className="rounded-2xl bg-[var(--sf-bg)] p-4">
@@ -142,7 +202,7 @@ function InspirationDetailDialog({
           <button type="button" disabled={busy} onClick={() => void remove()} className="flex items-center justify-center gap-1.5 rounded-full bg-red-50 px-4 py-3 text-xs font-bold text-red-700 disabled:opacity-40">
             <Trash2 size={13} /> 删除
           </button>
-          <button type="button" disabled={busy || !text.trim()} onClick={() => void save()} className="flex items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3 text-xs font-black text-[var(--sf-surface)] disabled:opacity-40">
+          <button type="button" disabled={busy || (!text.trim() && !title.trim() && !attachments.length)} onClick={() => void save()} className="flex items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3 text-xs font-black text-[var(--sf-surface)] disabled:opacity-40">
             {busy ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} 保存
           </button>
         </footer>
@@ -150,4 +210,29 @@ function InspirationDetailDialog({
     </div>,
     document.body,
   );
+}
+
+function PhotoStoryEditor({ attachment, disabled, onSave }: {
+  attachment: InspirationAttachment;
+  disabled: boolean;
+  onSave: (caption: string) => Promise<void>;
+}) {
+  const [caption, setCaption] = useState(attachment.caption || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  return <div>
+    <label className="block text-xs font-bold text-[var(--sf-text-secondary)]">
+      {attachment.originalName || '照片'} · 这张照片的故事
+      <textarea value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={2000}
+        placeholder="这一刻发生了什么？" disabled={disabled || saving}
+        className="mt-2 min-h-16 w-full resize-y rounded-xl border border-[var(--sf-border)] bg-[var(--sf-surface)] p-3 text-xs font-normal outline-none" />
+    </label>
+    <button type="button" disabled={disabled || saving || caption.trim() === (attachment.caption || '')}
+      onClick={() => { setSaving(true); setError(''); void onSave(caption).catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : '保存故事失败')).finally(() => setSaving(false)); }}
+      className="rounded-full bg-[var(--sf-surface)] px-3 py-1.5 text-[10px] font-bold disabled:opacity-40">
+      {saving ? '保存中…' : '保存这张照片的故事'}
+    </button>
+    {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
+  </div>;
 }

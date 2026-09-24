@@ -11,6 +11,8 @@ import { InspirationMediaService } from './inspiration-media.service';
 import { VoiceTranscriptionService } from '../planning/voice-transcription.service';
 import { AI_PROVIDER, type AIProvider } from '../ai/ai-provider';
 import { MediaUnderstandingService } from './media-understanding.service';
+import { Prisma } from '@prisma/client';
+import { MAX_INSPIRATION_ATTACHMENTS, MAX_INSPIRATION_TOTAL_BYTES, validateInspirationFiles } from './inspiration-media.service';
 
 const attachmentList = {
   select: {
@@ -19,6 +21,7 @@ const attachmentList = {
     kind: true,
     mimeType: true,
     originalName: true,
+    caption: true,
     sizeBytes: true,
     transcript: true,
     aiSummary: true,
@@ -368,6 +371,70 @@ export class InspirationsService {
     });
     if (!attachment) throw new NotFoundException('Attachment not found');
     return attachment;
+  }
+
+  async updateAttachmentCaption(id: string, attachmentId: string, userId: string, caption: string) {
+    const attachment = await this.getAttachment(id, attachmentId, userId);
+    if (attachment.kind !== 'image') throw new BadRequestException('只有照片可以添加故事');
+    if (typeof caption !== 'string' || caption.length > 2000) throw new BadRequestException('故事不能超过 2000 字');
+    return this.prisma.inspirationAttachment.update({
+      where: { id: attachment.id },
+      data: { caption: caption.trim() || null },
+      select: attachmentList.select,
+    });
+  }
+
+  async addAttachments(id: string, userId: string, files: Express.Multer.File[]) {
+    if (!files.length) throw new BadRequestException('请选择附件');
+    validateInspirationFiles(files);
+    const existing = await this.prisma.inspiration.findFirst({
+      where: { id, userId },
+      select: { id: true, attachments: { select: { sizeBytes: true } } },
+    });
+    if (!existing) throw new NotFoundException('记录不存在');
+    if (existing.attachments.length + files.length > MAX_INSPIRATION_ATTACHMENTS ||
+      existing.attachments.reduce((sum, item) => sum + item.sizeBytes, 0) + files.reduce((sum, file) => sum + file.size, 0) > MAX_INSPIRATION_TOTAL_BYTES) {
+      throw new BadRequestException('附件最多 6 个，总大小不能超过 50MB');
+    }
+    const stored = await this.media.persist(id, files);
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const current = await tx.inspiration.findFirst({
+          where: { id, userId },
+          select: { attachments: { select: { sizeBytes: true } } },
+        });
+        if (!current) throw new NotFoundException('记录不存在');
+        if (current.attachments.length + stored.length > MAX_INSPIRATION_ATTACHMENTS ||
+          current.attachments.reduce((sum, item) => sum + item.sizeBytes, 0) + stored.reduce((sum, item) => sum + item.sizeBytes, 0) > MAX_INSPIRATION_TOTAL_BYTES) {
+          throw new BadRequestException('附件最多 6 个，总大小不能超过 50MB');
+        }
+        await tx.inspirationAttachment.createMany({
+          data: stored.map((item) => ({ ...item, inspirationId: id })),
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (error) {
+      await this.media.removeMany(stored.map((item) => item.storageKey));
+      throw error;
+    }
+    return this.findOne(id, userId);
+  }
+
+  async removeAttachment(id: string, attachmentId: string, userId: string) {
+    const attachment = await this.getAttachment(id, attachmentId, userId);
+    await this.prisma.$transaction(async (tx) => {
+      const record = await tx.inspiration.findFirst({
+        where: { id, userId },
+        select: { title: true, description: true, contentText: true, attachments: { select: { id: true } } },
+      });
+      if (!record) throw new NotFoundException('记录不存在');
+      if (record.attachments.length === 1 && !record.title?.trim() && !record.description?.trim() && !record.contentText?.trim()) {
+        throw new BadRequestException('请先填写文字，再移除最后一个附件');
+      }
+      const deleted = await tx.inspirationAttachment.deleteMany({ where: { id: attachmentId, inspirationId: id } });
+      if (!deleted.count) throw new NotFoundException('附件不存在');
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    await this.media.removeMany([attachment.storageKey]);
+    return this.findOne(id, userId);
   }
 
   async transcribeAttachment(id: string, attachmentId: string, userId: string) {

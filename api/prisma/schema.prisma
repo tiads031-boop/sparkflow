@@ -263,6 +263,7 @@ model InspirationAttachment {
   kind          String
   mimeType      String
   originalName  String?
+  caption       String?  @db.Text
   storageKey    String   @unique
   sizeBytes     Int
   transcript    String?  @db.Text

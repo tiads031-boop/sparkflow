@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ChevronDown,
   ChevronUp,
@@ -9,6 +10,7 @@ import {
   Play,
   Sparkles,
   Video,
+  X, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import {
   analyzeInspirationAttachment,
@@ -17,6 +19,7 @@ import {
   transcribeInspirationAttachment,
   type InspirationAttachment,
 } from '../../api/inspirations';
+import { useModalLifecycle } from '../ui/useModalLifecycle';
 
 const MAX_ASR_BYTES = 7 * 1024 * 1024;
 const MAX_MEDIA_AI_BYTES = 12 * 1024 * 1024;
@@ -30,10 +33,12 @@ function AttachmentItem({
   inspirationId,
   attachment,
   variant = 'default',
+  onOpenImage,
 }: {
   inspirationId: string;
   attachment: InspirationAttachment;
   variant?: 'default' | 'card';
+  onOpenImage?: () => void;
 }) {
   const [current, setCurrent] = useState(attachment);
   const [url, setUrl] = useState<string | null>(null);
@@ -145,11 +150,10 @@ function AttachmentItem({
   return (
     <div className={`overflow-hidden rounded-2xl ${variant === 'card' && current.kind === 'image' ? 'bg-[var(--sf-bg)]' : 'border border-[var(--sf-border)] bg-[var(--sf-bg)]'}`}>
       {url && current.kind === 'image' && (
-        <img
-          src={url}
-          alt={current.originalName || '记录图片'}
-          className={variant === 'card' ? 'h-48 w-full object-cover' : 'max-h-80 w-full bg-black/[0.03] object-contain'}
-        />
+        <button type="button" onClick={onOpenImage} aria-label={`查看图片：${current.originalName || '记录图片'}`} className="block w-full">
+          <img src={url} alt={current.originalName || '记录图片'}
+            className={variant === 'card' ? 'h-48 w-full object-cover' : 'max-h-80 w-full bg-black/[0.03] object-contain'} />
+        </button>
       )}
       {url && current.kind === 'video' && (
         <video
@@ -297,18 +301,73 @@ export default function InspirationAttachmentList({
   attachments?: InspirationAttachment[];
   variant?: 'default' | 'card';
 }) {
+  const [selected, setSelected] = useState<number | null>(null);
+  const images = attachments.filter((attachment) => attachment.kind === 'image');
   if (!attachments.length) return null;
 
   return (
-    <div className={`${variant === 'card' ? 'grid gap-2' : 'mt-3 grid gap-2'} sm:grid-cols-2`}>
+    <div className={`${variant === 'card' ? 'grid grid-cols-2 gap-2' : 'mt-3 grid grid-cols-2 gap-2'}`}>
       {attachments.map((attachment) => (
         <AttachmentItem
           key={attachment.id}
           inspirationId={inspirationId}
           attachment={attachment}
           variant={variant}
+          onOpenImage={() => setSelected(images.findIndex((image) => image.id === attachment.id))}
         />
       ))}
+      {selected !== null && images[selected] && createPortal(
+        <ImageViewer key={images[selected].id} inspirationId={inspirationId} images={images} index={selected}
+          onSelect={setSelected} onClose={() => setSelected(null)} />,
+        document.body,
+      )}
     </div>
   );
+}
+
+function ImageViewer({ inspirationId, images, index, onSelect, onClose }: {
+  inspirationId: string;
+  images: InspirationAttachment[];
+  index: number;
+  onSelect: (index: number) => void;
+  onClose: () => void;
+}) {
+  useModalLifecycle(true, onClose, { isolateAppMain: true });
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    void fetchInspirationAttachmentBlob(inspirationId, images[index].id)
+      .then((blob) => { if (active) setUrl(URL.createObjectURL(blob)); })
+      .catch(() => { if (active) setError('图片加载失败'); });
+    return () => { active = false; };
+  }, [inspirationId, images, index]);
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') onSelect((index + images.length - 1) % images.length);
+      if (event.key === 'ArrowRight') onSelect((index + 1) % images.length);
+    };
+    window.addEventListener('keydown', keydown, true);
+    return () => window.removeEventListener('keydown', keydown, true);
+  }, [index, images.length, onSelect]);
+  return <div role="dialog" aria-modal="true" aria-label="浏览记录图片"
+    className="fixed inset-0 z-[150] flex flex-col bg-[#101115] text-white">
+    <header className="flex items-center justify-between px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
+      <button type="button" onClick={onClose} aria-label="返回记录" className="rounded-full bg-white/10 p-3"><X size={18} /></button>
+      <span className="text-sm">{index + 1} / {images.length}</span>
+      <span className="w-10" />
+    </header>
+    <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+      {url ? <img key={images[index].id} src={url} alt={images[index].originalName || '记录图片'} className="max-h-full max-w-full object-contain" /> :
+        <span className="text-sm text-white/70">{error || '正在加载图片…'}</span>}
+      {images.length > 1 && <>
+        <button type="button" aria-label="上一张" onClick={() => onSelect((index + images.length - 1) % images.length)} className="absolute left-2 rounded-full bg-black/50 p-2"><ChevronLeft /></button>
+        <button type="button" aria-label="下一张" onClick={() => onSelect((index + 1) % images.length)} className="absolute right-2 rounded-full bg-black/50 p-2"><ChevronRight /></button>
+      </>}
+    </div>
+    <footer className="max-h-[30dvh] min-h-20 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+20px)] pt-4 text-center text-xs text-white/70">
+      {images[index].caption ? <p className="whitespace-pre-wrap text-sm leading-6 text-white">{images[index].caption}</p> : images[index].originalName}
+    </footer>
+  </div>;
 }
