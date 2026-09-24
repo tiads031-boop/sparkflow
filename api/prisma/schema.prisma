@@ -772,10 +772,26 @@ model CourseNote {
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  images CourseNoteImage[]
 
   @@index([userId])
   @@index([courseId])
   @@map("course_notes")
+}
+
+model CourseNoteImage {
+  id           String   @id @default(uuid())
+  noteId       String
+  mimeType     String
+  originalName String?
+  storageKey   String   @unique
+  sizeBytes    Int
+  createdAt    DateTime @default(now())
+
+  note CourseNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId, createdAt])
+  @@map("course_note_images")
 }
 
 model PushSubscription {

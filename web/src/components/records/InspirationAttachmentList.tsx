@@ -7,7 +7,6 @@ import {
   Image as ImageIcon,
   Loader2,
   Play,
-  ScanText,
   Sparkles,
   Video,
 } from 'lucide-react';
@@ -30,9 +29,11 @@ function formatBytes(bytes: number) {
 function AttachmentItem({
   inspirationId,
   attachment,
+  variant = 'default',
 }: {
   inspirationId: string;
   attachment: InspirationAttachment;
+  variant?: 'default' | 'card';
 }) {
   const [current, setCurrent] = useState(attachment);
   const [url, setUrl] = useState<string | null>(null);
@@ -139,15 +140,15 @@ function AttachmentItem({
       ? '视频'
       : '语音 / 音频';
   const audioTooLarge = current.kind === 'audio' && current.sizeBytes > MAX_ASR_BYTES;
-  const mediaAiTooLarge = current.kind !== 'audio' && current.sizeBytes > MAX_MEDIA_AI_BYTES;
+  const mediaAiTooLarge = current.kind === 'video' && current.sizeBytes > MAX_MEDIA_AI_BYTES;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)]">
+    <div className={`overflow-hidden rounded-2xl ${variant === 'card' && current.kind === 'image' ? 'bg-[var(--sf-bg)]' : 'border border-[var(--sf-border)] bg-[var(--sf-bg)]'}`}>
       {url && current.kind === 'image' && (
         <img
           src={url}
           alt={current.originalName || '记录图片'}
-          className="max-h-80 w-full bg-black/[0.03] object-contain"
+          className={variant === 'card' ? 'h-48 w-full object-cover' : 'max-h-80 w-full bg-black/[0.03] object-contain'}
         />
       )}
       {url && current.kind === 'video' && (
@@ -219,27 +220,6 @@ function AttachmentItem({
         </div>
       )}
 
-      {current.kind === 'image' && (
-        <div className="border-t border-[var(--sf-border)] px-3 py-3">
-          <button
-            type="button"
-            onClick={() => void analyze()}
-            disabled={Boolean(aiAction) || mediaAiTooLarge}
-            className="flex items-center gap-1.5 rounded-full bg-[#f4f2fb] px-3 py-2 text-[10px] font-bold text-[#64598d] disabled:opacity-40"
-          >
-            {aiAction === 'analyze'
-              ? <Loader2 size={12} className="animate-spin" />
-              : <ScanText size={12} />}
-            {current.aiSummary ? '重新分析图片' : 'AI 提取信息'}
-          </button>
-          {mediaAiTooLarge && (
-            <p className="mt-2 text-[9px] leading-4 text-amber-700">
-              当前图片 AI 分析支持不超过 12 MB；附件仍可正常查看和保留。
-            </p>
-          )}
-        </div>
-      )}
-
       {current.kind === 'video' && (
         <div className="border-t border-[var(--sf-border)] px-3 py-3">
           <button
@@ -289,11 +269,11 @@ function AttachmentItem({
         </div>
       )}
 
-      {current.aiSummary && (
+      {current.aiSummary && current.kind !== 'image' && (
         <div className="mx-3 mb-3 rounded-2xl bg-[#f4f2fb] p-3">
           <strong className="flex items-center gap-1.5 text-[10px] text-[#554a7d]">
             <Sparkles size={11} />
-            {current.kind === 'image' ? 'AI 图片信息' : 'AI 摘要'}
+            AI 摘要
           </strong>
           <p className="mt-2 whitespace-pre-wrap text-[10px] leading-5 text-[#6d638e]">
             {current.aiSummary}
@@ -311,19 +291,22 @@ function AttachmentItem({
 export default function InspirationAttachmentList({
   inspirationId,
   attachments = [],
+  variant = 'default',
 }: {
   inspirationId: string;
   attachments?: InspirationAttachment[];
+  variant?: 'default' | 'card';
 }) {
   if (!attachments.length) return null;
 
   return (
-    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+    <div className={`${variant === 'card' ? 'grid gap-2' : 'mt-3 grid gap-2'} sm:grid-cols-2`}>
       {attachments.map((attachment) => (
         <AttachmentItem
           key={attachment.id}
           inspirationId={inspirationId}
           attachment={attachment}
+          variant={variant}
         />
       ))}
     </div>

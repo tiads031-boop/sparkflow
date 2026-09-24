@@ -373,21 +373,9 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     ).rejects.toThrow('请先转写音频，再生成摘要');
   });
 
-  it('explicitly analyzes an owned image and stores only the AI summary', async () => {
+  it('does not analyze images after removing the image AI feature', async () => {
     const media = mediaMock();
-    media.read.mockResolvedValue(Buffer.from('image'));
     const mediaAI = mediaAiMock();
-    const update = jest.fn(({ data }) => ({
-      id: 'attachment-image',
-      inspirationId: 'inspiration-1',
-      kind: 'image',
-      mimeType: 'image/png',
-      originalName: 'whiteboard.png',
-      sizeBytes: 5,
-      transcript: null,
-      aiSummary: data.aiSummary,
-      createdAt: new Date(),
-    }));
     const prisma = {
       inspirationAttachment: {
         findFirst: jest.fn().mockResolvedValue({
@@ -402,30 +390,14 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
             contentText: '会议后记录',
           },
         }),
-        update,
       },
     };
     const service = serviceWith(prisma, media, voiceMock(), aiMock(), mediaAI);
 
-    const result = await service.analyzeAttachment(
-      'inspiration-1',
-      'attachment-image',
-      'user-1',
-    );
-
-    expect(media.read).toHaveBeenCalledWith('inspiration-1/whiteboard.png');
-    expect(mediaAI.analyzeImage).toHaveBeenCalledWith(
-      Buffer.from('image'),
-      'image/png',
-      '白板照片\n会议后记录',
-    );
-    expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'attachment-image' },
-        data: { aiSummary: '图片包含项目排期和三个关键日期。' },
-      }),
-    );
-    expect(result.aiSummary).toBe('图片包含项目排期和三个关键日期。');
+    await expect(service.analyzeAttachment('inspiration-1', 'attachment-image', 'user-1'))
+      .rejects.toThrow('仅支持视频转写与摘要');
+    expect(media.read).not.toHaveBeenCalled();
+    expect(mediaAI.analyzeImage).not.toHaveBeenCalled();
   });
 
   it('explicitly analyzes an owned video and stores transcript plus summary', async () => {
@@ -503,7 +475,7 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
 
     await expect(
       service.analyzeAttachment('inspiration-1', 'attachment-audio', 'user-1'),
-    ).rejects.toThrow('当前附件请使用音频转写/摘要功能');
+    ).rejects.toThrow('仅支持视频转写与摘要');
   });
 
   it('returns an existing capture for the same request id without persisting files again', async () => {

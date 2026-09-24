@@ -6,7 +6,7 @@
  */
 import type { StateCreator } from 'zustand';
 import type { AppState } from './index';
-import type { Course, CourseDetail, CourseFormData } from '../types';
+import type { Course, CourseDetail, CourseFormData, CourseNote } from '../types';
 import {
   fetchCourses,
   fetchCourseDetail,
@@ -38,7 +38,7 @@ export interface CourseSlice {
   loadCourseDetail: (id: string) => Promise<void>;
 
   // ── 笔记操作 ──
-  addNote: (courseId: string, body: string, pinned?: boolean) => Promise<void>;
+  addNote: (courseId: string, body: string, pinned?: boolean) => Promise<CourseNote>;
   editNote: (noteId: string, data: { body?: string; pinned?: boolean }) => Promise<void>;
   removeNote: (noteId: string) => Promise<void>;
 }
@@ -133,6 +133,7 @@ export const createCourseSlice: StateCreator<AppState, [], [], CourseSlice> = (s
         },
       };
     });
+    return note;
   },
 
   editNote: async (noteId, data) => {

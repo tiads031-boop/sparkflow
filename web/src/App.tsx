@@ -97,6 +97,7 @@ export default function App() {
   const [scheduleDraftStart, setScheduleDraftStart] = useState<Date | null>(null);
   const [scheduleDraftEnd, setScheduleDraftEnd] = useState<Date | null>(null);
   const [focusOpen, setFocusOpen] = useState(false);
+  const [todayRecordId, setTodayRecordId] = useState<string | null>(null);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [plannerAutoVoice, setPlannerAutoVoice] = useState(false);
   const [plannerSeed, setPlannerSeed] = useState('');
@@ -401,6 +402,8 @@ export default function App() {
                 onOpenPlan={() => setScheduleSurface('plan')}
                 onOpenActual={() => setScheduleSurface('actual')}
                 onOpenAnalytics={() => setScheduleSurface('analytics')}
+                onRecordClick={(record) => { setTodayRecordId(record.id); setActiveTab('records'); }}
+                onOpenFocus={() => setFocusOpen(true)}
               />
             </Suspense>
           )}
@@ -448,7 +451,7 @@ export default function App() {
           )}
           {activeWorkspace === 'records' && (
             <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开记录空间…</div>}>
-              <RecordsWorkspace sparks={sparks} setSparks={setSparks} onSparkClick={(spark) => handleOpenDetail(spark, 'spark')} onAddClick={() => setCaptureOpen(true)} />
+              <RecordsWorkspace sparks={sparks} setSparks={setSparks} onSparkClick={(spark) => handleOpenDetail(spark, 'spark')} onAddClick={() => setCaptureOpen(true)} initialRecordId={todayRecordId} onRecordConsumed={() => setTodayRecordId(null)} />
             </Suspense>
           )}
           {activeWorkspace === 'study' && (

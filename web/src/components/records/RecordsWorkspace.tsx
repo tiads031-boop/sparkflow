@@ -23,9 +23,11 @@ export interface RecordsWorkspaceProps {
   setSparks: (sparks: Spark[]) => void;
   onSparkClick: (spark: Spark) => void;
   onAddClick: () => void;
+  initialRecordId?: string | null;
+  onRecordConsumed?: () => void;
 }
 
-export default function RecordsWorkspace({ onAddClick }: RecordsWorkspaceProps) {
+export default function RecordsWorkspace({ onAddClick, initialRecordId, onRecordConsumed }: RecordsWorkspaceProps) {
   const loadTasks = useAppStore((state) => state.loadTasks);
   const [panel, setPanel] = useState<RecordPanel>(null);
   const [selectedRecord, setSelectedRecord] = useState<InspirationRecord | null>(null);
@@ -76,6 +78,13 @@ export default function RecordsWorkspace({ onAddClick }: RecordsWorkspaceProps) 
     }, 0);
     return () => window.clearTimeout(timeoutId);
   }, [loadRecords, loadReviews]);
+
+  useEffect(() => {
+    if (!initialRecordId || loading) return;
+    const record = records.find((item) => item.id === initialRecordId);
+    if (record) setSelectedRecord(record);
+    onRecordConsumed?.();
+  }, [initialRecordId, loading, onRecordConsumed, records]);
 
   useEffect(() => {
     const refresh = () => {
