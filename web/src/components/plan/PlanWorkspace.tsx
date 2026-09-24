@@ -288,7 +288,8 @@ export default function PlanWorkspace({
           <section>
             <div className="mb-3 flex items-center justify-between px-1 py-2">
               <div>
-                <h2 className="text-xl font-bold text-[var(--sf-text-primary)]">待办</h2>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--sf-text-tertiary)]">Tasks</p>
+                <h1 className="mt-1 text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">待办</h1>
               </div>
               {quadrantEnabled && <div className="flex rounded-xl bg-[var(--sf-bg)] p-1">
                 <button

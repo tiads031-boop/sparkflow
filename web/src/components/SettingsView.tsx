@@ -1247,10 +1247,10 @@ export default function SettingsView() {
   return (
     <div className="animate-page-enter pb-24">
       <header className="mb-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--sf-text-tertiary)]">SparkFlow</p>
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--sf-text-tertiary)]">SparkFlow</p>
         <div className="mt-1 flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-black text-[var(--sf-text-primary)]">我的</h1>
+            <h1 className="text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">我的</h1>
             <p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">偏好、连接、数据和账户都在这里。</p>
           </div>
           <span className="rounded-full bg-[var(--sf-surface)] px-3 py-1.5 text-[9px] font-bold text-[var(--sf-text-secondary)] shadow-sm">
