@@ -33,7 +33,7 @@ export function PlanTitleBar({
     <div className="flex items-end justify-between gap-3">
       <button type="button" onClick={onToday} className="min-w-0 text-left" title="返回今天">
         <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">{title} · {subtitle}</p>
-        <h1 className="mt-1 text-[26px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">{view === 'timeline' ? '实际时间' : '计划'}</h1>
+        <h1 className="mt-1 text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">{view === 'timeline' ? '实际时间' : '计划'}</h1>
       </button>
       <div className="flex items-center gap-1">
         <button type="button" onClick={onPrevious} className="grid h-9 w-9 place-items-center rounded-full bg-[var(--sf-surface)] text-[var(--sf-text-secondary)] shadow-sm" aria-label="上一时间段"><ChevronLeft size={16} /></button>
