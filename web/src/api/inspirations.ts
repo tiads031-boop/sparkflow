@@ -108,6 +108,15 @@ export function listInspirations() {
   });
 }
 
+export function listInspirationsForDay(start: string, end: string, signal?: AbortSignal) {
+  const query = new URLSearchParams({ from: start, to: end });
+  return api.get<InspirationRecord[]>(`/inspirations?${query.toString()}`, {
+    fallback: [],
+    throwOnError: true,
+    signal,
+  });
+}
+
 export function createInspiration(contentText: string, tags: string[] = []) {
   return api.post<InspirationRecord>('/inspirations', {
     sourceType: 'manual',

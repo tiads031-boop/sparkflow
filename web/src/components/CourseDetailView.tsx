@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
-import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User, Sparkles, Search, Tag, ClipboardCheck, CalendarClock, PlusCircle } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { ArrowLeft, Pin, PinOff, Trash2, Send, MapPin, Clock, User, Sparkles, Search, Tag, ClipboardCheck, CalendarClock, PlusCircle, ImagePlus, X } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import type { CalendarEvent, CourseNote, Task } from '../types';
+import type { CalendarEvent, CourseNote, CourseNoteImage, Task } from '../types';
+import { deleteCourseNoteImage, fetchCourseNoteImage, uploadCourseNoteImages } from '../api/courses';
 import { buildLinkedCourseTask, normalizeLinkedTaskStatus } from '../utils/courseTaskLink';
 import CourseChangeSheet from './CourseChangeSheet';
 
@@ -69,6 +70,13 @@ function parseTagInput(input: string): string[] {
     .filter(Boolean);
 }
 
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif']);
+function validateImages(files: File[], existing = 0) {
+  if (files.length + existing > 4) return '每项课程任务最多添加 4 张图片';
+  if (files.some((file) => !IMAGE_TYPES.has(file.type) || file.size > 10 * 1024 * 1024)) return '仅支持 10 MB 以内的 JPG、PNG、WebP、GIF 或 HEIC 图片';
+  return '';
+}
+
 // ════════════════════════════════════════════════════
 // Week helpers
 // ════════════════════════════════════════════════════
@@ -102,6 +110,10 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
   const [noteText, setNoteText] = useState('');
   const [noteTags, setNoteTags] = useState('');
   const [noteStatus, setNoteStatus] = useState<CourseTaskStatus>('todo');
+  const [noteFiles, setNoteFiles] = useState<File[]>([]);
+  const [noteError, setNoteError] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+  const noteFileInput = useRef<HTMLInputElement>(null);
   const [taskSearch, setTaskSearch] = useState('');
   const [convertingNoteId, setConvertingNoteId] = useState<string | null>(null);
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
@@ -169,15 +181,32 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
 
   const handleAddNote = async () => {
     const text = noteText.trim();
-    if (!text) return;
-    setNoteText('');
-    setNoteTags('');
-    setNoteStatus('todo');
-    await addNote(c.id, serializeCourseTaskBody({
-      body: text,
-      tags: parseTagInput(noteTags),
-      status: noteStatus,
-    }));
+    if (!text || savingNote) return;
+    setSavingNote(true);
+    setNoteError('');
+    let created = false;
+    try {
+      const note = await addNote(c.id, serializeCourseTaskBody({
+        body: text,
+        tags: parseTagInput(noteTags),
+        status: noteStatus,
+      }));
+      created = true;
+      setNoteText('');
+      setNoteTags('');
+      setNoteStatus('todo');
+      if (noteFiles.length) {
+        await uploadCourseNoteImages(note.id, noteFiles);
+        await loadCourseDetail(c.id);
+      }
+      setNoteFiles([]);
+      if (noteFileInput.current) noteFileInput.current.value = '';
+    } catch (error) {
+      setNoteError(`${created ? '任务已创建，' : ''}${error instanceof Error ? error.message : '保存失败'}${created ? '；可在任务卡片中重新添加图片。' : ''}`);
+      if (created) setNoteFiles([]);
+    } finally {
+      setSavingNote(false);
+    }
   };
 
   const handleConvertToTask = async (note: CourseNote, parsed: ParsedCourseTask) => {
@@ -515,12 +544,24 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
             />
             <button
               onClick={handleAddNote}
-              disabled={!noteText.trim()}
+              disabled={!noteText.trim() || savingNote}
               className="w-10 h-10 rounded-full bg-[#242424] text-white flex items-center justify-center disabled:opacity-30 transition-opacity"
               title="添加课程任务"
             >
               <Send size={16} />
             </button>
+          </div>
+          <div>
+            <input ref={noteFileInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif" multiple className="sr-only" aria-label="选择课程任务图片" onChange={(event) => {
+              const next = [...noteFiles, ...Array.from(event.target.files || [])];
+              const validationError = validateImages(next);
+              if (validationError) setNoteError(validationError);
+              else { setNoteFiles(next); setNoteError(''); }
+              event.target.value = '';
+            }} />
+            <button type="button" onClick={() => noteFileInput.current?.click()} className="inline-flex items-center gap-1.5 rounded-full bg-[#eef6dc] px-3 py-2 text-[11px] font-bold text-[#526339]"><ImagePlus size={14} />添加图片{noteFiles.length ? ` · ${noteFiles.length}` : ''}</button>
+            {noteFiles.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{noteFiles.map((file, index) => <span key={`${file.name}-${index}`} className="inline-flex max-w-full items-center gap-1 rounded-full bg-[#f4f4f6] px-2 py-1 text-[10px] text-[#555]"><span className="max-w-32 truncate">{file.name}</span><button type="button" aria-label={`移除 ${file.name}`} onClick={() => setNoteFiles(noteFiles.filter((_, fileIndex) => fileIndex !== index))}><X size={12} /></button></span>)}</div>}
+            {noteError && <p role="alert" className="mt-2 text-[11px] text-red-600">{noteError}</p>}
           </div>
           <div className="flex gap-2">
             <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-full bg-[#f4f4f6]">
@@ -563,6 +604,7 @@ export default function CourseDetailView({ onBack }: CourseDetailViewProps) {
                 onDelete={() => removeNote(note.id)}
                 onConvert={() => handleConvertToTask(note, parsed)}
                 isConverting={convertingNoteId === note.id}
+                onImagesChanged={() => loadCourseDetail(c.id)}
               />
             ))}
           </div>
@@ -584,6 +626,7 @@ function NoteCard({
   onDelete,
   onConvert,
   isConverting,
+  onImagesChanged,
 }: {
   note: CourseNote;
   parsed: ParsedCourseTask;
@@ -592,7 +635,11 @@ function NoteCard({
   onDelete: () => void;
   onConvert: () => void;
   isConverting: boolean;
+  onImagesChanged: () => Promise<void>;
 }) {
+  const imageInput = useRef<HTMLInputElement>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState('');
   const formattedTime = new Date(note.createdAt).toLocaleString('zh-CN', {
     month: 'numeric',
     day: 'numeric',
@@ -632,9 +679,9 @@ function NoteCard({
           </select>
           <button
             onClick={onConvert}
-            disabled={isConverting}
+            disabled={isConverting || Boolean(note.images?.length)}
             className="p-1 rounded-lg text-gray-300 hover:text-[#242424] disabled:opacity-40 transition-colors"
-            title="转化为任务"
+            title={note.images?.length ? '含图片的课程任务暂不支持转换，避免图片丢失' : '转化为任务'}
           >
             <ClipboardCheck size={14} />
           </button>
@@ -656,7 +703,51 @@ function NoteCard({
           </button>
         </div>
       </div>
+      {note.images?.length ? <div className="mt-3 grid grid-cols-2 gap-2">{note.images.map((image) => <CourseTaskImage key={image.id} noteId={note.id} image={image} onRemoved={onImagesChanged} />)}</div> : null}
+      <div className="mt-2">
+        <input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif" multiple className="sr-only" aria-label="为课程任务添加图片" onChange={(event) => {
+          const files = Array.from(event.target.files || []);
+          event.target.value = '';
+          if (!files.length) return;
+          const validationError = validateImages(files, note.images?.length || 0);
+          if (validationError) { setImageError(validationError); return; }
+          setImageBusy(true);
+          setImageError('');
+          void uploadCourseNoteImages(note.id, files).then(onImagesChanged).catch((error: unknown) => setImageError(error instanceof Error ? error.message : '图片上传失败')).finally(() => setImageBusy(false));
+        }} />
+        {(note.images?.length || 0) < 4 && <button type="button" disabled={imageBusy} onClick={() => imageInput.current?.click()} className="inline-flex items-center gap-1 text-[10px] font-bold text-[#736a9a] disabled:opacity-50"><ImagePlus size={13} />{imageBusy ? '上传中…' : '添加图片'}</button>}
+        {imageError && <p role="alert" className="mt-1 text-[10px] text-red-600">{imageError}</p>}
+      </div>
       <p className="text-[10px] text-gray-400 mt-2">{formattedTime}</p>
+    </div>
+  );
+}
+
+function CourseTaskImage({ noteId, image, onRemoved }: { noteId: string; image: CourseNoteImage; onRemoved: () => Promise<void> }) {
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  const [removing, setRemoving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl = '';
+    void fetchCourseNoteImage(noteId, image.id).then((blob) => {
+      objectUrl = URL.createObjectURL(blob);
+      if (cancelled) URL.revokeObjectURL(objectUrl);
+      else setUrl(objectUrl);
+    }).catch(() => { if (!cancelled) setError('图片加载失败'); });
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [image.id, noteId]);
+
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-white">
+      {url ? <a href={url} target="_blank" rel="noreferrer" aria-label={`查看图片 ${image.originalName || ''}`}><img src={url} alt={image.originalName || '课程任务图片'} className="h-28 w-full object-cover" /></a> : <div className="grid h-28 place-items-center text-[10px] text-gray-400">{error || '加载图片…'}</div>}
+      <button type="button" disabled={removing} title="移除图片" aria-label={`移除图片 ${image.originalName || ''}`} onClick={() => {
+        if (!window.confirm('移除这张课程任务图片？')) return;
+        setRemoving(true);
+        void deleteCourseNoteImage(noteId, image.id).then(onRemoved).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : '移除失败')).finally(() => setRemoving(false));
+      }} className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-white/90 text-[#242424] shadow-sm disabled:opacity-50"><X size={14} /></button>
+      {error && url && <p className="px-2 py-1 text-[10px] text-red-600">{error}</p>}
     </div>
   );
 }

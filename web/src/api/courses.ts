@@ -6,7 +6,7 @@
  */
 
 import { apiRequest, DEFAULT_USER_ID } from './client';
-import type { Course, CourseDetail, CourseNote, CourseFormData, CalendarEvent } from '../types';
+import type { Course, CourseDetail, CourseNote, CourseNoteImage, CourseFormData, CalendarEvent } from '../types';
 import type { ScheduleBackup } from '../utils/courseSchedule';
 
 export type CourseImportDuplicatePolicy = 'skip' | 'keep';
@@ -267,6 +267,22 @@ export async function updateCourseNote(
 /** 删除课程任务 */
 export async function deleteCourseNote(noteId: string, userId = DEFAULT_USER_ID): Promise<void> {
   await apiRequest(`${BASE}/notes/${noteId}?userId=${userId}`, { method: 'DELETE' });
+}
+
+export async function uploadCourseNoteImages(noteId: string, files: File[]): Promise<CourseNoteImage[]> {
+  const form = new FormData();
+  files.forEach((file) => form.append('files', file, file.name));
+  const response = await apiRequest(`${BASE}/notes/${encodeURIComponent(noteId)}/images`, { method: 'POST', body: form, timeoutMs: 90_000 });
+  return response.json();
+}
+
+export async function fetchCourseNoteImage(noteId: string, imageId: string): Promise<Blob> {
+  const response = await apiRequest(`${BASE}/notes/${encodeURIComponent(noteId)}/images/${encodeURIComponent(imageId)}/file`, { timeoutMs: 90_000 });
+  return response.blob();
+}
+
+export async function deleteCourseNoteImage(noteId: string, imageId: string): Promise<void> {
+  await apiRequest(`${BASE}/notes/${encodeURIComponent(noteId)}/images/${encodeURIComponent(imageId)}`, { method: 'DELETE' });
 }
 
 // ── 调课（修改单个实例） ──

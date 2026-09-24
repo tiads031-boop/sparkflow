@@ -1,9 +1,10 @@
 import { BarChart3, BrainCircuit, CalendarDays, Clock3, Loader2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAppStore } from '../../store/appStore';
+import type { InspirationRecord } from '../../api/inspirations';
 import type { PlannerPreview, Task } from '../../types';
 import type { PlanItem } from '../plan/planProjection';
-import TodayAgenda from './TodayAgenda';
+import TodayTimeline from './TodayTimeline';
 import TodayMetrics from './TodayMetrics';
 import TodayTimeRail from './TodayTimeRail';
 import { useTodayWorkspaceData } from './useTodayWorkspaceData';
@@ -17,6 +18,8 @@ interface TodayWorkspaceProps {
   onOpenPlan: () => void;
   onOpenActual: () => void;
   onOpenAnalytics: () => void;
+  onRecordClick: (record: InspirationRecord) => void;
+  onOpenFocus: () => void;
 }
 
 export default function TodayWorkspace({
@@ -28,13 +31,15 @@ export default function TodayWorkspace({
   onOpenPlan,
   onOpenActual,
   onOpenAnalytics,
+  onRecordClick,
+  onOpenFocus,
 }: TodayWorkspaceProps) {
   const [date] = useState(() => new Date());
   const activeSessionId = useAppStore((state) => state.pomodoro.activeSessionId);
   const activeTaskId = useAppStore((state) => state.pomodoro.activeTaskId);
   const activeStartedAt = useAppStore((state) => state.pomodoro.startedAt);
   const activeElapsedSeconds = useAppStore((state) => state.pomodoro.effectiveDurationSeconds);
-  const { plannedItems, previewItems, actualEntries, metrics, loading, error } = useTodayWorkspaceData(date, tasks, plannerPreview);
+  const { plannedItems, previewItems, actualEntries, records, metrics, loading, error } = useTodayWorkspaceData(date, tasks, plannerPreview);
   const activeFocus = useMemo(() => {
     if (!activeSessionId || !activeStartedAt) return null;
     return {
@@ -80,7 +85,7 @@ export default function TodayWorkspace({
         <TodayTimeRail date={date} plannedItems={plannedItems} previewItems={previewItems} actualEntries={actualEntries} activeFocus={activeFocus} />
         {error && <div className="rounded-2xl bg-red-50 px-4 py-3 text-xs text-red-700">部分今日数据加载失败：{error}</div>}
         {loading && <div className="flex items-center justify-center gap-2 py-3 text-xs text-[var(--sf-text-tertiary)]"><Loader2 size={14} className="animate-spin" />同步今日数据…</div>}
-        <TodayAgenda items={plannedItems} onItemClick={openItem} />
+        <TodayTimeline items={plannedItems} records={records} actualEntries={actualEntries} activeFocus={activeFocus} onItemClick={openItem} onRecordClick={onRecordClick} onFocusClick={onOpenActual} onRunningFocusClick={onOpenFocus} />
       </div>
     </div>
   );

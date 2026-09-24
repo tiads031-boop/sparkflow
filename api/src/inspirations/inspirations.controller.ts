@@ -44,8 +44,13 @@ export class InspirationsController {
   ) {}
 
   @Get()
-  findAll(@CurrentUserId() userId: string, @Query('status') status?: string) {
-    return this.inspirationsService.findAll(userId, status);
+  findAll(
+    @CurrentUserId() userId: string,
+    @Query('status') status?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.inspirationsService.findAll(userId, status, from, to);
   }
 
   @Get('review/queue')

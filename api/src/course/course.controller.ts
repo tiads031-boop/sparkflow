@@ -1,11 +1,12 @@
-import { BadRequestException, Controller, Get, Post, Patch, Delete, Body, Param, Query, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { BadRequestException, Controller, Get, Post, Patch, Delete, Body, Param, Query, StreamableFile, UseInterceptors, UploadedFile, UploadedFiles } from '@nestjs/common';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { CourseService } from './course.service';
+import { CourseNoteImagesService } from './course-note-images.service';
 import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 
 @Controller('courses')
 export class CourseController {
-  constructor(private readonly courseService: CourseService) {}
+  constructor(private readonly courseService: CourseService, private readonly noteImages: CourseNoteImagesService) {}
 
   @Get('backup')
   exportSchedule(@CurrentUserId() userId: string, @Query('semesterId') semesterId?: string) {
@@ -152,8 +153,11 @@ export class CourseController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string, @CurrentUserId() userId: string) {
-    return this.courseService.remove(id, userId);
+  async remove(@Param('id') id: string, @CurrentUserId() userId: string) {
+    const keys = await this.noteImages.keysForCourse(id, userId);
+    const result = await this.courseService.remove(id, userId);
+    await this.noteImages.removeStored(keys);
+    return result;
   }
 
   // ==================== 课程实例 (CalendarEvent) ====================
@@ -195,7 +199,31 @@ export class CourseController {
   }
 
   @Delete('notes/:noteId')
-  deleteNote(@Param('noteId') noteId: string, @CurrentUserId() userId: string) {
-    return this.courseService.deleteNote(noteId, userId);
+  async deleteNote(@Param('noteId') noteId: string, @CurrentUserId() userId: string) {
+    const keys = await this.noteImages.keysForNote(noteId, userId);
+    const result = await this.courseService.deleteNote(noteId, userId);
+    await this.noteImages.removeStored(keys);
+    return result;
+  }
+
+  @Post('notes/:noteId/images')
+  @UseInterceptors(FilesInterceptor('files', 4, { limits: { files: 4, fileSize: 10 * 1024 * 1024 } }))
+  addNoteImages(@Param('noteId') noteId: string, @CurrentUserId() userId: string, @UploadedFiles() files: Express.Multer.File[]) {
+    return this.noteImages.add(noteId, userId, files || []);
+  }
+
+  @Get('notes/:noteId/images/:imageId/file')
+  async noteImageFile(@Param('noteId') noteId: string, @Param('imageId') imageId: string, @CurrentUserId() userId: string) {
+    const image = await this.noteImages.get(noteId, imageId, userId);
+    return new StreamableFile(this.noteImages.open(image.storageKey), {
+      type: image.mimeType,
+      length: image.sizeBytes,
+      disposition: 'inline',
+    });
+  }
+
+  @Delete('notes/:noteId/images/:imageId')
+  deleteNoteImage(@Param('noteId') noteId: string, @Param('imageId') imageId: string, @CurrentUserId() userId: string) {
+    return this.noteImages.remove(noteId, imageId, userId);
   }
 }

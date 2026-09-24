@@ -128,9 +128,14 @@ export class InspirationsService {
     private readonly mediaAI: MediaUnderstandingService,
   ) {}
 
-  findAll(userId: string, status?: string) {
+  findAll(userId: string, status?: string, from?: string, to?: string) {
+    const start = from ? new Date(from) : undefined;
+    const end = to ? new Date(to) : undefined;
+    if ((start && Number.isNaN(start.getTime())) || (end && Number.isNaN(end.getTime())) || (start && end && start >= end)) {
+      throw new BadRequestException('记录日期范围无效');
+    }
     return this.prisma.inspiration.findMany({
-      where: { userId, ...(status && { status }) },
+      where: { userId, ...(status && { status }), ...((start || end) && { createdAt: { ...(start && { gte: start }), ...(end && { lt: end }) } }) },
       include: {
         _count: { select: { reflections: true } },
         task: { select: { id: true, title: true, status: true } },
@@ -404,8 +409,8 @@ export class InspirationsService {
       },
     });
     if (!attachment) throw new NotFoundException('Attachment not found');
-    if (!['image', 'video'].includes(attachment.kind)) {
-      throw new BadRequestException('当前附件请使用音频转写/摘要功能');
+    if (attachment.kind !== 'video') {
+      throw new BadRequestException('仅支持视频转写与摘要');
     }
 
     const context = [
@@ -418,21 +423,6 @@ export class InspirationsService {
     const buffer = await this.media.read(attachment.storageKey);
 
     try {
-      if (attachment.kind === 'image') {
-        const result = await this.mediaAI.analyzeImage(
-          buffer,
-          attachment.mimeType,
-          context,
-        );
-        return this.prisma.inspirationAttachment.update({
-          where: { id: attachment.id },
-          data: {
-            aiSummary: result.summary,
-          },
-          select: attachmentList.select,
-        });
-      }
-
       const result = await this.mediaAI.analyzeVideo(
         buffer,
         attachment.mimeType,

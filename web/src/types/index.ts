@@ -228,6 +228,16 @@ export interface CourseNote {
   pinned: boolean;
   createdAt: string;
   updatedAt: string;
+  images?: CourseNoteImage[];
+}
+
+export interface CourseNoteImage {
+  id: string;
+  noteId: string;
+  mimeType: string;
+  originalName?: string | null;
+  sizeBytes: number;
+  createdAt: string;
 }
 
 export interface CourseFormData {

@@ -45,6 +45,11 @@ interface NoteData {
   pinned?: boolean;
 }
 
+const courseNoteImages = {
+  orderBy: { createdAt: 'asc' as const },
+  select: { id: true, noteId: true, mimeType: true, originalName: true, sizeBytes: true, createdAt: true },
+};
+
 type CourseChangeRequest =
   | {
       type: 'reschedule';
@@ -548,7 +553,7 @@ export class CourseService {
       include: {
         events: { orderBy: { startTime: 'asc' } },
         tasks: { orderBy: { createdAt: 'desc' } },
-        notes: { orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }] },
+        notes: { orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }], include: { images: courseNoteImages } },
       },
     });
     if (!course) throw new NotFoundException('Course not found');
@@ -1604,19 +1609,20 @@ export class CourseService {
     return this.prisma.courseNote.findMany({
       where: { courseId, userId },
       orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }],
+      include: { images: courseNoteImages },
     });
   }
 
   async createNote(data: NoteData) {
     const course = await this.prisma.course.findFirst({ where: { id: data.courseId, userId: data.userId }, select: { id: true } });
     if (!course) throw new NotFoundException('Course not found');
-    return this.prisma.courseNote.create({ data });
+    return this.prisma.courseNote.create({ data, include: { images: courseNoteImages } });
   }
 
   async updateNote(id: string, userId: string, data: { body?: string; pinned?: boolean }) {
     const note = await this.prisma.courseNote.findFirst({ where: { id, userId } });
     if (!note) throw new NotFoundException('Course task not found');
-    return this.prisma.courseNote.update({ where: { id, userId }, data });
+    return this.prisma.courseNote.update({ where: { id, userId }, data, include: { images: courseNoteImages } });
   }
 
   async deleteNote(id: string, userId: string) {
