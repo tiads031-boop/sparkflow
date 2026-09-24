@@ -55,6 +55,12 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function ImagePreview({ file }: { file: File }) {
+  const [url] = useState(() => URL.createObjectURL(file));
+  useEffect(() => () => URL.revokeObjectURL(url), [url]);
+  return <img src={url} alt={file.name} className="h-14 w-14 shrink-0 rounded-xl object-cover" />;
+}
+
 export default function InspirationCaptureSheet({
   open,
   onClose,
@@ -433,9 +439,8 @@ export default function InspirationCaptureSheet({
                     key={`${file.name}-${file.lastModified}-${index}`}
                     className="flex items-center gap-3 rounded-2xl border border-[var(--sf-border)] px-3 py-2.5"
                   >
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--sf-bg)]">
-                      <Icon size={15} />
-                    </div>
+                    {kind === 'image' ? <ImagePreview file={file} /> :
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--sf-bg)]"><Icon size={15} /></div>}
                     <div className="min-w-0 flex-1">
                       <strong className="block truncate text-xs text-[var(--sf-text-primary)]">
                         {kind === 'image' ? '图片' : kind === 'video' ? '视频' : '语音 / 音频'}

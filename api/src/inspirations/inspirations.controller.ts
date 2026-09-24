@@ -19,6 +19,7 @@ import {
   InspirationMediaService,
   MAX_INSPIRATION_ATTACHMENTS,
   MAX_INSPIRATION_FILE_BYTES,
+  MAX_INSPIRATION_TOTAL_BYTES,
 } from './inspiration-media.service';
 
 function parseCaptureTags(raw?: string) {
@@ -171,6 +172,37 @@ export class InspirationsController {
       length: attachment.sizeBytes,
       disposition: 'inline',
     });
+  }
+
+  @Post(':id/attachments')
+  @UseInterceptors(FilesInterceptor('files', MAX_INSPIRATION_ATTACHMENTS, {
+    limits: { fileSize: MAX_INSPIRATION_FILE_BYTES, files: MAX_INSPIRATION_ATTACHMENTS, fieldSize: MAX_INSPIRATION_TOTAL_BYTES },
+  }))
+  addAttachments(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.inspirationsService.addAttachments(id, userId, files || []);
+  }
+
+  @Delete(':id/attachments/:attachmentId')
+  removeAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUserId() userId: string,
+  ) {
+    return this.inspirationsService.removeAttachment(id, attachmentId, userId);
+  }
+
+  @Patch(':id/attachments/:attachmentId')
+  updateAttachmentCaption(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUserId() userId: string,
+    @Body('caption') caption: string,
+  ) {
+    return this.inspirationsService.updateAttachmentCaption(id, attachmentId, userId, caption);
   }
 
   @Post(':id/attachments/:attachmentId/transcribe')

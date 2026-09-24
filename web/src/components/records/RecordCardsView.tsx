@@ -23,7 +23,8 @@ export default function RecordCardsView({ records, loading, onOpen, onRefresh }:
               <time dateTime={record.createdAt} className="text-[10px] font-bold tracking-wide text-[var(--sf-text-tertiary)]">{new Date(record.createdAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</time>
               <span className="rounded-full bg-[var(--sf-bg)] px-2.5 py-1 text-[10px] font-semibold text-[var(--sf-text-secondary)]">{recordSourceLabel(record)}</span>
             </div>
-            {record.contentText || record.description || record.title || !record.attachments?.some((attachment) => attachment.kind === 'image') ? <p className="mt-3 whitespace-pre-wrap break-words text-[15px] font-bold leading-6 text-[var(--sf-text-primary)]">{recordText(record)}</p> : null}
+            {record.title && <h3 className="mt-3 break-words text-base font-black text-[var(--sf-text-primary)]">{record.title}</h3>}
+            {record.contentText || record.description || (!record.title && !record.attachments?.some((attachment) => attachment.kind === 'image')) ? <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--sf-text-secondary)]">{record.contentText || record.description || recordText(record)}</p> : null}
             {record.attachments?.length ? <div className="mt-3"><InspirationAttachmentList inspirationId={record.id} attachments={record.attachments} variant="card" /></div> : null}
             {record.tags?.length > 0 ? <div className="mt-3 flex flex-wrap gap-1.5">{record.tags.map((tag) => <span key={tag} className="rounded-full bg-[#eef3e7] px-2.5 py-1 text-[10px] font-semibold text-[#536a42]">#{tag}</span>)}</div> : null}
             <div className="mt-4 flex items-center justify-between gap-3 border-t border-[var(--sf-divider)] pt-3">

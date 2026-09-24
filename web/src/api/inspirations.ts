@@ -6,6 +6,7 @@ export interface InspirationAttachment {
   kind: 'image' | 'audio' | 'video';
   mimeType: string;
   originalName?: string | null;
+  caption?: string | null;
   sizeBytes: number;
   transcript?: string | null;
   aiSummary?: string | null;
@@ -155,6 +156,28 @@ export async function fetchInspirationAttachmentBlob(
     { timeoutMs: 90_000 },
   );
   return response.blob();
+}
+
+export function addInspirationAttachments(id: string, files: File[]) {
+  const form = new FormData();
+  files.forEach((file) => form.append('files', file, file.name));
+  return api.post<InspirationRecord>(`/inspirations/${encodeURIComponent(id)}/attachments`, form, {
+    throwOnError: true, timeoutMs: 90_000,
+  });
+}
+
+export function deleteInspirationAttachment(id: string, attachmentId: string) {
+  return api.delete<InspirationRecord>(
+    `/inspirations/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentId)}`,
+    { throwOnError: true },
+  );
+}
+
+export function updateInspirationAttachmentCaption(id: string, attachmentId: string, caption: string) {
+  return patchJson<InspirationAttachment>(
+    `/inspirations/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentId)}`,
+    { caption },
+  );
 }
 
 export function transcribeInspirationAttachment(

@@ -55,6 +55,48 @@ function serviceWith(
 }
 
 describe('InspirationsService Phase 15 M1 + M8', () => {
+  it('rejects adding attachments beyond the six-file record limit before storing files', async () => {
+    const media = mediaMock();
+    const prisma = { inspiration: { findFirst: jest.fn().mockResolvedValue({
+      id: 'record-1', attachments: Array.from({ length: 6 }, () => ({ sizeBytes: 1 })),
+    }) } };
+    const service = serviceWith(prisma, media);
+    await expect(service.addAttachments('record-1', 'user-1', [{
+      buffer: Buffer.from('image'), size: 5, mimetype: 'image/png', originalname: 'photo.png',
+    } as Express.Multer.File])).rejects.toThrow('附件最多 6 个');
+    expect(media.persist).not.toHaveBeenCalled();
+  });
+
+  it('keeps the only attachment when a record has no other content', async () => {
+    const media = mediaMock();
+    const prisma = {
+      inspirationAttachment: { findFirst: jest.fn().mockResolvedValue({ id: 'photo-1', storageKey: 'record-1/photo.png' }) },
+      inspiration: { findFirst: jest.fn().mockResolvedValue({
+        contentText: null, title: null, description: null, attachments: [{ id: 'photo-1' }],
+      }) },
+      $transaction: jest.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma)),
+    };
+    const service = serviceWith(prisma, media);
+    await expect(service.removeAttachment('record-1', 'photo-1', 'user-1'))
+      .rejects.toThrow('请先填写文字');
+    expect(media.removeMany).not.toHaveBeenCalled();
+  });
+
+  it('only saves a photo story after the attachment ownership lookup', async () => {
+    const prisma = {
+      inspirationAttachment: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
+      },
+    };
+    const service = serviceWith(prisma);
+    await expect(service.updateAttachmentCaption('record-1', 'photo-1', 'other-user', 'A day out'))
+      .rejects.toThrow('Attachment not found');
+    expect(prisma.inspirationAttachment.findFirst).toHaveBeenCalledWith({
+      where: { id: 'photo-1', inspirationId: 'record-1', inspiration: { userId: 'other-user' } },
+    });
+    expect(prisma.inspirationAttachment.update).not.toHaveBeenCalled();
+  });
   it('creates a manual record with a next-day review candidate', async () => {
     const create = jest.fn(({ data }) => data);
     const prisma = { inspiration: { create } };
