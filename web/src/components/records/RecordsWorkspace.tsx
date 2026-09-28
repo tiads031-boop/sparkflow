@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import './records.css';
 import type { Spark } from '../../store/appStore';
 import { useAppStore } from '../../store/appStore';
 import {
@@ -27,7 +27,7 @@ export interface RecordsWorkspaceProps {
   onRecordConsumed?: () => void;
 }
 
-export default function RecordsWorkspace({ onAddClick, initialRecordId, onRecordConsumed }: RecordsWorkspaceProps) {
+export default function RecordsWorkspace({ initialRecordId, onRecordConsumed }: RecordsWorkspaceProps) {
   const loadTasks = useAppStore((state) => state.loadTasks);
   const [panel, setPanel] = useState<RecordPanel>(null);
   const [selectedRecord, setSelectedRecord] = useState<InspirationRecord | null>(null);
@@ -82,8 +82,11 @@ export default function RecordsWorkspace({ onAddClick, initialRecordId, onRecord
   useEffect(() => {
     if (!initialRecordId || loading) return;
     const record = records.find((item) => item.id === initialRecordId);
-    if (record) setSelectedRecord(record);
-    onRecordConsumed?.();
+    const timeoutId = window.setTimeout(() => {
+      if (record) setSelectedRecord(record);
+      onRecordConsumed?.();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, [initialRecordId, loading, onRecordConsumed, records]);
 
   useEffect(() => {
@@ -165,7 +168,6 @@ export default function RecordsWorkspace({ onAddClick, initialRecordId, onRecord
     <div className="animate-page-enter space-y-4 pb-6">
       <header className="flex items-end justify-between gap-3">
         <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--sf-text-tertiary)]">Records</p><h1 className="mt-1 text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">记录</h1><p className="mt-1 text-xs text-[var(--sf-text-tertiary)]">随手记下来，之后再想清楚。</p></div>
-        <button type="button" onClick={onAddClick} className="flex items-center gap-1 rounded-full bg-[var(--sf-graphite)] px-3 py-2 text-xs font-black text-[#cae393]"><Plus size={13} />记录</button>
       </header>
 
       <RecordToolbar

@@ -119,6 +119,7 @@ const reviewInspirationInclude = {
   reflections: { orderBy: { createdAt: 'desc' as const } },
   task: { select: { id: true, title: true, status: true } },
   attachments: attachmentList,
+  focusSession: { select: { effectiveDurationSeconds: true } },
 };
 
 @Injectable()
@@ -143,6 +144,7 @@ export class InspirationsService {
         _count: { select: { reflections: true } },
         task: { select: { id: true, title: true, status: true } },
         attachments: attachmentList,
+        focusSession: { select: { effectiveDurationSeconds: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -226,6 +228,7 @@ export class InspirationsService {
         reflections: { orderBy: { createdAt: 'desc' } },
         task: { select: { id: true, title: true, status: true } },
         attachments: attachmentList,
+        focusSession: { select: { effectiveDurationSeconds: true } },
       },
     });
   }
@@ -276,6 +279,7 @@ export class InspirationsService {
     requestId?: string,
     timeZone?: string,
     focusSessionId?: string,
+    title?: string,
   ) {
     const normalizedRequestId = requestId?.trim() || undefined;
     if (normalizedRequestId) {
@@ -291,7 +295,8 @@ export class InspirationsService {
     }
 
     const normalizedText = contentText?.trim() || '';
-    if (!normalizedText && !files.length) {
+    const normalizedTitle = title?.trim() || '';
+    if (!normalizedTitle && !normalizedText && !files.length) {
       throw new BadRequestException('请填写文字或添加至少一个附件');
     }
 
@@ -321,6 +326,7 @@ export class InspirationsService {
           userId,
           sourceType: normalizedFocusSessionId ? 'focus' : 'manual',
           focusSessionId: normalizedFocusSessionId || null,
+          title: normalizedTitle || null,
           contentText: normalizedText || null,
           tags,
           captureRequestId: normalizedRequestId,
