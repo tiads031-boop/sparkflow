@@ -550,6 +550,14 @@ describe('InspirationsService Phase 15 M1 + M8', () => {
     expect(prisma.inspiration.create).not.toHaveBeenCalled();
   });
 
+  it('saves a titled note even when its body is empty', async () => {
+    const create = jest.fn(({ data }) => ({ ...data, id: 'titled-note' }));
+    const service = serviceWith({ inspiration: { create } });
+    const result = await service.createCapture('user-1', '', [], [], undefined, 'Asia/Shanghai', undefined, '备考随记');
+    expect(result).toEqual(expect.objectContaining({ title: '备考随记', contentText: null }));
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   it('links a capture to an owned completed focus session', async () => {
     const prisma = {
       inspiration: {

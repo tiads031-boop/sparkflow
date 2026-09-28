@@ -1,6 +1,8 @@
 export interface CaptureDraft {
   userId: string;
   text: string;
+  title?: string;
+  tags?: string[];
   files: File[];
   requestId: string;
   updatedAt: string;

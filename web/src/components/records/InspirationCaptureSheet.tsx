@@ -6,8 +6,8 @@ import {
   Loader2,
   Mic,
   Paperclip,
+  ChevronLeft, ChevronRight, Check, Tag,
   Square,
-  Trash2,
   Video,
   X,
 } from 'lucide-react';
@@ -19,6 +19,7 @@ import { useModalLifecycle } from '../ui/useModalLifecycle';
 import { useAppStore } from '../../store/appStore';
 import { deleteCaptureDraft, readCaptureDraft, writeCaptureDraft } from '../../utils/captureDraft';
 import TagSelector from '../tags/TagSelector';
+import './records.css';
 
 const MAX_FILES = 6;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -75,6 +76,9 @@ export default function InspirationCaptureSheet({
   allowMedia?: boolean;
 }) {
   const [text, setText] = useState('');
+  const [title, setTitle] = useState('');
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [tagOpen, setTagOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -101,20 +105,22 @@ export default function InspirationCaptureSheet({
   useEffect(() => {
     if (!open || !draftReady || !currentUserId || focusSessionId) return;
     const timer = window.setTimeout(() => {
-      if (!text.trim() && files.length === 0) {
+      if (!title.trim() && !text.trim() && files.length === 0) {
         void deleteCaptureDraft(currentUserId);
         return;
       }
       void writeCaptureDraft({
         userId: currentUserId,
         text,
+        title,
+        tags,
         files,
         requestId: captureRequestIdRef.current,
         updatedAt: new Date().toISOString(),
       });
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [open, draftReady, currentUserId, focusSessionId, text, files]);
+  }, [open, draftReady, currentUserId, focusSessionId, text, title, tags, files]);
 
   const microphoneSupported = typeof window !== 'undefined'
     && typeof MediaRecorder !== 'undefined'
@@ -124,6 +130,8 @@ export default function InspirationCaptureSheet({
     if (!saving && !recording) onClose();
   };
   useModalLifecycle(open, requestClose, { isolateAppMain: true });
+  useModalLifecycle(mediaOpen, () => setMediaOpen(false));
+  useModalLifecycle(tagOpen, () => setTagOpen(false));
 
   const releaseRecordingResources = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -154,6 +162,9 @@ export default function InspirationCaptureSheet({
         setRecording(false);
         setRecordingSeconds(0);
         setSaving(false);
+        setTitle('');
+        setMediaOpen(false);
+        setTagOpen(false);
         setError(null);
         setDraftReady(false);
         return;
@@ -167,10 +178,13 @@ export default function InspirationCaptureSheet({
           if (cancelled) return;
           if (draft) {
             setText(draft.text);
+            setTitle(draft.title || '');
+            setTags(draft.tags || []);
             setFiles(draft.files || []);
             captureRequestIdRef.current = draft.requestId || crypto.randomUUID();
           } else {
             setText('');
+            setTitle('');
             setFiles([]);
             setTags([]);
             captureRequestIdRef.current = crypto.randomUUID();
@@ -182,7 +196,7 @@ export default function InspirationCaptureSheet({
           captureRequestIdRef.current = crypto.randomUUID();
         }
         setDraftReady(true);
-        window.setTimeout(() => textareaRef.current?.focus(), 30);
+
       })();
     }, 0);
 
@@ -303,7 +317,7 @@ export default function InspirationCaptureSheet({
   };
 
   const save = async () => {
-    if (saving || (!text.trim() && (!allowMedia || files.length === 0))) return;
+    if (saving || (!title.trim() && !text.trim() && (!allowMedia || files.length === 0))) return;
     setSaving(true);
     setError(null);
     try {
@@ -311,11 +325,13 @@ export default function InspirationCaptureSheet({
         requestId: captureRequestIdRef.current,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
         focusSessionId,
+        title,
       });
       window.dispatchEvent(new CustomEvent('sparkflow:records-changed'));
       await onSaved?.(record);
       if (currentUserId && !focusSessionId) await deleteCaptureDraft(currentUserId);
       setText('');
+      setTitle('');
       setFiles([]);
       setTags([]);
       captureRequestIdRef.current = crypto.randomUUID();
@@ -327,166 +343,97 @@ export default function InspirationCaptureSheet({
     }
   };
 
+  const chooseFile = (accept: string) => {
+    setMediaOpen(false);
+    if (!fileInputRef.current) return;
+    fileInputRef.current.accept = accept;
+    fileInputRef.current.click();
+  };
+  const insertChecklist = () => {
+    const area = textareaRef.current;
+    if (!area) return;
+    const start = area.selectionStart;
+    const line = text.lastIndexOf('\n', start - 1) + 1;
+    const prefix = text.slice(line, line + 2);
+    const remove = prefix === '◯ ' || prefix === '☐ ';
+    setText((value) => value.slice(0, line) + (remove ? '' : '◯ ') + value.slice(line + (remove ? 2 : 0)));
+    window.requestAnimationFrame(() => {
+      area.focus();
+      area.setSelectionRange(Math.max(line, start + (remove ? -2 : 2)), Math.max(line, start + (remove ? -2 : 2)));
+    });
+  };
+  const handleChecklistEnter = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== 'Enter') return;
+    const area = event.currentTarget;
+    const start = area.selectionStart;
+    const line = text.lastIndexOf('\n', start - 1) + 1;
+    const before = text.slice(line, start);
+    if (!before.startsWith('◯ ')) return;
+    event.preventDefault();
+    if (before.trim() === '◯') {
+      setText((value) => value.slice(0, line) + value.slice(start));
+      window.requestAnimationFrame(() => area.setSelectionRange(line, line));
+    } else {
+      setText((value) => value.slice(0, start) + '\n◯ ' + value.slice(area.selectionEnd));
+      window.requestAnimationFrame(() => area.setSelectionRange(start + 3, start + 3));
+    }
+  };
+
   if (!open) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[115] flex items-end justify-center bg-black/30"
-      role="presentation"
-      onClick={requestClose}
-    >
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-label={focusSessionId ? '专注记录' : '多模态随手记'}
-        className="flex max-h-[min(92dvh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-t-[2rem] bg-[var(--sf-surface)] shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-[var(--sf-border)]" aria-hidden="true" />
-        <header className="flex shrink-0 items-start justify-between gap-3 px-5 pb-4 pt-3">
-          <div>
-            <p className="mb-1 text-[9px] font-black uppercase tracking-[0.18em] text-[var(--sf-accent)]">
-              {focusSessionId ? 'Focus note' : 'Capture'}
-            </p>
-            <h2 className="text-base font-black text-[var(--sf-text-primary)]">
-              {focusSessionId ? '记录这次专注' : '随手记'}
-            </h2>
-            <p className="mt-1 text-xs leading-5 text-[var(--sf-text-tertiary)]">
-              {focusSessionId
-                ? '文字、语音、图片或视频，会和这次专注放在一起。'
-                : '文字、语音、图片、视频，留下一种就可以。'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={requestClose}
-            disabled={saving || recording}
-            className="grid h-9 w-9 place-items-center rounded-full bg-[var(--sf-bg)] disabled:opacity-40"
-            aria-label="关闭"
-          >
-            <X size={16} />
-          </button>
+    <div className="sf-note-backdrop" role="presentation" onClick={requestClose}>
+      <section role="dialog" aria-modal="true" aria-label={focusSessionId ? '专注记录' : '随手记'}
+        className="sf-note-editor" onClick={(event) => event.stopPropagation()}>
+        <header className="sf-note-header">
+          <button type="button" className="sf-note-back" onClick={requestClose} disabled={saving || recording} aria-label="返回记录"><ChevronLeft size={25} /></button>
+          <div><span>SPARKFLOW · 记录</span><button type="button" className="sf-note-done" onClick={() => void save()} disabled={!draftReady || saving || recording || (!title.trim() && !text.trim() && (!allowMedia || files.length === 0))}>{saving ? '保存中…' : '完成'}</button></div>
         </header>
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5">
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(event) => setText(event.target.value)}
-            placeholder={focusSessionId ? '这次专注里，有什么值得留下？' : '现在想到什么，就先留下来……'}
-            className="min-h-32 w-full resize-none rounded-2xl border border-[var(--sf-border)] bg-[var(--sf-bg)] px-4 py-3 text-sm leading-6 outline-none focus:border-[var(--sf-text-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--sf-accent)_28%,transparent)]"
-          />
-
-          <div className="mt-3 rounded-2xl border border-[var(--sf-border)] p-3">
-            <TagSelector value={tags} onChange={setTags} compact />
-          </div>
-
-          {allowMedia ? <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*,audio/*"
-            multiple
-            className="hidden"
-            onChange={(event) => {
-              addFiles(Array.from(event.target.files || []));
-              event.target.value = '';
-            }}
-          /> : null}
-
-          {allowMedia ? <div className="mt-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={saving || recording || files.length >= MAX_FILES}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--sf-bg)] px-3 py-3 text-xs font-bold text-[var(--sf-text-secondary)] disabled:opacity-40"
-            >
-              <Paperclip size={14} /> 图片 / 视频
-            </button>
-
-            {recording ? (
-              <button
-                type="button"
-                onClick={stopRecording}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-red-50 px-3 py-3 text-xs font-bold text-red-700"
-              >
-                <Square size={12} fill="currentColor" />
-                完成录音 {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, '0')}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => void startRecording()}
-                disabled={saving || !microphoneSupported || files.length >= MAX_FILES}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--sf-bg)] px-3 py-3 text-xs font-bold text-[var(--sf-text-secondary)] disabled:opacity-40"
-                title={microphoneSupported ? '录制语音' : '当前环境不支持录音'}
-              >
-                <Mic size={14} /> 录一段语音
-              </button>
-            )}
-          </div> : <p className="mt-3 text-xs text-[var(--sf-text-secondary)]">当前设置仅保存文字与标签。</p>}
-
-          {allowMedia && files.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {files.map((file, index) => {
-                const kind = fileKind(file);
-                const Icon = kind === 'image'
-                  ? ImageIcon
-                  : kind === 'video'
-                    ? Video
-                    : FileAudio;
-                return (
-                  <div
-                    key={`${file.name}-${file.lastModified}-${index}`}
-                    className="flex items-center gap-3 rounded-2xl border border-[var(--sf-border)] px-3 py-2.5"
-                  >
-                    {kind === 'image' ? <ImagePreview file={file} /> :
-                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--sf-bg)]"><Icon size={15} /></div>}
-                    <div className="min-w-0 flex-1">
-                      <strong className="block truncate text-xs text-[var(--sf-text-primary)]">
-                        {kind === 'image' ? '图片' : kind === 'video' ? '视频' : '语音 / 音频'}
-                      </strong>
-                      <span className="mt-0.5 block truncate text-[10px] text-[var(--sf-text-tertiary)]">
-                        {file.name} · {formatBytes(file.size)}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                      disabled={saving || recording}
-                      className="grid h-8 w-8 place-items-center rounded-full bg-[var(--sf-bg)] text-[var(--sf-text-tertiary)] disabled:opacity-40"
-                      aria-label="移除附件"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                );
-              })}
-              <p className="text-right text-[9px] text-[var(--sf-text-tertiary)]">
-                {files.length}/{MAX_FILES} 个附件 · {formatBytes(totalBytes)}
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">
-              {error}
-            </p>
-          )}
+        <div className="sf-note-paper">
+          <p className="sf-note-kicker"><span /> {focusSessionId ? '专注记录' : '随手记'} · {new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+          <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="写下标题" className="sf-note-title-input" aria-label="记录标题" maxLength={200} />
+          <p className="sf-note-subtitle">{focusSessionId ? '这次专注里，有什么值得留下？' : '写下此刻的想法，稍后再来回看'}</p>
+          <div className="sf-note-rule" />
+          <textarea ref={textareaRef} value={text} onChange={(event) => setText(event.target.value)} onKeyDown={handleChecklistEnter}
+            placeholder="从这里开始记录……" className="sf-note-body-input" aria-label="记录正文" />
+          {tags.length > 0 && <div className="sf-note-tags">{tags.map((tag) => <button key={tag} type="button" onClick={() => setTagOpen(true)}>#{tag}</button>)}</div>}
+          {allowMedia && files.length > 0 && <div className="sf-note-uploads">
+            {files.map((file, index) => {
+              const kind = fileKind(file);
+              const Icon = kind === 'image' ? ImageIcon : kind === 'video' ? Video : FileAudio;
+              return <div key={`${file.name}-${file.lastModified}-${index}`} className="sf-note-upload">
+                {kind === 'image' ? <ImagePreview file={file} /> : <span className="sf-note-upload-icon"><Icon size={18} /></span>}
+                <span><strong>{kind === 'image' ? '照片' : kind === 'video' ? '视频' : '音频'}</strong><small>{file.name} · {formatBytes(file.size)}</small></span>
+                <button type="button" onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={saving || recording} aria-label={`移除 ${file.name}`}><X size={15} /></button>
+              </div>;
+            })}
+            <small>{files.length}/{MAX_FILES} 个附件 · {formatBytes(totalBytes)}</small>
+          </div>}
+          {error && <p className="sf-note-error" role="alert">{error}</p>}
         </div>
-
-        <footer className="shrink-0 border-t border-[var(--sf-divider)] bg-[var(--sf-surface)] px-5 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-3">
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={!draftReady || saving || recording || (!text.trim() && (!allowMedia || files.length === 0))}
-            className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--sf-text-primary)] py-3 text-sm font-black text-[var(--sf-surface)] shadow-[0_10px_28px_rgba(18,18,22,0.14)] disabled:opacity-40"
-          >
-            {saving && <Loader2 size={15} className="animate-spin" />}
-            {saving ? '正在保存附件…' : focusSessionId ? '保存专注记录' : '保存记录'}
+        {allowMedia && <input ref={fileInputRef} type="file" accept="image/*,video/*,audio/*" multiple hidden onChange={(event) => { addFiles(Array.from(event.target.files || [])); event.target.value = ''; }} />}
+        <footer className="sf-note-footer">
+          <div role="toolbar" aria-label="记录工具" className="sf-note-tools">
+            <button type="button" onClick={insertChecklist} aria-label="插入圆形清单" title="清单"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="5.5" cy="6" r="2.7" fill="#d9efa9"/><path d="m4.5 6 .8.8 1.3-1.5M11 6h9"/><circle cx="5.5" cy="18" r="2.7"/><path d="M11 18h9"/></svg></button>
+            {allowMedia && <button type="button" onClick={() => setMediaOpen(true)} disabled={saving || files.length >= MAX_FILES} aria-label="添加图片、视频或音频" title="添加附件"><Paperclip size={22} strokeWidth={1.8} /></button>}
+            <button type="button" onClick={() => setTagOpen(true)} aria-label="选择或创建标签" title="标签"><Tag size={21} strokeWidth={1.8} /></button>
+          </div>
+          <button type="button" className="sf-note-save" onClick={() => void save()} disabled={!draftReady || saving || recording || (!title.trim() && !text.trim() && (!allowMedia || files.length === 0))} aria-label="保存记录">
+            {saving ? <Loader2 size={21} className="animate-spin" /> : <Check size={23} />}
           </button>
         </footer>
+        {mediaOpen && <div className="sf-note-overlay" role="presentation"><button type="button" className="sf-note-overlay-dim" onClick={() => setMediaOpen(false)} aria-label="关闭附件选择" /><div role="dialog" aria-modal="true" aria-label="添加内容" className="sf-note-pick-sheet">
+          <div className="sf-note-handle" /><header><div><strong>添加内容</strong><small>为这条记录留下一点细节</small></div><button type="button" onClick={() => setMediaOpen(false)} aria-label="关闭附件选择"><X size={16} /></button></header>
+          <div className="sf-note-pick-options">
+            <button type="button" onClick={() => chooseFile('image/*')}><span className="sf-pick-icon sf-pick-photo"><ImageIcon size={20} /></span><span><strong>照片</strong><small>让这一刻看得见</small></span><ChevronRight size={17} /></button>
+            <button type="button" onClick={() => chooseFile('video/*')}><span className="sf-pick-icon sf-pick-video"><Video size={20} /></span><span><strong>视频</strong><small>记录正在发生的画面</small></span><ChevronRight size={17} /></button>
+            <button type="button" onClick={() => chooseFile('audio/*')}><span className="sf-pick-icon sf-pick-audio"><FileAudio size={20} /></span><span><strong>音频</strong><small>上传已有录音</small></span><ChevronRight size={17} /></button>
+            {microphoneSupported && <button type="button" onClick={() => { setMediaOpen(false); void startRecording(); }}><span className="sf-pick-icon sf-pick-audio"><Mic size={20} /></span><span><strong>直接录音</strong><small>用声音记下此刻</small></span><ChevronRight size={17} /></button>}
+          </div>
+        </div></div>}
+        {tagOpen && <div className="sf-note-overlay" role="presentation"><button type="button" className="sf-note-overlay-dim" onClick={() => setTagOpen(false)} aria-label="关闭标签选择" /><div role="dialog" aria-modal="true" aria-label="选择或创建标签" className="sf-note-pick-sheet sf-note-tag-sheet"><div className="sf-note-handle" /><header><div><strong>选择标签</strong><small>为记录整理一个线索</small></div><button type="button" onClick={() => setTagOpen(false)} aria-label="返回记录"><X size={16} /></button></header><div className="sf-note-tag-content"><TagSelector value={tags} onChange={setTags} compact /></div><button type="button" className="sf-note-tag-done" onClick={() => setTagOpen(false)}>完成 · 已选 {tags.length}</button></div></div>}
+        {recording && <div className="sf-note-recording"><span className="sf-recording-dot" /> 正在录音 {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, '0')} <button type="button" onClick={stopRecording}><Square size={12} fill="currentColor" /> 结束录音</button></div>}
       </section>
-    </div>,
-    document.body,
+    </div>, document.body,
   );
 }

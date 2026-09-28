@@ -120,6 +120,7 @@ export class InspirationsController {
     @Body('requestId') requestId?: string,
     @Body('timeZone') timeZone?: string,
     @Body('focusSessionId') focusSessionId?: string,
+    @Body('title') title?: string,
   ) {
     return this.inspirationsService.createCapture(
       userId,
@@ -129,6 +130,7 @@ export class InspirationsController {
       requestId,
       timeZone,
       focusSessionId,
+      title,
     );
   }
 

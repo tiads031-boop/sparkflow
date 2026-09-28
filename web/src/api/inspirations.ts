@@ -27,6 +27,7 @@ export interface InspirationRecord {
   sourceUrl?: string | null;
   sourceType: string;
   focusSessionId?: string | null;
+  focusSession?: { effectiveDurationSeconds: number } | null;
   title?: string | null;
   description?: string | null;
   contentText?: string | null;
@@ -109,6 +110,10 @@ export function listInspirations() {
   });
 }
 
+export function getInspiration(id: string) {
+  return api.get<InspirationRecord>(`/inspirations/${encodeURIComponent(id)}`, { throwOnError: true });
+}
+
 export function listInspirationsForDay(start: string, end: string, signal?: AbortSignal) {
   const query = new URLSearchParams({ from: start, to: end });
   return api.get<InspirationRecord[]>(`/inspirations?${query.toString()}`, {
@@ -131,10 +136,11 @@ export function createMultimodalInspiration(
   contentText: string,
   files: File[] = [],
   tags: string[] = [],
-  options: { requestId?: string; timeZone?: string; focusSessionId?: string } = {},
+  options: { requestId?: string; timeZone?: string; focusSessionId?: string; title?: string } = {},
 ) {
   const form = new FormData();
   if (contentText.trim()) form.append('contentText', contentText.trim());
+  if (options.title?.trim()) form.append('title', options.title.trim());
   form.append('tags', JSON.stringify(tags));
   form.append('requestId', options.requestId || crypto.randomUUID());
   form.append('timeZone', options.timeZone || currentTimeZone());
