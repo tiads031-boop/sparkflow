@@ -82,6 +82,7 @@ export class PlanningController {
       model?: string;
       currentTime?: string;
       timeZone?: string;
+      selectedDate?: string;
     },
   ) {
     return this.planningService.turn(userId, id, data);

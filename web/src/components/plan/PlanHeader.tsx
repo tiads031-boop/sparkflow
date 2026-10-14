@@ -1,74 +1,43 @@
-import { BrainCircuit, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import type { PlanView } from '../../types';
-import GlassSurface from '../ui/GlassSurface';
-
-const viewLabels: Record<PlanView, string> = {
-  week: '周',
-  month: '月',
-  agenda: '日程',
-  timeline: '实际',
-  gantt: '甘特',
-};
+import ScheduleViewPicker, { type ScheduleView } from './ScheduleViewPicker';
 
 interface PlanHeaderProps {
-  view: PlanView;
+  view: PlanView | 'today';
   title: string;
-  subtitle: string;
-  onSelectView: (view: PlanView) => void;
-  onPrevious: () => void;
-  onNext: () => void;
-  onToday: () => void;
+  subtitle?: string;
+  onSelectView: (view: ScheduleView) => void;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  onToday?: () => void;
+  onBack?: () => void;
   onPlanner: () => void;
 }
 
-export function PlanTitleBar({
-  view,
-  title,
-  subtitle,
-  onPrevious,
-  onNext,
-  onToday,
-}: Pick<PlanHeaderProps, 'view' | 'title' | 'subtitle' | 'onPrevious' | 'onNext' | 'onToday'>) {
-  return (
-    <div className="flex items-end justify-between gap-3">
-      <button type="button" onClick={onToday} className="min-w-0 text-left" title="返回今天">
-        <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">{title} · {subtitle}</p>
-        <h1 className="mt-1 text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">{view === 'timeline' ? '实际时间' : '计划'}</h1>
-      </button>
-      <div className="flex items-center gap-1">
-        <button type="button" onClick={onPrevious} className="grid h-9 w-9 place-items-center rounded-full bg-[var(--sf-surface)] text-[var(--sf-text-secondary)] shadow-sm" aria-label="上一时间段"><ChevronLeft size={16} /></button>
-        <button type="button" onClick={onNext} className="grid h-9 w-9 place-items-center rounded-full bg-[var(--sf-surface)] text-[var(--sf-text-secondary)] shadow-sm" aria-label="下一时间段"><ChevronRight size={16} /></button>
-      </div>
-    </div>
-  );
-}
-
-export function PlanViewToolbar({ view, onSelectView, onPlanner }: Pick<PlanHeaderProps, 'view' | 'onSelectView' | 'onPlanner'>) {
-  return (
-    <div className="mt-4 flex items-center gap-2">
-      <GlassSurface variant="surface" className="grid min-w-0 flex-1 grid-cols-3 p-1" role="group" aria-label="计划视图">
-        {(['week', 'month', 'gantt'] as PlanView[]).map((item) => (
-          <button
-            key={item}
-            type="button"
-            aria-pressed={item === view}
-            onClick={() => onSelectView(item)}
-            className={`rounded-2xl px-2 py-2 text-[10px] font-extrabold transition ${item === view ? 'bg-[var(--sf-graphite)] text-[var(--sf-bg)]' : 'text-[var(--sf-text-secondary)]'}`}
-          >
-            {viewLabels[item]}
-          </button>
-        ))}
-      </GlassSurface>
-      <button type="button" onClick={onPlanner} className="grid h-11 w-11 shrink-0 place-items-center rounded-[18px] bg-[var(--sf-purple)] text-[#302b41]" aria-label="打开 AI 规划"><BrainCircuit size={18} /></button>
-    </div>
-  );
-}
-
-export default function PlanHeader(props: PlanHeaderProps) {
+export default function PlanHeader({ view, title, subtitle, onSelectView, onPrevious, onNext, onToday, onBack, onPlanner }: PlanHeaderProps) {
+  const actual = view === 'timeline';
   return (
     <header className="px-4 pb-4 pt-1">
-      <PlanTitleBar {...props} />
-      <PlanViewToolbar {...props} />
+      {view === 'today' && <p className="text-xs font-bold text-[var(--sf-text-secondary)]">{title}</p>}
+      <div className="flex items-center justify-between gap-3">
+        {actual ? (
+          <div className="flex min-w-0 items-center gap-2">
+            {onBack && <button type="button" onClick={onBack} aria-label="返回上一页" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--sf-surface)]"><ArrowLeft size={18} /></button>}
+            <h1 className="text-2xl font-black text-[var(--sf-text-primary)]">实际记录</h1>
+          </div>
+        ) : <ScheduleViewPicker view={view} onChange={onSelectView} />}
+        {!actual && <button type="button" onClick={onPlanner} className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-2xl bg-[var(--sf-purple-soft)] px-3 text-xs font-bold text-[var(--sf-text-primary)]"><Sparkles size={16} />AI 规划</button>}
+      </div>
+      {view !== 'today' && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <div className="min-w-0 text-xs text-[var(--sf-text-secondary)]"><p className="font-bold">{title}</p>{subtitle && <p className="mt-0.5">{subtitle}</p>}</div>
+          <div className="flex shrink-0 items-center gap-1" aria-label="日程日期导航">
+            <button type="button" onClick={onPrevious} className="grid h-11 w-11 place-items-center rounded-full bg-[var(--sf-surface)]" aria-label="上一时间段"><ChevronLeft size={17} /></button>
+            <button type="button" onClick={onToday} className="min-h-11 rounded-full bg-[var(--sf-surface)] px-3 text-xs font-bold">回到今天</button>
+            <button type="button" onClick={onNext} className="grid h-11 w-11 place-items-center rounded-full bg-[var(--sf-surface)]" aria-label="下一时间段"><ChevronRight size={17} /></button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

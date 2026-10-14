@@ -1,6 +1,6 @@
 # SparkFlow — 实施方案索引
 
-> **最后更新**：2026-09-23  
+> **最后更新**：2026-10-14  
 > **仓库代码基线**：`master@ede2a343e275c06bb6867f65fa3abaa18316c330`（PR #145）
 > **当前开发进度**：R1–R9、R7-C 与 Timeline 周网格 Task 调整与跨午夜/日历来源投影已合并；Issue #26 Gantt 入口及真机验收仍待推进；终端/生产验收待集中进行。
 > **最近有直接回显的生产版本**：`990edabb9a2b3d26f523f17850ed9080a7507ff8`（2026-09-21；发布时重新核对）
@@ -15,6 +15,7 @@
 | 文件 | 定位 | 状态 |
 |---|---|---|
 | [NEXT.md](NEXT.md) | 唯一近期执行队列 | 🚧 当前 |
+| [home-navigation-ai-schedule-2026-10-14.md](home-navigation-ai-schedule-2026-10-14.md) | 首页入口和自然语言规划衔接 | 代码与本地验证完成；PR/真实提供商/发布验收分别跟踪 |
 | [v11-production-ui-real-code-implementation.md](v11-production-ui-real-code-implementation.md) | V11 视觉与真实业务代码的主实施规格 | 🚧 R1–R9 代码已合并；Issue #26 待推进，终端与生产验收最后集中进行 |
 | [vnext-execution-intelligence-ui-system.md](vnext-execution-intelligence-ui-system.md) | Tags → Actual Timeline → Analytics → Goal Progress → AI Feedback → Android Usage | 🚧 M1–M6 代码已合并，终端与生产验收待集中进行 |
 | [phase12-course-import-experience.md](phase12-course-import-experience.md) | 课程导入、幂等、冲突、Web/Android 真实验收 | 🚧 剩余生产/真机验收 |

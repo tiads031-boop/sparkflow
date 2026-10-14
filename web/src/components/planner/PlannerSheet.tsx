@@ -32,6 +32,7 @@ import {
   type PlanningReplanRequest,
   type PlanningEvidenceItem,
   type PlanningModel,
+  type PlanningScheduleRequest,
   type PlanningThreadDetail,
 } from '../../api/planning';
 import type { PlannerPreview, PlannerReplanPreview } from '../../types';
@@ -249,6 +250,7 @@ export default function PlannerSheet({
   const [planId, setPlanId] = useState<string | null>(null);
   const [scheduleBusy, setScheduleBusy] = useState(false);
   const [scheduleMessage, setScheduleMessage] = useState('');
+  const [scheduleRequest, setScheduleRequest] = useState<PlanningScheduleRequest | null>(null);
 
   useEffect(() => {
     try {
@@ -305,12 +307,14 @@ export default function PlannerSheet({
         setActiveReplanRequestId(null);
         setReplanPreview(null);
         setReplanPlanId(null);
+        setScheduleRequest(null);
         return;
       }
       const detail = await getPlanningThread(threads[0].id);
       setThread(detail);
       const latestConversation = detail.conversations.at(-1);
       const latestContext = latestConversation?.context;
+      setScheduleRequest(latestContext?.scheduleRequest || null);
       setReadiness(latestContext?.readiness || null);
       setLatestEvidence(detail.evidence || []);
       const appliedIds = new Set(latestContext?.appliedActionIds || []);
@@ -463,10 +467,18 @@ export default function PlannerSheet({
     const message = messageInput.trim();
     if (!message || turnBusy) return;
 
+    if (isExplicitApplyAllMessage(message) && preview?.proposals.length && !planId && !actionProposals.length && !replanRequests.length) {
+      setMessageInput('');
+      await applySchedule();
+      return;
+    }
+
     if (
       isExplicitApplyAllMessage(message) &&
       directActionProposals.length > 0 &&
       selectedActionIds.length > 0
+      && directActionProposals.length === actionProposals.length
+      && replanRequests.length === 0 && !scheduleRequest
     ) {
       setMessageInput('');
       await applyActions();
@@ -477,6 +489,8 @@ export default function PlannerSheet({
       isExplicitApplyAllMessage(message) &&
       courseChangeProposals.length > 0 &&
       courseChangeProposals.every((action) => action.change.type === 'cancel')
+      && courseChangeProposals.length === actionProposals.length
+      && replanRequests.length === 0 && !scheduleRequest
     ) {
       setMessageInput('');
       await applyConfirmedCourseChanges(courseChangeProposals);
@@ -501,6 +515,7 @@ export default function PlannerSheet({
         message,
         activeThread.revision,
         planningModel,
+        selectedDate,
       );
       const detail = await getPlanningThread(activeThread.id);
       setThread(detail);
@@ -529,6 +544,15 @@ export default function PlannerSheet({
       setTemplateChangeMessage('');
       setLastAppliedTemplateAction(null);
       setReplanRequests(result.replanRequests || []);
+      setScheduleRequest(result.scheduleRequest || null);
+      if (result.scheduleRequest) {
+        const start = new Date(result.scheduleRequest.availabilityStart);
+        const end = new Date(result.scheduleRequest.availabilityEnd);
+        setDate(dateInput(start));
+        setStartTime(start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }));
+        setEndTime(end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }));
+        setSchedulerOpen(true);
+      }
       setActiveReplanRequestId(null);
       setReplanPreview(null);
       setReplanPlanId(null);
@@ -586,6 +610,8 @@ export default function PlannerSheet({
       setMessageInput('');
       setTurnMessage('');
       clearPreview();
+      setScheduleRequest(null);
+      setSchedulerOpen(false);
     } catch (error) {
       setTurnMessage(error instanceof Error ? error.message : '创建新规划失败');
     } finally {
@@ -608,6 +634,7 @@ export default function PlannerSheet({
       setContextEditing(false);
       clearPreview();
       setSchedulerOpen(false);
+      setScheduleRequest(null);
       setTurnMessage('规划依据已更新。后续 AI 会沿用这份修正后的上下文。');
     } catch (error) {
       setContextError(error instanceof Error ? error.message : '保存规划依据失败');
@@ -653,8 +680,8 @@ export default function PlannerSheet({
       const refreshed = await getPlanningThread(thread.id);
       setThread(refreshed);
       if (result.createdTaskIds.length > 0) {
-        setSchedulerOpen(true);
-        setScheduleMessage('新任务已进入任务池，可以继续生成时间块预览。');
+        const unscheduledIds = directActionProposals.filter((action) => action.type === 'create_task' && !action.scheduledStart && result.appliedActionIds.includes(action.proposalId)).map((action) => action.proposalId);
+        if (unscheduledIds.length) setActionMessage((current) => `${current} ${unscheduledIds.length} 项尚未排期，可继续告诉我可用时段。`);
       }
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : '应用任务操作失败');
@@ -1025,6 +1052,8 @@ export default function PlannerSheet({
         {
           availabilityStart: localIso(date, startTime),
           availabilityEnd: localIso(date, endTime),
+          planningThreadId: thread?.id,
+          ...(scheduleRequest ? { availabilityStart: scheduleRequest.availabilityStart, availabilityEnd: scheduleRequest.availabilityEnd, taskIds: scheduleRequest.taskIds } : {}),
         },
         { throwOnError: true, timeoutMs: 45_000 },
       );
@@ -1125,6 +1154,10 @@ export default function PlannerSheet({
             )}
           </div>
           <PlannerModelSwitch value={planningModel} disabled={turnBusy} onChange={setPlanningModel} />
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--sf-text-secondary)]">
+            <span>参考日期：{selectedDate.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}{readiness === 'clarify' ? ' · 待补充信息' : ''}</span>
+            <button type="button" disabled={turnBusy || loadingThread} onClick={() => setMessageInput('调整当前规划的安排偏好：')} className="min-h-11 rounded-full bg-[var(--sf-bg)] px-3 font-bold disabled:opacity-40">设置安排偏好</button>
+          </div>
 
           {thread && (
             <PlannerAdvancedDrawer open={contextOpen} summary={contextSummary} detail={`${thread.planningContext.constraints.length} 条约束 · revision ${thread.revision}`} count={advancedItemCount} onToggle={() => setContextOpen((value) => !value)}>
@@ -1192,7 +1225,7 @@ export default function PlannerSheet({
               <p className="mx-auto mt-2 max-w-sm text-center text-sm leading-6 text-[var(--sf-text-secondary)]">
                 {scopeType === 'goal'
                   ? '我会尽量了解你的成功标准、当前水平、资源、时间预算、偏好与取舍；需要考试规则或最新要求时，会先联网核实。'
-                  : '我会根据你的回答继续追问真正影响计划的问题；需要当前外部信息时，会先联网核实，再形成规划依据。'}
+                  : '可以直接说安排、调整或偏好。我会参考已有任务和日程；目标或时间不明确时，只追问最关键的问题，确认草案后再修改。'}
               </p>
               <div className="mx-auto mt-6 grid max-w-sm gap-2">
                 {(scopeType === 'goal'
@@ -1202,9 +1235,9 @@ export default function PlannerSheet({
                       '根据现在的信息先给出阶段和可执行任务',
                     ]
                   : [
-                      '我想准备一项考试，帮我从现在开始规划',
-                      '这周突然多了几件事，帮我重新安排',
-                      '我有个长期目标，但不知道应该怎么拆',
+                      '帮我查看当前日期的日程，有没有时间冲突',
+                      '把当前日期的未排期待办安排在下午，避开已有日程',
+                      '以后每次学习45分钟，晚上十点后不安排',
                     ]).map((example) => (
                   <button
                     type="button"
@@ -1289,7 +1322,7 @@ export default function PlannerSheet({
             </p>
           )}
 
-          {contextOpen && replanRequests.length > 0 && (
+          {replanRequests.length > 0 && (
             <div className="mt-5 space-y-3">
               {replanRequests.map((request) => {
                 const active = activeReplanRequestId === request.requestId;
@@ -1394,7 +1427,7 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {contextOpen && courseChangeProposals.length > 0 && (
+          {courseChangeProposals.length > 0 && (
             <div className="mt-5 rounded-[1.7rem] border border-[#b0a8db]/40 bg-[#f7f5fc] p-4">
               <div className="mb-3">
                 <div className="flex items-center gap-2">
@@ -1402,7 +1435,7 @@ export default function PlannerSheet({
                   <h3 className="text-sm font-black text-[#2d2940]">待确认的课程变动</h3>
                 </div>
                 <p className="mt-1 text-[10px] leading-4 text-[#756f8d]">
-                  AI 只定位具体课次。真实写入仍经过 Course Preview → Apply → Undo，单次变动不会修改后续固定课表。
+                  先核对具体课次和时间冲突，确认后修改；单次变动不影响后续课表，应用后可撤销。
                 </p>
               </div>
 
@@ -1414,7 +1447,7 @@ export default function PlannerSheet({
                     ? `${dateTimeLabel(change.startTime)} → ${dateTimeLabel(change.endTime)}${change.location ? ` · ${change.location}` : ''}`
                     : change.type === 'swap'
                       ? `${action.courseName} ↔ ${action.otherCourseName || '另一节课程'}`
-                      : '仅取消这一次 occurrence';
+                      : '只取消这一次课，后续课次不变';
 
                   return (
                     <article
@@ -1529,7 +1562,7 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {contextOpen && courseChangePlanId && lastAppliedCourseAction && (
+          {courseChangePlanId && lastAppliedCourseAction && (
             <div className="mt-4 rounded-[1.6rem] border border-[#cae393]/60 bg-[#f7faef] p-4">
               <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#72804f]">
                 课程变动已应用
@@ -1603,7 +1636,7 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {contextOpen && templateChangeProposals.length > 0 && (
+          {templateChangeProposals.length > 0 && (
             <div className="mt-5 rounded-[1.7rem] border border-[#f1c97b]/55 bg-[#fffaf0] p-4">
               <div className="mb-3">
                 <div className="flex items-center gap-2">
@@ -1745,7 +1778,7 @@ export default function PlannerSheet({
             </div>
           )}
 
-          {contextOpen && templateChangePlanId && lastAppliedTemplateAction && (
+          {templateChangePlanId && lastAppliedTemplateAction && (
             <div className="mt-4 rounded-[1.6rem] border border-[#f1c97b]/60 bg-[#fffaf0] p-4">
               <span className="text-[9px] font-black uppercase tracking-[0.14em] text-[#9a6c23]">
                 周期课表已修改
@@ -1817,7 +1850,7 @@ export default function PlannerSheet({
                           action.changes.scheduledStart !== undefined && action.changes.scheduledEnd !== undefined
                             ? action.changes.scheduledStart && action.changes.scheduledEnd
                               ? `日程 → ${new Date(action.changes.scheduledStart).toLocaleString('zh-CN')}–${new Date(action.changes.scheduledEnd).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })}`
-                              : '日程 → 清除'
+                              : '移出日程，保留为待办'
                             : null,
                           action.changes.dueDate !== undefined
                             ? `截止 → ${action.changes.dueDate ? new Date(action.changes.dueDate).toLocaleString('zh-CN') : '清除'}`
@@ -1943,13 +1976,13 @@ export default function PlannerSheet({
             </div>
           ) : null}
 
-          {thread && (readiness === 'ready' || schedulerOpen) && (
+          {thread && (scheduleRequest || schedulerOpen) && (
             <div className="mt-5 rounded-[1.7rem] border border-black/[0.06] bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-black">日程预览</h3>
+                  <h3 className="text-sm font-black">{scheduleRequest?.title || '安排未排期任务'}</h3>
                   <p className="mt-1 text-[10px] leading-4 text-[var(--sf-text-tertiary)]">
-                    AI 已经形成规划依据。排程仍由确定性 Scheduler 生成，确认前不会改真实日程。
+                    {scheduleRequest ? `仅安排本轮选中的 ${scheduleRequest.taskIds.length} 项待办，避开已有日程；确认前不会写入。` : '选择可用时间，为未排期待办生成时间块；确认后写入日程。'}
                   </p>
                 </div>
                 {!schedulerOpen && (
@@ -1965,14 +1998,14 @@ export default function PlannerSheet({
 
               {schedulerOpen && (
                 <div className="mt-4">
-                  <div className="grid grid-cols-3 gap-2">
+                  {scheduleRequest ? <p className="mb-3 text-xs text-[var(--sf-text-secondary)]">{dateTimeLabel(scheduleRequest.availabilityStart)} 至 {dateTimeLabel(scheduleRequest.availabilityEnd)}</p> : <div className="grid grid-cols-3 gap-2">
                     <input type="date" value={date} onChange={(event) => { setDate(event.target.value); clearPreview(); }} className="min-w-0 rounded-xl bg-[var(--sf-bg)] px-2 py-2 text-[10px] outline-none" />
                     <input type="time" value={startTime} onChange={(event) => { setStartTime(event.target.value); clearPreview(); }} className="min-w-0 rounded-xl bg-[var(--sf-bg)] px-2 py-2 text-[10px] outline-none" />
                     <input type="time" value={endTime} onChange={(event) => { setEndTime(event.target.value); clearPreview(); }} className="min-w-0 rounded-xl bg-[var(--sf-bg)] px-2 py-2 text-[10px] outline-none" />
-                  </div>
+                  </div>}
                   <button
                     type="button"
-                    disabled={scheduleBusy || !date || startTime >= endTime}
+                    disabled={scheduleBusy || (!scheduleRequest && (!date || startTime >= endTime))}
                     onClick={() => void generateSchedule()}
                     className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#242424] py-3 text-xs font-bold text-white disabled:opacity-40"
                   >
@@ -2043,12 +2076,13 @@ export default function PlannerSheet({
               value={messageInput}
               onChange={(event) => setMessageInput(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                   event.preventDefault();
                   void sendMessage();
                 }
               }}
-              placeholder="说说你的目标、变化、冲突或临时安排…"
+              aria-label="规划指令"
+              placeholder="例如：把明天下午的听力练习移到晚上…"
               className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-5 outline-none placeholder:text-[var(--sf-text-tertiary)]"
             />
             <button
@@ -2072,7 +2106,7 @@ export default function PlannerSheet({
             </button>
           </div>
           <p className="mt-2 text-center text-[9px] text-[var(--sf-text-tertiary)]">
-            语音只用于本次转写，不保存原录音；发送前可编辑文字。AI 会继续沿用已确认的规划依据。
+            语音只用于本次转写，不保存原录音；发送前可编辑文字。安排偏好在当前规划中沿用。
           </p>
         </footer>
       </section>

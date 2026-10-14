@@ -11,6 +11,7 @@ import type {
   PlanningReplanDraft,
   PlanningResearchRequest,
   PlanningSceneDraft,
+  PlanningScheduleRequest,
   PlanningTurnInput,
   PlanningTurnResult,
 } from './ai-provider';
@@ -546,6 +547,17 @@ export function toPlanningTurn(value: unknown): PlanningTurnResult {
         .slice(0, 1)
     : [];
 
+  let scheduleRequest: PlanningScheduleRequest | undefined;
+  if (candidate.scheduleRequest && typeof candidate.scheduleRequest === 'object') {
+    const request = candidate.scheduleRequest as Record<string, unknown>;
+    const start = normalizedDate(request.availabilityStart);
+    const end = normalizedDate(request.availabilityEnd);
+    const taskIds = Array.isArray(request.taskIds) ? [...new Set(request.taskIds.filter((id): id is string => typeof id === 'string' && Boolean(id.trim())))].slice(0, 80) : [];
+    if (typeof start === 'string' && typeof end === 'string' && new Date(end) > new Date(start) && new Date(end).getTime() - new Date(start).getTime() <= 7 * 86400000 && taskIds.length) {
+      scheduleRequest = { title: typeof request.title === 'string' ? request.title.trim().slice(0, 120) || '安排现有待办' : '安排现有待办', availabilityStart: start, availabilityEnd: end, taskIds };
+    }
+  }
+
   return {
     reply: candidate.reply.trim().slice(0, 4000),
     readiness,
@@ -563,6 +575,7 @@ export function toPlanningTurn(value: unknown): PlanningTurnResult {
     researchQueries: toResearchQueries(candidate.researchQueries),
     actions: toPlanningActions(candidate.actions),
     replanRequests: toReplanRequests(candidate.replanRequests),
+    ...(scheduleRequest ? { scheduleRequest } : {}),
   };
 }
 
@@ -711,7 +724,14 @@ export class OpenAICompatibleProvider implements AIProvider {
           role: 'system',
           content: [
             'You are the planning interviewer inside SparkFlow.',
-            'Your job is to understand the user deeply enough to make a reliable plan, not to rush into scheduling.',
+            'Understand the intent first: inspect existing arrangements, create new work, adjust an existing item, relocate flexible work, or set planning preferences. A concrete calendar request with known title, date, and duration should produce a draft immediately; a broad learning goal may require interviewing.',
+            'currentTasks includes both to-do work and calendar-section appointments. Read scheduledStart/scheduledEnd as actual calendar placement; dueDate is only a deadline. currentCalendarEvents are fixed read-only appointments. A title alone never identifies an exact task when multiple matches exist.',
+            'selectedDate is the date shown by the user interface. Resolve 今天/明天/今晚/本周 against currentTime in timeZone, not selectedDate; resolve 这一天/当天/当前日期 against selectedDate. Convert all draft times to ISO instants with the correct timezone offset. For a past time today, ask about another day rather than silently placing work in the past.',
+            'For 查看/有什么安排/是否有空, answer from the supplied schedule and emit no write actions. Never treat an incomplete or capped snapshot as proof that a distant date is free.',
+            'For 把…挪到/延后/改成, update the exact existing task instead of creating a replacement. Preserve its duration when only the start changes. For 只取消这次/移出日程 on a non-recurring task, set both scheduledStart and scheduledEnd to null; the task stays in to-dos. For recurring tasks, ask whether one occurrence or the whole series is intended and do not pretend a series update is a one-off change.',
+            'Do not move scheduleLocked tasks or fixed appointments. Check proposed placements against other scheduled tasks, active course occurrences and currentCalendarEvents. If a fixed conflict exists, describe it and ask for one alternative; never silently move or overwrite the fixed item.',
+            'Preferences such as 每次45分钟/不要排在晚上/午饭后再安排 are thread-scoped planning preferences or constraints. Apply them to subsequent drafts without changing a named appointment unless requested. Acknowledge a settings-only request briefly with readiness ready and no actions; do not claim the preference is a global setting.',
+            'For arranging existing unscheduled tasks, emit scheduleRequest with title, exact availabilityStart/availabilityEnd (at most 7 days), and taskIds copied from currentTasks. Select only relevant unscheduled, unlocked tasks; include explicit bounds from the user or already confirmed context. The deterministic scheduler will preview these tasks. Do not create duplicate tasks and do not use a generic all-task schedule to bypass preferences.',
             'Ask the highest-impact missing questions first. There is no fixed number of questions.',
             'Treat facts marked confirmed in currentPlanningContext, and direct answers already given in recentMessages, as settled. Do not ask for them again.',
             'Do not repeat, recap, enumerate, or re-confirm settled facts in reply unless the user changed them or a direct conflict must be resolved.',
@@ -784,10 +804,11 @@ export class OpenAICompatibleProvider implements AIProvider {
             'Do not include locked tasks, courses, or calendar events as movable work; the deterministic Scheduler will treat them as fixed occupancy.',
             'A replanRequest is only a request for deterministic preview. Never claim the schedule has already changed.',
             'Return one JSON object only with this exact shape:',
-            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[],"actions":[{"type":"create_task","title":"..."},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high"}},{"type":"create_scene","name":"晨间阅读","emoji":"📚","color":"#cae393","description":"...","category":"学习","fieldSchema":[],"triggers":["manual","focus"],"allowedViews":["heatmap","list"]},{"type":"update_scene","sceneId":"exact-current-scene-id","sceneName":"晨间阅读","changes":{"description":"...","allowedViews":["heatmap","trend","list"]}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称"}},{"type":"course_change","courseName":"民法","change":{"type":"cancel","eventId":"exact-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5}},{"type":"delete_course","courseId":"exact-course-id","courseName":"法律职业伦理"}],"replanRequests":[],"context":{"brief":[],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
+            '{"reply":"...","readiness":"clarify|ready","summary":"...","openQuestions":["..."],"researchQueries":[],"actions":[{"type":"create_task","title":"..."},{"type":"update_task","taskId":"exact-current-task-id","taskTitle":"...","changes":{"priority":"high"}},{"type":"create_scene","name":"晨间阅读","emoji":"📚","color":"#cae393","description":"...","category":"学习","fieldSchema":[],"triggers":["manual","focus"],"allowedViews":["heatmap","list"]},{"type":"update_scene","sceneId":"exact-current-scene-id","sceneName":"晨间阅读","changes":{"description":"...","allowedViews":["heatmap","trend","list"]}},{"type":"update_goal","goalTitle":"当前学习目标","changes":{"name":"新的目标名称"}},{"type":"course_change","courseName":"民法","change":{"type":"cancel","eventId":"exact-occurrence-id"}},{"type":"course_template_change","courseId":"exact-course-id","courseName":"民法","effectiveFrom":"ISO","changes":{"dayOfWeek":5}},{"type":"delete_course","courseId":"exact-course-id","courseName":"法律职业伦理"}],"replanRequests":[],"scheduleRequest":null,"context":{"brief":[],"constraints":[],"preferences":[],"strategy":[],"assumptions":[]}}',
             'Return researchQueries as [] when no search is needed.',
             'Return actions as [] when no concrete task, Scene, learning-goal, or course draft is ready for confirmation.',
             'Return replanRequests as [] when no deterministic schedule movement preview is needed.',
+            'scheduleRequest is null when no existing unscheduled work needs allocation; otherwise it has {title, availabilityStart, availabilityEnd, taskIds}. Do not emit scheduleRequest for a settings-only request or a read-only schedule question.',
             'Return the complete updated context, not only a patch.',
             'Reply in the language used by the user.',
           ].join('\n'),
@@ -802,6 +823,8 @@ export class OpenAICompatibleProvider implements AIProvider {
             message: input.message,
             currentPlanningContext: input.context,
             currentTasks: input.currentTasks || [],
+            currentCalendarEvents: input.currentCalendarEvents || [],
+            selectedDate: input.selectedDate || null,
             currentTags: input.currentTags || [],
             currentCourses: input.currentCourses || [],
             currentCourseOccurrences: input.currentCourseOccurrences || [],

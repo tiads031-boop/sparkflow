@@ -105,9 +105,11 @@ describe('PlanningService goal scope', () => {
       },
       task: {
         createMany: taskCreateMany,
+        findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue({ id: 'proposal-listening-1' }),
       },
       studyFolderTask: { createMany: folderTaskCreateMany },
+      calendarEvent: { findMany: jest.fn().mockResolvedValue([]) },
       aIConversation: { update: jest.fn().mockResolvedValue({}) },
     };
     const prisma = {
@@ -322,7 +324,9 @@ describe('PlanningService goal scope', () => {
       },
       task: {
         updateMany: taskUpdateMany,
+        findMany: jest.fn().mockResolvedValueOnce([{ id: 'task-1', title: '完成民法第一轮', status: 'todo', scheduleLocked: false, repeatRule: null }]).mockResolvedValue([]),
       },
+      calendarEvent: { findMany: jest.fn().mockResolvedValue([]) },
       aIConversation: {
         update: conversationUpdate,
       },
@@ -374,6 +378,7 @@ describe('PlanningService goal scope', () => {
       },
       data: {
         project: '强化训练',
+        scheduleSource: 'ai',
         scheduledStart: new Date('2026-09-23T06:00:00.000Z'),
         scheduledEnd: new Date('2026-09-23T07:00:00.000Z'),
       },
@@ -797,5 +802,25 @@ describe('PlanningService Scene actions', () => {
     await expect(service.undoSceneAction('user-1', 'thread-1', 'scene-plan-1')).resolves.toEqual({ planId: 'scene-plan-1', sceneId: 'scene-1', operation: 'create' });
     expect(tx.sceneTemplate.delete).toHaveBeenCalledWith({ where: { id: 'scene-1', userId: 'user-1' } });
     expect(tx.schedulePlan.update).toHaveBeenCalledWith({ where: { id: 'scene-plan-1' }, data: { status: 'undone' } });
+  });
+});
+
+describe('PlanningService existing schedule context', () => {
+  it('includes calendar-section tasks, selected date and read-only appointments in the AI turn', async () => {
+    const emptyContext = { brief: [], constraints: [], preferences: [], strategy: [], assumptions: [] };
+    const thread = { id: 'thread', userId: 'owner', scopeType: 'general', scopeId: null, status: 'active', revision: 1, title: '日程', ...emptyContext };
+    const task = { id: 'appointment', title: '组会', section: 'calendar', repeatRule: null, updatedAt: new Date('2026-10-14T08:00:00Z'), scheduledStart: new Date('2026-10-15T06:00:00Z'), scheduledEnd: new Date('2026-10-15T07:00:00Z'), dueDate: null, tags: [], scheduleLocked: false };
+    const taskQuery = jest.fn().mockResolvedValue([task]);
+    const ai = { modelName: 'fixture', generatePlanningTurn: jest.fn().mockResolvedValue({ reply: '当天有组会。', readiness: 'ready', context: emptyContext, openQuestions: [], summary: '', researchQueries: [], actions: [], replanRequests: [] }) };
+    const tx = { planningThread: { updateMany: jest.fn().mockResolvedValue({ count: 1 }), findFirstOrThrow: jest.fn().mockResolvedValue({ ...thread, revision: 2 }) }, aIConversation: { create: jest.fn().mockResolvedValue({ id: 'conversation' }) } };
+    const prisma = {
+      planningThread: { findFirst: jest.fn().mockResolvedValue(thread) },
+      task: { findMany: taskQuery }, course: { findMany: jest.fn().mockResolvedValue([]) }, aIConversation: { findMany: jest.fn().mockResolvedValue([]) },
+      calendarEvent: { findMany: jest.fn().mockImplementation(async (query: { where: { courseId: unknown } }) => query.where.courseId === null ? [{ id: 'fixed', title: '预约', startTime: task.scheduledStart, endTime: task.scheduledEnd, location: null }] : []) },
+      $transaction: jest.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    };
+    await new PlanningService(prisma as never, ai as never, { isConfigured: () => false, providerName: 'none' } as never).turn('owner', 'thread', { message: '当天有什么安排？', expectedRevision: 1, currentTime: '2026-10-14T10:00:00Z', selectedDate: '2026-10-15T06:00:00Z', timeZone: 'Asia/Shanghai' });
+    expect(taskQuery.mock.calls[0][0].where).not.toHaveProperty('OR');
+    expect(ai.generatePlanningTurn).toHaveBeenCalledWith(expect.objectContaining({ selectedDate: '2026-10-15T06:00:00.000Z', timeZone: 'Asia/Shanghai', currentTasks: [expect.objectContaining({ id: 'appointment', section: 'calendar', scheduledStart: '2026-10-15T06:00:00.000Z' })], currentCalendarEvents: [expect.objectContaining({ id: 'fixed', title: '预约' })] }));
   });
 });

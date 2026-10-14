@@ -14,6 +14,7 @@ export class PlannerController {
       availabilityStart: string;
       availabilityEnd: string;
       planningThreadId?: string;
+      taskIds?: string[];
     },
   ) {
     return this.plannerService.preview(userId, data);

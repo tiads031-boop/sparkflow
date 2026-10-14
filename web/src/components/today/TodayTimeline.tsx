@@ -44,11 +44,11 @@ export default function TodayTimeline({ items, records, actualEntries, activeFoc
       <div className="mb-3 flex items-end justify-between px-1">
         <div>
           <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[var(--sf-text-tertiary)]">Today · Timeline</p>
-          <h2 className="text-base font-black text-[var(--sf-text-primary)]">今日记录</h2>
+          <h2 className="text-base font-black text-[var(--sf-text-primary)]">今日动态</h2>
         </div>
         <span className="text-[10px] text-[var(--sf-text-tertiary)]">{timeline.length} 项</span>
       </div>
-      {timeline.length === 0 ? <EmptyState title="今天还没有记录" description="日程、随手记录与专注时间会在这里按时间出现。" /> : (
+      {timeline.length === 0 ? <EmptyState title="今天还没有动态" description="日程、随手记录与专注时间会在这里按时间出现。" /> : (
         <div className="relative space-y-3 before:absolute before:bottom-5 before:left-[48px] before:top-5 before:w-px before:bg-[var(--sf-divider)]">
           {timeline.map((event) => {
             const plan = event.kind === 'plan' ? event.item : null;

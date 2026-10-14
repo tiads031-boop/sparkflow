@@ -21,7 +21,7 @@ export default function BottomNav({ activeTab, setActiveTab, items }: BottomNavP
       as="nav"
       variant="nav"
       aria-label="主导航"
-      className="fixed left-1/2 z-40 h-[64px] w-[calc(100%_-_24px)] max-w-[488px] -translate-x-1/2 px-2 py-1.5"
+      className="fixed left-1/2 z-40 h-[72px] w-[calc(100%_-_24px)] max-w-[488px] -translate-x-1/2 px-2 py-1.5"
       style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
     >
       <div className="grid grid-cols-5">
@@ -36,17 +36,18 @@ export default function BottomNav({ activeTab, setActiveTab, items }: BottomNavP
               aria-label={tab.label}
               title={tab.label}
               aria-current={isActive ? 'page' : undefined}
-              className={`flex min-h-12 items-center justify-center rounded-2xl px-1 py-1 transition-all ${
+              className={`flex min-h-[60px] flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1 transition-all ${
                 isActive
                   ? 'text-[var(--sf-text-primary)]'
-                  : 'text-[var(--sf-text-tertiary)]'
+                  : 'text-[var(--sf-text-secondary)]'
               }`}
             >
-              <span className={`grid h-10 w-12 place-items-center rounded-2xl transition-all ${
+              <span className={`grid h-8 w-12 place-items-center rounded-xl transition-all ${
                 isActive ? 'bg-[var(--sf-green)]' : 'bg-transparent'
               }`}>
                 <Icon size={22} strokeWidth={isActive ? 2.4 : 1.9} />
               </span>
+              <span className="text-[11px] font-bold">{tab.label}</span>
             </button>
           );
         })}
