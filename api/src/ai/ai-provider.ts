@@ -91,6 +91,24 @@ export interface PlanningTaskSnapshot {
   scheduleLocked: boolean;
   project: string | null;
   tags: string[];
+  section?: string | null;
+  updatedAt?: string;
+  repeatRule?: string | null;
+}
+
+export interface PlanningCalendarSnapshot {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  location: string | null;
+}
+
+export interface PlanningScheduleRequest {
+  title: string;
+  availabilityStart: string;
+  availabilityEnd: string;
+  taskIds: string[];
 }
 
 export interface PlanningCourseSnapshot {
@@ -248,6 +266,7 @@ export type PlanningActionDraft =
 
 export type PlanningActionProposal = PlanningActionDraft & {
   proposalId: string;
+  expectedTaskUpdatedAt?: string;
 };
 
 export interface PlanningReplanDraft {
@@ -308,6 +327,8 @@ export interface PlanningTurnInput {
   context: PlanningContextSnapshot;
   recentMessages: PlanningConversationMessage[];
   currentTasks?: PlanningTaskSnapshot[];
+  currentCalendarEvents?: PlanningCalendarSnapshot[];
+  selectedDate?: string;
   currentTags?: string[];
   currentCourses?: PlanningCourseSnapshot[];
   currentCourseOccurrences?: PlanningCourseOccurrenceSnapshot[];
@@ -332,4 +353,5 @@ export interface PlanningTurnResult {
   researchQueries: PlanningResearchRequest[];
   actions: PlanningActionDraft[];
   replanRequests: PlanningReplanDraft[];
+  scheduleRequest?: PlanningScheduleRequest;
 }

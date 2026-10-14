@@ -54,7 +54,7 @@ export default function FloatingActionButton({
       className="fixed z-[45] grid h-14 w-14 touch-none select-none place-items-center bg-[var(--sf-graphite)] text-[var(--sf-bg)] transition-transform active:scale-95"
       style={{
         right: 'max(20px, calc((100vw - 32rem) / 2 + 20px))',
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 94px)',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 104px)',
         background: 'rgba(34, 38, 37, 0.92)',
         color: '#f2f3f2',
       }}

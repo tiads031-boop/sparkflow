@@ -72,6 +72,7 @@ export class PlannerService {
       availabilityStart: string;
       availabilityEnd: string;
       planningThreadId?: string;
+      taskIds?: string[];
     },
   ) {
     let availabilityStart = parseDate(
@@ -94,6 +95,9 @@ export class PlannerService {
       availabilityStart = now;
 
     let goalScopeId: string | null = null;
+    if (data.taskIds !== undefined && (!Array.isArray(data.taskIds) || !data.taskIds.length || data.taskIds.length > 80 || data.taskIds.some((id) => typeof id !== 'string' || !id.trim()))) {
+      throw new BadRequestException('taskIds must contain 1–80 task ids');
+    }
     if (data.planningThreadId) {
       const thread = await this.prisma.planningThread.findFirst({
         where: { id: data.planningThreadId, userId, status: 'active' },
@@ -110,6 +114,7 @@ export class PlannerService {
           status: { notIn: ['done', 'cancelled'] },
           scheduleLocked: false,
           scheduledStart: null,
+          ...(data.taskIds ? { id: { in: data.taskIds } } : {}),
           ...(goalScopeId
             ? {
                 studyFolders: {
@@ -132,6 +137,7 @@ export class PlannerService {
       this.prisma.calendarEvent.findMany({
         where: {
           userId,
+          OR: [{ overrideType: null }, { overrideType: { not: 'cancel' } }],
           startTime: { lt: availabilityEnd },
           endTime: { gt: availabilityStart },
         },
@@ -261,6 +267,7 @@ export class PlannerService {
       this.prisma.calendarEvent.findMany({
         where: {
           userId,
+          OR: [{ overrideType: null }, { overrideType: { not: 'cancel' } }],
           startTime: { lt: planningEnd },
           endTime: { gt: planningStart },
         },
@@ -454,6 +461,7 @@ export class PlannerService {
         tx.calendarEvent.findMany({
           where: {
             userId,
+            OR: [{ overrideType: null }, { overrideType: { not: 'cancel' } }],
             startTime: { lt: rangeEnd },
             endTime: { gt: rangeStart },
           },

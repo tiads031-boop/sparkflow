@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
 import {
-  CalendarRange, GraduationCap, Home, UserRound, Zap,
+  CalendarDays, GraduationCap, ListTodo, NotebookPen, UserRound,
 } from 'lucide-react';
 import { useAppStore, type Task } from './store/appStore';
 import type { ActiveTab, PlannerPreview, Spark } from './types';
@@ -20,6 +20,8 @@ import PlannerSheet from './components/planner/PlannerSheet';
 import InspirationCaptureSheet from './components/records/InspirationCaptureSheet';
 import { useTimeTrackingPreferences } from './components/profile/useTimeTrackingPreferences';
 import { syncAppUsage } from './lib/appUsageSync';
+import type { ScheduleView } from './components/plan/ScheduleViewPicker';
+import { writeLastPlanView } from './components/plan/planPreferences';
 
 const StudyWorkspace = lazy(() => import('./components/study/StudyWorkspace'));
 const PlanWorkspace = lazy(() => import('./components/plan/PlanWorkspace'));
@@ -42,9 +44,9 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 const workspaceIconMap = {
-  today: Home,
-  plan: CalendarRange,
-  records: Zap,
+  today: CalendarDays,
+  plan: ListTodo,
+  records: NotebookPen,
   study: GraduationCap,
   profile: UserRound,
 } as const;
@@ -102,14 +104,42 @@ export default function App() {
   const [plannerAutoVoice, setPlannerAutoVoice] = useState(false);
   const [plannerSeed, setPlannerSeed] = useState('');
   const [plannerPreview, setPlannerPreview] = useState<PlannerPreview | null>(null);
-  const [scheduleSurface, setScheduleSurface] = useState<'today' | 'plan' | 'actual' | 'analytics'>(() => activeTab === 'timeline' ? 'actual' : 'today');
+  const [scheduleView, setScheduleView] = useState<ScheduleView>('today');
+  const [scheduleDetails, setScheduleDetails] = useState<Array<{ surface: 'actual' | 'analytics'; returnDate: Date }>>(() => activeTab === 'timeline' ? [{ surface: 'actual', returnDate: selectedDate }] : []);
+  const scheduleDetail = scheduleDetails.at(-1)?.surface;
   const activeWorkspace = workspaceTabForRoute(activeTab) ?? 'today';
-  const isSchedulePlanRoute = activeWorkspace === 'today' && (activeTab === 'timeline' || scheduleSurface !== 'today');
+  const isSchedulePlanRoute = activeWorkspace === 'today' && (scheduleDetail === 'actual' || (!scheduleDetail && scheduleView !== 'today'));
   const isTaskPlanRoute = activeTab === 'plan' || activeTab === 'tasks' || activeTab === 'board';
 
   const handleWorkspaceChange = (tab: ActiveTab) => {
-    if (tab === 'today') setScheduleSurface('today');
     setActiveTab(tab);
+  };
+
+  const handleScheduleViewChange = (view: ScheduleView) => {
+    setScheduleView(view);
+    setScheduleDetails([]);
+    if (view === 'today') setSelectedDate(new Date());
+    else writeLastPlanView(view);
+    setActiveTab('today');
+  };
+
+  const openScheduleDetail = (surface: 'actual' | 'analytics', date?: Date) => {
+    setScheduleDetails((details) => [...details, { surface, returnDate: selectedDate }]);
+    if (date) setSelectedDate(date);
+    setActiveTab('today');
+  };
+
+  const closeScheduleDetail = () => {
+    const previous = scheduleDetails.at(-1);
+    if (previous) setSelectedDate(previous.returnDate);
+    setScheduleDetails((details) => details.slice(0, -1));
+  };
+
+  const openPlanner = (voice = false, seed = '') => {
+    if (activeWorkspace === 'today' && !scheduleDetail && scheduleView === 'today') setSelectedDate(new Date());
+    setPlannerSeed(seed);
+    setPlannerAutoVoice(voice);
+    setPlannerOpen(true);
   };
 
   useEffect(() => {
@@ -206,6 +236,7 @@ export default function App() {
       return;
     }
     if (action === 'schedule') {
+      if (activeWorkspace === 'today' && !scheduleDetail && scheduleView === 'today') setSelectedDate(new Date());
       setScheduleDraftStart(null);
       setEditingScheduleTask(null);
       setScheduleEditorOpen(true);
@@ -216,9 +247,7 @@ export default function App() {
       return;
     }
     if (action === 'planner') {
-      setPlannerSeed('');
-      setPlannerAutoVoice(false);
-      setPlannerOpen(true);
+      openPlanner();
       return;
     }
     if (action === 'task') handleOpenCreate('task');
@@ -353,12 +382,11 @@ export default function App() {
       setActiveTab={handleWorkspaceChange}
       navItems={workspaceNavItems}
       edgeToEdge={activeWorkspace === 'today' || activeWorkspace === 'plan'}
+      scrollKey={activeWorkspace === 'today' ? `schedule:${scheduleDetails.map((detail) => detail.surface).join(':') || scheduleView}:${!scheduleDetail && scheduleView === 'today' ? 'today' : selectedDate.toDateString()}` : activeWorkspace}
       onQuickAdd={() => setQuickAddOpen((open) => !open)}
       onPlannerVoice={() => {
         setQuickAddOpen(false);
-        setPlannerSeed('');
-        setPlannerAutoVoice(true);
-        setPlannerOpen(true);
+        openPlanner(true);
       }}
     >
       {/* CSS custom properties injection */}
@@ -387,7 +415,7 @@ export default function App() {
           )}
           <CourseReminderRuntime />
           <CourseIntegrationsRuntime />
-          {activeWorkspace === 'today' && !isSchedulePlanRoute && (
+          {activeWorkspace === 'today' && !scheduleDetail && scheduleView === 'today' && (
             <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开今天…</div>}>
               <TodayWorkspace
                 tasks={tasks}
@@ -398,27 +426,27 @@ export default function App() {
                   setViewingCourseId(courseId);
                   setActiveTab('courses');
                 }}
-                onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
-                onOpenPlan={() => setScheduleSurface('plan')}
-                onOpenActual={() => setScheduleSurface('actual')}
-                onOpenAnalytics={() => setScheduleSurface('analytics')}
+                onPlanner={() => openPlanner()}
+                onScheduleViewChange={handleScheduleViewChange}
+                onOpenActual={() => openScheduleDetail('actual', new Date())}
+                onOpenAnalytics={() => openScheduleDetail('analytics', new Date())}
                 onRecordClick={(record) => { setTodayRecordId(record.id); setActiveTab('records'); }}
                 onOpenFocus={() => setFocusOpen(true)}
               />
             </Suspense>
           )}
-          {activeWorkspace === 'today' && scheduleSurface === 'analytics' && (
+          {activeWorkspace === 'today' && scheduleDetail === 'analytics' && (
             <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在计算时间分析…</div>}>
               <TimeAnalyticsView
-                onBack={() => setScheduleSurface('today')}
-                onOpenActual={() => setScheduleSurface('actual')}
+                onBack={closeScheduleDetail}
+                onOpenActual={() => openScheduleDetail('actual')}
               />
             </Suspense>
           )}
-          {((isSchedulePlanRoute && scheduleSurface !== 'analytics') || isTaskPlanRoute) && (
+          {(isSchedulePlanRoute || isTaskPlanRoute) && (
             <Suspense fallback={<div className="py-16 text-center text-xs font-bold text-gray-400">正在打开计划空间…</div>}>
               <PlanWorkspace
-                key={`${activeTab}:${scheduleSurface}`}
+                key={isTaskPlanRoute ? 'tasks' : 'schedule'}
                 tasks={tasks}
                 onTaskClick={(task) => handleOpenDetail(task, 'task')}
                 onCourseClick={(courseId) => {
@@ -426,7 +454,7 @@ export default function App() {
                   setViewingCourseId(courseId);
                   setActiveTab('courses');
                 }}
-                onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
+                onPlanner={() => openPlanner()}
                 onCreateAt={(date) => {
                   setSelectedDate(date);
                   setScheduleDraftStart(date);
@@ -445,7 +473,9 @@ export default function App() {
                 initialSection={isSchedulePlanRoute ? 'calendar' : 'tasks'}
                 sectionOnly={isSchedulePlanRoute ? 'calendar' : 'tasks'}
                 initialTaskView={activeTab === 'board' ? 'quadrant' : undefined}
-                initialPlanView={activeTab === 'timeline' || scheduleSurface === 'actual' ? 'timeline' : scheduleSurface === 'plan' ? 'week' : undefined}
+                planView={isSchedulePlanRoute ? scheduleDetail === 'actual' ? 'timeline' : scheduleView === 'today' ? 'week' : scheduleView : undefined}
+                onScheduleViewChange={handleScheduleViewChange}
+                onBack={scheduleDetail === 'actual' ? closeScheduleDetail : undefined}
               />
             </Suspense>
           )}
@@ -524,7 +554,10 @@ export default function App() {
             open
             selectedDate={selectedDate}
             onClose={() => { setPlannerOpen(false); setPlannerAutoVoice(false); }}
-            onApplied={loadTasks}
+            onApplied={async () => {
+              await Promise.all([loadTasks(), loadCourses(), loadSemesters()]);
+              window.dispatchEvent(new Event('sparkflow:calendar-changed'));
+            }}
             onPreviewChange={setPlannerPreview}
             initialPrompt={plannerSeed}
             autoStartVoice={plannerAutoVoice}

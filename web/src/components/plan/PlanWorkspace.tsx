@@ -9,6 +9,7 @@ import AgendaPlanView from './AgendaPlanView';
 import ActualTimelineView from './ActualTimelineView';
 import MonthPlanView from './MonthPlanView';
 import PlanHeader from './PlanHeader';
+import type { ScheduleView } from './ScheduleViewPicker';
 import WeekPlanView from './WeekPlanView';
 import GanttPlanView from './GanttPlanView';
 import { readLastPlanView, writeLastPlanView } from './planPreferences';
@@ -33,6 +34,9 @@ interface PlanWorkspaceProps {
   sectionOnly?: PlanSection;
   initialTaskView?: TaskView;
   initialPlanView?: PlanView;
+  planView?: PlanView;
+  onScheduleViewChange?: (view: ScheduleView) => void;
+  onBack?: () => void;
 }
 
 function formatShortDate(date: Date) {
@@ -63,6 +67,9 @@ export default function PlanWorkspace({
   sectionOnly,
   initialTaskView,
   initialPlanView,
+  planView,
+  onScheduleViewChange,
+  onBack,
 }: PlanWorkspaceProps) {
   const selectedDate = useAppStore((state) => state.selectedDate);
   const setSelectedDate = useAppStore((state) => state.setSelectedDate);
@@ -74,7 +81,8 @@ export default function PlanWorkspace({
     const requested = initialTaskView ?? readTaskView();
     return requested === 'quadrant' && !quadrantEnabled ? 'list' : requested;
   });
-  const [view, setView] = useState<PlanView>(() => initialPlanView ?? readLastPlanView());
+  const [localView, setView] = useState<PlanView>(() => initialPlanView ?? readLastPlanView());
+  const view = planView ?? localView;
   const [inspectedItem, setInspectedItem] = useState<PlanItem | null>(null);
   useModalLifecycle(Boolean(inspectedItem), () => setInspectedItem(null), { isolateAppMain: true });
 
@@ -116,7 +124,9 @@ export default function PlanWorkspace({
     };
   }, [activeSemester?.name, currentWeek, selectedDate, semesterWeek, view]);
 
-  const selectView = (next: PlanView) => {
+  const selectView = (next: ScheduleView) => {
+    if (onScheduleViewChange) { onScheduleViewChange(next); return; }
+    if (next === 'today') { setSelectedDate(new Date()); return; }
     setView(next);
     writeLastPlanView(next);
     if (!sectionOnly) setSection('calendar');
@@ -193,6 +203,7 @@ export default function PlanWorkspace({
         onPrevious={() => shiftDate(-1)}
         onNext={() => shiftDate(1)}
         onToday={() => setSelectedDate(new Date())}
+        onBack={onBack}
         onPlanner={onPlanner}
       />}
 

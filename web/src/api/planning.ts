@@ -42,6 +42,13 @@ export interface PlanningReplanRequest {
   reason: string;
 }
 
+export interface PlanningScheduleRequest {
+  title: string;
+  availabilityStart: string;
+  availabilityEnd: string;
+  taskIds: string[];
+}
+
 export type PlanningActionProposal =
   | {
       proposalId: string;
@@ -175,6 +182,7 @@ export interface PlanningConversationRow {
     actions?: PlanningActionProposal[];
     appliedActionIds?: string[];
     replanRequests?: PlanningReplanRequest[];
+    scheduleRequest?: PlanningScheduleRequest;
   } | null;
   createdAt: string;
 }
@@ -211,6 +219,7 @@ export interface PlanningTurnResponse {
   };
   actions: PlanningActionProposal[];
   replanRequests: PlanningReplanRequest[];
+  scheduleRequest?: PlanningScheduleRequest;
   planningContext: PlanningContextSnapshot;
 }
 
@@ -250,6 +259,7 @@ export function sendPlanningTurn(
   message: string,
   expectedRevision: number,
   model: PlanningModel,
+  selectedDate?: Date,
 ) {
   let timeZone = 'UTC';
   try {
@@ -265,6 +275,7 @@ export function sendPlanningTurn(
       model,
       currentTime: new Date().toISOString(),
       timeZone,
+      selectedDate: selectedDate?.toISOString(),
     },
     { throwOnError: true, timeoutMs: 90_000 },
   );

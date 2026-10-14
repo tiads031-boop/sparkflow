@@ -37,7 +37,7 @@ export default function QuickAddSheet({ open, onClose, onSelect, quickStartEnabl
         className="pointer-events-none absolute flex flex-col items-end gap-2"
         style={{
           right: 'max(20px, calc((100vw - 32rem) / 2 + 20px))',
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 164px)',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 174px)',
         }}
         onClick={(event) => event.stopPropagation()}
       >

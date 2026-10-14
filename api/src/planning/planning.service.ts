@@ -33,6 +33,7 @@ import { templateData } from '../scenes/scene-schema';
 import { parseTimeTrackingPreferences } from '../users/time-tracking-preferences';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { loadExecutionFeedback } from './execution-feedback';
+import { validateScheduleActions } from './schedule-action-validation';
 
 const SCOPE_TYPES = new Set(['general', 'goal', 'day', 'task', 'course']);
 const FACT_STATUSES = new Set<PlanningFactStatus>(['confirmed', 'inferred', 'assumed']);
@@ -464,6 +465,7 @@ export class PlanningService {
       model?: string;
       currentTime?: string;
       timeZone?: string;
+      selectedDate?: string;
     },
   ) {
     const message = data.message?.trim();
@@ -481,6 +483,11 @@ export class PlanningService {
       throw new BadRequestException('currentTime is invalid');
     }
     const timeZone = data.timeZone?.trim().slice(0, 100) || 'UTC';
+    try { new Intl.DateTimeFormat('en', { timeZone }).format(currentTime); } catch {
+      throw new BadRequestException('timeZone is invalid');
+    }
+    const selectedDate = data.selectedDate ? new Date(data.selectedDate) : currentTime;
+    if (Number.isNaN(selectedDate.getTime())) throw new BadRequestException('selectedDate is invalid');
 
     const thread = await this.prisma.planningThread.findFirst({
       where: { id, userId },
@@ -511,12 +518,7 @@ export class PlanningService {
                 some: { folderId: thread.scopeId },
               },
             }
-          : {
-              OR: [
-                { section: null },
-                { section: { not: 'calendar' } },
-              ],
-            }),
+          : {}),
       },
       orderBy: [{ dueDate: 'asc' }, { updatedAt: 'desc' }],
       take: 80,
@@ -532,6 +534,9 @@ export class PlanningService {
         scheduleLocked: true,
         project: true,
         tags: true,
+        section: true,
+        updatedAt: true,
+        repeatRule: true,
       },
     });
     const currentTasks = currentTaskRows.map((task) => ({
@@ -539,6 +544,7 @@ export class PlanningService {
       dueDate: task.dueDate?.toISOString() || null,
       scheduledStart: task.scheduledStart?.toISOString() || null,
       scheduledEnd: task.scheduledEnd?.toISOString() || null,
+      updatedAt: task.updatedAt?.toISOString(),
     }));
     const tagDelegate = (this.prisma as PrismaService & {
       tag?: { findMany: (args: unknown) => Promise<Array<{ name: string }>> };
@@ -565,8 +571,8 @@ export class PlanningService {
           ? { id: thread.scopeId }
           : {}),
       };
-      const occurrenceRangeStart = new Date(currentTime.getTime() - 14 * 24 * 60 * 60 * 1000);
-      const occurrenceRangeEnd = new Date(currentTime.getTime() + 90 * 24 * 60 * 60 * 1000);
+      const occurrenceRangeStart = new Date(selectedDate.getTime() - 14 * 24 * 60 * 60 * 1000);
+      const occurrenceRangeEnd = new Date(selectedDate.getTime() + 90 * 24 * 60 * 60 * 1000);
 
       const [courseRows, occurrenceRows] = await Promise.all([
         this.prisma.course.findMany({
@@ -742,6 +748,11 @@ export class PlanningService {
     }
 
     const previousEvidence = freshEvidence(readEvidence(thread.evidence));
+    const currentCalendarEvents = await this.prisma.calendarEvent.findMany({
+      where: { userId, courseId: null, eventType: { not: 'focus' }, OR: [{ overrideType: null }, { overrideType: { not: 'cancel' } }], startTime: { lt: new Date(selectedDate.getTime() + 90 * 86400000) }, endTime: { gt: new Date(selectedDate.getTime() - 14 * 86400000) } },
+      orderBy: { startTime: 'asc' }, take: 160,
+      select: { id: true, title: true, startTime: true, endTime: true, location: true },
+    });
     let evidenceUsed = previousEvidence;
     let researchAdded: PlanningEvidenceItem[] = [];
     let researchStatus: 'not-needed' | 'used' | 'unavailable' | 'failed' = 'not-needed';
@@ -753,6 +764,8 @@ export class PlanningService {
       context: contextFromThread(thread),
       recentMessages,
       currentTasks,
+      currentCalendarEvents: currentCalendarEvents.map((event) => ({ ...event, startTime: event.startTime.toISOString(), endTime: event.endTime.toISOString(), location: event.location || null })),
+      selectedDate: selectedDate.toISOString(),
       currentTags,
       currentCourses,
       currentCourseOccurrences,
@@ -841,6 +854,7 @@ export class PlanningService {
         actionProposals.push({
           ...action,
           taskTitle: currentTask?.title || action.taskTitle,
+          ...(currentTask?.updatedAt ? { expectedTaskUpdatedAt: currentTask.updatedAt } : {}),
           proposalId: randomUUID(),
         });
         continue;
@@ -929,6 +943,9 @@ export class PlanningService {
       ...request,
       requestId: randomUUID(),
     }));
+    const requestedSchedule = result.scheduleRequest;
+    const schedulableIds = new Set(currentTasks.filter((task) => !task.scheduledStart && !task.scheduleLocked).map((task) => task.id));
+    const scheduleRequest = result.readiness === 'ready' && requestedSchedule && requestedSchedule.taskIds.every((taskId) => schedulableIds.has(taskId)) ? requestedSchedule : undefined;
 
     const requestedCourseActions = result.actions.filter(
       (action) => (
@@ -946,7 +963,7 @@ export class PlanningService {
     ).length;
     let assistantReply = result.reply;
     if (executableCourseActions > 0) {
-      assistantReply = `已生成 ${executableCourseActions} 项可执行的课程变动草案，当前日程尚未修改。请在下方检查预览并确认应用；明确回复“确认，全部执行”也可以直接执行。`;
+      assistantReply = `已生成 ${executableCourseActions} 项可执行的课程变动草案，当前日程尚未修改。请在下方检查预览并确认应用。`;
     } else if (requestedCourseActions > 0) {
       assistantReply = '没有生成可安全执行的课程变动草案，当前日程未修改。请重新指定课程和日期，或检查目标课次是否仍然存在。';
     }
@@ -1001,6 +1018,7 @@ export class PlanningService {
             actions: actionProposals,
             appliedActionIds: [],
             replanRequests,
+            ...(scheduleRequest ? { scheduleRequest } : {}),
           } as unknown as Prisma.InputJsonValue,
         },
       });
@@ -1024,6 +1042,7 @@ export class PlanningService {
       },
       actions: actionProposals,
       replanRequests,
+      ...(scheduleRequest ? { scheduleRequest } : {}),
       planningContext: contextFromThread(transactionResult.updatedThread),
     };
   }
@@ -1076,6 +1095,7 @@ export class PlanningService {
         : null;
 
     const result = await this.prisma.$transaction(async (tx) => {
+      await validateScheduleActions(tx, userId, selected);
       const createdTaskIds: string[] = [];
       const updatedTaskIds: string[] = [];
       const updatedGoalIds: string[] = [];
@@ -1300,6 +1320,7 @@ export class PlanningService {
             ? new Date(action.changes.scheduledEnd)
             : null;
         }
+        if (action.changes.scheduledStart !== undefined) changes.scheduleSource = 'ai';
         if (action.changes.tags !== undefined) changes.tags = await ensureTagMetadata(action.changes.tags);
         if ((goalScopeId || action.changes.folderName) && action.changes.milestoneTitle !== undefined) {
           changes.project = action.changes.milestoneTitle || null;
@@ -1309,13 +1330,14 @@ export class PlanningService {
           where: {
             id: action.taskId,
             userId,
+            ...(action.expectedTaskUpdatedAt ? { updatedAt: new Date(action.expectedTaskUpdatedAt) } : {}),
             ...(goalScopeId
               ? { studyFolders: { some: { folderId: goalScopeId } } }
               : {}),
           },
           data: changes,
         });
-        if (updated.count !== 1) throw new NotFoundException('Task to update was not found');
+        if (updated.count !== 1) throw new ConflictException('任务已变更，请重新生成草案。');
         const targetFolderId = action.changes.folderName
           ? await resolveTaskFolder(action.changes.folderName)
           : null;
@@ -1354,7 +1376,7 @@ export class PlanningService {
         updatedSceneIds,
         scenePlanIds,
       };
-    });
+    }, { isolationLevel: 'Serializable' });
 
     return result;
   }

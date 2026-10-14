@@ -511,3 +511,16 @@ describe('planning response parser', () => {
     expect(result.context.brief).toEqual([]);
   });
 });
+
+describe('natural-language scheduling request', () => {
+  const base = { reply: '已生成待办排期草案', readiness: 'ready', context: { brief: [], constraints: [], preferences: [], strategy: [], assumptions: [] }, actions: [], replanRequests: [] };
+  const request = { title: '安排下午的听力练习', availabilityStart: '2026-10-15T13:00:00+08:00', availabilityEnd: '2026-10-15T17:00:00+08:00', taskIds: ['listening', 'listening'] };
+  it('normalizes local offsets and retains only the explicitly requested existing ids', () => {
+    expect(toPlanningTurn({ ...base, scheduleRequest: request }).scheduleRequest).toEqual({ ...request, availabilityStart: '2026-10-15T05:00:00.000Z', availabilityEnd: '2026-10-15T09:00:00.000Z', taskIds: ['listening'] });
+  });
+  it('does not schedule all tasks when the request has no ids or invalid bounds', () => {
+    expect(toPlanningTurn({ ...base, scheduleRequest: { ...request, taskIds: [] } }).scheduleRequest).toBeUndefined();
+    expect(toPlanningTurn({ ...base, scheduleRequest: { ...request, availabilityEnd: '2026-10-14T17:00:00+08:00' } }).scheduleRequest).toBeUndefined();
+    expect(toPlanningTurn({ ...base, scheduleRequest: { ...request, availabilityEnd: '2026-11-15T17:00:00+08:00' } }).scheduleRequest).toBeUndefined();
+  });
+});
