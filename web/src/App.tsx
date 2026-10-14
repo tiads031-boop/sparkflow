@@ -135,6 +135,13 @@ export default function App() {
     setScheduleDetails((details) => details.slice(0, -1));
   };
 
+  const openPlanner = (voice = false, seed = '') => {
+    if (activeWorkspace === 'today' && !scheduleDetail && scheduleView === 'today') setSelectedDate(new Date());
+    setPlannerSeed(seed);
+    setPlannerAutoVoice(voice);
+    setPlannerOpen(true);
+  };
+
   useEffect(() => {
     loadTasks();
     loadPomodoroStats();
@@ -229,6 +236,7 @@ export default function App() {
       return;
     }
     if (action === 'schedule') {
+      if (activeWorkspace === 'today' && !scheduleDetail && scheduleView === 'today') setSelectedDate(new Date());
       setScheduleDraftStart(null);
       setEditingScheduleTask(null);
       setScheduleEditorOpen(true);
@@ -239,9 +247,7 @@ export default function App() {
       return;
     }
     if (action === 'planner') {
-      setPlannerSeed('');
-      setPlannerAutoVoice(false);
-      setPlannerOpen(true);
+      openPlanner();
       return;
     }
     if (action === 'task') handleOpenCreate('task');
@@ -380,9 +386,7 @@ export default function App() {
       onQuickAdd={() => setQuickAddOpen((open) => !open)}
       onPlannerVoice={() => {
         setQuickAddOpen(false);
-        setPlannerSeed('');
-        setPlannerAutoVoice(true);
-        setPlannerOpen(true);
+        openPlanner(true);
       }}
     >
       {/* CSS custom properties injection */}
@@ -422,7 +426,7 @@ export default function App() {
                   setViewingCourseId(courseId);
                   setActiveTab('courses');
                 }}
-                onPlanner={() => { setSelectedDate(new Date()); setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
+                onPlanner={() => openPlanner()}
                 onScheduleViewChange={handleScheduleViewChange}
                 onOpenActual={() => openScheduleDetail('actual', new Date())}
                 onOpenAnalytics={() => openScheduleDetail('analytics', new Date())}
@@ -450,7 +454,7 @@ export default function App() {
                   setViewingCourseId(courseId);
                   setActiveTab('courses');
                 }}
-                onPlanner={() => { setPlannerSeed(''); setPlannerAutoVoice(false); setPlannerOpen(true); }}
+                onPlanner={() => openPlanner()}
                 onCreateAt={(date) => {
                   setSelectedDate(date);
                   setScheduleDraftStart(date);
