@@ -64,7 +64,7 @@ export default function TodayTimeRail({
     <section className="rounded-[26px] border border-[var(--sf-border)] bg-[var(--sf-surface)] p-4 shadow-[0_14px_36px_rgba(31,37,34,0.055)]">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-sm font-black text-[var(--sf-text-primary)]">今日时间轨道</h2>
-        <button type="button" onClick={onOpenAnalytics} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-1 text-xs font-bold text-[var(--sf-text-secondary)]">时间分析<ChevronRight size={14} /></button>
+        <button type="button" onClick={onOpenAnalytics} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-1 text-[var(--sf-text-secondary)]"><span className="text-xs font-bold">时间分析</span><ChevronRight size={14} /></button>
       </div>
       <div className="space-y-2">
         <RailRow label="计划">
@@ -91,7 +91,7 @@ export default function TodayTimeRail({
         {isToday && <span className="absolute bottom-4 top-[-78px] w-px bg-[#c77979]" style={{ left: `${nowLeft}%` }} aria-label="当前时间" />}
       </div>
       <div className="mt-2 flex justify-end">
-        <button type="button" onClick={onOpenActual} className="inline-flex min-h-11 items-center gap-1 rounded-xl px-1 text-xs font-bold text-[var(--sf-text-secondary)]">查看实际记录<ChevronRight size={14} /></button>
+        <button type="button" onClick={onOpenActual} className="inline-flex min-h-11 items-center gap-1 rounded-xl px-1 text-[var(--sf-text-secondary)]"><span className="text-xs font-bold">查看实际记录</span><ChevronRight size={14} /></button>
       </div>
     </section>
   );

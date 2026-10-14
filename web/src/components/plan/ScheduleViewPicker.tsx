@@ -29,9 +29,9 @@ export default function ScheduleViewPicker({ view, onChange }: {
 
   return (
     <>
-      <h1>
+      <h1 className="text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">
         <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" aria-expanded={open} aria-controls={open ? dialogId : undefined}
-          className="flex min-h-11 items-center gap-2 rounded-xl text-[28px] font-black tracking-[-0.04em] text-[var(--sf-text-primary)]">
+          className="flex min-h-11 items-center gap-2 rounded-xl">
           {views.find((option) => option.value === view)?.label}<ChevronDown size={20} className="text-[var(--sf-text-secondary)]" />
         </button>
       </h1>
@@ -56,7 +56,7 @@ export default function ScheduleViewPicker({ view, onChange }: {
             {views.map(({ value, label, icon: Icon }) => (
               <button type="button" key={value} aria-pressed={view === value} onClick={() => { setOpen(false); onChange(value); }}
                 className={`flex min-h-12 w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold ${view === value ? 'bg-[var(--sf-green)] text-[var(--sf-text-primary)]' : 'text-[var(--sf-text-secondary)]'}`}>
-                <Icon size={19} /><span className="flex-1 text-left">{label}</span>{view === value && <Check size={18} />}
+                <Icon size={19} /><span className="flex-1 text-left text-sm font-bold">{label}</span>{view === value && <Check size={18} />}
               </button>
             ))}
           </section>
